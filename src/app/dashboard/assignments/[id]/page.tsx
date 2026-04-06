@@ -488,15 +488,15 @@ export default function AssignmentDetailPage() {
         if (file.size > 10 * 1024 * 1024) { setFileError('File too large (max 10 MB)'); return; }
         setUploadingFile(true);
         try {
-            const db = createClient();
             // Compress images before upload — phone photos can be 10+ MB
             const toUpload = await compressImage(file);
-            const ext = toUpload.name.split('.').pop();
-            const path = `submissions/${profile.id}/${assignment?.id ?? 'misc'}/${Date.now()}.${ext}`;
-            const { error: uploadErr } = await db.storage.from('assignments').upload(path, toUpload, { upsert: true });
-            if (uploadErr) throw uploadErr;
-            const { data: urlData } = db.storage.from('assignments').getPublicUrl(path);
-            setFileUrl(urlData.publicUrl);
+            const formData = new FormData();
+            formData.append('file', toUpload);
+            const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error ?? 'Upload failed');
+            // public_url is the stable /api/media/... proxy URL stored in the files record
+            setFileUrl(payload.data.public_url);
         } catch (e: any) {
             setFileError(e.message ?? 'Upload failed');
             setAttachedFile(null);

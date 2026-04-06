@@ -59,14 +59,32 @@ function Spinner() {
   return <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin flex-shrink-0" />;
 }
 
+/* ── Shared AI toggle checkbox ───────────────────────── */
+function AIToggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+      <div className="relative">
+        <input type="checkbox" className="sr-only" checked={enabled} onChange={e => onChange(e.target.checked)} />
+        <div className={`w-8 h-4 rounded-full transition-colors ${enabled ? 'bg-orange-500' : 'bg-white/10'}`} />
+        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+      </div>
+      <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+        {enabled ? 'AI ON' : 'AI OFF'}
+      </span>
+    </label>
+  );
+}
+
 /* ── OpenRouter Image Synthesis ─────────────────────── */
 function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: any) {
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   const handleGenerate = async () => {
+    if (!aiEnabled) return;
     setGenerating(true);
     setError(null);
     try {
@@ -84,23 +102,36 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
 
   return (
     <ToolCard icon={PhotoIcon} title="Image Synthesis" color="bg-orange-600">
-      <input 
-        value={prompt} 
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] text-white/30 uppercase tracking-widest">Gemini → Imagen 3 → Flux</p>
+        <AIToggle enabled={aiEnabled} onChange={v => { setAiEnabled(v); setResult(null); setError(null); }} />
+      </div>
+      <input
+        value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder="Neural prompt or title..."
         className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-orange-500"
+        disabled={!aiEnabled}
       />
       {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
-      {result && (
+      {result && aiEnabled && (
         <div className="space-y-3">
           <img src={result} className="w-full rounded-xl border border-border shadow-xl" alt="AI Generated" />
           <button onClick={() => onInsert(result)} className="w-full py-2 bg-orange-600 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Asset</button>
         </div>
       )}
       {!result && (
-        <button onClick={handleGenerate} disabled={generating} className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-lg transition-all border border-border">
+        <button
+          onClick={handleGenerate}
+          disabled={generating || !aiEnabled}
+          className={`w-full flex items-center justify-center gap-2 py-2 font-bold text-xs rounded-lg transition-all border ${
+            aiEnabled
+              ? 'bg-white/5 hover:bg-white/10 text-white border-border'
+              : 'bg-white/[0.02] text-white/20 border-white/5 cursor-not-allowed'
+          }`}
+        >
           {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-orange-400" />}
-          {generating ? 'Synthesizing...' : 'DALL-E 3 Synthesis'}
+          {!aiEnabled ? 'AI disabled — toggle to generate' : generating ? 'Synthesizing...' : 'Generate Image'}
         </button>
       )}
     </ToolCard>
@@ -113,8 +144,10 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<{ url: string; title: string; channel: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   const handleGenerate = async () => {
+    if (!aiEnabled) return;
     setGenerating(true);
     setError(null);
     try {
@@ -135,14 +168,19 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
 
   return (
     <ToolCard icon={VideoCameraIcon} title="Educational Video" color="bg-cyan-600">
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] text-white/30 uppercase tracking-widest">AI finds YouTube lesson</p>
+        <AIToggle enabled={aiEnabled} onChange={v => { setAiEnabled(v); setResult(null); setError(null); }} />
+      </div>
       <input
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder="Topic or lesson title..."
         className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-cyan-500"
+        disabled={!aiEnabled}
       />
       {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
-      {result && embedUrl && (
+      {result && embedUrl && aiEnabled && (
         <div className="space-y-3">
           <div className="text-[10px] text-cyan-400 font-bold truncate">{result.title} — {result.channel}</div>
           <div className="aspect-video rounded-xl overflow-hidden border border-border">
@@ -152,9 +190,17 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
         </div>
       )}
       {!result && (
-        <button onClick={handleGenerate} disabled={generating} className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-lg transition-all border border-border">
+        <button
+          onClick={handleGenerate}
+          disabled={generating || !aiEnabled}
+          className={`w-full flex items-center justify-center gap-2 py-2 font-bold text-xs rounded-lg transition-all border ${
+            aiEnabled
+              ? 'bg-white/5 hover:bg-white/10 text-white border-border'
+              : 'bg-white/[0.02] text-white/20 border-white/5 cursor-not-allowed'
+          }`}
+        >
           {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-cyan-400" />}
-          {generating ? 'Finding video...' : 'Find Educational Video'}
+          {!aiEnabled ? 'AI disabled — toggle to find video' : generating ? 'Finding video...' : 'Find Educational Video'}
         </button>
       )}
     </ToolCard>

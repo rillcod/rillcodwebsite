@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { SyntaxHighlight } from '@/components/ui/SyntaxHighlight';
+import ActivityInstructions from '@/components/activities/ActivityInstructions';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     CheckCircleIcon, PencilSquareIcon, ChevronDownIcon, ChevronUpIcon,
@@ -623,10 +624,22 @@ export default function ProjectBuilderPage() {
                             </div>
                         </div>
 
+                        {/* Project instructions — student step-by-step view */}
+                        {activity.instructions && (
+                            <div className="mx-3 mt-3 flex-shrink-0 border border-white/[0.06] bg-white/[0.02] p-3 max-h-72 overflow-y-auto">
+                                <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-3">📋 Project Brief</p>
+                                <ActivityInstructions
+                                    instructions={activity.instructions}
+                                    meta={meta}
+                                    studentMode
+                                />
+                            </div>
+                        )}
+
                         {/* Assigned task highlight */}
                         {myGroupTask && (
                             <div className="mx-3 mt-3 bg-orange-500/10 border border-orange-500/20 px-3 py-2.5 flex-shrink-0">
-                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-1">Your Task</p>
+                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-1">Your Group Task</p>
                                 <p className="text-xs text-white/80 leading-relaxed">{myGroupTask}</p>
                             </div>
                         )}
@@ -966,15 +979,30 @@ export default function ProjectBuilderPage() {
                 /* ── STAFF VIEW ─────────────────────────────────────────────── */
                 <div className="px-6 md:px-10 py-8 max-w-5xl space-y-6">
 
-                    {/* Instructions */}
+                    {/* Instructions — structured step-by-step view */}
                     {activity.instructions && (
                         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                             className="bg-orange-500/5 border border-orange-500/20 p-5">
-                            <div className="flex items-center gap-2 mb-3">
+                            <div className="flex items-center gap-2 mb-4">
                                 <ClipboardDocumentListIcon className="w-4 h-4 text-orange-400" />
-                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Instructions</p>
+                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project Instructions</p>
                             </div>
-                            <p className="text-sm text-white/70 leading-relaxed whitespace-pre-line">{activity.instructions}</p>
+                            <ActivityInstructions
+                                instructions={activity.instructions}
+                                meta={meta}
+                                teacherMode
+                                onUpdate={async (newInstructions) => {
+                                    const res = await fetch(`/api/assignments/${id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ instructions: newInstructions }),
+                                    });
+                                    const j = await res.json();
+                                    if (!res.ok) throw new Error(j.error || 'Save failed');
+                                    setSuccessMsg('Instructions updated!');
+                                    loadActivity();
+                                }}
+                            />
                         </motion.div>
                     )}
 

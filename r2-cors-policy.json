@@ -1,0 +1,12 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://rillcod.com",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["GET", "PUT", "POST", "HEAD", "DELETE"],
+    "AllowedHeaders": ["Content-Type", "Content-Length", "Authorization"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]

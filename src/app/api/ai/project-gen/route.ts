@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { geminiGenerateText } from '@/lib/gemini/client';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -40,6 +41,23 @@ export async function POST(req: NextRequest) {
   const prompt = (body.prompt || '').trim();
   if (!prompt) return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
 
+  // ── 1. Try Gemini first (free tier) ────────────────────────────────────────
+  const geminiResult = await geminiGenerateText(
+    SYSTEM_PROMPT,
+    `Create a project activity for: ${prompt}`,
+    true,
+  );
+  if (geminiResult) {
+    try {
+      const jsonMatch = geminiResult.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const data = JSON.parse(jsonMatch[0]);
+        return NextResponse.json({ data, model: geminiResult.model, source: 'gemini' });
+      }
+    } catch {}
+  }
+
+  // ── 2. OpenRouter fallback ──────────────────────────────────────────────────
   const MODELS = [
     'google/gemini-2.0-flash-001',
     'deepseek/deepseek-chat-v3-5',
@@ -65,7 +83,7 @@ export async function POST(req: NextRequest) {
       if (!jsonMatch) continue;
 
       const data = JSON.parse(jsonMatch[0]);
-      return NextResponse.json({ data });
+      return NextResponse.json({ data, model, source: 'openrouter' });
     } catch {
       continue;
     }

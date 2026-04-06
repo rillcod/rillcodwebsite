@@ -18,6 +18,7 @@ import {
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
+import VideoPlayer from '@/components/media/VideoPlayer';
 import Editor from '@monaco-editor/react';
 import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
@@ -1183,16 +1184,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="aspect-video rounded-none sm:rounded-none overflow-hidden border-2 border-border bg-slate-900 shadow-3xl relative group">
-                  <ReactPlayer
-                    url={block.url}
-                    width="100%"
-                    height="100%"
-                    controls={true}
-                    light={true}
-                    playIcon={<div className="p-8 bg-cyan-600 rounded-full text-foreground shadow-3xl animate-pulse"><PlayIcon className="w-12 h-12" /></div>}
-                  />
-                </div>
+                <VideoPlayer url={block.url} title={block.caption} />
                 {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
               </div>
             );
@@ -1874,26 +1866,15 @@ export default function LessonDetailPage() {
             style={{ width: `${scrollProgress}%` }}
           />
         </div>
-        {/* Cinema Mode Toggle (for video) */}
+        {/* Video Hero — handles both YouTube links and R2-uploaded videos */}
         {lesson.lesson_type === 'video' && heroVideo && (
-          <div className={`transition-all duration-700 ${isCinemaMode ? 'h-screen w-full' : 'h-0 overflow-hidden'}`}>
-            <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=1`}
-              className="w-full h-full border-0" allowFullScreen />
-            <button onClick={() => setIsCinemaMode(false)} className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-foreground hover:scale-110 transition-transform">
-              <ArrowDownTrayIcon className="w-6 h-6 rotate-180" />
-            </button>
-          </div>
-        )}
-
-        {/* Dynamic Video Hero (Standard) */}
-        {lesson.lesson_type === 'video' && heroVideo && !isCinemaMode && (
-          <div className="w-full bg-black aspect-video lg:h-[70vh] relative shadow-2xl group overflow-hidden border-b border-border">
-            <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=0`}
-              className="w-full h-full border-0" allowFullScreen />
-            <div className="absolute top-0 left-0 right-0 p-8 flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => setIsCinemaMode(true)} className="bg-cyan-500/80 backdrop-blur-md px-6 py-3 rounded-none text-[11px] font-black uppercase tracking-widest text-foreground shadow-xl hover:bg-cyan-400 transition-all">Enable Cinema Mode</button>
-            </div>
-          </div>
+          <VideoPlayer
+            url={heroVideo.url}
+            title={lesson.title}
+            cinemaMode
+            onCinemaModeChange={setIsCinemaMode}
+            className="w-full border-b border-border"
+          />
         )}
 
         {!isCinemaMode && (
