@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -91,17 +91,18 @@ function CodingBlocksChallenge({
     );
 }
 
-function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClose, onSaved }: {
+function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     sub: any;
     maxPoints: number;
-    assignmentTitle: string;
-    questions?: any[];
-    rubric?: { criterion: string; description: string; maxPoints: number }[];
+    assignment: any;
     onClose: () => void;
     onSaved: () => void;
 }) {
     const { profile } = useAuth();
     const max = maxPoints ?? 100;
+    const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
+    const rubric: { criterion: string; description: string; maxPoints: number }[] = Array.isArray(assignment.metadata?.rubric) ? assignment.metadata.rubric : [];
+
     const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
@@ -109,11 +110,10 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClos
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
-    // Rubric-based scoring
+    const [lightbox, setLightbox] = useState<string | null>(null);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
-    // Auto-fill grade from rubric when rubric scores change
     const handleRubricScore = (idx: number, val: number) => {
         const updated = { ...rubricScores, [idx]: val };
         setRubricScores(updated);
@@ -122,25 +122,17 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClos
     };
 
     const info = grade ? pctInfo(Number(grade), max) : null;
+    const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url);
 
     const save = async () => {
         const g = Number(grade);
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            const payload: any = { 
-                grade: grade === '' ? null : g, 
-                feedback, 
-                status,
-                submission_text: subText || null,
-                graded_by: profile!.id 
-            };
+            const payload: any = { grade: grade === '' ? null : g, feedback, status, submission_text: subText || null, graded_by: profile!.id };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
-            
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
             });
             if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
             onSaved();
@@ -156,8 +148,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClos
         try {
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, { method: 'DELETE' });
             if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
-            onSaved();
-            onClose();
+            onSaved(); onClose();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to delete submission');
             setDeleting(false);
@@ -165,117 +156,100 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClos
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-border border-b-0 sm:border-b rounded-t-2xl sm:rounded-none w-full sm:max-w-2xl shadow-2xl max-h-[92dvh] flex flex-col" id="grade-modal"
-                onClick={(e) => e.stopPropagation()}>
-
-                {/* Modal header */}
-                <div className="p-4 sm:p-6 border-b border-border flex items-start justify-between flex-shrink-0">
-                    <div className="flex-1">
-                        <h3 className="font-bold text-foreground text-lg">Grade Submission</h3>
-                        <p className="text-sm text-muted-foreground mt-0.5">{assignmentTitle}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground">
-                                {(sub.portal_users?.full_name ?? '?')[0]}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <span className="text-sm text-muted-foreground font-bold block mb-1">{sub.portal_users?.full_name ?? 'Student'}</span>
-                                <select value={status} onChange={e => setStatus(e.target.value)}
-                                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
-                                        status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                        status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                                        status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                                        'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                    }`}>
-                                    <option value="submitted">Submitted</option>
-                                    <option value="graded">Graded</option>
-                                    <option value="late">Late</option>
-                                    <option value="missing">Missing</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-none transition-colors">
-                        <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+        <div className="fixed inset-0 z-50 bg-[#0f0f1a] flex flex-col">
+            {/* Image lightbox */}
+            {lightbox && (
+                <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(null)}>
+                    <button onClick={() => setLightbox(null)}
+                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
+                        <XMarkIcon className="w-5 h-5" /> Close
                     </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lightbox} alt="Submission photo" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                        onClick={e => e.stopPropagation()} />
                 </div>
+            )}
 
-                <div className="p-4 sm:p-6 space-y-5 flex-1 overflow-y-auto">
-                    {/* Submission content (editable for staff) */}
-                    <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-3">
-                        <div>
-                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Submitted Work / Text</label>
-                            <textarea value={subText} rows={4}
-                                onChange={e => setSubText(e.target.value)}
-                                className="w-full bg-transparent text-sm text-muted-foreground focus:outline-none resize-none leading-relaxed"
-                                placeholder="Student typed submission..."
-                            />
+            {/* Top navigation bar */}
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#0B132B] shadow-lg">
+                <button onClick={onClose}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white font-semibold transition-colors flex-shrink-0">
+                    <ArrowLeftIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">All Submissions</span>
+                </button>
+                <div className="h-5 w-px bg-white/10 flex-shrink-0" />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                        {(sub.portal_users?.full_name ?? '?')[0]}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-white leading-tight truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
+                        <p className="text-[10px] text-white/40 truncate hidden sm:block">{assignment.title}</p>
+                    </div>
+                </div>
+                <select value={status} onChange={e => setStatus(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase border appearance-none cursor-pointer flex-shrink-0 ${
+                        status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                        status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                        status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                        'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                    }`}>
+                    <option value="submitted">Submitted</option>
+                    <option value="graded">Graded</option>
+                    <option value="late">Late</option>
+                    <option value="missing">Missing</option>
+                </select>
+                {err && <p className="text-xs text-rose-400 hidden md:block max-w-[140px] truncate">{err}</p>}
+                <button onClick={save} disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
+                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Grade'}</span>
+                </button>
+            </div>
+
+            {/* Split-panel body */}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+
+                {/* LEFT: Assignment context (hidden on mobile) */}
+                <div className="hidden md:flex flex-col w-2/5 border-r border-white/8 overflow-y-auto bg-[#161628]">
+                    <div className="p-5 border-b border-white/8">
+                        <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{assignment.assignment_type ?? 'Assignment'}</span>
+                        <h2 className="text-base font-extrabold text-white mt-1 leading-snug">{assignment.title}</h2>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-white/30">
+                            <span>{max} pts max</span>
+                            {assignment.due_date && <span>Due {new Date(assignment.due_date).toLocaleDateString('en-GB')}</span>}
                         </div>
-                        {sub.file_url && (
-                            (() => {
-                                const isImage = /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url);
-                                return isImage ? (
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Submitted Photo</p>
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={sub.file_url} alt="Student submission" className="w-full max-h-72 object-contain bg-black/30 border border-border rounded-none cursor-pointer"
-                                            onClick={() => window.open(sub.file_url, '_blank')} />
-                                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest">
-                                            <ArrowUpTrayIcon className="w-3 h-3" /> Open full size
-                                        </a>
-                                    </div>
-                                ) : (
-                                    <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-orange-500">
-                                        <PaperClipIcon className="w-3.5 h-3.5" /> View attached file
-                                    </a>
-                                );
-                            })()
-                        )}
-                        <button onClick={handleDelete} disabled={deleting}
-                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
-                            <TrashIcon className="w-3.5 h-3.5" />
-                            {deleting ? 'Deleting...' : 'Delete Submission'}
-                        </button>
                     </div>
 
-                    {questions && questions.length > 0 && sub.answers && (
-                        <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-4">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Student Answers</p>
-                            {questions.map((q: any, idx: number) => (
-                                <div key={idx} className="bg-white/3 rounded-none p-3 border border-border">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <p className="text-sm font-semibold text-muted-foreground">{q.question_text}</p>
-                                        <span className="text-[10px] text-muted-foreground">{q.points} pt{q.points !== 1 && 's'}</span>
+                    {assignment.instructions && (
+                        <div className="p-5 border-b border-white/8">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Instructions</p>
+                            <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{assignment.instructions}</p>
+                        </div>
+                    )}
+
+                    {questions.length > 0 && (
+                        <div className="p-5 border-b border-white/8 space-y-3">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Questions &amp; Answer Key</p>
+                            {questions.map((q: any, i: number) => (
+                                <div key={i} className="p-3 bg-white/3 border border-white/5 rounded-lg space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="text-xs font-semibold text-white/80 leading-snug">{i + 1}. {q.question_text}</p>
+                                        <span className="text-[10px] text-white/25 flex-shrink-0">{q.points}pt</span>
                                     </div>
-                                    <div className="text-sm text-muted-foreground bg-black/20 p-2 rounded">
-                                        {q.question_type === 'coding_blocks' ? (
-                                             <div className="flex flex-wrap items-center gap-1.5 leading-relaxed py-1">
-                                                {(q.metadata?.logic_sentence || "").split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
-                                                    <span key={pi} className="contents">
-                                                        <span className="text-muted-foreground text-[10px]">{part}</span>
-                                                        {pi < arr.length - 1 && (
-                                                            <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold italic">
-                                                                {(sub.answers?.[idx] || "").split(',')[pi]?.trim() || "???"}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                ))}
-                                             </div>
-                                        ) : (
-                                            <span className="text-foreground font-medium">{sub.answers?.[idx] || <span className="text-muted-foreground italic">No answer provided</span>}</span>
-                                        )}
-                                    </div>
-                                    {q.question_type === 'multiple_choice' && q.correct_answer && (
-                                        <p className="text-xs text-emerald-400 mt-2 font-semibold">Correct Answer: {q.correct_answer}</p>
+                                    {q.options && Array.isArray(q.options) && (
+                                        <div className="flex flex-wrap gap-1">
+                                            {q.options.map((opt: string, oi: number) => (
+                                                <span key={oi} className={`px-2 py-0.5 text-[10px] rounded border font-medium ${opt === q.correct_answer ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/3 text-white/35 border-white/8'}`}>
+                                                    {String.fromCharCode(65 + oi)}. {opt}
+                                                </span>
+                                            ))}
+                                        </div>
                                     )}
-                                    {q.question_type === 'coding_blocks' && (
-                                        <div className="mt-2 flex flex-col gap-1">
-                                             <div className="flex items-center gap-2 p-1.5 bg-emerald-500/5 border border-emerald-500/10 rounded">
-                                                <CheckIcon className="w-3 h-3 text-emerald-400" />
-                                                <p className="text-[9px] text-emerald-400 font-bold">Key: {q.correct_answer}</p>
-                                             </div>
+                                    {q.correct_answer && !q.options && (
+                                        <div className="flex items-center gap-1.5 text-emerald-400">
+                                            <CheckIcon className="w-3 h-3 flex-shrink-0" />
+                                            <span className="text-[11px] font-semibold">{q.correct_answer}</span>
                                         </div>
                                     )}
                                 </div>
@@ -283,87 +257,170 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClos
                         </div>
                     )}
 
-                    {/* Rubric-based scoring (project assignments) */}
-                    {rubric && rubric.length > 0 && (
-                        <div className="border border-amber-500/20 bg-amber-500/5 rounded-none p-4 space-y-3">
-                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
+                    {rubric.length > 0 && (
+                        <div className="p-5 space-y-2">
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3">Grading Rubric</p>
+                            {rubric.map((r, i) => (
+                                <div key={i} className="flex items-start justify-between gap-3 py-2.5 border-b border-white/5 last:border-0">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5">{r.description}</p>}
+                                    </div>
+                                    <span className="text-xs font-black text-amber-400 flex-shrink-0">{r.maxPoints}pt</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* RIGHT: Submission + grading form */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+
+                    {/* Submission text */}
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Student's Written Work</p>
+                        <textarea value={subText} rows={5} onChange={e => setSubText(e.target.value)}
+                            className="w-full bg-transparent text-sm text-white/70 focus:outline-none resize-none leading-relaxed placeholder:text-white/20"
+                            placeholder="No text submission…" />
+                    </div>
+
+                    {/* Submitted photo */}
+                    {isImage && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={sub.file_url} alt="Student submission"
+                                className="w-full max-h-72 object-contain bg-black/30 border border-white/8 rounded-xl cursor-zoom-in hover:border-amber-500/30 transition-colors"
+                                onClick={() => setLightbox(sub.file_url)} />
+                            <p className="text-[10px] text-white/20">Click image to enlarge</p>
+                        </div>
+                    )}
+                    {sub.file_url && !isImage && (
+                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
+                            <PaperClipIcon className="w-4 h-4" /> View Attached File
+                        </a>
+                    )}
+
+                    {/* Student answers vs correct answers */}
+                    {questions.length > 0 && sub.answers && (
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Student Answers</p>
+                            {questions.map((q: any, idx: number) => (
+                                <div key={idx} className="p-4 bg-white/3 border border-white/8 rounded-xl space-y-2">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="text-xs font-semibold text-white/70 leading-snug">{q.question_text}</p>
+                                        <span className="text-[10px] text-white/25 flex-shrink-0">{q.points}pt</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div className="bg-black/20 rounded-lg p-2.5">
+                                            <p className="text-[9px] text-white/25 uppercase font-black mb-1">Student</p>
+                                            {q.question_type === 'coding_blocks' ? (
+                                                <div className="flex flex-wrap items-center gap-1 leading-relaxed">
+                                                    {(q.metadata?.logic_sentence || '').split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
+                                                        <span key={pi} className="contents">
+                                                            <span className="text-white/50 text-[10px]">{part}</span>
+                                                            {pi < arr.length - 1 && (
+                                                                <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold italic">
+                                                                    {(sub.answers?.[idx] || '').split(',')[pi]?.trim() || '???'}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-white/70 font-medium">{sub.answers?.[idx] || <span className="italic text-white/20">No answer</span>}</p>
+                                            )}
+                                        </div>
+                                        {q.correct_answer && (
+                                            <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-2.5">
+                                                <p className="text-[9px] text-emerald-400/60 uppercase font-black mb-1">Answer Key</p>
+                                                <p className="text-xs text-emerald-400 font-semibold">{q.correct_answer}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Rubric scoring */}
+                    {rubric.length > 0 && (
+                        <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
+                                <span className="text-xs text-amber-400 font-bold">Total: {rubricTotal} / {max}</span>
+                            </div>
                             {rubric.map((r, ri) => (
                                 <div key={ri} className="flex items-center gap-3">
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-foreground">{r.criterion}</p>
-                                        {r.description && <p className="text-[10px] text-muted-foreground truncate">{r.description}</p>}
+                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5 truncate">{r.description}</p>}
                                     </div>
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <input type="number" min={0} max={r.maxPoints}
                                             value={rubricScores[ri] ?? ''}
                                             onChange={e => handleRubricScore(ri, Math.min(parseInt(e.target.value) || 0, r.maxPoints))}
-                                            className="w-14 px-2 py-1 bg-card border border-border rounded-none text-xs text-center text-foreground font-bold focus:outline-none focus:border-amber-500"
-                                        />
-                                        <span className="text-[10px] text-muted-foreground">/ {r.maxPoints}</span>
+                                            className="w-14 px-2 py-1.5 bg-black/30 border border-amber-500/30 rounded-lg text-xs text-center text-white font-bold focus:outline-none focus:border-amber-500" />
+                                        <span className="text-[10px] text-white/30">/{r.maxPoints}</span>
                                     </div>
                                 </div>
                             ))}
-                            <p className="text-xs text-muted-foreground">Rubric total: <span className="text-amber-400 font-bold">{rubricTotal}</span> → auto-filled in score below</p>
                         </div>
                     )}
 
                     {/* Score input */}
-                    <div>
-                        <label className="block text-sm font-semibold text-muted-foreground mb-2">
-                            Score <span className="text-muted-foreground font-normal">(0–{max} points)</span>
-                        </label>
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-3">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Grade (0–{max} points)</p>
                         <div className="flex items-center gap-4">
                             <input type="number" min={0} max={max} value={grade}
-                                onChange={(e) => { setGrade(e.target.value); setErr(''); }}
-                                className="w-28 px-4 py-3 bg-card shadow-sm border border-border rounded-none text-foreground text-xl font-bold text-center focus:outline-none focus:border-orange-500 transition-colors"
-                                placeholder="0"
-                            />
+                                onChange={e => { setGrade(e.target.value); setErr(''); }}
+                                className="w-28 px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white text-2xl font-black text-center focus:outline-none focus:border-emerald-500 transition-colors"
+                                placeholder="0" />
                             <div className="flex-1">
-                                <div className="w-full h-3 bg-card shadow-sm rounded-full mb-1 overflow-hidden">
+                                <div className="h-2.5 bg-black/30 rounded-full overflow-hidden mb-2">
                                     <div style={{ width: `${Math.min(info?.pct ?? 0, 100)}%` }}
-                                        className={`h-3 rounded-full transition-all duration-300 ${info?.color === 'emerald' ? 'bg-emerald-500' :
-                                            info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
-                                            }`} />
+                                        className={`h-2.5 rounded-full transition-all duration-500 ${info?.color === 'emerald' ? 'bg-emerald-500' : info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                 </div>
-                                {info && (
-                                    <div className={`flex items-center gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
-                                        <span className="text-2xl font-black">{info.letter}</span>
-                                        <span className="text-sm font-semibold">{info.pct}%</span>
+                                {info ? (
+                                    <div className={`flex items-baseline gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
+                                        <span className="text-3xl font-black">{info.letter}</span>
+                                        <span className="text-base font-bold">{info.pct}%</span>
                                     </div>
-                                )}
+                                ) : <p className="text-xs text-white/20">Enter score above</p>}
                             </div>
                         </div>
                     </div>
 
                     {/* Feedback */}
-                    <div>
-                        <label className="block text-sm font-semibold text-muted-foreground mb-2">
-                            Feedback <span className="text-muted-foreground font-normal">(shown to student)</span>
-                        </label>
-                        <textarea value={feedback} rows={3}
-                            onChange={(e) => setFb(e.target.value)}
-                            placeholder="Write specific, constructive feedback for the student…"
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
-                        />
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Feedback for Student</p>
+                        <textarea value={feedback} rows={4} onChange={e => setFb(e.target.value)}
+                            placeholder="Write specific, constructive feedback that will help this student improve…"
+                            className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/20 focus:outline-none resize-none leading-relaxed" />
                     </div>
 
                     {err && (
-                        <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-none">
-                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
                             <p className="text-sm text-rose-400 font-semibold">{err}</p>
                         </div>
                     )}
-                </div>
 
-                <div className="p-4 sm:p-6 border-t border-border flex gap-3 flex-shrink-0">
-                    <button onClick={onClose}
-                        className="flex-1 py-2.5 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
-                        Cancel
-                    </button>
-                    <button onClick={save} disabled={saving}
-                        className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground rounded-none transition-all disabled:opacity-60">
-                        {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                        {saving ? 'Saving…' : 'Submit Grade'}
+                    {/* Mobile save button */}
+                    <div className="md:hidden">
+                        <button onClick={save} disabled={saving}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
+                            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                            {saving ? 'Saving…' : 'Save Grade'}
+                        </button>
+                    </div>
+
+                    {/* Delete submission */}
+                    <button onClick={handleDelete} disabled={deleting}
+                        className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-400/30 hover:text-rose-400 hover:bg-rose-400/8 rounded-xl transition-all flex items-center justify-center gap-2 pb-8">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                        {deleting ? 'Deleting…' : 'Delete Submission'}
                     </button>
                 </div>
             </div>
@@ -388,7 +445,6 @@ function Badge({ status }: { status: string }) {
 export default function AssignmentDetailPage() {
     const params = useParams();
     const id = params?.id as string;
-    const router = useRouter();
     const searchParams = useSearchParams();
     const classId = searchParams?.get('class_id');
     const { profile, loading: authLoading } = useAuth();
@@ -410,6 +466,7 @@ export default function AssignmentDetailPage() {
     const [fileError, setFileError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [shareOpen, setShareOpen] = useState(false);
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -781,23 +838,51 @@ export default function AssignmentDetailPage() {
                 title={assignment?.title}
             />
             {grading && (
-                <GradeModal
+                <GradeCanvas
                     sub={grading}
                     maxPoints={assignment.max_points}
-                    assignmentTitle={assignment.title}
-                    questions={assignment.questions}
-                    rubric={assignment.metadata?.rubric}
+                    assignment={assignment}
                     onClose={() => setGrading(null)}
                     onSaved={handleGraded}
                 />
             )}
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-                {/* Back */}
-                <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/assignments`}
-                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to Assignments'}
-                </Link>
+            {/* Global image lightbox (student view photos) */}
+            {lightboxUrl && (
+                <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setLightboxUrl(null)}>
+                    <button onClick={() => setLightboxUrl(null)}
+                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
+                        <XMarkIcon className="w-5 h-5" /> Close
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lightboxUrl} alt="Submission photo" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                        onClick={e => e.stopPropagation()} />
+                </div>
+            )}
+
+            {/* Sticky top navigation bar */}
+            <div className="sticky top-0 z-30 bg-[#0B132B]/95 backdrop-blur-sm border-b border-white/10 shadow-lg">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
+                    <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/assignments`}
+                        className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white font-semibold transition-colors flex-shrink-0">
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{classId ? 'Back to Class' : 'Assignments'}</span>
+                    </Link>
+                    <div className="h-5 w-px bg-white/10" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{assignment.title}</p>
+                        <p className="text-[10px] text-white/35 hidden sm:block">{assignment.courses?.title}</p>
+                    </div>
+                    {isStaff && (
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="px-2 py-1 bg-blue-500/15 border border-blue-500/25 rounded-lg text-[10px] font-black text-blue-400">{submitted} submitted</span>
+                            <span className="px-2 py-1 bg-emerald-500/15 border border-emerald-500/25 rounded-lg text-[10px] font-black text-emerald-400">{graded} graded</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {/* Header Card */}
                 <div className="bg-card shadow-sm border border-border rounded-none p-7">
@@ -995,9 +1080,10 @@ export default function AssignmentDetailPage() {
                                         <img
                                             src={submission.file_url}
                                             alt="Your submission"
-                                            className="w-full max-h-72 object-contain bg-black/20 border border-border rounded-none cursor-pointer"
-                                            onClick={() => window.open(submission.file_url, '_blank')}
+                                            className="w-full max-h-72 object-contain bg-black/20 border border-border rounded-none cursor-zoom-in hover:border-amber-500/30 transition-colors"
+                                            onClick={() => setLightboxUrl(submission.file_url)}
                                         />
+                                        <p className="text-[10px] text-white/25">Click image to enlarge</p>
                                         {submission.status === 'submitted' && (
                                             <p className="text-[10px] text-muted-foreground italic">Photo will be removed after grading.</p>
                                         )}
