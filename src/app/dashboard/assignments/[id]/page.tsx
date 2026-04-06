@@ -1234,7 +1234,58 @@ export default function AssignmentDetailPage() {
                                 </div>
                             </div>
                         ) : (
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form onSubmit={handleSubmit} className="space-y-6 pb-28 sm:pb-0">
+
+                                {/* ── Sticky submit bar (top of form) ── */}
+                                {(() => {
+                                    const totalQs = assignment.questions?.length ?? 0;
+                                    const answeredQs = Object.keys(answers).filter(k => answers[Number(k)] !== '' && answers[Number(k)] != null).length;
+                                    const isDisabled = submitting || uploadingFile || (isCodingAssignment ? !codeAnswer.trim() : totalQs > 0 ? answeredQs === 0 : !text.trim() && !fileUrl);
+                                    return (
+                                        <>
+                                            {/* Desktop: sticky bar inside form */}
+                                            <div className="hidden sm:flex sticky top-[57px] z-20 items-center gap-4 bg-[#0B132B]/95 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-3 shadow-xl">
+                                                {totalQs > 0 && (
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <p className="text-[11px] font-bold text-white/60">Progress</p>
+                                                            <p className="text-[11px] font-black text-white">{answeredQs}/{totalQs} answered</p>
+                                                        </div>
+                                                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                                            <div style={{ width: `${totalQs > 0 ? Math.round((answeredQs / totalQs) * 100) : 0}%` }}
+                                                                className="h-1.5 bg-[#7a0606] rounded-full transition-all duration-300" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <button type="submit" disabled={isDisabled}
+                                                    className="flex items-center gap-2 px-6 py-2.5 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-lg text-sm transition-all flex-shrink-0 shadow-lg shadow-red-900/30">
+                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit'}</>}
+                                                </button>
+                                            </div>
+
+                                            {/* Mobile: fixed bottom bar */}
+                                            <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 bg-[#0B132B]/98 backdrop-blur-md border-t border-white/10 shadow-2xl">
+                                                {totalQs > 0 && (
+                                                    <div className="mb-2.5">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <p className="text-[10px] font-bold text-white/50">{answeredQs} of {totalQs} questions answered</p>
+                                                            <p className="text-[10px] font-black text-white/70">{totalQs > 0 ? Math.round((answeredQs / totalQs) * 100) : 0}%</p>
+                                                        </div>
+                                                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                                                            <div style={{ width: `${totalQs > 0 ? Math.round((answeredQs / totalQs) * 100) : 0}%` }}
+                                                                className="h-1 bg-[#7a0606] rounded-full transition-all duration-300" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <button type="submit" disabled={isDisabled}
+                                                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-all shadow-lg shadow-red-900/40">
+                                                    {submitting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit Exam'}</>}
+                                                </button>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+
                                 {assignment.questions && Array.isArray(assignment.questions) && assignment.questions.length > 0 && (
                                     <div className="space-y-6">
                                         {assignment.questions.map((q: any, i: number) => (
@@ -1399,11 +1450,12 @@ export default function AssignmentDetailPage() {
                                         <ExclamationTriangleIcon className="w-4 h-4" /> {error}
                                     </div>
                                 )}
+                                {/* Bottom submit — desktop only (mobile uses the fixed bar above) */}
                                 <button type="submit" disabled={submitting || uploadingFile || (isCodingAssignment ? !codeAnswer.trim() : assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim() && !fileUrl)}
-                                    className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-foreground font-bold rounded-none transition-all">
+                                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-[#7a0606] hover:bg-red-700 disabled:opacity-40 text-white font-black rounded-xl transition-all shadow-lg shadow-red-900/30">
                                     {submitting
-                                        ? <><ClockIcon className="w-4 h-4 animate-spin" /> Submitting…</>
-                                        : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit Assignment'}</>
+                                        ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</>
+                                        : <><ArrowUpTrayIcon className="w-4 h-4" /> {submission ? 'Resubmit' : 'Submit Exam'}</>
                                     }
                                 </button>
                             </form>
