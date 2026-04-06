@@ -1,4 +1,8 @@
--- R2 is S3-compatible so we use 's3' as the storage_provider value.
--- This migration is a no-op safety net — all new inserts already use 's3'.
--- If any rows were previously inserted with 'r2' during testing, update them.
+-- Widen storage_provider check to include 'r2' (Cloudflare R2, S3-compatible)
+-- The original constraint only allowed 's3' | 'cloudinary'
+ALTER TABLE files DROP CONSTRAINT IF EXISTS files_storage_provider_check;
+ALTER TABLE files ADD CONSTRAINT files_storage_provider_check
+  CHECK (storage_provider = ANY (ARRAY['s3'::"text", 'r2'::"text", 'cloudinary'::"text"]));
+
+-- Normalise any rows inserted with 'r2' before the code was fixed to use 's3'
 UPDATE files SET storage_provider = 's3' WHERE storage_provider = 'r2';
