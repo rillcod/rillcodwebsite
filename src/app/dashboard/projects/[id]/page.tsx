@@ -235,6 +235,13 @@ export default function ProjectBuilderPage() {
                         }
                     }
                 } catch { /* optional */ }
+            } else {
+                // Staff: load all groups for this activity
+                try {
+                    const grRes = await fetch(`/api/project-groups?assignment_id=${id}`, { cache: 'no-store' });
+                    const grJ   = await grRes.json();
+                    setActivityGroups(grJ.groups || []);
+                } catch { /* optional */ }
             }
         } catch (err: any) { setError(err.message); }
         finally { setLoading(false); }
@@ -639,11 +646,55 @@ export default function ProjectBuilderPage() {
                             </div>
                         )}
 
-                        {/* Assigned task highlight */}
-                        {myGroupTask && (
-                            <div className="mx-3 mt-3 bg-orange-500/10 border border-orange-500/20 px-3 py-2.5 flex-shrink-0">
-                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-1">Your Group Task</p>
-                                <p className="text-xs text-white/80 leading-relaxed">{myGroupTask}</p>
+                        {/* My Group panel */}
+                        {myGroup && (
+                            <div className="mx-3 mt-3 border border-white/[0.08] bg-white/[0.02] flex-shrink-0">
+                                <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
+                                    <UserGroupIcon className="w-3 h-3 text-violet-400" />
+                                    <p className="text-[9px] font-black text-violet-400/80 uppercase tracking-widest flex-1 truncate">
+                                        {myGroup.name}
+                                    </p>
+                                    {myGroup.is_graded && myGroup.group_score != null && myGroup.evaluation_type === 'group' && (
+                                        <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">
+                                            {myGroup.group_score}/100
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="divide-y divide-white/[0.04]">
+                                    {(myGroup.project_group_members || []).map((m: any) => {
+                                        const isMe = m.student_id === profile?.id;
+                                        const name = m.portal_users?.full_name || 'Unknown';
+                                        return (
+                                            <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-orange-500/[0.06]' : ''}`}>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/40'}`}>
+                                                        {name[0].toUpperCase()}
+                                                    </div>
+                                                    <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-white/50'}`}>
+                                                        {name}{isMe ? ' (You)' : ''}
+                                                    </p>
+                                                    {m.individual_score != null && (
+                                                        <span className="text-[9px] text-emerald-400 font-black">{m.individual_score}/100</span>
+                                                    )}
+                                                </div>
+                                                {m.task_description && (
+                                                    <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-orange-300/70' : 'text-white/25'}`}>
+                                                        {m.task_description}
+                                                    </p>
+                                                )}
+                                                {isMe && m.individual_feedback && (
+                                                    <p className="text-[9px] pl-6 mt-1 text-emerald-400/70 italic">"{m.individual_feedback}"</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {myGroup.group_feedback && (
+                                    <div className="px-3 py-2 border-t border-white/[0.06] bg-emerald-500/[0.04]">
+                                        <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-0.5">Group Feedback</p>
+                                        <p className="text-[9px] text-emerald-300/60 italic">"{myGroup.group_feedback}"</p>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -1009,6 +1060,72 @@ export default function ProjectBuilderPage() {
                         </motion.div>
                     )}
 
+                    {/* Groups overview — shown when groups exist for this activity */}
+                    {activityGroups.length > 0 && (
+                        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+                            className="border border-violet-500/20 bg-violet-500/[0.03] p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                                <UserGroupIcon className="w-4 h-4 text-violet-400" />
+                                <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                                    Groups ({activityGroups.length})
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {activityGroups.map((grp: any) => {
+                                    const memberIds: string[] = (grp.project_group_members || []).map((m: any) => m.student_id);
+                                    const groupSubs = submissions.filter((s: any) => memberIds.includes(s.portal_user_id));
+                                    const submittedCount = groupSubs.length;
+                                    const allSubmitted = submittedCount >= memberIds.length;
+                                    return (
+                                        <div key={grp.id} className="border border-white/[0.06] bg-[#0d0d18] p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-sm font-black text-white truncate mr-2">{grp.name}</p>
+                                                <span className={`text-[9px] font-black px-2 py-0.5 flex-shrink-0 ${
+                                                    grp.is_graded
+                                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                                        : allSubmitted
+                                                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                                                            : 'bg-white/5 text-white/30 border border-white/[0.06]'
+                                                }`}>
+                                                    {grp.is_graded ? `Graded${grp.group_score != null ? ` · ${grp.group_score}/100` : ''}` : `${submittedCount}/${memberIds.length} submitted`}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                {(grp.project_group_members || []).map((m: any) => {
+                                                    const sub = submissions.find((s: any) => s.portal_user_id === m.student_id);
+                                                    const hasSubmitted = !!sub;
+                                                    return (
+                                                        <div key={m.id} className="flex items-start gap-2 text-[10px]">
+                                                            <div className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${hasSubmitted ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className={`font-bold ${hasSubmitted ? 'text-white/70' : 'text-white/35'}`}>
+                                                                    {m.portal_users?.full_name || 'Unknown'}
+                                                                </span>
+                                                                {m.task_description && (
+                                                                    <span className="text-white/25 ml-1">— {m.task_description}</span>
+                                                                )}
+                                                            </div>
+                                                            {sub?.grade != null ? (
+                                                                <span className="text-emerald-400 font-black flex-shrink-0">{sub.grade}%</span>
+                                                            ) : sub ? (
+                                                                <span className="text-amber-400/60 flex-shrink-0">submitted</span>
+                                                            ) : null}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            {grp.group_feedback && (
+                                                <p className="text-[9px] text-emerald-300/50 italic mt-2 border-t border-white/[0.04] pt-2">
+                                                    "{grp.group_feedback}"
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* Submissions list */}
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -1035,6 +1152,11 @@ export default function ProjectBuilderPage() {
                             const answers     = sub.answers || {};
                             const subCode: string = answers.code || answers.playground_code || '';
                             const subLinks: string[] = answers.links || [];
+                            // Find which group this student belongs to (for group activities)
+                            const subGroup = activityGroups.find((g: any) =>
+                                (g.project_group_members || []).some((m: any) => m.student_id === sub.portal_user_id)
+                            );
+                            const subMember = subGroup?.project_group_members?.find((m: any) => m.student_id === sub.portal_user_id);
                             const isExpanded  = expandedSub === sub.id;
                             const isGrading   = gradingId === sub.id;
 
@@ -1048,8 +1170,18 @@ export default function ProjectBuilderPage() {
                                             <span className="text-sm font-black text-orange-300">{studentName[0].toUpperCase()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-black text-white">{studentName}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-sm font-black text-white">{studentName}</p>
+                                                {subGroup && (
+                                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 uppercase tracking-wide">
+                                                        {subGroup.name}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] text-white/30">
+                                                {subMember?.task_description
+                                                    ? <span className="text-white/20 mr-2">Task: {subMember.task_description.slice(0, 40)}{subMember.task_description.length > 40 ? '…' : ''}</span>
+                                                    : null}
                                                 {sub.submitted_at
                                                     ? new Date(sub.submitted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
                                                     : 'Not submitted'}
