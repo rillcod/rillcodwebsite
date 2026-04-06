@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -151,6 +126,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value?: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
       }
       assignment_submissions: {
         Row: {
@@ -1190,6 +1183,7 @@ export type Database = {
           duration_hours: number | null
           id: string
           is_active: boolean | null
+          is_locked: boolean
           order_index: number | null
           program_id: string | null
           school_id: string | null
@@ -1205,6 +1199,7 @@ export type Database = {
           duration_hours?: number | null
           id?: string
           is_active?: boolean | null
+          is_locked?: boolean
           order_index?: number | null
           program_id?: string | null
           school_id?: string | null
@@ -1220,6 +1215,7 @@ export type Database = {
           duration_hours?: number | null
           id?: string
           is_active?: boolean | null
+          is_locked?: boolean
           order_index?: number | null
           program_id?: string | null
           school_id?: string | null
@@ -3191,6 +3187,57 @@ export type Database = {
           },
         ]
       }
+      parent_feedback: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          message: string
+          portal_user_id: string
+          rating: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          message: string
+          portal_user_id: string
+          rating?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          message?: string
+          portal_user_id?: string
+          rating?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_feedback_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_feedback_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       payment_accounts: {
         Row: {
           account_name: string
@@ -3662,6 +3709,56 @@ export type Database = {
           },
         ]
       }
+      programs: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          difficulty_level: string | null
+          duration_weeks: number | null
+          id: string
+          is_active: boolean | null
+          max_students: number | null
+          name: string
+          price: number | null
+          school_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_weeks?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_students?: number | null
+          name: string
+          price?: number | null
+          school_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          difficulty_level?: string | null
+          duration_weeks?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_students?: number | null
+          name?: string
+          price?: number | null
+          school_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_group_members: {
         Row: {
           group_id: string
@@ -3704,6 +3801,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "portal_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_group_members_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
         ]
       }
@@ -3779,57 +3883,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "project_groups_school_id_fkey"
-            columns: ["school_id"]
+            foreignKeyName: "project_groups_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
-        ]
-      }
-      programs: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          difficulty_level: string | null
-          duration_weeks: number | null
-          id: string
-          is_active: boolean | null
-          max_students: number | null
-          name: string
-          price: number | null
-          school_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          difficulty_level?: string | null
-          duration_weeks?: number | null
-          id?: string
-          is_active?: boolean | null
-          max_students?: number | null
-          name: string
-          price?: number | null
-          school_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          difficulty_level?: string | null
-          duration_weeks?: number | null
-          id?: string
-          is_active?: boolean | null
-          max_students?: number | null
-          name?: string
-          price?: number | null
-          school_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "programs_school_id_fkey"
+            foreignKeyName: "project_groups_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
@@ -4592,7 +4653,6 @@ export type Database = {
           school_id: string | null
           school_name: string | null
           section: string | null
-          section_class: string | null
           state: string | null
           status: string | null
           student_email: string | null
@@ -4639,7 +4699,6 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           section?: string | null
-          section_class?: string | null
           state?: string | null
           status?: string | null
           student_email?: string | null
@@ -4686,7 +4745,6 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           section?: string | null
-          section_class?: string | null
           state?: string | null
           status?: string | null
           student_email?: string | null
@@ -5367,6 +5425,55 @@ export type Database = {
           },
         ]
       }
+      whatsapp_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          link: string
+          name: string
+          school_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link: string
+          name: string
+          school_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link?: string
+          name?: string
+          school_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_groups_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       student_performance_summary: {
@@ -5391,6 +5498,18 @@ export type Database = {
       }
     }
     Functions: {
+      create_parent_and_link: {
+        Args: {
+          p_auth_user_id?: string
+          p_email: string
+          p_full_name: string
+          p_phone: string
+          p_relationship?: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      current_user_email: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
       get_at_risk_students: {
         Args: { p_days_inactive?: number; p_school_id?: string }
@@ -5412,6 +5531,8 @@ export type Database = {
       }
       get_my_role: { Args: never; Returns: string }
       get_my_school_id: { Args: never; Returns: string }
+      get_parent_child_user_ids: { Args: never; Returns: string[] }
+      get_parent_student_ids: { Args: never; Returns: string[] }
       get_timetable_ids_by_school: {
         Args: { p_school_id: string }
         Returns: string[]
@@ -5422,23 +5543,8 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_teacher: { Args: never; Returns: boolean }
-      is_staff: { Args: never; Returns: boolean }
-      // ── Parent portal helpers ─────────────────────────────
-      current_user_email: { Args: never; Returns: string }
       is_parent: { Args: never; Returns: boolean }
-      get_parent_student_ids: { Args: never; Returns: string[] }
-      get_parent_child_user_ids: { Args: never; Returns: string[] }
-      create_parent_and_link: {
-        Args: {
-          p_email: string
-          p_full_name: string
-          p_phone: string | null
-          p_student_id: string
-          p_relationship?: string
-          p_auth_user_id?: string | null
-        }
-        Returns: Json
-      }
+      is_staff: { Args: never; Returns: boolean }
       unlink_parent_from_student: {
         Args: { p_student_id: string }
         Returns: undefined
@@ -5571,9 +5677,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
