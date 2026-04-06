@@ -85,6 +85,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [briefOpen, setBriefOpen] = useState(false);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+    const [filePreviewOpen, setFilePreviewOpen] = useState(false);
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
     const handleRubricScore = (idx: number, val: number) => {
@@ -96,7 +97,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
 
     const info = grade ? pctInfo(Number(grade), max) : null;
     const autoEst = autoGradeSubmission(answers, sub.submission_text || '', sub.file_url || '');
-    const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url);
+    const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url.split('?')[0]);
     const screenshotUrl = answers.screenshot_url;
 
     const save = async () => {
@@ -128,6 +129,30 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={lightbox} alt="Submission" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
                         onClick={e => e.stopPropagation()} />
+                </div>
+            )}
+
+            {/* File preview canvas panel */}
+            {filePreviewOpen && sub.file_url && (
+                <div className="fixed inset-0 z-[60] flex">
+                    <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setFilePreviewOpen(false)} />
+                    <div className="w-full max-w-2xl bg-[#0d0d1a] border-l border-white/10 flex flex-col shadow-2xl">
+                        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/10 bg-[#0B132B] flex-shrink-0">
+                            <PaperClipIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                            <p className="text-sm font-bold text-white flex-1 truncate">Attached File</p>
+                            <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all rounded-lg">
+                                Open in Tab
+                            </a>
+                            <button onClick={() => setFilePreviewOpen(false)}
+                                className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                <XMarkIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="flex-1 min-h-0 bg-white">
+                            <iframe src={sub.file_url} title="Submitted file" className="w-full h-full border-0" allow="fullscreen" />
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -292,10 +317,18 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         </div>
                     )}
                     {sub.file_url && !isImage && (
-                        <a href={sub.file_url} target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
-                            <PaperClipIcon className="w-4 h-4" /> View Attached File
-                        </a>
+                        <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden">
+                            <div className="flex items-center gap-3 px-4 py-3">
+                                <PaperClipIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
+                                    {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
+                                </p>
+                                <button type="button" onClick={() => setFilePreviewOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all rounded-lg flex-shrink-0">
+                                    View File
+                                </button>
+                            </div>
+                        </div>
                     )}
 
                     {/* Written explanation */}
