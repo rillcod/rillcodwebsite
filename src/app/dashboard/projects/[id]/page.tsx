@@ -149,6 +149,8 @@ export default function ProjectBuilderPage() {
     const [activity, setActivity]         = useState<any>(null);
     const [mySubmission, setMySubmission]  = useState<any>(null);
     const [myGroupTask, setMyGroupTask]    = useState<string | null>(null);
+    const [myGroup, setMyGroup]            = useState<any | null>(null);
+    const [activityGroups, setActivityGroups] = useState<any[]>([]);
     const [loading, setLoading]            = useState(true);
     const [error, setError]                = useState('');
     const [successMsg, setSuccessMsg]      = useState('');
@@ -216,7 +218,7 @@ export default function ProjectBuilderPage() {
                     setTextExplanation(sub.submission_text || ans.text_explanation || '');
                 }
 
-                // Load group task
+                // Load group data (student: finds own group; staff: loads all groups)
                 try {
                     const grRes = await fetch(`/api/project-groups?assignment_id=${id}`, { cache: 'no-store' });
                     const grJ   = await grRes.json();
@@ -225,8 +227,9 @@ export default function ProjectBuilderPage() {
                             const member = (grp.project_group_members || []).find(
                                 (m: any) => m.student_id === profile.id
                             );
-                            if (member?.task_description) {
-                                setMyGroupTask(member.task_description);
+                            if (member) {
+                                setMyGroup(grp);
+                                setMyGroupTask(member.task_description || null);
                                 break;
                             }
                         }
