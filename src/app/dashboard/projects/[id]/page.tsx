@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -15,7 +15,7 @@ import {
     CheckCircleIcon, PencilSquareIcon, ChevronDownIcon, ChevronUpIcon,
     BoltIcon, RocketLaunchIcon, ClipboardDocumentListIcon,
     DocumentTextIcon, UserGroupIcon, ClockIcon, StarIcon,
-    CodeBracketIcon, EyeIcon, PaperAirplaneIcon, SparklesIcon,
+    CodeBracketIcon, EyeIcon,
 } from '@/lib/icons';
 
 const IntegratedCodeRunner = dynamic(
@@ -51,83 +51,6 @@ function StatusBadge({ status, grade }: { status: string; grade?: number | null 
 }
 
 // Parse AI response into parts: text | code-block
-interface TextPart  { type: 'text'; content: string }
-interface CodePart  { type: 'code'; language: string; content: string }
-type MsgPart = TextPart | CodePart;
-
-function parseParts(raw: string): MsgPart[] {
-    const parts: MsgPart[] = [];
-    const re = /```(\w*)\n?([\s\S]*?)```/g;
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(raw)) !== null) {
-        if (m.index > last) parts.push({ type: 'text', content: raw.slice(last, m.index) });
-        parts.push({ type: 'code', language: m[1] || 'text', content: m[2].trim() });
-        last = m.index + m[0].length;
-    }
-    if (last < raw.length) parts.push({ type: 'text', content: raw.slice(last) });
-    return parts;
-}
-
-// Render inline markdown: **bold**, `code`, *italic*
-function renderInline(text: string): React.ReactNode[] {
-    const out: React.ReactNode[] = [];
-    const re = /\*\*(.+?)\*\*|`([^`]+)`|\*(.+?)\*/g;
-    let last = 0; let m: RegExpExecArray | null; let ki = 0;
-    while ((m = re.exec(text)) !== null) {
-        if (m.index > last) out.push(<React.Fragment key={ki++}>{text.slice(last, m.index)}</React.Fragment>);
-        if (m[1] !== undefined) out.push(<strong key={ki++} style={{ color: '#fff', fontWeight: 700 }}>{m[1]}</strong>);
-        else if (m[2] !== undefined) out.push(<code key={ki++} style={{ padding: '1px 5px', background: 'rgba(255,150,50,0.15)', color: '#fb923c', fontFamily: 'monospace', fontSize: 10, borderRadius: 3 }}>{m[2]}</code>);
-        else if (m[3] !== undefined) out.push(<em key={ki++} style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>{m[3]}</em>);
-        last = m.index + m[0].length;
-    }
-    if (last < text.length) out.push(<React.Fragment key={ki++}>{text.slice(last)}</React.Fragment>);
-    return out;
-}
-
-// Render AI text: convert markdown to styled JSX
-function AiTextBlock({ text }: { text: string }) {
-    const lines = text.split('\n');
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, lineHeight: 1.6 }}>
-            {lines.map((line, i) => {
-                const trimmed = line.trimStart();
-                const h3 = trimmed.match(/^###\s+(.*)/);
-                const h2 = trimmed.match(/^##\s+(.*)/);
-                const h1 = trimmed.match(/^#\s+(.*)/);
-                if (h3) return <div key={i} style={{ fontWeight: 900, color: 'rgba(255,255,255,0.9)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 8 }}>{h3[1]}</div>;
-                if (h2) return <div key={i} style={{ fontWeight: 900, color: '#fb923c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 8 }}>{h2[1]}</div>;
-                if (h1) return <div key={i} style={{ fontWeight: 900, color: '#fdba74', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 10 }}>{h1[1]}</div>;
-                const bullet = trimmed.match(/^[-*]\s+(.*)/);
-                const numbered = trimmed.match(/^(\d+)\.\s+(.*)/);
-                if (bullet) return (
-                    <div key={i} style={{ display: 'flex', gap: 8, color: 'rgba(255,255,255,0.75)', paddingLeft: 4 }}>
-                        <span style={{ color: '#f97316', flexShrink: 0, marginTop: 1 }}>▸</span>
-                        <span>{renderInline(bullet[1])}</span>
-                    </div>
-                );
-                if (numbered) return (
-                    <div key={i} style={{ display: 'flex', gap: 8, color: 'rgba(255,255,255,0.75)', paddingLeft: 4 }}>
-                        <span style={{ color: 'rgba(249,115,22,0.7)', flexShrink: 0, fontWeight: 700, minWidth: 16 }}>{numbered[1]}.</span>
-                        <span>{renderInline(numbered[2])}</span>
-                    </div>
-                );
-                if (!trimmed) return <div key={i} style={{ height: 4 }} />;
-                return <div key={i} style={{ color: 'rgba(255,255,255,0.75)' }}>{renderInline(line)}</div>;
-            })}
-        </div>
-    );
-}
-
-// Quick AI action prompts
-const QUICK_ACTIONS = [
-    { label: '🚀 Generate Starter', prompt: 'Generate complete starter code for this project. Make it fully runnable.' },
-    { label: '📋 Step-by-Step Plan', prompt: 'Give me a step-by-step plan to build this project, then generate the code for step 1.' },
-    { label: '✨ Add Features', prompt: 'Look at my current code and suggest 3 cool features to add, then add the most impressive one.' },
-    { label: '🐛 Debug My Code', prompt: 'Review my current code for bugs and errors. Show me the fixed version.' },
-    { label: '🎨 Improve Design', prompt: 'Make my project look more professional and visually impressive. Update the code with better styling.' },
-    { label: '📖 Explain Code', prompt: 'Explain what my current code does, line by line in simple terms.' },
-];
 
 // Language detected from category
 function detectLang(category: string): 'html' | 'javascript' | 'python' | 'robotics' {
@@ -158,7 +81,8 @@ export default function ProjectBuilderPage() {
     // builder state
     const [editorCode, setEditorCode]      = useState('');
     const [editorLang, setEditorLang]      = useState<'html'|'javascript'|'python'|'robotics'>('javascript');
-    const [activeTab, setActiveTab]        = useState<'build'|'code'|'preview'|'submit'>('build');
+    const [activeTab, setActiveTab]        = useState<'code'|'preview'|'submit'>('code');
+    const [briefOpen, setBriefOpen]        = useState(true);
 
     // submission extra fields
     const [links, setLinks]                = useState<string[]>(['']);
@@ -168,12 +92,7 @@ export default function ProjectBuilderPage() {
     const [submitting, setSubmitting]      = useState(false);
     const [capturing, setCapturing]        = useState(false);
 
-    // AI builder chat
-    const [messages, setMessages]          = useState<{ role: 'user'|'assistant'; content: string }[]>([]);
-    const [chatInput, setChatInput]        = useState('');
-    const [chatLoading, setChatLoading]    = useState(false);
-    const [hasInitiated, setHasInitiated]  = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
+    // (AI builder removed — students learn independently)
 
     // teacher grading
     const [gradingId, setGradingId]        = useState<string | null>(null);
@@ -250,71 +169,6 @@ export default function ProjectBuilderPage() {
     useEffect(() => {
         if (!authLoading && profile) loadActivity();
     }, [authLoading, profile?.id]); // eslint-disable-line
-
-    // Scroll chat to bottom on new message
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, chatLoading]);
-
-    // ── AI Builder chat ───────────────────────────────────────────────────────
-
-    async function sendMessage(text: string) {
-        if (!text.trim() || chatLoading) return;
-        const userMsg = { role: 'user' as const, content: text.trim() };
-        setMessages(prev => [...prev, userMsg]);
-        setChatInput('');
-        setChatLoading(true);
-
-        try {
-            const res = await fetch('/api/ai/project-builder', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: text.trim(),
-                    projectTitle: activity?.title,
-                    category: activity?.metadata?.category || 'coding',
-                    instructions: activity?.instructions,
-                    studentTask: myGroupTask,
-                    currentCode: editorCode,
-                    language: editorLang,
-                    conversationHistory: messages.slice(-10),
-                }),
-            });
-            const j = await res.json();
-            const reply = j.reply || j.error || 'No response';
-            setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
-
-            // Auto-inject code if AI generated one and editor is empty
-            if (j.code && !editorCode.trim()) {
-                setEditorCode(j.code);
-                setActiveTab('code');
-            }
-        } catch {
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
-        } finally {
-            setChatLoading(false); }
-    }
-
-    function handleQuickAction(prompt: string) {
-        if (!hasInitiated) {
-            setHasInitiated(true);
-            setMessages([{
-                role: 'assistant',
-                content: `Hi! I'm your AI Project Builder for **${activity?.title}** 🚀\n\nI'll help you build this project from scratch — generating code, explaining concepts, and making it look great. What would you like to do first?`,
-            }]);
-        }
-        sendMessage(prompt);
-    }
-
-    function initChat() {
-        if (hasInitiated) return;
-        setHasInitiated(true);
-        const taskHint = myGroupTask ? `\n\nYour specific task: **${myGroupTask}**` : '';
-        setMessages([{
-            role: 'assistant',
-            content: `Hi! I'm your AI Project Builder for **${activity?.title}** 🚀${taskHint}\n\nI can generate complete runnable code, guide you step-by-step, debug your work, or add features. Click a quick action or ask me anything!`,
-        }]);
-    }
 
     // ── Playground capture ───────────────────────────────────────────────────
 
@@ -603,235 +457,99 @@ export default function ProjectBuilderPage() {
             {/* ── Mobile Tabs (student) ────────────────────────────────────── */}
             {isStudent && (
                 <div className="flex border-b border-white/[0.06] bg-[#0a0a12] flex-shrink-0 lg:hidden">
-                    {(['build', 'code', 'preview', 'submit'] as const).map(tab => (
-                        <button key={tab} onClick={() => { setActiveTab(tab); if (tab === 'build' && !hasInitiated) initChat(); }}
+                    {(['code', 'preview', 'submit'] as const).map(tab => (
+                        <button key={tab} onClick={() => setActiveTab(tab)}
                             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                                 activeTab === tab
                                     ? 'text-orange-400 border-b-2 border-orange-500'
                                     : 'text-white/30 hover:text-white/60'
                             }`}>
-                            {tab === 'build' ? '🤖 AI Build' : tab === 'code' ? '💻 Code' : tab === 'preview' ? '👁 Preview' : '📤 Submit'}
+                            {tab === 'code' ? '💻 Code' : tab === 'preview' ? '👁 Preview' : '📤 Submit'}
                         </button>
                     ))}
                 </div>
             )}
 
-            {/* ── Main Builder Layout ──────────────────────────────────────── */}
+            {/* ── Main Student Layout ──────────────────────────────────────── */}
             {isStudent ? (
-                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
-                    {/* ── LEFT: AI Builder Panel ── */}
-                    <div className={`${activeTab === 'build' ? 'flex' : 'hidden'} lg:flex flex-col lg:w-[380px] xl:w-[420px] border-r border-white/[0.06] bg-[#080810] flex-shrink-0 overflow-hidden`}>
-
-                        {/* Panel header */}
-                        <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-3 flex-shrink-0">
-                            <div className="w-7 h-7 bg-orange-500 flex items-center justify-center">
-                                <SparklesIcon className="w-3.5 h-3.5 text-white" />
-                            </div>
-                            <div>
-                                <p className="text-xs font-black text-white">AI Project Builder</p>
-                                <p className="text-[9px] text-orange-400/60 uppercase tracking-widest">Generates code · guides you · debugs</p>
-                            </div>
-                        </div>
-
-                        {/* Project instructions — student step-by-step view */}
-                        {activity.instructions && (
-                            <div className="mx-3 mt-3 flex-shrink-0 border border-white/[0.06] bg-white/[0.02] p-3 max-h-72 overflow-y-auto">
-                                <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-3">📋 Project Brief</p>
-                                <ActivityInstructions
-                                    instructions={activity.instructions}
-                                    meta={meta}
-                                    studentMode
-                                />
-                            </div>
-                        )}
-
-                        {/* My Group panel */}
-                        {myGroup && (
-                            <div className="mx-3 mt-3 border border-white/[0.08] bg-white/[0.02] flex-shrink-0">
-                                <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
-                                    <UserGroupIcon className="w-3 h-3 text-violet-400" />
-                                    <p className="text-[9px] font-black text-violet-400/80 uppercase tracking-widest flex-1 truncate">
-                                        {myGroup.name}
-                                    </p>
-                                    {myGroup.is_graded && myGroup.group_score != null && myGroup.evaluation_type === 'group' && (
-                                        <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">
-                                            {myGroup.group_score}/100
-                                        </span>
+                    {/* Collapsible brief: instructions + group */}
+                    {(activity.instructions || myGroup) && (
+                        <div className="border-b border-white/[0.06] bg-[#080810] flex-shrink-0">
+                            <button
+                                onClick={() => setBriefOpen(o => !o)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors">
+                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-orange-400/70 flex-shrink-0" />
+                                <span className="text-[9px] font-black text-orange-400/70 uppercase tracking-widest flex-1 text-left">
+                                    📋 Project Brief{myGroup ? ` · ${myGroup.name}` : ''}
+                                </span>
+                                {briefOpen
+                                    ? <ChevronUpIcon className="w-3.5 h-3.5 text-white/20" />
+                                    : <ChevronDownIcon className="w-3.5 h-3.5 text-white/20" />}
+                            </button>
+                            {briefOpen && (
+                                <div className="px-4 pb-4 space-y-3 max-h-80 overflow-y-auto">
+                                    {activity.instructions && (
+                                        <ActivityInstructions
+                                            instructions={activity.instructions}
+                                            meta={meta}
+                                            studentMode
+                                        />
                                     )}
-                                </div>
-                                <div className="divide-y divide-white/[0.04]">
-                                    {(myGroup.project_group_members || []).map((m: any) => {
-                                        const isMe = m.student_id === profile?.id;
-                                        const name = m.portal_users?.full_name || 'Unknown';
-                                        return (
-                                            <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-orange-500/[0.06]' : ''}`}>
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/40'}`}>
-                                                        {name[0].toUpperCase()}
-                                                    </div>
-                                                    <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-white/50'}`}>
-                                                        {name}{isMe ? ' (You)' : ''}
-                                                    </p>
-                                                    {m.individual_score != null && (
-                                                        <span className="text-[9px] text-emerald-400 font-black">{m.individual_score}/100</span>
-                                                    )}
-                                                </div>
-                                                {m.task_description && (
-                                                    <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-orange-300/70' : 'text-white/25'}`}>
-                                                        {m.task_description}
-                                                    </p>
-                                                )}
-                                                {isMe && m.individual_feedback && (
-                                                    <p className="text-[9px] pl-6 mt-1 text-emerald-400/70 italic">"{m.individual_feedback}"</p>
+                                    {myGroup && (
+                                        <div className="border border-white/[0.08] bg-white/[0.02]">
+                                            <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
+                                                <UserGroupIcon className="w-3 h-3 text-violet-400" />
+                                                <p className="text-[9px] font-black text-violet-400/80 uppercase tracking-widest flex-1 truncate">{myGroup.name}</p>
+                                                {myGroup.is_graded && myGroup.group_score != null && myGroup.evaluation_type === 'group' && (
+                                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">{myGroup.group_score}/100</span>
                                                 )}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                {myGroup.group_feedback && (
-                                    <div className="px-3 py-2 border-t border-white/[0.06] bg-emerald-500/[0.04]">
-                                        <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-0.5">Group Feedback</p>
-                                        <p className="text-[9px] text-emerald-300/60 italic">"{myGroup.group_feedback}"</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Quick actions */}
-                        {!hasInitiated && (
-                            <div className="px-3 pt-3 flex-shrink-0">
-                                <p className="text-[9px] font-black text-white/25 uppercase tracking-widest mb-2">Quick Start</p>
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    {QUICK_ACTIONS.map(a => (
-                                        <button key={a.label} onClick={() => handleQuickAction(a.prompt)}
-                                            className="text-left px-2.5 py-2 bg-white/[0.03] border border-white/[0.06] hover:border-orange-500/30 hover:bg-orange-500/5 transition-all text-[10px] text-white/60 hover:text-white font-medium leading-tight">
-                                            {a.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Init button if not started */}
-                        {!hasInitiated && (
-                            <div className="px-3 pt-3 flex-shrink-0">
-                                <button onClick={initChat}
-                                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                                    <SparklesIcon className="w-3.5 h-3.5" />
-                                    Start AI Builder Session
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Chat messages */}
-                        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
-                            {messages.map((msg, i) => (
-                                <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'assistant' && (
-                                        <div className="w-6 h-6 bg-orange-500 flex items-center justify-center text-white text-[9px] font-black flex-shrink-0 mt-0.5">AI</div>
-                                    )}
-                                    <div className={`max-w-[90%] text-xs leading-relaxed ${msg.role === 'user' ? 'bg-orange-600 text-white px-3 py-2' : 'flex-1'}`}>
-                                        {msg.role === 'user' ? (
-                                            msg.content
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {parseParts(msg.content).map((part, pi) => {
-                                                    if (part.type === 'text') {
-                                                        return (
-                                                            <AiTextBlock key={pi} text={part.content} />
-                                                        );
-                                                    }
-                                                    // code block
+                                            <div className="divide-y divide-white/[0.04]">
+                                                {(myGroup.project_group_members || []).map((m: any) => {
+                                                    const isMe = m.student_id === profile?.id;
+                                                    const name = m.portal_users?.full_name || 'Unknown';
                                                     return (
-                                                        <div key={pi} className="overflow-hidden" style={{ boxShadow: '0 0 24px rgba(86,156,214,0.15), 0 0 48px rgba(86,156,214,0.05)' }}>
-                                                            <SyntaxHighlight
-                                                                code={part.content.slice(0, 3000) + (part.content.length > 3000 ? '\n# … truncated' : '')}
-                                                                language={part.language || 'python'}
-                                                                showLineNumbers
-                                                                maxLines={30}
-                                                            />
-                                                            <div className="flex items-center gap-2 px-3 py-1.5"
-                                                                style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                <button
-                                                                    onClick={() => { setEditorCode(part.content); setActiveTab('code'); }}
-                                                                    className="text-[9px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-widest px-2 py-0.5 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 transition-all flex items-center gap-1">
-                                                                    <CodeBracketIcon className="w-2.5 h-2.5" /> Insert to Editor
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => navigator.clipboard.writeText(part.content)}
-                                                                    className="text-[9px] text-white/30 hover:text-white/70 transition-colors uppercase tracking-widest px-2 py-0.5 bg-white/[0.03] border border-white/[0.06] hover:border-white/20">
-                                                                    Copy
-                                                                </button>
+                                                        <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-orange-500/[0.06]' : ''}`}>
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/40'}`}>
+                                                                    {name[0].toUpperCase()}
+                                                                </div>
+                                                                <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-white/50'}`}>
+                                                                    {name}{isMe ? ' (You)' : ''}
+                                                                </p>
+                                                                {m.individual_score != null && (
+                                                                    <span className="text-[9px] text-emerald-400 font-black">{m.individual_score}/100</span>
+                                                                )}
                                                             </div>
+                                                            {m.task_description && (
+                                                                <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-orange-300/70' : 'text-white/25'}`}>{m.task_description}</p>
+                                                            )}
+                                                            {isMe && m.individual_feedback && (
+                                                                <p className="text-[9px] pl-6 mt-1 text-emerald-400/70 italic">"{m.individual_feedback}"</p>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                            {chatLoading && (
-                                <div className="flex gap-2">
-                                    <div className="w-6 h-6 bg-orange-500 flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">AI</div>
-                                    <div className="bg-white/[0.04] border border-white/[0.06] px-3 py-2.5 flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                        <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" />
-                                    </div>
+                                            {myGroup.group_feedback && (
+                                                <div className="px-3 py-2 border-t border-white/[0.06] bg-emerald-500/[0.04]">
+                                                    <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-0.5">Group Feedback</p>
+                                                    <p className="text-[9px] text-emerald-300/60 italic">"{myGroup.group_feedback}"</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                            <div ref={chatEndRef} />
                         </div>
+                    )}
 
-                        {/* Quick actions strip (after initiated) */}
-                        {hasInitiated && (
-                            <div className="px-3 pb-2 flex-shrink-0 overflow-x-auto">
-                                <div className="flex gap-1.5 min-w-max">
-                                    {QUICK_ACTIONS.map(a => (
-                                        <button key={a.label} onClick={() => sendMessage(a.prompt)}
-                                            disabled={chatLoading}
-                                            className="text-[9px] font-bold text-white/40 hover:text-white/80 px-2.5 py-1.5 bg-white/[0.03] border border-white/[0.05] hover:border-orange-500/20 transition-all whitespace-nowrap disabled:opacity-40">
-                                            {a.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Chat input */}
-                        <div className="border-t border-white/[0.06] p-3 flex-shrink-0">
-                            <div className="flex gap-2">
-                                <textarea
-                                    value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            if (!hasInitiated) initChat();
-                                            sendMessage(chatInput);
-                                        }
-                                    }}
-                                    placeholder={hasInitiated ? 'Ask AI to build, debug, or improve…' : 'Type a question to start…'}
-                                    rows={2}
-                                    className="flex-1 resize-none bg-white/[0.04] border border-white/10 text-xs text-white placeholder-white/20 focus:outline-none focus:border-orange-500 transition-colors px-3 py-2"
-                                    disabled={chatLoading}
-                                />
-                                <button
-                                    onClick={() => { if (!hasInitiated) initChat(); sendMessage(chatInput); }}
-                                    disabled={!chatInput.trim() || chatLoading}
-                                    className="w-10 flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-40 transition-colors">
-                                    <PaperAirplaneIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ── RIGHT: Code + Preview + Submit ── */}
+                    {/* Full-width Code + Preview + Submit */}
                     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
-                        {/* Desktop sub-tabs */}
+                        {/* Desktop tab bar */}
                         <div className="hidden lg:flex border-b border-white/[0.06] bg-[#0a0a12] flex-shrink-0">
                             {(['code', 'preview', 'submit'] as const).map(tab => (
                                 <button key={tab} onClick={() => setActiveTab(tab)}
