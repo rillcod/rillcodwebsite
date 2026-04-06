@@ -15,7 +15,7 @@ import {
     CheckCircleIcon, PencilSquareIcon, ChevronDownIcon, ChevronUpIcon,
     BoltIcon, RocketLaunchIcon, ClipboardDocumentListIcon,
     DocumentTextIcon, UserGroupIcon, ClockIcon, StarIcon,
-    CodeBracketIcon, EyeIcon,
+    CodeBracketIcon, EyeIcon, XMarkIcon, PaperClipIcon, TrashIcon, SparklesIcon,
 } from '@/lib/icons';
 
 const IntegratedCodeRunner = dynamic(
@@ -57,6 +57,330 @@ function detectLang(category: string): 'html' | 'javascript' | 'python' | 'robot
     if (category === 'web' || category === 'design') return 'html';
     if (category === 'ai' || category === 'hardware') return 'python';
     return 'javascript';
+}
+
+function pctInfo(grade: number, max: number) {
+    const pct = Math.round((grade / max) * 100);
+    const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
+    const color = pct >= 70 ? 'emerald' : pct >= 50 ? 'amber' : 'rose';
+    return { pct, letter, color };
+}
+
+function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
+    sub: any;
+    activity: any;
+    assignmentId: string;
+    onClose: () => void;
+    onSaved: () => void;
+}) {
+    const max = activity?.max_points ?? 100;
+    const answers = sub.answers || {};
+    const deliverables: string[] = Array.isArray(activity?.metadata?.deliverables) ? activity.metadata.deliverables : [];
+    const rubric: any[] = Array.isArray(activity?.metadata?.rubric) ? activity.metadata.rubric : [];
+
+    const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
+    const [feedback, setFb] = useState<string>(sub.feedback ?? '');
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+    const [lightbox, setLightbox] = useState<string | null>(null);
+    const [briefOpen, setBriefOpen] = useState(false);
+    const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+
+    const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
+    const handleRubricScore = (idx: number, val: number) => {
+        const updated = { ...rubricScores, [idx]: val };
+        setRubricScores(updated);
+        const total = Object.values(updated).reduce((a, b) => a + b, 0);
+        setGrade(String(Math.min(total, max)));
+    };
+
+    const info = grade ? pctInfo(Number(grade), max) : null;
+    const autoEst = autoGradeSubmission(answers, sub.submission_text || '', sub.file_url || '');
+    const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url);
+    const screenshotUrl = answers.screenshot_url;
+
+    const save = async () => {
+        const g = Number(grade);
+        if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter 0–${max}`); return; }
+        setSaving(true); setErr('');
+        try {
+            const res = await fetch(`/api/assignments/${assignmentId}/grade`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ submission_id: sub.id, grade: g, feedback, status: 'graded' }),
+            });
+            if (!res.ok) throw new Error('Grading failed');
+            onSaved();
+        } catch (e: any) {
+            setErr(e.message ?? 'Failed to save');
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-[#0f0f1a] flex flex-col">
+            {/* Image lightbox */}
+            {lightbox && (
+                <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(null)}>
+                    <button onClick={() => setLightbox(null)}
+                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
+                        <XMarkIcon className="w-5 h-5" /> Close
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lightbox} alt="Submission" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                        onClick={e => e.stopPropagation()} />
+                </div>
+            )}
+
+            {/* Top bar */}
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#0B132B] shadow-lg">
+                <button onClick={onClose}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white font-semibold transition-colors flex-shrink-0">
+                    <ArrowLeftIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">All Submissions</span>
+                </button>
+                <div className="h-5 w-px bg-white/10 flex-shrink-0" />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                        {(sub.portal_users?.full_name ?? '?')[0]}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-white leading-tight truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
+                        <p className="text-[10px] text-white/40 hidden sm:block truncate">{activity?.title}</p>
+                    </div>
+                </div>
+                {err && <p className="text-xs text-rose-400 hidden md:block max-w-[120px] truncate">{err}</p>}
+                <button onClick={save} disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
+                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Grade'}</span>
+                </button>
+            </div>
+
+            {/* Split body */}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+
+                {/* LEFT: Activity brief (desktop only) */}
+                <div className="hidden md:flex flex-col w-2/5 border-r border-white/8 overflow-y-auto bg-[#161628]">
+                    <div className="p-5 border-b border-white/8">
+                        <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project</span>
+                        <h2 className="text-base font-extrabold text-white mt-1 leading-snug">{activity?.title}</h2>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-white/30">
+                            <span>{max} pts max</span>
+                            <span>Auto-score: <span className="text-amber-400 font-bold">{autoEst}%</span></span>
+                        </div>
+                    </div>
+                    {activity?.instructions && (
+                        <div className="p-5 border-b border-white/8">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Instructions</p>
+                            <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
+                        </div>
+                    )}
+                    {deliverables.length > 0 && (
+                        <div className="p-5 border-b border-white/8 space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
+                            {deliverables.map((d, i) => (
+                                <div key={i} className="flex items-start gap-2 text-xs text-white/60">
+                                    <span className="text-orange-400 font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
+                                    <span>{d}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {rubric.length > 0 && (
+                        <div className="p-5 space-y-2">
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3">Grading Rubric</p>
+                            {rubric.map((r: any, i: number) => (
+                                <div key={i} className="flex items-start justify-between gap-3 py-2.5 border-b border-white/5 last:border-0">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5">{r.description}</p>}
+                                    </div>
+                                    <span className="text-xs font-black text-amber-400 flex-shrink-0">{r.maxPoints}pt</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* RIGHT: Submission + grading */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+
+                    {/* Mobile-only brief */}
+                    <div className="md:hidden border border-white/10 rounded-xl overflow-hidden">
+                        <button onClick={() => setBriefOpen(o => !o)}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-white/3 hover:bg-white/5 transition-colors text-left">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project Brief</span>
+                                <span className="text-[10px] text-white/30">— {briefOpen ? 'hide' : 'view'}</span>
+                            </div>
+                            <ChevronDownIcon className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${briefOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {briefOpen && (
+                            <div className="px-4 pb-4 pt-3 space-y-4 bg-white/2">
+                                <p className="text-sm font-bold text-white">{activity?.title}</p>
+                                {activity?.instructions && (
+                                    <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{activity.instructions}</p>
+                                )}
+                                {deliverables.length > 0 && (
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
+                                        {deliverables.map((d, i) => (
+                                            <p key={i} className="text-xs text-white/55"><span className="text-orange-400 font-bold">{i+1}.</span> {d}</p>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Auto-grade estimate */}
+                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                        <BoltIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Auto-grade Estimate</p>
+                            <p className="text-xs text-white/50 mt-0.5">Based on completeness of submission components</p>
+                        </div>
+                        <span className="text-2xl font-black text-amber-400">{autoEst}%</span>
+                    </div>
+
+                    {/* Submitted links */}
+                    {answers.links && answers.links.some((l: string) => l?.startsWith('http')) && (
+                        <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Project Links</p>
+                            {(answers.links as string[]).filter(l => l?.startsWith('http')).map((l, i) => (
+                                <a key={i} href={l} target="_blank" rel="noreferrer"
+                                    className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors truncate">
+                                    <PaperClipIcon className="w-3.5 h-3.5 flex-shrink-0" /> {l}
+                                </a>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Code */}
+                    {(answers.code || answers.playground_code) && (
+                        <div className="bg-black/40 border border-white/8 rounded-xl overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-white/8">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Code</p>
+                            </div>
+                            <div className="p-4 max-h-64 overflow-y-auto">
+                                <SyntaxHighlight code={answers.code || answers.playground_code} language="javascript" />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Screenshot */}
+                    {screenshotUrl && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Screenshot</p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={screenshotUrl} alt="Screenshot"
+                                className="w-full max-h-64 object-contain bg-black/30 border border-white/8 rounded-xl cursor-zoom-in hover:border-orange-500/30 transition-colors"
+                                onClick={() => setLightbox(screenshotUrl)} />
+                            <p className="text-[10px] text-white/20">Click to enlarge</p>
+                        </div>
+                    )}
+
+                    {/* Photo upload */}
+                    {isImage && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={sub.file_url} alt="Submission"
+                                className="w-full max-h-64 object-contain bg-black/30 border border-white/8 rounded-xl cursor-zoom-in hover:border-orange-500/30 transition-colors"
+                                onClick={() => setLightbox(sub.file_url)} />
+                            <p className="text-[10px] text-white/20">Click to enlarge</p>
+                        </div>
+                    )}
+                    {sub.file_url && !isImage && (
+                        <a href={sub.file_url} target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
+                            <PaperClipIcon className="w-4 h-4" /> View Attached File
+                        </a>
+                    )}
+
+                    {/* Written explanation */}
+                    {(sub.submission_text || answers.text_explanation) && (
+                        <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Written Explanation</p>
+                            <p className="text-sm text-white/70 leading-relaxed whitespace-pre-line">{sub.submission_text || answers.text_explanation}</p>
+                        </div>
+                    )}
+
+                    {/* Rubric scoring */}
+                    {rubric.length > 0 && (
+                        <div className="border border-amber-500/20 bg-amber-500/5 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
+                                <span className="text-xs text-amber-400 font-bold">Total: {rubricTotal} / {max}</span>
+                            </div>
+                            {rubric.map((r: any, ri: number) => (
+                                <div key={ri} className="flex items-center gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-white leading-snug">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-white/35 mt-0.5 truncate">{r.description}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <input type="number" min={0} max={r.maxPoints}
+                                            value={rubricScores[ri] ?? ''}
+                                            onChange={e => handleRubricScore(ri, Math.min(parseInt(e.target.value) || 0, r.maxPoints))}
+                                            className="w-14 px-2 py-1.5 bg-black/30 border border-amber-500/30 rounded-lg text-xs text-center text-white font-bold focus:outline-none focus:border-amber-500" />
+                                        <span className="text-[10px] text-white/30">/{r.maxPoints}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Score + grade bar */}
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-3">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Grade (0–{max} points)</p>
+                        <div className="flex items-center gap-4">
+                            <input type="number" min={0} max={max} value={grade}
+                                onChange={e => { setGrade(e.target.value); setErr(''); }}
+                                className="w-28 px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white text-2xl font-black text-center focus:outline-none focus:border-emerald-500 transition-colors"
+                                placeholder="0" />
+                            <div className="flex-1">
+                                <div className="h-2.5 bg-black/30 rounded-full overflow-hidden mb-2">
+                                    <div style={{ width: `${Math.min(info?.pct ?? 0, 100)}%` }}
+                                        className={`h-2.5 rounded-full transition-all duration-500 ${info?.color === 'emerald' ? 'bg-emerald-500' : info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                                </div>
+                                {info ? (
+                                    <div className={`flex items-baseline gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
+                                        <span className="text-3xl font-black">{info.letter}</span>
+                                        <span className="text-base font-bold">{info.pct}%</span>
+                                    </div>
+                                ) : <p className="text-xs text-white/20">Enter score above</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Feedback */}
+                    <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Feedback for Student</p>
+                        <textarea value={feedback} rows={4} onChange={e => setFb(e.target.value)}
+                            placeholder="Write constructive feedback that helps this student improve…"
+                            className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/20 focus:outline-none resize-none leading-relaxed" />
+                    </div>
+
+                    {err && (
+                        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                            <p className="text-sm text-rose-400 font-semibold">{err}</p>
+                        </div>
+                    )}
+
+                    {/* Mobile save */}
+                    <div className="md:hidden pb-8">
+                        <button onClick={save} disabled={saving}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
+                            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                            {saving ? 'Saving…' : 'Save Grade'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -617,10 +941,10 @@ export default function ProjectBuilderPage() {
                                 ) : (
                                     <div className="flex-1 flex items-center justify-center flex-col gap-4 bg-black/20">
                                         <EyeIcon className="w-12 h-12 text-white/10" />
-                                        <p className="text-white/30 text-sm">No code yet — use AI Builder to generate your project</p>
-                                        <button onClick={() => setActiveTab('build')}
+                                        <p className="text-white/30 text-sm">No code yet — write some in the Code Editor tab to see a preview</p>
+                                        <button onClick={() => setActiveTab('code')}
                                             className="flex items-center gap-2 text-[10px] font-black text-orange-400 uppercase tracking-widest px-5 py-2.5 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-all">
-                                            <SparklesIcon className="w-3.5 h-3.5" /> Open AI Builder
+                                            Open Code Editor
                                         </button>
                                     </div>
                                 )}

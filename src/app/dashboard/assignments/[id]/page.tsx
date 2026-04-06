@@ -11,7 +11,7 @@ import {
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
     CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon, PrinterIcon,
-    ClipboardDocumentListIcon
+    ClipboardDocumentListIcon, ChevronDownIcon
 } from '@/lib/icons';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import BlockSequencer from '@/components/assignments/BlockSequencer';
@@ -112,6 +112,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [err, setErr] = useState('');
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+    const [briefOpen, setBriefOpen] = useState(false);
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
     const handleRubricScore = (idx: number, val: number) => {
@@ -275,6 +276,56 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
 
                 {/* RIGHT: Submission + grading form */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+
+                    {/* Mobile-only: collapsible assignment brief */}
+                    <div className="md:hidden border border-white/10 rounded-xl overflow-hidden">
+                        <button onClick={() => setBriefOpen(o => !o)}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-white/3 hover:bg-white/5 transition-colors text-left">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Assignment Brief</span>
+                                <span className="text-[10px] text-white/30">— tap to {briefOpen ? 'hide' : 'view'}</span>
+                            </div>
+                            <ChevronDownIcon className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${briefOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {briefOpen && (
+                            <div className="px-4 pb-4 space-y-4 bg-white/2">
+                                <div className="pt-3">
+                                    <p className="text-sm font-bold text-white">{assignment.title}</p>
+                                    <p className="text-[10px] text-white/30 mt-0.5">{max} pts · {assignment.assignment_type}</p>
+                                </div>
+                                {assignment.instructions && (
+                                    <div>
+                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Instructions</p>
+                                        <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{assignment.instructions}</p>
+                                    </div>
+                                )}
+                                {questions.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Answer Key</p>
+                                        {questions.map((q: any, i: number) => (
+                                            <div key={i} className="p-3 bg-white/3 border border-white/5 rounded-lg space-y-1">
+                                                <p className="text-xs text-white/70 leading-snug">{i + 1}. {q.question_text}</p>
+                                                {q.correct_answer && (
+                                                    <p className="text-[11px] text-emerald-400 font-semibold">✓ {q.correct_answer}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {rubric.length > 0 && (
+                                    <div>
+                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-2">Rubric</p>
+                                        {rubric.map((r, i) => (
+                                            <div key={i} className="flex justify-between text-xs py-1.5 border-b border-white/5 last:border-0">
+                                                <span className="text-white/60">{r.criterion}</span>
+                                                <span className="text-amber-400 font-bold flex-shrink-0 ml-2">{r.maxPoints}pt</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Submission text */}
                     <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-2">
@@ -874,7 +925,7 @@ export default function AssignmentDetailPage() {
                         <p className="text-[10px] text-white/35 hidden sm:block">{assignment.courses?.title}</p>
                     </div>
                     {isStaff && (
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
                             <span className="px-2 py-1 bg-blue-500/15 border border-blue-500/25 rounded-lg text-[10px] font-black text-blue-400">{submitted} submitted</span>
                             <span className="px-2 py-1 bg-emerald-500/15 border border-emerald-500/25 rounded-lg text-[10px] font-black text-emerald-400">{graded} graded</span>
                         </div>
