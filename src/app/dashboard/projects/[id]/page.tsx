@@ -418,11 +418,8 @@ export default function ProjectBuilderPage() {
 
     // (AI builder removed — students learn independently)
 
-    // teacher grading
-    const [gradingId, setGradingId]        = useState<string | null>(null);
-    const [gradeInput, setGradeInput]      = useState('');
-    const [feedbackInput, setFeedbackInput]= useState('');
-    const [savingGrade, setSavingGrade]    = useState(false);
+    // teacher grading — uses ProjectGradeCanvas
+    const [gradingSubmission, setGradingSubmission] = useState<any | null>(null);
     const [expandedSub, setExpandedSub]    = useState<string | null>(null);
 
     // edit activity
@@ -559,25 +556,7 @@ export default function ProjectBuilderPage() {
         finally { setSubmitting(false); }
     }
 
-    // ── Teacher grade ─────────────────────────────────────────────────────────
-
-    async function handleGrade(submissionId: string) {
-        const g = parseInt(gradeInput);
-        if (isNaN(g) || g < 0 || g > 100) { setError('Grade must be 0–100'); return; }
-        setSavingGrade(true);
-        try {
-            const res = await fetch(`/api/assignments/${id}/grade`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ submission_id: submissionId, grade: g, feedback: feedbackInput, status: 'graded' }),
-            });
-            if (!res.ok) throw new Error('Grading failed');
-            setGradingId(null); setGradeInput(''); setFeedbackInput('');
-            setSuccessMsg('Grade saved!');
-            loadActivity();
-        } catch (err: any) { setError(err.message); }
-        finally { setSavingGrade(false); }
-    }
+    // ── Teacher grade — handled by ProjectGradeCanvas ────────────────────────
 
     // ── Edit activity ─────────────────────────────────────────────────────────
 
@@ -641,6 +620,17 @@ export default function ProjectBuilderPage() {
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
+
+            {/* ── Grade Canvas overlay (staff) ─────────────────────────────── */}
+            {gradingSubmission && (
+                <ProjectGradeCanvas
+                    sub={gradingSubmission}
+                    activity={activity}
+                    assignmentId={id}
+                    onClose={() => setGradingSubmission(null)}
+                    onSaved={() => { setGradingSubmission(null); setSuccessMsg('Grade saved!'); loadActivity(); }}
+                />
+            )}
 
             {/* ── Compact Hero ─────────────────────────────────────────────── */}
             <div className="relative bg-[#0a0a12] border-b border-white/[0.06] flex-shrink-0">
@@ -1200,7 +1190,6 @@ export default function ProjectBuilderPage() {
                             );
                             const subMember = subGroup?.project_group_members?.find((m: any) => m.student_id === sub.portal_user_id);
                             const isExpanded  = expandedSub === sub.id;
-                            const isGrading   = gradingId === sub.id;
 
                             return (
                                 <motion.div key={sub.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -1281,41 +1270,12 @@ export default function ProjectBuilderPage() {
                                                         </div>
                                                     )}
 
-                                                    {!isGrading ? (
-                                                        <button onClick={() => { setGradingId(sub.id); setGradeInput(String(sub.grade ?? '')); setFeedbackInput(sub.feedback || ''); }}
-                                                            className="flex items-center gap-2 px-4 py-2 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">
-                                                            <PencilSquareIcon className="w-3.5 h-3.5" />
-                                                            {sub.status === 'graded' ? 'Edit Grade' : 'Grade Submission'}
-                                                        </button>
-                                                    ) : (
-                                                        <div className="bg-orange-500/5 border border-orange-500/20 p-4 space-y-3">
-                                                            <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Grade Submission</p>
-                                                            <div className="grid grid-cols-2 gap-3">
-                                                                <div>
-                                                                    <label className={LABEL}>Score (0–100)</label>
-                                                                    <input type="number" min="0" max="100" value={gradeInput} onChange={e => setGradeInput(e.target.value)} className={INPUT} autoFocus />
-                                                                </div>
-                                                                <div className="flex items-end">
-                                                                    <div className="w-full">
-                                                                        <p className="text-[9px] text-white/30 mb-1">Auto-grade estimate:</p>
-                                                                        <p className="text-xl font-black text-emerald-400">{autoGradeSubmission(answers, sub.submission_text || '', sub.file_url || '')}%</p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <label className={LABEL}>Feedback</label>
-                                                                <textarea value={feedbackInput} onChange={e => setFeedbackInput(e.target.value)} rows={2} className={TEXTAREA} placeholder="Great work! Here's what you can improve..." />
-                                                            </div>
-                                                            <div className="flex items-center gap-3">
-                                                                <button onClick={() => handleGrade(sub.id)} disabled={savingGrade}
-                                                                    className="flex items-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
-                                                                    {savingGrade ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
-                                                                    Save Grade
-                                                                </button>
-                                                                <button onClick={() => setGradingId(null)} className="text-white/30 hover:text-white text-xs font-bold transition-colors">Cancel</button>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                    <button
+                                                        onClick={() => setGradingSubmission(sub)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">
+                                                        <PencilSquareIcon className="w-3.5 h-3.5" />
+                                                        {sub.status === 'graded' ? 'Edit Grade' : 'Grade Submission'}
+                                                    </button>
                                                 </div>
                                             </motion.div>
                                         )}
