@@ -74,11 +74,12 @@ export default function ContentLibraryPage() {
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignSuccess, setAssignSuccess] = useState(false);
 
-  // Edit panel state
+  // Edit / delete panel state
   const [editingItem, setEditingItem] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', subject: '', gradeLevel: '', tags: '', category: '' });
   const [editSaving, setEditSaving] = useState(false);
   const [replaceFileLoading, setReplaceFileLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false);
@@ -385,6 +386,29 @@ export default function ContentLibraryPage() {
       setError(e.message);
     } finally {
       setReplaceFileLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedItem) return;
+    if (!confirm(`Delete "${selectedItem.title}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const db = createClient();
+      // Delete the content_library row
+      const { error } = await db.from('content_library').delete().eq('id', selectedItem.id);
+      if (error) throw new Error(error.message);
+      // Best-effort: delete the files record + R2 object
+      const fileId = (selectedItem as any).file_id;
+      if (fileId) {
+        await fetch(`/api/files/${fileId}`, { method: 'DELETE' }).catch(() => {});
+      }
+      setItems(prev => prev.filter(i => i.id !== selectedItem.id));
+      setSelectedItem(null);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -824,6 +848,25 @@ export default function ContentLibraryPage() {
                   </div>
                 )}
               </div>
+            ) : selectedItem.files?.public_url &&
+              (selectedItem.files?.file_type === 'pdf' || selectedItem.content_type === 'document' || selectedItem.content_type === 'guide') ? (
+              <div className="relative border-b border-border bg-black">
+                <iframe
+                  src={selectedItem.files.public_url}
+                  title={selectedItem.title}
+                  className="w-full"
+                  style={{ height: '480px', border: 'none' }}
+                />
+                <button onClick={() => setSelectedItem(null)}
+                  className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white transition-all z-30">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+                {canApprove && !selectedItem.is_approved && (
+                  <div className="absolute top-3 left-3 px-2.5 py-1 bg-amber-500/30 border border-amber-500/50 text-amber-300 text-[10px] font-black uppercase tracking-wider z-30">
+                    Pending Approval
+                  </div>
+                )}
+              </div>
             ) : (
               <div className={`relative h-52 bg-gradient-to-br ${getTypeColor(selectedItem.content_type)} border-b border-border flex items-center justify-center overflow-hidden`}>
                 <div className="absolute inset-0 opacity-10">
@@ -1006,7 +1049,7 @@ export default function ContentLibraryPage() {
                 )}
               </div>
 
-              {/* Edit content + replace file — staff only */}
+              {/* Edit content + replace file + delete — staff only */}
               {canUpload && (
                 <div className="border-t border-border pt-6 space-y-3">
                   <button
@@ -1067,6 +1110,22 @@ export default function ContentLibraryPage() {
                       )}
                     </form>
                   )}
+                </div>
+              )}
+
+              {/* Delete — danger zone */}
+              {canUpload && (
+                <div className="border-t border-rose-500/20 pt-4">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/30 text-rose-400 font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-50"
+                  >
+                    {deleting
+                      ? <><div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" /> Deleting...</>
+                      : <><XMarkIcon className="w-4 h-4" /> Delete Content</>
+                    }
+                  </button>
                 </div>
               )}
             </div>
