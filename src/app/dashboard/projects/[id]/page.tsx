@@ -571,7 +571,7 @@ export default function ProjectBuilderPage() {
                         </div>
 
                         {/* Code Editor tab */}
-                        <div className={`flex-1 overflow-hidden ${(activeTab === 'code' || (activeTab === 'build' && false)) ? 'flex' : 'hidden'} flex-col`}
+                        <div className={`flex-1 overflow-hidden ${activeTab === 'code' ? 'flex' : 'hidden'} flex-col`}
                             style={{ display: activeTab === 'code' ? 'flex' : 'none' }}>
                             <IntegratedCodeRunner
                                 value={editorCode}
