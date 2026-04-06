@@ -899,7 +899,9 @@ export default function AssignmentDetailPage() {
         : [];
     const submitted = allSubs.filter((s: any) => s.status === 'submitted').length;
     const graded = allSubs.filter((s: any) => s.status === 'graded').length;
-    const pct = submission?.grade != null
+    // Only show grade once teacher has explicitly graded — prevents showing 0 from DB default
+    const isGraded = submission?.status === 'graded' && submission?.grade != null;
+    const pct = isGraded
         ? Math.round((submission.grade / (assignment?.max_points ?? 100)) * 100) : null;
     const letter = pct == null ? null
         : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
@@ -1039,14 +1041,16 @@ export default function AssignmentDetailPage() {
                         {!isStaff && submission?.status && (
                             <div className="flex-shrink-0 text-right">
                                 <Badge status={submission.status} />
-                                {pct != null && (
+                                {pct != null ? (
                                     <div className="mt-2 text-center">
                                         <span className={`text-4xl font-black ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
                                             {letter}
                                         </span>
                                         <p className="text-muted-foreground text-xs">{pct}% · {submission.grade}/{assignment.max_points} pts</p>
                                     </div>
-                                )}
+                                ) : submission?.status === 'submitted' ? (
+                                    <p className="text-[10px] text-white/30 mt-2">Awaiting grade</p>
+                                ) : null}
                             </div>
                         )}
 
@@ -1195,10 +1199,38 @@ export default function AssignmentDetailPage() {
                                         <PaperClipIcon className="w-4 h-4" /> View submitted file
                                     </a>
                                 )}
+                                {/* Show which questions were attempted */}
+                                {assignment.questions?.length > 0 && submission.answers && (
+                                    <div className="border border-white/8 rounded-xl overflow-hidden">
+                                        <div className="px-4 py-2.5 bg-white/3 border-b border-white/8">
+                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                                Questions Attempted: {Object.keys(submission.answers).filter(k => submission.answers[k] !== '' && submission.answers[k] != null).length} / {assignment.questions.length}
+                                            </p>
+                                        </div>
+                                        <div className="divide-y divide-white/5">
+                                            {assignment.questions.map((q: any, i: number) => {
+                                                const answered = submission.answers[i] !== undefined && submission.answers[i] !== '';
+                                                return (
+                                                    <div key={i} className="flex items-start gap-3 px-4 py-3">
+                                                        <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black mt-0.5 ${answered ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white/20'}`}>
+                                                            {answered ? '✓' : '—'}
+                                                        </span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs text-white/60 leading-snug">{q.question_text}</p>
+                                                            {answered && <p className="text-xs text-white/30 mt-1 truncate">Your answer: {submission.answers[i]}</p>}
+                                                            {!answered && <p className="text-xs text-white/20 mt-1 italic">Not attempted</p>}
+                                                        </div>
+                                                        <span className="text-[10px] text-white/20 flex-shrink-0">{q.points}pt</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="text-center py-4 text-muted-foreground text-sm border border-border rounded-none bg-muted/10">
                                     {submission.status === 'graded'
                                         ? 'This assignment has been graded. No further submissions accepted.'
-                                        : 'Your assignment has been submitted and is pending review. You cannot resubmit.'}
+                                        : 'Your assignment has been submitted and is awaiting teacher review. Grade will appear here once marked.'}
                                 </div>
                             </div>
                         ) : (

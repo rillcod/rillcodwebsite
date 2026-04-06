@@ -107,7 +107,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
         try {
             const res = await fetch(`/api/assignments/${assignmentId}/grade`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ submission_id: sub.id, grade: g, feedback, status: 'graded' }),
+                body: JSON.stringify({ submission_id: sub.id, grade: grade === '' ? null : g, feedback, status: 'graded' }),
             });
             if (!res.ok) throw new Error('Grading failed');
             onSaved();

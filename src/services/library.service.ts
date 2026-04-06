@@ -53,7 +53,8 @@ export class LibraryService {
                 grade_level: data.gradeLevel ?? null,
                 license_type: data.licenseType ?? null,
                 attribution: data.attribution ?? null,
-                is_approved: role === 'admin',
+                is_active: true,
+                is_approved: role === 'admin' || role === 'teacher',
                 created_at: new Date().toISOString()
             }])
             .select()
@@ -87,9 +88,9 @@ export class LibraryService {
             query = query.ilike('title', `%${filters.query}%`);
         }
 
-        // Admins see all content (including unapproved); others only see active + approved
+        // Admins + teachers see all content (including unapproved); students/school only see approved
         query = query.eq('is_active', true);
-        if (filters.role !== 'admin') {
+        if (filters.role !== 'admin' && filters.role !== 'teacher') {
             query = query.eq('is_approved', true);
         }
 
