@@ -60,9 +60,9 @@ export async function fetchStudentAssignments(portalUserId: string) {
     const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean);
     if (!programIds.length) return subs ?? [];
 
-    // 3. Find course IDs for those programs
+    // 3. Find course IDs for those programs — exclude locked courses
     const { data: courseRows } = await client
-        .from('courses').select('id').in('program_id', programIds);
+        .from('courses').select('id').in('program_id', programIds).eq('is_locked', false);
     const courseIds = (courseRows ?? []).map((c: any) => c.id);
     if (!courseIds.length) return subs ?? [];
 

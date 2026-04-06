@@ -70,9 +70,10 @@ export default function StudentLearningPage() {
       };
       if (pIds.length) {
         const { data: rawCourses } = await db.from('courses')
-          .select('id, title, description, duration_hours, program_id, lessons(id), assignments(id)')
+          .select('id, title, description, duration_hours, program_id, is_locked, lessons(id), assignments(id)')
           .in('program_id', pIds)
           .eq('is_active', true)
+          .eq('is_locked', false)
           .order('created_at', { ascending: true });
         const progCourses = (rawCourses ?? []) as unknown as ProgramCourse[];
         const cmap: Record<string, ProgramCourse[]> = {};
