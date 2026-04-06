@@ -8,12 +8,13 @@ import {
   BookOpenIcon, MagnifyingGlassIcon, PlusIcon,
   CheckCircleIcon, XMarkIcon, SparklesIcon,
   VideoCameraIcon, DocumentIcon,
-  PresentationChartBarIcon, BoltIcon, ArrowDownTrayIcon,
+  PresentationChartBarIcon, BoltIcon, ArrowDownTrayIcon, ArrowUpTrayIcon,
   AcademicCapIcon, UserIcon, GlobeAltIcon, BuildingOfficeIcon,
   ArchiveBoxIcon, StarIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  Bars3Icon,
+  Bars3Icon, PencilSquareIcon,
 } from "@/lib/icons";
 import ShareToParentModal from '@/components/share/ShareToParentModal';
+import VideoPlayer from '@/components/media/VideoPlayer';
 
 type ContentItem = {
   id: string;
@@ -72,6 +73,12 @@ export default function ContentLibraryPage() {
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignSuccess, setAssignSuccess] = useState(false);
+
+  // Edit panel state
+  const [editingItem, setEditingItem] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', subject: '', gradeLevel: '', tags: '', category: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [replaceFileLoading, setReplaceFileLoading] = useState(false);
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false);
@@ -315,6 +322,69 @@ export default function ContentLibraryPage() {
       // silent — assignment is best-effort
     } finally {
       setAssignSaving(false);
+    }
+  };
+
+  const openEdit = (item: ContentItem) => {
+    setEditForm({
+      title: item.title,
+      description: item.description ?? '',
+      subject: item.subject ?? '',
+      gradeLevel: item.grade_level ?? '',
+      tags: item.tags?.join(', ') ?? '',
+      category: item.category ?? '',
+    });
+    setEditingItem(true);
+  };
+
+  const handleUpdateContent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/content-library/${selectedItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editForm.title,
+          description: editForm.description,
+          subject: editForm.subject || null,
+          gradeLevel: editForm.gradeLevel || null,
+          tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+          category: editForm.category || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Update failed');
+      const updated = { ...selectedItem, ...editForm, tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean) };
+      setSelectedItem(updated as ContentItem);
+      setItems(prev => prev.map(i => i.id === selectedItem.id ? updated as ContentItem : i));
+      setEditingItem(false);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleReplaceFile = async (file: File) => {
+    if (!selectedItem) return;
+    const fileId = (selectedItem as any).file_id;
+    if (!fileId) { setError('No file attached to replace'); return; }
+    setReplaceFileLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/files/${fileId}`, { method: 'PATCH', body: fd });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Replace failed');
+      // Update local state with new public_url
+      const updated = { ...selectedItem, files: { ...selectedItem.files, public_url: payload.data.public_url } };
+      setSelectedItem(updated as ContentItem);
+      setItems(prev => prev.map(i => i.id === selectedItem.id ? updated as ContentItem : i));
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setReplaceFileLoading(false);
     }
   };
 
@@ -736,34 +806,53 @@ export default function ContentLibraryPage() {
           <div className="w-full max-w-xl bg-card border-l border-border h-full shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div className={`relative h-52 bg-gradient-to-br ${getTypeColor(selectedItem.content_type)} border-b border-border flex items-center justify-center overflow-hidden`}>
-              <div className="absolute inset-0 opacity-10">
-                {/* Simple grid pattern — no external URL */}
-                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
-                </svg>
+            {/* Header — video player for video items, gradient card for others */}
+            {selectedItem.content_type === 'video' && selectedItem.files?.public_url ? (
+              <div className="relative">
+                <VideoPlayer
+                  url={selectedItem.files.public_url}
+                  title={selectedItem.title}
+                  cinemaMode
+                />
+                <button onClick={() => setSelectedItem(null)}
+                  className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 text-white transition-all z-30">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+                {canApprove && !selectedItem.is_approved && (
+                  <div className="absolute top-3 left-3 px-2.5 py-1 bg-amber-500/80 text-amber-900 text-[10px] font-black uppercase tracking-wider z-30">
+                    Pending Approval
+                  </div>
+                )}
               </div>
-              <div className="text-orange-400 opacity-30">
-                {getTypeIcon(selectedItem.content_type)}
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BookOpenIcon className="w-24 h-24 text-white/10" />
-              </div>
-              <button onClick={() => setSelectedItem(null)}
-                className="absolute top-5 right-5 p-2.5 bg-black/30 hover:bg-black/50 text-white transition-all">
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-              {canApprove && !selectedItem.is_approved && (
-                <div className="absolute top-5 left-5 px-2.5 py-1 bg-amber-500/30 border border-amber-500/50 text-amber-300 text-[10px] font-black uppercase tracking-wider">
-                  Pending Approval
+            ) : (
+              <div className={`relative h-52 bg-gradient-to-br ${getTypeColor(selectedItem.content_type)} border-b border-border flex items-center justify-center overflow-hidden`}>
+                <div className="absolute inset-0 opacity-10">
+                  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+                        <path d="M 32 0 L 0 0 0 32" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                  </svg>
                 </div>
-              )}
-            </div>
+                <div className="text-orange-400 opacity-30">
+                  {getTypeIcon(selectedItem.content_type)}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <BookOpenIcon className="w-24 h-24 text-white/10" />
+                </div>
+                <button onClick={() => setSelectedItem(null)}
+                  className="absolute top-5 right-5 p-2.5 bg-black/30 hover:bg-black/50 text-white transition-all">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+                {canApprove && !selectedItem.is_approved && (
+                  <div className="absolute top-5 left-5 px-2.5 py-1 bg-amber-500/30 border border-amber-500/50 text-amber-300 text-[10px] font-black uppercase tracking-wider">
+                    Pending Approval
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="p-8 space-y-8">
               {/* Title + badges */}
@@ -832,10 +921,27 @@ export default function ContentLibraryPage() {
               {/* Actions */}
               <div className="space-y-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Actions</p>
-                <a href={selectedItem.files?.public_url || '#'} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-3 w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-black transition-all">
-                  <ArrowDownTrayIcon className="w-5 h-5" /> Open / Download Resource
-                </a>
+                {selectedItem.files?.public_url && (
+                  <div className="flex gap-2">
+                    {/* Open inline (view in browser / media player) */}
+                    <a
+                      href={selectedItem.files.public_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 flex-1 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black transition-all"
+                    >
+                      <ArrowDownTrayIcon className="w-5 h-5" /> Open
+                    </a>
+                    {/* Force download — saves file to device */}
+                    <a
+                      href={`${selectedItem.files.public_url}?download=1&filename=${encodeURIComponent(selectedItem.title)}`}
+                      className="flex items-center justify-center gap-2 px-5 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black transition-all"
+                      title="Save to device"
+                    >
+                      <ArrowDownTrayIcon className="w-5 h-5" />
+                    </a>
+                  </div>
+                )}
                 {isStaff && (
                   <button
                     onClick={() => setLibraryShareItem(selectedItem)}
@@ -899,6 +1005,70 @@ export default function ContentLibraryPage() {
                   </button>
                 )}
               </div>
+
+              {/* Edit content + replace file — staff only */}
+              {canUpload && (
+                <div className="border-t border-border pt-6 space-y-3">
+                  <button
+                    onClick={() => editingItem ? setEditingItem(false) : openEdit(selectedItem)}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold text-xs uppercase tracking-widest transition-all"
+                  >
+                    <PencilSquareIcon className="w-4 h-4" />
+                    {editingItem ? 'Cancel Edit' : 'Edit Details'}
+                  </button>
+
+                  {editingItem && (
+                    <form onSubmit={handleUpdateContent} className="space-y-3 border border-border p-4 bg-background">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Edit Content Details</p>
+
+                      <input required value={editForm.title} onChange={e => setEditForm(s => ({ ...s, title: e.target.value }))}
+                        placeholder="Title"
+                        className="w-full bg-card border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+
+                      <textarea rows={3} value={editForm.description} onChange={e => setEditForm(s => ({ ...s, description: e.target.value }))}
+                        placeholder="Description"
+                        className="w-full bg-card border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 resize-none" />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={editForm.subject} onChange={e => setEditForm(s => ({ ...s, subject: e.target.value }))}
+                          placeholder="Subject"
+                          className="w-full bg-card border border-border px-3 py-2 text-xs text-foreground outline-none focus:border-orange-500" />
+                        <input value={editForm.gradeLevel} onChange={e => setEditForm(s => ({ ...s, gradeLevel: e.target.value }))}
+                          placeholder="Grade level"
+                          className="w-full bg-card border border-border px-3 py-2 text-xs text-foreground outline-none focus:border-orange-500" />
+                      </div>
+
+                      <input value={editForm.tags} onChange={e => setEditForm(s => ({ ...s, tags: e.target.value }))}
+                        placeholder="Tags (comma separated)"
+                        className="w-full bg-card border border-border px-3 py-2 text-xs text-foreground outline-none focus:border-orange-500" />
+
+                      <button type="submit" disabled={editSaving}
+                        className="w-full py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest transition-all">
+                        {editSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+
+                      {/* Replace file */}
+                      {(selectedItem as any).file_id && (
+                        <div className="border-t border-border pt-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Replace File</p>
+                          <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed cursor-pointer transition-all text-xs font-bold ${replaceFileLoading ? 'border-orange-500/40 text-orange-400' : 'border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-400'}`}>
+                            <ArrowUpTrayIcon className="w-4 h-4" />
+                            {replaceFileLoading ? 'Uploading...' : 'Upload new file to replace current'}
+                            <input type="file" className="hidden" disabled={replaceFileLoading}
+                              onChange={e => { const f = e.target.files?.[0]; if (f) handleReplaceFile(f); e.target.value = ''; }} />
+                          </label>
+                          {replaceFileLoading && (
+                            <div className="flex items-center gap-2 text-[10px] text-orange-400">
+                              <div className="w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                              Uploading to R2...
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

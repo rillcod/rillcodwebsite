@@ -4,7 +4,8 @@ import { filesService } from '@/services/files.service';
 import { AppError, ValidationError } from '@/lib/errors';
 
 async function postHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'teacher' && ctx.user?.role !== 'school') {
+    // Students can upload (e.g. assignment photo submissions); library uploads are role-gated at the content-library layer
+    if (!ctx.user) {
         throw new AppError('Not authorized to upload files', 403, true);
     }
 

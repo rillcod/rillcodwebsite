@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       '@supabase/supabase-js',
     ],
+    // Enable server instrumentation hook (src/instrumentation.ts)
+    clientInstrumentationHook: true,
   },
 
   // ── Image optimisation ─────────────────────────────────────────
