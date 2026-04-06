@@ -10,6 +10,7 @@ import {
   BookOpenIcon, AcademicCapIcon, UserGroupIcon, ClockIcon, ChartBarIcon,
   PlusIcon, PlayIcon, CheckCircleIcon, StarIcon, MagnifyingGlassIcon,
   EyeIcon, PencilIcon, TrashIcon, BoltIcon, RocketLaunchIcon,
+  LockClosedIcon, LockOpenIcon,
 } from '@/lib/icons';
 
 const GRADIENTS = [
@@ -23,10 +24,12 @@ const LEVEL_BADGE: Record<string, string> = {
   advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
 };
 
-function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram }: {
+function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram, onToggleLock, locking }: {
   course: any; i: number; canEdit: boolean;
   deleting: string | null; onDelete: (id: string, title: string) => void;
   programs?: any[]; onAssignProgram?: (courseId: string, programId: string) => Promise<void>;
+  onToggleLock?: (courseId: string, locked: boolean) => Promise<void>;
+  locking?: string | null;
 }) {
   const [assigning, setAssigning] = useState(false);
   const isUncategorized = !course.program_id;
@@ -47,9 +50,16 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-orange-400'}`}>
             {course.programs?.name ?? 'No Program'}
           </span>
-          <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
-            {course.is_active ? 'Active' : 'Inactive'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {course.is_locked && (
+              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20 flex items-center gap-1">
+                <LockClosedIcon className="w-2.5 h-2.5" /> Locked
+              </span>
+            )}
+            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
+              {course.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
         </div>
         <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-orange-400 transition-colors">{course.title}</h3>
         {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
@@ -82,6 +92,16 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
                 <PencilIcon className="w-3.5 h-3.5" /> Edit
               </Link>
               <button
+                onClick={() => onToggleLock?.(course.id, !course.is_locked)}
+                disabled={locking === course.id}
+                title={course.is_locked ? 'Unlock course for students' : 'Lock course from students'}
+                className={`p-2 rounded-none transition-colors disabled:opacity-40 ${course.is_locked ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20' : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-400'}`}>
+                {course.is_locked
+                  ? <LockClosedIcon className="w-3.5 h-3.5" />
+                  : <LockOpenIcon className="w-3.5 h-3.5" />
+                }
+              </button>
+              <button
                 onClick={() => onDelete(course.id, course.title)}
                 disabled={deleting === course.id}
                 className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
@@ -105,6 +125,7 @@ export default function CoursesPage() {
   const [search, setSearch] = useState('');
   const [programFilter, setProgramFilter] = useState<string>(searchParams?.get('program') ?? 'all');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [locking, setLocking] = useState<string | null>(null);
   const [bulkFixOpen, setBulkFixOpen] = useState(false);
   const [bulkProgramId, setBulkProgramId] = useState('');
   const [bulkFixing, setBulkFixing] = useState(false);
@@ -123,6 +144,22 @@ export default function CoursesPage() {
       setCourses(prev => prev.filter(c => c.id !== id));
     }
     setDeleting(null);
+  };
+
+  const handleToggleLock = async (courseId: string, locked: boolean) => {
+    setLocking(courseId);
+    const res = await fetch(`/api/courses/${courseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_locked: locked }),
+    });
+    if (res.ok) {
+      setCourses(prev => prev.map(c => c.id === courseId ? { ...c, is_locked: locked } : c));
+    } else {
+      const json = await res.json().catch(() => ({}));
+      alert(json.message || json.error || 'Failed to update course lock');
+    }
+    setLocking(null);
   };
 
   const handleAssignProgram = async (courseId: string, programId: string) => {
@@ -403,7 +440,7 @@ export default function CoursesPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {group.courses.map((course: any, i: number) => (
-                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} />
+                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} />
                     ))}
                   </div>
                 </div>
@@ -412,7 +449,7 @@ export default function CoursesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map((course: any, i: number) => (
-                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} />
+                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} onToggleLock={handleToggleLock} locking={locking} />
               ))}
             </div>
           )

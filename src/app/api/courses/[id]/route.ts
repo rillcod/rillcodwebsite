@@ -14,6 +14,7 @@ const updateCourseSchema = z.object({
     start_date: z.string().optional(),
     end_date: z.string().optional(),
     is_published: z.boolean().optional(),
+    is_locked: z.boolean().optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {
@@ -31,7 +32,7 @@ async function getHandler(req: Request, ctx: ApiContext) {
 
 async function putHandler(req: Request, ctx: ApiContext) {
     if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to edit courses', 403, true);
+        throw new AppError('Not authorized to update courses', 403, true);
     }
 
     const id = ctx.params?.id;
