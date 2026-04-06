@@ -72,7 +72,7 @@ export class FilesService {
                         file_size: existing.file_size,
                         mime_type: existing.mime_type,
                         storage_path: existing.storage_path,
-                        storage_provider: 'r2',
+                        storage_provider: 's3',
                         is_virus_scanned: existing.is_virus_scanned,
                         virus_scan_result: existing.virus_scan_result,
                         metadata: { file_hash: fileHash, original_id: existing.id, is_duplicate: true },
@@ -262,7 +262,7 @@ export class FilesService {
         await r2Upload(storagePath, buffer, newFile.type);
 
         // Delete old R2 object (best-effort — don't fail the whole operation)
-        if (existing.storage_path && existing.storage_provider === 'r2') {
+        if (existing.storage_path && (existing.storage_provider === 's3' || existing.storage_provider === 'r2')) {
             await r2Delete(existing.storage_path).catch((e) =>
                 console.warn('[R2] Could not delete old file during replace:', e)
             );
