@@ -328,8 +328,8 @@ export default function ProjectBuilderPage() {
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
                             <Link href="/dashboard/projects"
-                                className="flex items-center gap-1.5 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors flex-shrink-0">
-                                <ArrowLeftIcon className="w-3 h-3" /> Back
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white font-semibold transition-colors flex-shrink-0">
+                                <ArrowLeftIcon className="w-3.5 h-3.5" /> Projects
                             </Link>
                             <div className="w-px h-4 bg-white/10" />
                             <div className="w-8 h-8 bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
