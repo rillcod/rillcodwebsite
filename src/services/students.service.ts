@@ -1,7 +1,35 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Student, ProspectiveStudent, StudentFormData, ApiResponse } from '@/types';
+import type { Database, Json } from '@/types/supabase';
 
 const db = () => createClient();
+
+type PortalUserInsert = Database['public']['Tables']['portal_users']['Insert'];
+type StudentsRow = Database['public']['Tables']['students']['Row'];
+
+/** Map `students` registration row → `ProspectiveStudent` (used by admin approval UI). */
+function studentsRowToProspectiveStudent(row: StudentsRow): ProspectiveStudent {
+    return {
+        id: row.id,
+        email: (row.student_email?.trim() || row.email?.trim() || '') as string,
+        full_name: (row.full_name?.trim() || row.name?.trim() || '') as string,
+        age: row.age ?? 0,
+        grade: row.grade?.trim() || row.grade_level?.trim() || '',
+        school_id: row.school_id ?? '',
+        school_name: row.school_name ?? '',
+        gender: row.gender ?? '',
+        parent_name: row.parent_name ?? '',
+        parent_phone: row.parent_phone ?? '',
+        parent_email: row.parent_email ?? '',
+        course_interest: row.course_interest ?? '',
+        preferred_schedule: row.preferred_schedule ?? '',
+        hear_about_us: row.hear_about_us ?? row.heard_about_us ?? '',
+        is_active: row.is_active ?? false,
+        is_deleted: row.is_deleted ?? false,
+        created_at: row.created_at ?? '',
+        updated_at: row.updated_at ?? '',
+    };
+}
 
 // ─── Students Service ─────────────────────────────────────────────────────────
 
@@ -15,7 +43,7 @@ export async function getStudents(schoolId?: string): Promise<ApiResponse<Studen
         .order('created_at', { ascending: false });
 
     if (schoolId) {
-        query = query.eq('metadata->>school_id', schoolId);
+        query = query.eq('school_id', schoolId);
     }
 
     const { data, error } = await query;
@@ -37,8 +65,8 @@ export async function getStudentById(id: string): Promise<ApiResponse<Student>> 
     return { data: (data as unknown as Student) ?? null, error: error?.message ?? null };
 }
 
-/** Fetch all pending students from the frontend registration */
-export async function getProspectiveStudents(): Promise<ApiResponse<any[]>> {
+/** Pending rows on `students` (not `prospective_students`) — normalized for approval UI. */
+export async function getProspectiveStudents(): Promise<ApiResponse<ProspectiveStudent[]>> {
     const { data, error } = await db()
         .from('students')
         .select('*')
@@ -47,36 +75,53 @@ export async function getProspectiveStudents(): Promise<ApiResponse<any[]>> {
 
     if (error) return { data: null, error: error.message };
 
-    return { data: data, error: null };
+    return { data: (data ?? []).map(studentsRowToProspectiveStudent), error: null };
 }
 
 /** Approve a pending student — creates portal_users entry + marks students status as approved */
-export async function approveStudent(studentId: string, studentData: any): Promise<ApiResponse<null>> {
+export async function approveStudent(
+    studentId: string,
+    studentData: ProspectiveStudent
+): Promise<ApiResponse<null>> {
     const client = db();
 
-    const { error: createError } = await client
-        .from('portal_users')
-        .insert({
-            email: studentData.email,
-            full_name: studentData.full_name,
-            role: 'student',
-            is_active: true,
-            is_deleted: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            metadata: {
-                student_id: studentId,
-                school_id: studentData.school_id,
-                grade: studentData.grade,
-                age: studentData.age,
-                gender: studentData.gender,
-                parent_name: studentData.parent_name,
-                parent_phone: studentData.parent_phone,
-                parent_email: studentData.parent_email,
-                course_interest: studentData.course_interest,
-                preferred_schedule: studentData.preferred_schedule,
-            },
-        });
+    const loginEmail = studentData.email?.trim();
+    if (!loginEmail) {
+        return { data: null, error: 'Cannot approve: missing student email' };
+    }
+
+    // Typed columns for queries/FKs; `metadata` keeps extra registration fields for support/history.
+    const now = new Date().toISOString();
+    const metadata: Json = {
+        student_id: studentId,
+        school_id: studentData.school_id,
+        grade: studentData.grade,
+        age: studentData.age,
+        gender: studentData.gender,
+        parent_name: studentData.parent_name,
+        parent_phone: studentData.parent_phone,
+        parent_email: studentData.parent_email,
+        course_interest: studentData.course_interest,
+        preferred_schedule: studentData.preferred_schedule,
+        hear_about_us: studentData.hear_about_us,
+    };
+    const insertPayload: PortalUserInsert = {
+        email: loginEmail,
+        full_name: studentData.full_name,
+        role: 'student',
+        is_active: true,
+        is_deleted: false,
+        school_id: studentData.school_id?.trim() || null,
+        school_name: studentData.school_name ?? null,
+        section_class: studentData.grade ?? null,
+        student_id: studentId,
+        phone: studentData.parent_phone ?? null,
+        metadata,
+        created_at: now,
+        updated_at: now,
+    };
+
+    const { error: createError } = await client.from('portal_users').insert(insertPayload);
 
     if (createError) return { data: null, error: createError.message };
 
@@ -101,9 +146,32 @@ export async function rejectStudent(studentId: string): Promise<ApiResponse<null
 /** Create a new student record directly */
 export async function createStudent(formData: StudentFormData): Promise<ApiResponse<Student>> {
     const now = new Date().toISOString();
+    const metadata: Json | undefined =
+        formData.parent_name != null ||
+        formData.parent_email != null ||
+        formData.age != null
+            ? {
+                  parent_name: formData.parent_name ?? null,
+                  parent_email: formData.parent_email ?? null,
+                  age: formData.age ?? null,
+              }
+            : undefined;
+    const insertPayload: PortalUserInsert = {
+        email: formData.email,
+        full_name: formData.full_name,
+        role: 'student',
+        is_active: true,
+        is_deleted: false,
+        school_id: formData.school_id ?? null,
+        section_class: formData.grade_level ?? null,
+        phone: formData.parent_phone ?? null,
+        ...(metadata ? { metadata } : {}),
+        created_at: now,
+        updated_at: now,
+    };
     const { data, error } = await db()
         .from('portal_users')
-        .insert({ ...formData, role: 'student', is_active: true, is_deleted: false, created_at: now, updated_at: now })
+        .insert(insertPayload)
         .select()
         .single();
 
