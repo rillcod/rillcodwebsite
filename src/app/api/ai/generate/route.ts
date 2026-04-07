@@ -882,6 +882,19 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 2048;
         break;
 
+      case 'newsletter':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, great prose
+          "deepseek/deepseek-chat-v3-5",           // Strong at professional writing
+          "x-ai/grok-2-1212",                      // Witty, visionary tone
+          "qwen/qwen3-235b-a22b:free",             // Large context, free fallback
+          "meta-llama/llama-3.3-70b-instruct",     // Solid fallback
+          "meta-llama/llama-3.1-8b-instruct:free", // Emergency free fallback
+        ];
+        adaptiveTemperature = 0.8;
+        adaptiveMaxTokens = 3000;
+        break;
+
       default:
         // Smart fallback (Gemini 2.0 is the best all-rounder)
         modelQueue = [
