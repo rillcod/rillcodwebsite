@@ -293,27 +293,33 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         </div>
                     )}
 
-                    {/* Screenshot */}
+                    {/* Screenshot — thumbnail, click to open lightbox */}
                     {screenshotUrl && (
                         <div className="space-y-2">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Screenshot</p>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={screenshotUrl} alt="Screenshot"
-                                className="w-full max-h-64 object-contain bg-black/30 border border-white/8 rounded-xl cursor-zoom-in hover:border-orange-500/30 transition-colors"
-                                onClick={() => setLightbox(screenshotUrl)} />
-                            <p className="text-[10px] text-white/20">Click to enlarge</p>
+                            <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(screenshotUrl)}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={screenshotUrl} alt="Screenshot"
+                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-orange-500/40 transition-colors" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
+                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {/* Photo upload */}
+                    {/* Photo upload — thumbnail, click to open lightbox */}
                     {isImage && (
                         <div className="space-y-2">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={sub.file_url} alt="Submission"
-                                className="w-full max-h-64 object-contain bg-black/30 border border-white/8 rounded-xl cursor-zoom-in hover:border-orange-500/30 transition-colors"
-                                onClick={() => setLightbox(sub.file_url)} />
-                            <p className="text-[10px] text-white/20">Click to enlarge</p>
+                            <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(sub.file_url)}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={sub.file_url} alt="Submission"
+                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-orange-500/40 transition-colors" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
+                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
+                                </div>
+                            </div>
                         </div>
                     )}
                     {sub.file_url && !isImage && (
