@@ -81,14 +81,15 @@ export async function createTeacher(formData: TeacherFormData): Promise<ApiRespo
         .select()
         .single();
 
+    const errMsg = error?.message ?? null;
     if (!data) {
-        return { data: null, error: error?.message ?? null };
+        return { data: null, error: errMsg };
     }
     const teacher = portalUserRowToTeacher(data);
     if (formData.subjects?.length) {
         teacher.subjects = formData.subjects;
     }
-    return { data: teacher, error: error?.message ?? null };
+    return { data: teacher, error: null };
 }
 
 /** Update a teacher's details */
@@ -106,14 +107,15 @@ export async function updateTeacher(id: string, updates: Partial<TeacherFormData
         .select()
         .single();
 
+    const errMsg = error?.message ?? null;
     if (!data) {
-        return { data: null, error: error?.message ?? null };
+        return { data: null, error: errMsg };
     }
     const teacher = portalUserRowToTeacher(data);
     if (updates.subjects !== undefined) {
         teacher.subjects = updates.subjects;
     }
-    return { data: teacher, error: error?.message ?? null };
+    return { data: teacher, error: null };
 }
 
 /** Soft-delete a teacher */
