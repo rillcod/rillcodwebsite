@@ -99,11 +99,39 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     onSaved: () => void;
 }) {
     const { profile } = useAuth();
-    const max = maxPoints ?? 100;
     const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
     const rubric: { criterion: string; description: string; maxPoints: number }[] = Array.isArray(assignment.metadata?.rubric) ? assignment.metadata.rubric : [];
 
-    const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
+    // Use sum of question points as the effective max — prevents mismatch with assignment.max_points
+    const questionMax = questions.reduce((s, q) => s + (q.points ?? 0), 0);
+    const max = questionMax > 0 ? questionMax : (maxPoints ?? 100);
+
+    // Auto-grade MCQ: compare each student answer vs correct_answer
+    const autoGradeResult = (() => {
+        if (!questions.length || !sub.answers) return null;
+        const hasMcq = questions.some(q => q.correct_answer && (q.question_type === 'multiple_choice' || q.question_type === 'true_false' || q.question_type === 'coding_blocks'));
+        if (!hasMcq) return null;
+        let earned = 0;
+        let gradeable = 0;
+        const perQ: ('correct' | 'wrong' | 'skipped' | 'manual')[] = questions.map((q, idx) => {
+            if (!q.correct_answer) return 'manual';
+            gradeable += q.points ?? 0;
+            const studentAns = String(sub.answers[idx] ?? '').trim().toLowerCase();
+            const correctAns = String(q.correct_answer).trim().toLowerCase();
+            if (!studentAns) return 'skipped';
+            if (studentAns === correctAns) { earned += q.points ?? 0; return 'correct'; }
+            return 'wrong';
+        });
+        return { earned, gradeable, perQ };
+    })();
+
+    const [grade, setGrade] = useState<string>(() => {
+        // If already graded by teacher, use that
+        if (sub.grade != null) return sub.grade.toString();
+        // Otherwise auto-fill from MCQ calculation
+        if (autoGradeResult != null) return String(autoGradeResult.earned);
+        return '';
+    });
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
     const [status, setStatus] = useState(sub.status);
     const [subText, setSubText] = useState(sub.submission_text ?? '');
@@ -113,7 +141,6 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
     const [briefOpen, setBriefOpen] = useState(false);
-    const [filePreviewOpen, setFilePreviewOpen] = useState(false);
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
     const handleRubricScore = (idx: number, val: number) => {
@@ -123,7 +150,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         setGrade(String(Math.min(total, max)));
     };
 
-    const info = grade ? pctInfo(Number(grade), max) : null;
+    const info = grade !== '' ? pctInfo(Number(grade), max) : null;
     const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url.split('?')[0]);
 
     const save = async () => {
@@ -402,45 +429,81 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         </div>
                     )}
 
-                    {/* Student answers vs correct answers */}
+                    {/* Student answers vs correct answers — with auto-grade result */}
                     {questions.length > 0 && sub.answers && (
                         <div className="space-y-3">
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Student Answers</p>
-                            {questions.map((q: any, idx: number) => (
-                                <div key={idx} className="p-4 bg-white/3 border border-white/8 rounded-xl space-y-2">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <p className="text-xs font-semibold text-white/70 leading-snug">{q.question_text}</p>
-                                        <span className="text-[10px] text-white/25 flex-shrink-0">{q.points}pt</span>
+                            {/* Auto-grade summary banner */}
+                            {autoGradeResult && (
+                                <div className="flex items-center justify-between px-4 py-3 bg-[#0B132B] border border-white/10 rounded-xl">
+                                    <div>
+                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Auto-Calculated Score</p>
+                                        <p className="text-sm text-white font-bold mt-0.5">
+                                            {autoGradeResult.perQ.filter(r => r === 'correct').length} correct ·{' '}
+                                            {autoGradeResult.perQ.filter(r => r === 'wrong').length} wrong ·{' '}
+                                            {autoGradeResult.perQ.filter(r => r === 'skipped').length} skipped
+                                        </p>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <div className="bg-black/20 rounded-lg p-2.5">
-                                            <p className="text-[9px] text-white/25 uppercase font-black mb-1">Student</p>
-                                            {q.question_type === 'coding_blocks' ? (
-                                                <div className="flex flex-wrap items-center gap-1 leading-relaxed">
-                                                    {(q.metadata?.logic_sentence || '').split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
-                                                        <span key={pi} className="contents">
-                                                            <span className="text-white/50 text-[10px]">{part}</span>
-                                                            {pi < arr.length - 1 && (
-                                                                <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold italic">
-                                                                    {(sub.answers?.[idx] || '').split(',')[pi]?.trim() || '???'}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-xs text-white/70 font-medium">{sub.answers?.[idx] || <span className="italic text-white/20">No answer</span>}</p>
-                                            )}
-                                        </div>
-                                        {q.correct_answer && (
-                                            <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-2.5">
-                                                <p className="text-[9px] text-emerald-400/60 uppercase font-black mb-1">Answer Key</p>
-                                                <p className="text-xs text-emerald-400 font-semibold">{q.correct_answer}</p>
-                                            </div>
-                                        )}
+                                    <div className="text-right">
+                                        <p className="text-2xl font-black text-emerald-400">{autoGradeResult.earned}</p>
+                                        <p className="text-[10px] text-white/30">/ {autoGradeResult.gradeable} pts</p>
                                     </div>
                                 </div>
-                            ))}
+                            )}
+
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Question-by-Question Breakdown</p>
+                            {questions.map((q: any, idx: number) => {
+                                const result = autoGradeResult?.perQ[idx];
+                                const studentAns = sub.answers?.[idx];
+                                const isCorrect = result === 'correct';
+                                const isWrong = result === 'wrong';
+                                const isSkipped = result === 'skipped';
+                                return (
+                                    <div key={idx} className={`p-4 border rounded-xl space-y-2 ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : isWrong ? 'bg-rose-500/5 border-rose-500/20' : isSkipped ? 'bg-white/2 border-white/5' : 'bg-white/3 border-white/8'}`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                                                {result && result !== 'manual' && (
+                                                    <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black mt-0.5 ${isCorrect ? 'bg-emerald-500/30 text-emerald-400' : isWrong ? 'bg-rose-500/30 text-rose-400' : 'bg-white/10 text-white/30'}`}>
+                                                        {isCorrect ? '✓' : isWrong ? '✗' : '—'}
+                                                    </span>
+                                                )}
+                                                <p className="text-xs font-semibold text-white/70 leading-snug">{idx + 1}. {q.question_text}</p>
+                                            </div>
+                                            <span className={`text-[10px] font-black flex-shrink-0 ${isCorrect ? 'text-emerald-400' : isWrong ? 'text-rose-400/50' : 'text-white/25'}`}>
+                                                {isCorrect ? `+${q.points}` : isSkipped ? '—' : isWrong ? '0'  : ''} pts
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div className={`rounded-lg p-2.5 ${isCorrect ? 'bg-emerald-500/10' : isWrong ? 'bg-rose-500/10' : 'bg-black/20'}`}>
+                                                <p className="text-[9px] uppercase font-black mb-1 text-white/25">Student's Answer</p>
+                                                {q.question_type === 'coding_blocks' ? (
+                                                    <div className="flex flex-wrap items-center gap-1">
+                                                        {(q.metadata?.logic_sentence || '').split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
+                                                            <span key={pi} className="contents">
+                                                                <span className="text-white/50 text-[10px]">{part}</span>
+                                                                {pi < arr.length - 1 && (
+                                                                    <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold italic">
+                                                                        {(studentAns || '').split(',')[pi]?.trim() || '???'}
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className={`text-xs font-semibold ${isCorrect ? 'text-emerald-300' : isWrong ? 'text-rose-300' : 'text-white/40 italic'}`}>
+                                                        {studentAns || 'Not answered'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {q.correct_answer && (
+                                                <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-lg p-2.5">
+                                                    <p className="text-[9px] text-emerald-400/60 uppercase font-black mb-1">Correct Answer</p>
+                                                    <p className="text-xs text-emerald-400 font-bold">{q.correct_answer}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 
@@ -471,7 +534,15 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
 
                     {/* Score input */}
                     <div className="bg-white/3 border border-white/8 rounded-xl p-4 space-y-3">
-                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Grade (0–{max} points)</p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Final Score (out of {max})</p>
+                            {autoGradeResult && (
+                                <button type="button" onClick={() => setGrade(String(autoGradeResult.earned))}
+                                    className="text-[10px] font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors">
+                                    ↺ Use Auto: {autoGradeResult.earned}pts
+                                </button>
+                            )}
+                        </div>
                         <div className="flex items-center gap-4">
                             <input type="number" min={0} max={max} value={grade}
                                 onChange={e => { setGrade(e.target.value); setErr(''); }}
@@ -899,10 +970,16 @@ export default function AssignmentDetailPage() {
         : [];
     const submitted = allSubs.filter((s: any) => s.status === 'submitted').length;
     const graded = allSubs.filter((s: any) => s.status === 'graded').length;
+    // Effective max = sum of question points (accurate), fallback to assignment.max_points
+    const qMax = Array.isArray(assignment?.questions)
+        ? assignment.questions.reduce((s: number, q: any) => s + (q.points ?? 0), 0)
+        : 0;
+    const effectiveMax = qMax > 0 ? qMax : (assignment?.max_points ?? 100);
+
     // Only show grade once teacher has explicitly graded — prevents showing 0 from DB default
     const isGraded = submission?.status === 'graded' && submission?.grade != null;
     const pct = isGraded
-        ? Math.round((submission.grade / (assignment?.max_points ?? 100)) * 100) : null;
+        ? Math.round((submission.grade / effectiveMax) * 100) : null;
     const letter = pct == null ? null
         : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
 
@@ -1046,7 +1123,7 @@ export default function AssignmentDetailPage() {
                                         <span className={`text-4xl font-black ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
                                             {letter}
                                         </span>
-                                        <p className="text-muted-foreground text-xs">{pct}% · {submission.grade}/{assignment.max_points} pts</p>
+                                        <p className="text-muted-foreground text-xs">{pct}% · {submission.grade}/{effectiveMax} pts</p>
                                     </div>
                                 ) : submission?.status === 'submitted' ? (
                                     <p className="text-[10px] text-white/30 mt-2">Awaiting grade</p>
