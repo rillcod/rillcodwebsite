@@ -84,7 +84,7 @@ export class AnnouncementsService {
 
         const { data, error } = await supabase
             .from('announcements')
-            .update(updatePayload)
+            .update(updatePayload as any)
             .eq('id', id)
             .select()
             .single();
