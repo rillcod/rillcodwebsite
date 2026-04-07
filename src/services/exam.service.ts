@@ -12,7 +12,6 @@ export interface ExamInput {
     randomize_options?: boolean;
     max_attempts?: number;
     is_active?: boolean;
-    tenant_id?: string;
 }
 
 export class ExamService {
@@ -65,14 +64,15 @@ export class ExamService {
 
     async createExam(input: ExamInput, creatorId: string) {
         const supabase = await createClient();
+        const { tenant_id, ...payload } = input as any;
         const { data, error } = await supabase
             .from('exams')
             .insert([{
-                ...input,
+                ...payload,
                 created_by: creatorId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-            }] as any)
+            }])
             .select()
             .single();
 
@@ -82,12 +82,13 @@ export class ExamService {
 
     async updateExam(id: string, input: Partial<ExamInput>) {
         const supabase = await createClient();
+        const { tenant_id, ...payload } = input as any;
         const { data, error } = await supabase
             .from('exams')
             .update({
-                ...input,
+                ...payload,
                 updated_at: new Date().toISOString()
-            })
+            } as any)
             .eq('id', id)
             .select()
             .single();
