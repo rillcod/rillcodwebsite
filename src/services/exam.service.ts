@@ -72,7 +72,7 @@ export class ExamService {
                 created_by: creatorId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-            }])
+            }] as any)
             .select()
             .single();
 
