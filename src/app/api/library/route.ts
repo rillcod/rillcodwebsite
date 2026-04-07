@@ -26,8 +26,15 @@ async function listHandler(req: Request, ctx: ApiContext) {
 }
 
 async function postHandler(req: Request, ctx: ApiContext) {
+    // Only admin and teacher can upload content
+    if (!['admin', 'teacher'].includes(ctx.user!.role)) {
+        return NextResponse.json({ error: 'Only teachers and admins can upload content' }, { status: 403 });
+    }
+
     const body = await req.json();
-    const item = await libraryService.createContent(ctx.user!.tenantId!, ctx.user!.id, ctx.user!.role, body);
+    // Admin uploads as global (school_id = null); teacher scoped to their school
+    const tenantId = ctx.user!.role === 'admin' ? null : ctx.user!.tenantId!;
+    const item = await libraryService.createContent(tenantId, ctx.user!.id, ctx.user!.role, body);
     return NextResponse.json({ success: true, data: item });
 }
 

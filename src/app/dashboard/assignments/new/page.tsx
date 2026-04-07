@@ -58,6 +58,7 @@ export default function NewAssignmentPage() {
     course_id: '',
     due_date: '',
     max_points: '100',
+    weight: '0',
     assignment_type: 'homework',
   });
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -231,6 +232,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         course_id: form.course_id,
         lesson_id: linkedLesson?.id ?? null,
         max_points: parseInt(form.max_points) || 100,
+        weight: parseInt(form.weight) || 0,
         assignment_type: form.assignment_type,
         is_active: true,
         created_by: profile?.id || '',
@@ -470,12 +472,24 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               </select>
             </div>
 
-            {/* Max Points */}
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
-              <input type="number" min="1" max="1000" value={form.max_points}
-                onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+            {/* Max Points + Report Weight */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
+                <input type="number" min="1" max="1000" value={form.max_points}
+                  onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                  Report Weight (pts)
+                </label>
+                <input type="number" min="0" max="200" value={form.weight}
+                  onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
+                  placeholder="0"
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                <p className="text-[10px] text-white/30 mt-1">Points this counts toward final report (0 = excluded)</p>
+              </div>
             </div>
 
             {/* Due Date */}

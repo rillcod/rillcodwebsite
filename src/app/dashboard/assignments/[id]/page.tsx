@@ -102,34 +102,51 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
     const rubric: { criterion: string; description: string; maxPoints: number }[] = Array.isArray(assignment.metadata?.rubric) ? assignment.metadata.rubric : [];
 
-    // Use sum of question points as the effective max — prevents mismatch with assignment.max_points
-    const questionMax = questions.reduce((s, q) => s + (q.points ?? 0), 0);
-    const max = questionMax > 0 ? questionMax : (maxPoints ?? 100);
+    // Grade is always out of assignment max_points
+    const max = maxPoints ?? 100;
 
-    // Auto-grade MCQ: compare each student answer vs correct_answer
+    // Auto-grade MCQ: compare each student answer vs correct_answer, scale result to max_points
     const autoGradeResult = (() => {
         if (!questions.length || !sub.answers) return null;
-        const hasMcq = questions.some(q => q.correct_answer && (q.question_type === 'multiple_choice' || q.question_type === 'true_false' || q.question_type === 'coding_blocks'));
-        if (!hasMcq) return null;
-        let earned = 0;
-        let gradeable = 0;
+        const MCQ_TYPES = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
+        const gradeableQs = questions.filter(q => q.correct_answer && MCQ_TYPES.has(q.question_type));
+        if (!gradeableQs.length) return null;
+
+        // Use individual points when set; otherwise distribute max_points equally across all questions
+        const totalQPts = gradeableQs.reduce((s, q) => s + (Number(q.points) || 0), 0);
+        const ptsEach = totalQPts === 0 ? max / questions.length : null;
+
+        let earnedRaw = 0;
+        let possibleRaw = 0;
         const perQ: ('correct' | 'wrong' | 'skipped' | 'manual')[] = questions.map((q, idx) => {
-            if (!q.correct_answer) return 'manual';
-            gradeable += q.points ?? 0;
+            if (!q.correct_answer || !MCQ_TYPES.has(q.question_type)) return 'manual';
+            const qPts = ptsEach !== null ? ptsEach : (Number(q.points) || 0);
+            possibleRaw += qPts;
             const studentAns = String(sub.answers[idx] ?? '').trim().toLowerCase();
             const correctAns = String(q.correct_answer).trim().toLowerCase();
             if (!studentAns) return 'skipped';
-            if (studentAns === correctAns) { earned += q.points ?? 0; return 'correct'; }
+            if (studentAns === correctAns) { earnedRaw += qPts; return 'correct'; }
             return 'wrong';
         });
-        return { earned, gradeable, perQ };
+
+        // Scale to max_points so the grade is always "out of max_points"
+        const earned = possibleRaw > 0 ? Math.round((earnedRaw / possibleRaw) * max) : 0;
+        return { earned, earnedRaw, possibleRaw, perQ };
     })();
 
+    const assignWeight: number = assignment?.weight ?? 0;
+
     const [grade, setGrade] = useState<string>(() => {
-        // If already graded by teacher, use that
         if (sub.grade != null) return sub.grade.toString();
-        // Otherwise auto-fill from MCQ calculation
         if (autoGradeResult != null) return String(autoGradeResult.earned);
+        return '';
+    });
+    // Weighted score = (grade / max_points) * weight — editable for manual override
+    const [weightedScore, setWeightedScore] = useState<string>(() => {
+        if (sub.weighted_score != null) return sub.weighted_score.toString();
+        if (assignWeight > 0 && sub.grade != null) {
+            return String(Math.round((sub.grade / max) * assignWeight));
+        }
         return '';
     });
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
@@ -141,6 +158,14 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
     const [briefOpen, setBriefOpen] = useState(false);
+
+    // Auto-recalculate weighted score when grade changes
+    const handleGradeChange = (val: string) => {
+        setGrade(val);
+        if (assignWeight > 0 && val !== '' && !isNaN(Number(val))) {
+            setWeightedScore(String(Math.round((Number(val) / max) * assignWeight)));
+        }
+    };
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
     const handleRubricScore = (idx: number, val: number) => {
@@ -158,7 +183,14 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            const payload: any = { grade: grade === '' ? null : g, feedback, status, submission_text: subText || null, graded_by: profile!.id };
+            const ws = weightedScore !== '' && !isNaN(Number(weightedScore)) ? Number(weightedScore) : null;
+            const payload: any = {
+                grade: grade === '' ? null : g,
+                weighted_score: ws,
+                feedback, status,
+                submission_text: subText || null,
+                graded_by: profile!.id,
+            };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -445,7 +477,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-2xl font-black text-emerald-400">{autoGradeResult.earned}</p>
-                                        <p className="text-[10px] text-white/30">/ {autoGradeResult.gradeable} pts</p>
+                                        <p className="text-[10px] text-white/30">/ {max} pts</p>
                                     </div>
                                 </div>
                             )}
@@ -537,7 +569,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         <div className="flex items-center justify-between">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Final Score (out of {max})</p>
                             {autoGradeResult && (
-                                <button type="button" onClick={() => setGrade(String(autoGradeResult.earned))}
+                                <button type="button" onClick={() => handleGradeChange(String(autoGradeResult.earned))}
                                     className="text-[10px] font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors">
                                     ↺ Use Auto: {autoGradeResult.earned}pts
                                 </button>
@@ -545,7 +577,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         </div>
                         <div className="flex items-center gap-4">
                             <input type="number" min={0} max={max} value={grade}
-                                onChange={e => { setGrade(e.target.value); setErr(''); }}
+                                onChange={e => { handleGradeChange(e.target.value); setErr(''); }}
                                 className="w-28 px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white text-2xl font-black text-center focus:outline-none focus:border-emerald-500 transition-colors"
                                 placeholder="0" />
                             <div className="flex-1">
@@ -561,6 +593,24 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                 ) : <p className="text-xs text-white/20">Enter score above</p>}
                             </div>
                         </div>
+
+                        {/* Report weight contribution — only shown when assignment has a weight */}
+                        {assignWeight > 0 && (
+                            <div className="pt-2 border-t border-white/5">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">
+                                    Report Contribution (out of {assignWeight} pts)
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <input type="number" min={0} max={assignWeight} value={weightedScore}
+                                        onChange={e => setWeightedScore(e.target.value)}
+                                        className="w-24 px-3 py-2 bg-black/30 border border-amber-500/20 rounded-lg text-amber-400 text-xl font-black text-center focus:outline-none focus:border-amber-500 transition-colors"
+                                        placeholder="0" />
+                                    <p className="text-xs text-white/30">
+                                        Auto-calculated from score. Edit to override for report card.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Feedback */}
@@ -970,16 +1020,12 @@ export default function AssignmentDetailPage() {
         : [];
     const submitted = allSubs.filter((s: any) => s.status === 'submitted').length;
     const graded = allSubs.filter((s: any) => s.status === 'graded').length;
-    // Effective max = sum of question points (accurate), fallback to assignment.max_points
-    const qMax = Array.isArray(assignment?.questions)
-        ? assignment.questions.reduce((s: number, q: any) => s + (q.points ?? 0), 0)
-        : 0;
-    const effectiveMax = qMax > 0 ? qMax : (assignment?.max_points ?? 100);
+    // Grade is always stored out of assignment.max_points
+    const effectiveMax = assignment?.max_points ?? 100;
 
-    // Only show grade once teacher has explicitly graded — prevents showing 0 from DB default
+    // Only show grade once explicitly graded — prevents 0 from DB default
     const isGraded = submission?.status === 'graded' && submission?.grade != null;
-    const pct = isGraded
-        ? Math.round((submission.grade / effectiveMax) * 100) : null;
+    const pct = isGraded ? Math.round((submission.grade / effectiveMax) * 100) : null;
     const letter = pct == null ? null
         : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
 
