@@ -23,29 +23,35 @@ async function getHandler(req: Request, ctx: ApiContext) {
     const id = ctx.params?.id;
     if (!id) throw new AppError('Content ID missing', 400);
 
-    const item = await libraryService.getContent(ctx.user!.tenantId!, id);
+    const item = await libraryService.getContent(id, ctx.user?.tenantId, ctx.user?.role);
     return NextResponse.json({ success: true, data: item });
 }
 
 async function putHandler(req: Request, ctx: ApiContext) {
     const id = ctx.params?.id;
     if (!id) throw new AppError('Content ID missing', 400);
+    if (!['admin', 'teacher'].includes(ctx.user?.role ?? '')) {
+        throw new AppError('Only teachers and admins can update library content', 403);
+    }
 
     const { data, errorResponse } = await withValidation(req as any, updateContentSchema);
     if (errorResponse) return errorResponse;
 
-    const item = await libraryService.updateContent(ctx.user!.tenantId!, id, data!);
+    const item = await libraryService.updateContent(id, ctx.user?.tenantId, ctx.user?.role, data!);
     return NextResponse.json({ success: true, data: item });
 }
 
 async function deleteHandler(req: Request, ctx: ApiContext) {
     const id = ctx.params?.id;
     if (!id) throw new AppError('Content ID missing', 400);
+    if (!['admin', 'teacher'].includes(ctx.user?.role ?? '')) {
+        throw new AppError('Only teachers and admins can delete library content', 403);
+    }
 
-    await libraryService.deleteContent(ctx.user!.tenantId!, id);
+    await libraryService.deleteContent(id, ctx.user?.tenantId, ctx.user?.role);
     return NextResponse.json({ success: true });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireTenant: true })(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireTenant: true })(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireTenant: true })(req, ctx);
+export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true, requireTenant: false })(req, ctx);
+export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireAuth: true, requireTenant: false })(req, ctx);
+export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true, requireTenant: false })(req, ctx);
