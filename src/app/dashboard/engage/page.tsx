@@ -167,7 +167,7 @@ export default function CommunityPage() {
         language:     showCode && codeSnippet.trim() ? language : null,
         tag:          postTag || 'General',
         likes:        0,
-      }).select().single();
+      } as any).select().single();
       if (err) throw err;
       setPosts(p => [data as EngagePost, ...p]);
       setMessage(''); setCodeSnippet(''); setShowCode(false);
