@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
+import type { Database } from '@/types/supabase';
 
 export type ContentType = 'video' | 'document' | 'quiz' | 'presentation' | 'interactive';
 
@@ -34,6 +35,8 @@ export interface ListFilters {
     pageSize?: number;
     role?: string | null;
 }
+
+type ContentLibraryUpdate = Database['public']['Tables']['content_library']['Update'];
 
 export class LibraryService {
     async createContent(tenantId: string | null | undefined, authorId: string, role: string, data: CreateContentPayload) {
@@ -116,7 +119,7 @@ export class LibraryService {
 
     async updateContent(tenantId: string, contentId: string, updates: UpdateContentPayload) {
         const supabase = await createClient();
-        const payload: any = {};
+        const payload: ContentLibraryUpdate = {};
         if (updates.title) payload.title = updates.title;
         if (updates.description !== undefined) payload.description = updates.description;
         if (updates.contentType) payload.content_type = updates.contentType;

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
+import type { Database } from '@/types/supabase';
 
 export interface ScheduleSessionParams {
     hostId: string;
@@ -14,6 +15,10 @@ export interface ScheduleSessionParams {
     schoolId?: string;
     notes?: string;
 }
+
+type LiveSessionUpdate = Database['public']['Tables']['live_sessions']['Update'];
+type LiveSessionPollOptionInsert = Database['public']['Tables']['live_session_poll_options']['Insert'];
+type LiveSessionPollResponseInsert = Database['public']['Tables']['live_session_poll_responses']['Insert'];
 
 export class LiveSessionService {
     async scheduleLiveSession(params: ScheduleSessionParams) {
@@ -89,7 +94,7 @@ export class LiveSessionService {
         status: 'scheduled' | 'live' | 'completed' | 'cancelled';
     }>) {
         const supabase = await createClient();
-        const payload: Record<string, unknown> = {};
+        const payload: LiveSessionUpdate = {};
         if (updates.title !== undefined) payload.title = updates.title;
         if (updates.description !== undefined) payload.description = updates.description;
         if (updates.scheduledAt !== undefined) payload.scheduled_at = updates.scheduledAt;
@@ -305,7 +310,7 @@ export class LiveSessionService {
         if (pollErr) throw new AppError(pollErr.message, 500);
 
         if (options.length > 0) {
-            const payload = options.map((opt, index) => ({
+            const payload: LiveSessionPollOptionInsert[] = options.map((opt, index) => ({
                 poll_id: poll.id,
                 option_text: opt.text,
                 order_index: index + 1,
@@ -333,7 +338,7 @@ export class LiveSessionService {
 
     async submitPollResponse(pollId: string, optionIds: string[], userId: string) {
         const supabase = await createClient();
-        const payload = optionIds.map(optionId => ({
+        const payload: LiveSessionPollResponseInsert[] = optionIds.map(optionId => ({
             poll_id: pollId,
             option_id: optionId,
             portal_user_id: userId,
