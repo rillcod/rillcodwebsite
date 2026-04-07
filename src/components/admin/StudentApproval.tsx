@@ -118,7 +118,7 @@ export default function StudentApproval() {
             course_interest: student.course_interest,
             preferred_schedule: student.preferred_schedule
           }
-        })
+        } as any)
         .select()
         .single()
 
