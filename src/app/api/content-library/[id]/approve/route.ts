@@ -17,8 +17,8 @@ async function postHandler(req: Request, ctx: ApiContext) {
     const { data, errorResponse } = await withValidation(req as any, approveSchema);
     if (errorResponse) return errorResponse;
 
-    const item = await libraryService.approveContent(ctx.user!.tenantId!, id, ctx.user!.id, data!.approved);
+    const item = await libraryService.approveContent(id, ctx.user!.id, data!.approved);
     return NextResponse.json({ success: true, data: item });
 }
 
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireTenant: true })(req, ctx);
+export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);

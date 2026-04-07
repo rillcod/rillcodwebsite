@@ -5,6 +5,9 @@ import type { Database } from '@/types/supabase';
 
 export type ContentType = 'video' | 'document' | 'quiz' | 'presentation' | 'interactive';
 
+type ContentLibraryRow = Database['public']['Tables']['content_library']['Row'];
+type ContentLibraryUpdate = Database['public']['Tables']['content_library']['Update'];
+
 export interface CreateContentPayload {
     title: string;
     description?: string;
@@ -36,11 +39,38 @@ export interface ListFilters {
     role?: string | null;
 }
 
-type ContentLibraryUpdate = Database['public']['Tables']['content_library']['Update'];
+function isStaffRole(role: string | null | undefined): boolean {
+    return role === 'admin' || role === 'teacher' || role === 'school';
+}
+
+/** Create / update / delete / copy-to-course: only these roles (not `school`). */
+function isLibraryMutatorRole(role: string | null | undefined): boolean {
+    return role === 'admin' || role === 'teacher';
+}
+
+/** Same visibility rules as list: active, approval, and school/global scope. */
+function canViewLibraryRow(row: ContentLibraryRow, tenantId: string | undefined, role: string | undefined): boolean {
+    if (!row.is_active) return false;
+    if (!isStaffRole(role) && !row.is_approved) return false;
+    if (tenantId) {
+        return row.school_id == null || row.school_id === tenantId;
+    }
+    if (role === 'admin') return true;
+    return row.school_id == null;
+}
+
+/** Admin anywhere; teacher only for their school’s rows. Global catalog rows: admin only. */
+function canMutateLibraryRow(row: ContentLibraryRow, tenantId: string | undefined, role: string | undefined): boolean {
+    if (!isLibraryMutatorRole(role)) return false;
+    if (role === 'admin') return true;
+    if (row.school_id == null) return false;
+    return !!tenantId && row.school_id === tenantId;
+}
 
 export class LibraryService {
     async createContent(tenantId: string | null | undefined, authorId: string, role: string, data: CreateContentPayload) {
         const supabase = await createClient();
+        const now = new Date().toISOString();
         const { data: item, error } = await supabase
             .from('content_library')
             .insert([{
@@ -58,7 +88,8 @@ export class LibraryService {
                 attribution: data.attribution ?? null,
                 is_active: true,
                 is_approved: role === 'admin' || role === 'teacher',
-                created_at: new Date().toISOString()
+                created_at: now,
+                updated_at: now,
             }])
             .select()
             .single();
@@ -73,14 +104,16 @@ export class LibraryService {
         const page = Math.max(filters.page ?? 0, 0);
         const from = page * pageSize;
         const to = from + pageSize - 1;
+        const role = filters.role ?? undefined;
 
         let query = supabase
             .from('content_library')
             .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, school_id, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
 
-        // If tenantId is provided, scope to that school + global content; otherwise return all
         if (tenantId) {
             query = query.or(`school_id.eq.${tenantId},school_id.is.null`);
+        } else if (role !== 'admin') {
+            query = query.is('school_id', null);
         }
 
         if (filters.type) query = query.eq('content_type', filters.type);
@@ -91,9 +124,8 @@ export class LibraryService {
             query = query.ilike('title', `%${filters.query}%`);
         }
 
-        // Admins + teachers see all content (including unapproved); students/school only see approved
         query = query.eq('is_active', true);
-        if (filters.role !== 'admin' && filters.role !== 'teacher') {
+        if (!isStaffRole(role)) {
             query = query.eq('is_approved', true);
         }
 
@@ -105,21 +137,33 @@ export class LibraryService {
         return data ?? [];
     }
 
-    async getContent(tenantId: string, contentId: string) {
+    async getContent(contentId: string, tenantId: string | undefined, role: string | undefined) {
         const supabase = await createClient();
-        const { data, error } = await supabase
+        const { data: row, error } = await supabase
             .from('content_library')
             .select('*, files(public_url, file_type, thumbnail_url, file_size, mime_type)')
-            .eq('school_id', tenantId)
             .eq('id', contentId)
             .single();
-        if (error) throw new AppError(error.message, 500);
-        return data;
+        if (error || !row) throw new AppError('Content not found', 404);
+        if (!canViewLibraryRow(row as ContentLibraryRow, tenantId, role)) {
+            throw new AppError('Forbidden', 403);
+        }
+        return row;
     }
 
-    async updateContent(tenantId: string, contentId: string, updates: UpdateContentPayload) {
+    async updateContent(contentId: string, tenantId: string | undefined, role: string | undefined, updates: UpdateContentPayload) {
         const supabase = await createClient();
-        const payload: ContentLibraryUpdate = {};
+        const { data: row, error: fetchErr } = await supabase
+            .from('content_library')
+            .select('*')
+            .eq('id', contentId)
+            .single();
+        if (fetchErr || !row) throw new AppError('Content not found', 404);
+        if (!canMutateLibraryRow(row as ContentLibraryRow, tenantId, role)) {
+            throw new AppError('Forbidden', 403);
+        }
+
+        const payload: ContentLibraryUpdate = { updated_at: new Date().toISOString() };
         if (updates.title) payload.title = updates.title;
         if (updates.description !== undefined) payload.description = updates.description;
         if (updates.contentType) payload.content_type = updates.contentType;
@@ -131,12 +175,11 @@ export class LibraryService {
         if (updates.licenseType !== undefined) payload.license_type = updates.licenseType;
         if (updates.attribution !== undefined) payload.attribution = updates.attribution;
         if (updates.isActive !== undefined) payload.is_active = updates.isActive;
-        if (updates.isApproved !== undefined) payload.is_approved = updates.isApproved;
+        if (updates.isApproved !== undefined && role === 'admin') payload.is_approved = updates.isApproved;
 
         const { data, error } = await supabase
             .from('content_library')
             .update(payload)
-            .eq('school_id', tenantId)
             .eq('id', contentId)
             .select()
             .single();
@@ -144,18 +187,24 @@ export class LibraryService {
         return data;
     }
 
-    async deleteContent(tenantId: string, contentId: string) {
+    async deleteContent(contentId: string, tenantId: string | undefined, role: string | undefined) {
         const supabase = await createClient();
-        const { error } = await supabase
+        const { data: row, error: fetchErr } = await supabase
             .from('content_library')
-            .delete()
-            .eq('school_id', tenantId)
-            .eq('id', contentId);
+            .select('id, school_id')
+            .eq('id', contentId)
+            .single();
+        if (fetchErr || !row) throw new AppError('Content not found', 404);
+        if (!canMutateLibraryRow(row as ContentLibraryRow, tenantId, role)) {
+            throw new AppError('Forbidden', 403);
+        }
+
+        const { error } = await supabase.from('content_library').delete().eq('id', contentId);
         if (error) throw new AppError(error.message, 500);
         return true;
     }
 
-    async approveContent(tenantId: string, contentId: string, approverId: string, isApproved: boolean) {
+    async approveContent(contentId: string, approverId: string, isApproved: boolean) {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('content_library')
@@ -163,8 +212,8 @@ export class LibraryService {
                 is_approved: isApproved,
                 approved_by: approverId,
                 approved_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
             })
-            .eq('school_id', tenantId)
             .eq('id', contentId)
             .select()
             .single();
@@ -182,15 +231,17 @@ export class LibraryService {
         return data;
     }
 
-    async copyToCourse(tenantId: string, contentId: string, courseId: string) {
+    async copyToCourse(tenantId: string | undefined, contentId: string, courseId: string, role: string | undefined) {
         const supabase = await createClient();
         const { data: content, error: contentErr } = await supabase
             .from('content_library')
             .select('*')
-            .eq('school_id', tenantId)
             .eq('id', contentId)
             .single();
         if (contentErr || !content) throw new AppError('Content not found', 404);
+        if (!canViewLibraryRow(content as ContentLibraryRow, tenantId, role)) {
+            throw new AppError('Forbidden', 403);
+        }
 
         let fileUrl: string | null = null;
         let fileType: string | null = null;
@@ -207,6 +258,7 @@ export class LibraryService {
             fileSize = fileData?.file_size ?? null;
         }
 
+        const now = new Date().toISOString();
         const { data: material, error: materialErr } = await supabase
             .from('course_materials')
             .insert([{
@@ -217,7 +269,7 @@ export class LibraryService {
                 file_type: fileType ?? content.content_type,
                 file_size: fileSize ?? null,
                 is_active: true,
-                created_at: new Date().toISOString()
+                created_at: now,
             }])
             .select()
             .single();
@@ -226,7 +278,10 @@ export class LibraryService {
 
         await supabase
             .from('content_library')
-            .update({ usage_count: (content.usage_count ?? 0) + 1 })
+            .update({
+                usage_count: (content.usage_count ?? 0) + 1,
+                updated_at: now,
+            })
             .eq('id', contentId);
 
         return material;
@@ -239,7 +294,7 @@ export class LibraryService {
             content_id: itemId,
             rating,
             review: review ?? null,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
         }, { onConflict: 'portal_user_id,content_id' });
 
         if (error) throw new AppError(error.message, 500);
@@ -249,13 +304,14 @@ export class LibraryService {
             .select('rating')
             .eq('content_id', itemId);
 
-        const values = ratings?.map((r) => r.rating).filter((r) => typeof r === 'number') as number[] | undefined;
+        const values = ratings?.map((r) => r.rating).filter((r): r is number => typeof r === 'number');
         if (values && values.length > 0) {
             const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
             await supabase.from('content_library')
                 .update({
                     rating_average: Number(avg.toFixed(2)),
-                    rating_count: values.length
+                    rating_count: values.length,
+                    updated_at: new Date().toISOString(),
                 })
                 .eq('id', itemId);
         }

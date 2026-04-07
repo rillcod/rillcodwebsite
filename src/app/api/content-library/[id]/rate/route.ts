@@ -21,4 +21,4 @@ async function postHandler(req: Request, ctx: ApiContext) {
     return NextResponse.json({ success: true });
 }
 
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireTenant: true })(req, ctx);
+export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);

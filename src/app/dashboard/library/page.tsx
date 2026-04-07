@@ -32,6 +32,7 @@ type ContentItem = {
   rating_count?: number | null;
   usage_count?: number | null;
   school_id?: string | null;
+  file_id?: string | null;
   created_at: string;
   files?: {
     public_url?: string | null;
@@ -99,8 +100,10 @@ export default function ContentLibraryPage() {
   });
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "school";
+  /** Matches API: only admin + teacher may upload, edit, delete, or assign to courses. */
+  const canMutateLibrary = profile?.role === "admin" || profile?.role === "teacher";
   const canApprove = profile?.role === "admin";
-  const canUpload = profile?.role === "admin" || profile?.role === "teacher";
+  const canUpload = canMutateLibrary;
 
   const loadItems = async () => {
     setLoading(true); setError(null);
@@ -119,11 +122,11 @@ export default function ContentLibraryPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     loadItems();
-    if (isStaff) {
+    if (canMutateLibrary) {
       createClient().from("courses").select("id, title").order("title")
         .then(({ data }) => setCourses((data ?? []) as any));
     }
-  }, [profile?.id, authLoading]);
+  }, [profile?.id, authLoading, canMutateLibrary]);
 
   // Unique subjects derived from loaded data
   const subjects = useMemo(() => {
@@ -997,8 +1000,8 @@ export default function ContentLibraryPage() {
                   </button>
                 )}
 
-                {/* Assign to Course */}
-                {isStaff && courses.length > 0 && (
+                {/* Assign to Course — teachers & admins only */}
+                {canMutateLibrary && courses.length > 0 && (
                   <div>
                     {!assigningCourse ? (
                       <button onClick={() => setAssigningCourse(true)}
