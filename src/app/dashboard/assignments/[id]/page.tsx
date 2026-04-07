@@ -156,6 +156,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
     const [lightbox, setLightbox] = useState<string | null>(null);
+    const [filePreviewOpen, setFilePreviewOpen] = useState(false);
     const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
     const [briefOpen, setBriefOpen] = useState(false);
 
