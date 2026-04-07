@@ -3562,7 +3562,6 @@ export type Database = {
           school_name: string | null
           section_class: string | null
           student_id: string | null
-          metadata: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -3591,7 +3590,6 @@ export type Database = {
           school_name?: string | null
           section_class?: string | null
           student_id?: string | null
-          metadata?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -3620,7 +3618,6 @@ export type Database = {
           school_name?: string | null
           section_class?: string | null
           student_id?: string | null
-          metadata?: Json | null
           updated_at?: string | null
         }
         Relationships: [
