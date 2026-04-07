@@ -46,6 +46,7 @@ export default function EditAssignmentPage() {
         course_id: '',
         due_date: '',
         max_points: '100',
+        weight: '0',
         assignment_type: 'homework',
         is_active: true,
     });
@@ -69,6 +70,7 @@ export default function EditAssignmentPage() {
                     course_id: a.course_id ?? '',
                     due_date: a.due_date ? new Date(a.due_date).toISOString().slice(0, 16) : '',
                     max_points: String(a.max_points ?? 100),
+                    weight: String(a.weight ?? 0),
                     assignment_type: a.assignment_type ?? 'homework',
                     is_active: a.is_active ?? true,
                 });
@@ -112,6 +114,7 @@ export default function EditAssignmentPage() {
                 instructions: form.instructions.trim() || null,
                 course_id: form.course_id,
                 max_points: parseInt(form.max_points) || 100,
+                weight: parseInt(form.weight) || 0,
                 assignment_type: form.assignment_type,
                 is_active: form.is_active,
                 updated_at: new Date().toISOString(),
@@ -226,12 +229,22 @@ export default function EditAssignmentPage() {
                             </select>
                         </div>
 
-                        {/* Max Points */}
-                        <div>
-                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
-                            <input type="number" min="1" max="1000" value={form.max_points}
-                                onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                        {/* Max Points + Report Weight */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
+                                <input type="number" min="1" max="1000" value={form.max_points}
+                                    onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Report Weight (pts)</label>
+                                <input type="number" min="0" max="200" value={form.weight}
+                                    onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
+                                    placeholder="0"
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                                <p className="text-[10px] text-white/30 mt-1">Points toward final report (0 = excluded)</p>
+                            </div>
                         </div>
 
                         {/* Due Date */}

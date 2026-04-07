@@ -42,10 +42,33 @@ export async function PATCH(
     if ('status'          in body) allowed.status          = body.status;
     if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
     if ('graded_by'       in body) allowed.graded_by       = body.graded_by;
+    // Allow explicit weighted_score override from GradeCanvas
+    if ('weighted_score'  in body) allowed.weighted_score  = body.weighted_score ?? null;
 
     if (body.status === 'graded' || 'grade' in body) {
       allowed.graded_by = allowed.graded_by ?? caller.id;
       allowed.graded_at = new Date().toISOString();
+
+      // Auto-compute weighted_score only when not explicitly provided by caller
+      if (body.grade != null && !('weighted_score' in body)) {
+        const { data: sub } = await adminClient()
+          .from('assignment_submissions')
+          .select('assignment_id')
+          .eq('id', id)
+          .single();
+        if (sub?.assignment_id) {
+          const { data: asgn } = await adminClient()
+            .from('assignments')
+            .select('weight, max_points')
+            .eq('id', sub.assignment_id)
+            .single();
+          const w = asgn?.weight ?? 0;
+          const mp = asgn?.max_points ?? 100;
+          allowed.weighted_score = (w > 0 && mp > 0)
+            ? Math.round((Number(body.grade) / mp) * w)
+            : null;
+        }
+      }
     }
     if ('graded_at' in body) allowed.graded_at = body.graded_at;
 

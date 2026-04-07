@@ -43,6 +43,21 @@ export async function POST(
 
     const admin = adminClient();
 
+    // Fetch assignment weight + max_points to compute weighted_score
+    const { data: assignment } = await admin
+      .from('assignments')
+      .select('weight, max_points')
+      .eq('id', assignment_id)
+      .single();
+
+    const assignWeight = assignment?.weight ?? 0;
+    const assignMax = assignment?.max_points ?? 100;
+
+    function computeWeightedScore(g: number | null | undefined): number | null {
+      if (g == null || assignWeight === 0 || assignMax === 0) return null;
+      return Math.round((g / assignMax) * assignWeight);
+    }
+
     if (submission_id) {
       // Update existing submission
       const updatePayload: Record<string, unknown> = {
@@ -55,13 +70,14 @@ export async function POST(
       if (status === 'graded' || grade !== undefined) {
         updatePayload.graded_by = caller.id;
         updatePayload.graded_at = new Date().toISOString();
+        updatePayload.weighted_score = computeWeightedScore(grade);
       }
 
       const { data, error } = await admin
         .from('assignment_submissions')
         .update(updatePayload)
         .eq('id', submission_id)
-        .select('id, grade, status')
+        .select('id, grade, status, weighted_score')
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -83,8 +99,9 @@ export async function POST(
           graded_at: new Date().toISOString(),
           submitted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          weighted_score: computeWeightedScore(grade),
         }, { onConflict: 'assignment_id,portal_user_id' })
-        .select('id, grade, status')
+        .select('id, grade, status, weighted_score')
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
