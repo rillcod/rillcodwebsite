@@ -10,6 +10,8 @@ export interface School {
     contact_email?: string;
     contact_phone?: string;
     student_count?: number;
+    /** DB `schools.status` — e.g. `pending` (awaiting approval), `approved`, `rejected` */
+    status?: string | null;
     is_active: boolean;
     is_deleted: boolean;
     created_at: string;
