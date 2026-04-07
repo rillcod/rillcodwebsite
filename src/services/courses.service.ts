@@ -149,7 +149,7 @@ export class CoursesService {
             .update({
                 ...input,
                 updated_at: new Date().toISOString()
-            })
+            } as any)
             .eq('id', id)
             .select()
             .single();
