@@ -66,6 +66,7 @@ export default function NewslettersPage() {
   const [aiTone, setAiTone] = useState<'professional' | 'energetic' | 'visionary'>('professional');
   const [aiAudience, setAiAudience] = useState<'everyone' | 'parents' | 'students'>('everyone');
   const [showPreview, setShowPreview] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const supabase = createClient();
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -123,27 +124,36 @@ export default function NewslettersPage() {
   async function handleAIGenerate() {
     if (!topic) return;
     setGenerating(true);
+    setAiError(null);
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type: 'newsletter', 
+        body: JSON.stringify({
+          type: 'newsletter',
           topic,
           tone: aiTone,
-          audience: aiAudience 
+          audience: aiAudience
         })
       });
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.data) {
+        const title = json.data.title || json.data.headline || '';
+        const content = json.data.content || json.data.body || json.data.text || '';
+        if (!content) {
+          setAiError('AI returned empty content. Please try again.');
+          return;
+        }
         setActiveNewsletter(prev => ({
           ...prev,
-          title: json.data.title,
-          content: stripMarkdown(json.data.content || ''),
+          title: stripMarkdown(title),
+          content: stripMarkdown(content),
         }));
+      } else {
+        setAiError(json.error || 'Generation failed. Please try again.');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setAiError(e.message || 'Network error. Please check your connection.');
     } finally {
       setGenerating(false);
     }
@@ -402,7 +412,7 @@ export default function NewslettersPage() {
                      />
                   </div>
                   
-                  <button 
+                  <button
                     onClick={handleAIGenerate}
                     disabled={generating || !topic}
                     className="w-full py-4 lg:py-5 bg-gradient-to-br from-orange-600 to-indigo-700 hover:from-orange-500 hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
@@ -410,6 +420,13 @@ export default function NewslettersPage() {
                     {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
                     {generating ? 'Generating...' : 'Generate'}
                   </button>
+
+                  {aiError && (
+                    <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                      <InformationCircleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-rose-400 font-semibold">{aiError}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
