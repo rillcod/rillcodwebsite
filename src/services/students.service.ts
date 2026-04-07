@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Student, ProspectiveStudent, StudentFormData, ApiResponse } from '@/types';
-import type { Database, Json } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 
 const db = () => createClient();
 
@@ -90,21 +90,8 @@ export async function approveStudent(
         return { data: null, error: 'Cannot approve: missing student email' };
     }
 
-    // Typed columns for queries/FKs; `metadata` keeps extra registration fields for support/history.
+    // Registration details stay on `students`; portal_users uses typed columns only (no `metadata` column required).
     const now = new Date().toISOString();
-    const metadata: Json = {
-        student_id: studentId,
-        school_id: studentData.school_id,
-        grade: studentData.grade,
-        age: studentData.age,
-        gender: studentData.gender,
-        parent_name: studentData.parent_name,
-        parent_phone: studentData.parent_phone,
-        parent_email: studentData.parent_email,
-        course_interest: studentData.course_interest,
-        preferred_schedule: studentData.preferred_schedule,
-        hear_about_us: studentData.hear_about_us,
-    };
     const insertPayload: PortalUserInsert = {
         email: loginEmail,
         full_name: studentData.full_name,
@@ -116,7 +103,6 @@ export async function approveStudent(
         section_class: studentData.grade ?? null,
         student_id: studentId,
         phone: studentData.parent_phone ?? null,
-        metadata,
         created_at: now,
         updated_at: now,
     };
@@ -146,16 +132,6 @@ export async function rejectStudent(studentId: string): Promise<ApiResponse<null
 /** Create a new student record directly */
 export async function createStudent(formData: StudentFormData): Promise<ApiResponse<Student>> {
     const now = new Date().toISOString();
-    const metadata: Json | undefined =
-        formData.parent_name != null ||
-        formData.parent_email != null ||
-        formData.age != null
-            ? {
-                  parent_name: formData.parent_name ?? null,
-                  parent_email: formData.parent_email ?? null,
-                  age: formData.age ?? null,
-              }
-            : undefined;
     const insertPayload: PortalUserInsert = {
         email: formData.email,
         full_name: formData.full_name,
@@ -165,7 +141,6 @@ export async function createStudent(formData: StudentFormData): Promise<ApiRespo
         school_id: formData.school_id ?? null,
         section_class: formData.grade_level ?? null,
         phone: formData.parent_phone ?? null,
-        ...(metadata ? { metadata } : {}),
         created_at: now,
         updated_at: now,
     };

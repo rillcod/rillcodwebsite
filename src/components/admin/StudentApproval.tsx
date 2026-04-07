@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client';
-import type { Database, Json } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -99,19 +99,6 @@ export default function StudentApproval() {
       if (!student) return
 
       // Create portal user
-      const metadata: Json = {
-        prospective_student_id: student.id,
-        school_id: student.school_id,
-        grade: student.grade,
-        age: student.age,
-        gender: student.gender,
-        parent_name: student.parent_name,
-        parent_phone: student.parent_phone,
-        parent_email: student.parent_email,
-        course_interest: student.course_interest,
-        preferred_schedule: student.preferred_schedule,
-        hear_about_us: student.hear_about_us,
-      }
       const portalUserPayload: PortalUserInsert = {
         email: student.email,
         full_name: student.full_name,
@@ -122,7 +109,6 @@ export default function StudentApproval() {
         school_name: student.school_name,
         section_class: student.grade,
         phone: student.parent_phone,
-        metadata,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
