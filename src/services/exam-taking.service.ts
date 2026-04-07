@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { questionService } from './question.service';
 import { examService } from './exam.service';
+import type { Database, Json } from '@/types/supabase';
+
+type ExamAttemptUpdate = Database['public']['Tables']['exam_attempts']['Update'];
 
 export class ExamTakingService {
     async startExam(examId: string, userId: string) {
@@ -51,7 +54,7 @@ export class ExamTakingService {
             question_type: q.question_type,
             points: q.points,
             options: exam.randomize_options && q.options && Array.isArray(q.options)
-                ? (q.options as any[]).sort(() => Math.random() - 0.5)
+                ? [...q.options].sort(() => Math.random() - 0.5)
                 : q.options
         }));
 
@@ -65,11 +68,12 @@ export class ExamTakingService {
         };
     }
 
-    async saveProgress(attemptId: string, userId: string, answers: any) {
+    async saveProgress(attemptId: string, userId: string, answers: Json) {
         const supabase = await createClient();
+        const payload: ExamAttemptUpdate = { answers };
         const { error } = await supabase
             .from('exam_attempts')
-            .update({ answers, updated_at: new Date().toISOString() } as any)
+            .update(payload)
             .eq('id', attemptId)
             .eq('portal_user_id', userId)
             .eq('status', 'in_progress');

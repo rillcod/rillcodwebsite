@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { Database } from '@/types/supabase';
+
+type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
 
 // ── Auth guard helper ────────────────────────────────────────────────────────
 // Uses the RLS client only to verify identity; all data ops use admin client.
@@ -163,7 +166,7 @@ export async function PATCH(req: Request) {
     }
 
     // Update portal_users record (admin bypasses RLS)
-    const updates: { updated_at: string; full_name?: string; phone?: string; is_active?: boolean } = {
+    const updates: PortalUserUpdate = {
       updated_at: new Date().toISOString(),
     };
     if (full_name !== undefined) updates.full_name = full_name;
@@ -172,7 +175,7 @@ export async function PATCH(req: Request) {
 
     const { error: updateErr } = await admin
       .from('portal_users')
-      .update(updates as any)
+      .update(updates)
       .eq('id', parent_id)
       .eq('role', 'parent');
     if (updateErr) throw updateErr;

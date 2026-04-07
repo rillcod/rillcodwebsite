@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/supabase';
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -39,6 +40,8 @@ interface ProspectiveStudent {
 type ProspectiveStudentRow = Omit<ProspectiveStudent, 'school_name'> & {
   schools: { name: string } | null
 }
+
+type PortalUserInsert = Database['public']['Tables']['portal_users']['Insert'];
 
 export default function StudentApproval() {
   const supabase = createClient()
@@ -96,29 +99,20 @@ export default function StudentApproval() {
       if (!student) return
 
       // Create portal user
+      const portalUserPayload: PortalUserInsert = {
+        email: student.email,
+        full_name: student.full_name,
+        role: 'student',
+        is_active: true,
+        is_deleted: false,
+        school_id: student.school_id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
       const { data: newUser, error: createError } = await supabase
         .from('portal_users')
-        .insert({
-          email: student.email,
-          full_name: student.full_name,
-          role: 'student',
-          is_active: true,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          metadata: {
-            student_id: student.id,
-            school_id: student.school_id,
-            grade: student.grade,
-            age: student.age,
-            gender: student.gender,
-            parent_name: student.parent_name,
-            parent_phone: student.parent_phone,
-            parent_email: student.parent_email,
-            course_interest: student.course_interest,
-            preferred_schedule: student.preferred_schedule
-          }
-        } as any)
+        .insert(portalUserPayload)
         .select()
         .single()
 

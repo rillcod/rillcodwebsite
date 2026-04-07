@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redisCache } from '@/lib/redis';
 import { AppError, NotFoundError, ValidationError } from '@/lib/errors';
+import type { Database } from '@/types/supabase';
 
 export interface CourseInput {
     program_id: string;
@@ -20,6 +21,10 @@ export interface CourseFilters {
     limit?: number;
     isPublished?: boolean;
 }
+
+type CourseInsert = Database['public']['Tables']['courses']['Insert'];
+type CourseUpdate = Database['public']['Tables']['courses']['Update'];
+type EnrollmentInsert = Database['public']['Tables']['enrollments']['Insert'];
 
 export class CoursesService {
     async listCourses(filters: CourseFilters = {}) {
@@ -114,12 +119,12 @@ export class CoursesService {
             .from('courses')
             .insert([
                 {
-                    ...input,
+                    ...(input as CourseInsert),
                     school_id: tenantId,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 }
-            ] as any)
+            ])
             .select()
             .single();
 
@@ -147,9 +152,9 @@ export class CoursesService {
         const { data, error } = await supabase
             .from('courses')
             .update({
-                ...input,
+                ...(input as CourseUpdate),
                 updated_at: new Date().toISOString()
-            } as any)
+            })
             .eq('id', id)
             .select()
             .single();
@@ -236,9 +241,10 @@ export class CoursesService {
                 {
                     user_id: userId,
                     program_id: programId,
+                    role: 'student',
                     status: 'active',
                     enrollment_date: new Date().toISOString()
-                } as any
+                } satisfies EnrollmentInsert
             ])
             .select()
             .single();

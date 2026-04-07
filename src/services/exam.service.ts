@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
+import type { Database } from '@/types/supabase';
 
 export interface ExamInput {
     course_id: string;
@@ -13,6 +14,9 @@ export interface ExamInput {
     max_attempts?: number;
     is_active?: boolean;
 }
+
+type ExamInsert = Database['public']['Tables']['exams']['Insert'];
+type ExamUpdate = Database['public']['Tables']['exams']['Update'];
 
 export class ExamService {
     async listExams(courseId?: string, tenantId?: string) {
@@ -64,7 +68,19 @@ export class ExamService {
 
     async createExam(input: ExamInput, creatorId: string) {
         const supabase = await createClient();
-        const { tenant_id, ...payload } = input as any;
+        const payload: ExamInsert = {
+            course_id: input.course_id,
+            title: input.title,
+            description: input.description,
+            duration_minutes: input.duration_minutes,
+            total_points: input.total_points,
+            passing_score: input.passing_score,
+            randomize_questions: input.randomize_questions,
+            randomize_options: input.randomize_options,
+            max_attempts: input.max_attempts,
+            is_active: input.is_active
+        };
+
         const { data, error } = await supabase
             .from('exams')
             .insert([{
@@ -82,13 +98,25 @@ export class ExamService {
 
     async updateExam(id: string, input: Partial<ExamInput>) {
         const supabase = await createClient();
-        const { tenant_id, ...payload } = input as any;
+        const payload: ExamUpdate = {
+            course_id: input.course_id,
+            title: input.title,
+            description: input.description,
+            duration_minutes: input.duration_minutes,
+            total_points: input.total_points,
+            passing_score: input.passing_score,
+            randomize_questions: input.randomize_questions,
+            randomize_options: input.randomize_options,
+            max_attempts: input.max_attempts,
+            is_active: input.is_active
+        };
+
         const { data, error } = await supabase
             .from('exams')
             .update({
                 ...payload,
                 updated_at: new Date().toISOString()
-            } as any)
+            })
             .eq('id', id)
             .select()
             .single();
