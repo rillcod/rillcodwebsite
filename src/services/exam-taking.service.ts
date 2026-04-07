@@ -69,7 +69,7 @@ export class ExamTakingService {
         const supabase = await createClient();
         const { error } = await supabase
             .from('exam_attempts')
-            .update({ answers, updated_at: new Date().toISOString() })
+            .update({ answers, updated_at: new Date().toISOString() } as any)
             .eq('id', attemptId)
             .eq('portal_user_id', userId)
             .eq('status', 'in_progress');
