@@ -162,6 +162,7 @@ export type Database = {
           submitted_at: string | null
           updated_at: string | null
           user_id: string | null
+          weighted_score: number | null
         }
         Insert: {
           answers?: Json | null
@@ -179,6 +180,7 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          weighted_score?: number | null
         }
         Update: {
           answers?: Json | null
@@ -196,6 +198,7 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          weighted_score?: number | null
         }
         Relationships: [
           {
@@ -276,6 +279,7 @@ export type Database = {
           school_name: string | null
           title: string
           updated_at: string | null
+          weight: number
         }
         Insert: {
           assignment_type?: string | null
@@ -296,6 +300,7 @@ export type Database = {
           school_name?: string | null
           title: string
           updated_at?: string | null
+          weight?: number
         }
         Update: {
           assignment_type?: string | null
@@ -316,6 +321,7 @@ export type Database = {
           school_name?: string | null
           title?: string
           updated_at?: string | null
+          weight?: number
         }
         Relationships: [
           {
