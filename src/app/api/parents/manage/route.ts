@@ -163,14 +163,16 @@ export async function PATCH(req: Request) {
     }
 
     // Update portal_users record (admin bypasses RLS)
-    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    const updates: { updated_at: string; full_name?: string; phone?: string; is_active?: boolean } = {
+      updated_at: new Date().toISOString(),
+    };
     if (full_name !== undefined) updates.full_name = full_name;
     if (phone !== undefined) updates.phone = phone;
     if (is_active !== undefined) updates.is_active = is_active;
 
     const { error: updateErr } = await admin
       .from('portal_users')
-      .update(updates)
+      .update(updates as any)
       .eq('id', parent_id)
       .eq('role', 'parent');
     if (updateErr) throw updateErr;
