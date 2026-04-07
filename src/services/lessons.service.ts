@@ -74,11 +74,13 @@ export class LessonsService {
             throw new AppError('Course not found or access denied', 403);
         }
 
+        const { is_active: _isActive, ...lessonFields } = input;
+
         const { data, error } = await supabase
             .from('lessons')
             .insert([
                 {
-                    ...input,
+                    ...lessonFields,
                     created_by: userId,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -98,10 +100,12 @@ export class LessonsService {
         const supabase = await createClient();
         await this.getLesson(id, tenantId);
 
+        const { is_active: _isActive, ...lessonFields } = input;
+
         const { data, error } = await supabase
             .from('lessons')
             .update({
-                ...input,
+                ...lessonFields,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)

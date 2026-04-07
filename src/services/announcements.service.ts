@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
+import type { Database } from '@/types/supabase';
 
 // The announcements table schema:
 // id, title, content, author_id, target_audience, is_active, created_at, updated_at
@@ -11,6 +12,8 @@ export interface AnnouncementInput {
     target_audience?: 'all' | 'students' | 'teachers' | 'admins';
     is_active?: boolean;
 }
+
+type AnnouncementUpdate = Database['public']['Tables']['announcements']['Update'];
 
 export class AnnouncementsService {
     async listAnnouncements(tenantId?: string, audience?: string, limit: number = 20) {
@@ -76,7 +79,7 @@ export class AnnouncementsService {
         const supabase = await createClient();
         await this.getAnnouncement(id, tenantId);
 
-        const updatePayload: Record<string, any> = {};
+        const updatePayload: AnnouncementUpdate = {};
         if (input.title !== undefined) updatePayload.title = input.title;
         if (input.content !== undefined) updatePayload.content = input.content;
         if (input.target_audience !== undefined) updatePayload.target_audience = input.target_audience;
@@ -84,7 +87,7 @@ export class AnnouncementsService {
 
         const { data, error } = await supabase
             .from('announcements')
-            .update(updatePayload as any)
+            .update(updatePayload)
             .eq('id', id)
             .select()
             .single();

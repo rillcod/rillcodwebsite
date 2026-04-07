@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/supabase';
 import {
   FireIcon, SparklesIcon, CodeBracketIcon, PlusIcon, XMarkIcon,
   ArrowPathIcon, ClockIcon, CheckCircleIcon, ChatBubbleLeftRightIcon,
@@ -26,13 +27,13 @@ interface EngagePost {
   content: string;
   code_snippet: string | null;
   language: string | null;
-  tag: string | null;
   created_at: string | null;
   likes: number;
 }
 
 type FilterTab = 'all' | 'code' | 'discussion';
 type Language = 'javascript' | 'python' | 'html' | 'robotics';
+type EngagePostInsert = Database['public']['Tables']['engage_posts']['Insert'];
 
 const TOPICS = ['Python', 'JavaScript', 'Web Dev', 'AI & ML', 'Robotics', 'Arduino', 'Scratch', 'Game Dev', 'Cyber Safety', 'General'];
 
@@ -159,15 +160,17 @@ export default function CommunityPage() {
     if (!profile || !message.trim()) return;
     setPosting(true); setError(null);
     try {
-      const { data, error: err } = await db.from('engage_posts').insert({
-        user_id:      profile.id,
-        author_name:  profile.full_name || profile.email || 'Anonymous',
-        content:      message.trim(),
+      const payload: EngagePostInsert = {
+        user_id: profile.id,
+        author_name: profile.full_name || profile.email || 'Anonymous',
+        content: message.trim(),
         code_snippet: showCode && codeSnippet.trim() ? codeSnippet.trim() : null,
-        language:     showCode && codeSnippet.trim() ? language : null,
-        tag:          postTag || 'General',
-        likes:        0,
-      } as any).select().single();
+        language: showCode && codeSnippet.trim() ? language : null,
+        likes: 0,
+      };
+      const { data, error: err } = await db.from('engage_posts').insert({
+        ...payload,
+      }).select().single();
       if (err) throw err;
       setPosts(p => [data as EngagePost, ...p]);
       setMessage(''); setCodeSnippet(''); setShowCode(false);
@@ -218,8 +221,7 @@ export default function CommunityPage() {
   }).filter(p =>
     !search.trim() ||
     p.content.toLowerCase().includes(search.toLowerCase()) ||
-    p.author_name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.tag ?? '').toLowerCase().includes(search.toLowerCase())
+    p.author_name.toLowerCase().includes(search.toLowerCase())
   );
 
   if (authLoading || !profile) {
@@ -464,7 +466,6 @@ export default function CommunityPage() {
                 {filteredPosts.map((post, idx) => {
                   const isOwn = post.user_id === profile.id;
                   const canDelete = isOwn || isStaff;
-                  const tagColor = TOPIC_COLOR[post.tag ?? ''] ?? '#6b7280';
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -482,11 +483,6 @@ export default function CommunityPage() {
                             {(post.user_id === profile.id ? false : isStaff) && <span className="text-[9px] font-black px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded">Staff</span>}
                             {post.code_snippet && (
                               <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded">Code</span>
-                            )}
-                            {post.tag && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border" style={{ color: tagColor, borderColor: tagColor + '40', background: tagColor + '12' }}>
-                                {post.tag}
-                              </span>
                             )}
                           </div>
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
