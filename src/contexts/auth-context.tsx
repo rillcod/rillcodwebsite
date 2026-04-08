@@ -134,10 +134,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setProfile(null);
     setProfileLoading(false);
+    storedUser.current = null;
+    profileFetchStartedRef.current = false;
     invalidateCache();
     
     try { 
+      // Clear client session first
       await supabase.auth.signOut();
+      // Also clear server-side auth cookies/session to avoid cross-user leakage
+      try { await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' }); } catch { /* ignore */ }
       if (typeof window !== 'undefined') {
         const keys = Object.keys(localStorage);
         keys.forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k); });
@@ -182,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(s);
         setUser(s?.user ?? null);
+        storedUser.current = s?.user ?? null;
 
         // Resolve the auth loading gate immediately — we now know the session state.
         // Do NOT wait for the profile DB fetch to finish before clearing isLoading.
@@ -209,7 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfileLoading(true);
             const p = await fetchProfile(s.user.id);
             if (mountedRef.current) {
-              setProfile(p);
+              // Avoid race: only apply if current session still belongs to this user
+              const { data } = await supabase.auth.getUser();
+              if (data?.user?.id === s.user.id) {
+                setProfile(p);
+              }
               setProfileLoading(false);
             }
           } else if (!profileFetchStartedRef.current) {
