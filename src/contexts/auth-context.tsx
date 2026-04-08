@@ -113,11 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     try {
       const { data: { user: u } } = await supabase.auth.getUser();
-      if (!u) {
-        setProfile(null);
-        setProfileLoading(false);
-        return;
-      }
+      if (!u) { setProfile(null); return; }
       invalidateCache(u.id);
       setProfileLoading(true);
       const p = await fetchProfile(u.id);
