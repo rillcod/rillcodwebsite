@@ -533,6 +533,7 @@ export default function DashboardPage() {
   const [teacherActionCenter, setTeacherActionCenter] = useState<{ ungradedAssignments: number; ungradedExams: number } | null>(null);
   const [schoolPayments, setSchoolPayments] = useState<Awaited<ReturnType<typeof loadAdminSchoolPayments>>>([]);
   const [parentChildren, setParentChildren] = useState<any[]>([]);
+  const [profileWaitTimedOut, setProfileWaitTimedOut] = useState(false);
   // Track how many auto-retries we've done before showing the "not found" error
   const profileRetryCount = useRef(0);
 
@@ -643,6 +644,20 @@ export default function DashboardPage() {
     }
   }, [profileLoading, profile, user, refreshProfile]);
 
+  // Mobile/network fail-safe: if profile loading spinner runs too long, surface
+  // recovery actions instead of showing an endless "Setting up your workspace..."
+  useEffect(() => {
+    if (!user || profile) {
+      setProfileWaitTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => {
+      setProfileWaitTimedOut(true);
+      refreshProfile();
+    }, 15000);
+    return () => clearTimeout(t);
+  }, [user, profile, refreshProfile]);
+
   // ── Loading / guard screens ────────────────────────────────────
 
   // Auth session resolving (fresh visit or expired token being refreshed)
@@ -674,6 +689,32 @@ export default function DashboardPage() {
 
   // User is authenticated but profile row is still being fetched — show spinner, NOT an error
   if (profileLoading || !profile) {
+    if (profileWaitTimedOut) return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-none flex items-center justify-center shadow-2xl shadow-amber-500/10 mb-2">
+            <ExclamationTriangleIcon className="w-10 h-10 text-amber-400" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-foreground font-black text-2xl tracking-tight">Still Setting Up</h2>
+            <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
+              We are taking longer than expected to load your profile. You can retry now or sign out and log in again.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+            <button onClick={() => { setProfileWaitTimedOut(false); refreshProfile(); }}
+              className="px-6 py-3 bg-card shadow-sm hover:bg-muted text-foreground text-sm font-bold rounded-none border border-border transition-all">
+              Retry Loading
+            </button>
+            <a href="/login?clear=1"
+              className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-rose-900/40">
+              Sign Out &amp; Retry
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+
     // Profile fetch finished but returned null → show error only after retries exhausted
     if (!profileLoading && !profile && profileRetryCount.current >= 2) return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
