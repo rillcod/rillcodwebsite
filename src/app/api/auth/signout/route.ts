@@ -26,12 +26,7 @@ async function handleSignOut(req: NextRequest) {
     // Sign out on the server — clears session cookies
     await supabase.auth.signOut();
 
-    // For programmatic POST fetch calls, return JSON (no redirect-follow noise).
-    if (req.method === 'POST') {
-        return NextResponse.json({ ok: true });
-    }
-
-    // For direct browser navigation, redirect to login.
+    // Use the request's own origin so this works in any environment
     const loginUrl = new URL('/login', req.nextUrl.origin);
     return NextResponse.redirect(loginUrl, { status: 302 });
 }
