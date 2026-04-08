@@ -9,6 +9,13 @@ function adminClient() {
   );
 }
 
+export function getSafeAutoProfileRole(roleFromMeta: unknown): 'student' | 'parent' | 'teacher' {
+  if (roleFromMeta === 'student' || roleFromMeta === 'parent' || roleFromMeta === 'teacher') {
+    return roleFromMeta;
+  }
+  return 'student';
+}
+
 // GET /api/auth/me — returns the portal_users profile for the current session.
 // Uses service role to bypass RLS so this always works regardless of policies.
 export async function GET() {
@@ -35,11 +42,12 @@ export async function GET() {
       // This covers: trigger didn't fire, manual auth creation, migration gap, etc.
       const admin = adminClient();
       const meta = user.user_metadata ?? {};
+      const safeRole = getSafeAutoProfileRole(meta.role);
       const { error: upsertErr } = await admin.from('portal_users').upsert({
         id: user.id,
         email: user.email ?? '',
         full_name: meta.full_name ?? user.email?.split('@')[0] ?? '',
-        role: meta.role ?? 'student',
+        role: safeRole,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

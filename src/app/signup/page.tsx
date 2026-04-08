@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type UserRole = 'admin' | 'teacher' | 'student' | 'parent';
+type UserRole = 'student' | 'parent';
 
 const ROLES = [
   {
@@ -30,36 +30,7 @@ const ROLES = [
     glow: 'shadow-rose-500/20',
     ring: 'ring-rose-500',
   },
-  {
-    id: 'teacher' as UserRole,
-    label: 'Teacher',
-    desc: 'Teach and manage classes',
-    icon: User,
-    gradient: 'from-emerald-600 to-teal-600',
-    border: 'border-teal-500/50',
-    glow: 'shadow-teal-500/20',
-    ring: 'ring-teal-500',
-  },
-  {
-    id: 'school' as any,
-    label: 'School',
-    desc: 'Manage institution',
-    icon: Building2,
-    gradient: 'from-orange-600 to-red-600',
-    border: 'border-orange-500/50',
-    glow: 'shadow-orange-500/20',
-    ring: 'ring-orange-500',
-  },
-  {
-    id: 'admin' as UserRole,
-    label: 'Admin',
-    desc: 'Manage the platform',
-    icon: Shield,
-    gradient: 'from-purple-600 to-pink-600',
-    border: 'border-purple-500/50',
-    glow: 'shadow-purple-500/20',
-    ring: 'ring-purple-500',
-  },
+  // Teachers/Admins/Schools must be provisioned by staff — not public signup.
 ];
 
 export default function SignUpPage() {

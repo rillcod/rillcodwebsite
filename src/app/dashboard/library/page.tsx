@@ -60,6 +60,7 @@ export default function ContentLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<'all' | 'school' | 'global'>('all');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -104,6 +105,17 @@ export default function ContentLibraryPage() {
   const canMutateLibrary = profile?.role === "admin" || profile?.role === "teacher";
   const canApprove = profile?.role === "admin";
   const canUpload = canMutateLibrary;
+  const canUseSchoolScope = Boolean(profile?.school_id);
+  const scopeTabs = canUseSchoolScope
+    ? [
+        { id: 'all', label: 'All Resources', icon: GlobeAltIcon },
+        { id: 'school', label: 'My School', icon: BuildingOfficeIcon },
+        { id: 'global', label: 'Rillcod Global', icon: AcademicCapIcon },
+      ]
+    : [
+        { id: 'all', label: 'All Resources', icon: GlobeAltIcon },
+        { id: 'global', label: 'Rillcod Global', icon: AcademicCapIcon },
+      ];
 
   const loadItems = async () => {
     setLoading(true); setError(null);
@@ -127,6 +139,20 @@ export default function ContentLibraryPage() {
         .then(({ data }) => setCourses((data ?? []) as any));
     }
   }, [profile?.id, authLoading, canMutateLibrary]);
+
+  useEffect(() => {
+    if (!canUseSchoolScope && activeTab === 'school') {
+      setActiveTab('all');
+    }
+  }, [canUseSchoolScope, activeTab]);
+
+  useEffect(() => {
+    // Keep detail panel actions clean when switching selected content.
+    setEditingItem(false);
+    setAssigningCourse(false);
+    setAssignSuccess(false);
+    setSelectedCourseId('');
+  }, [selectedItem?.id]);
 
   // Unique subjects derived from loaded data
   const subjects = useMemo(() => {
@@ -243,12 +269,14 @@ export default function ContentLibraryPage() {
       const res = await fetch("/api/content-library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, fileId: finalFileId, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean) }),
+        body: JSON.stringify({ ...form, fileId: finalFileId || undefined, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean) }),
       });
-      if (!res.ok) throw new Error("Failed to create");
+      const createJson = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(createJson?.error ?? "Failed to create");
       await loadItems();
       setShowUpload(false);
       setForm({ title: "", description: "", contentType: "video", fileId: "", externalUrl: "", category: "", tags: "", subject: "", gradeLevel: "", licenseType: "", attribution: "" });
+      setNotice('Resource uploaded successfully.');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -288,13 +316,20 @@ export default function ContentLibraryPage() {
   const handleApprove = async (approve: boolean) => {
     if (!selectedItem) return;
     setApprovingId(selectedItem.id);
+    setError(null);
     try {
-      await createClient()
-        .from('content_library')
-        .update({ is_approved: approve, approved_at: new Date().toISOString() })
-        .eq('id', selectedItem.id);
+      const res = await fetch(`/api/content-library/${selectedItem.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved: approve }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error ?? 'Approval failed');
       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, is_approved: approve } : i));
       setSelectedItem(prev => prev ? { ...prev, is_approved: approve } : null);
+      setNotice(approve ? 'Content approved.' : 'Content moved back to unapproved.');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Approval failed');
     } finally {
       setApprovingId(null);
     }
@@ -303,27 +338,23 @@ export default function ContentLibraryPage() {
   const handleAssignToCourse = async () => {
     if (!selectedItem || !selectedCourseId) return;
     setAssignSaving(true);
+    setError(null);
     try {
-      const db = createClient();
-      const { error } = await db.from('course_materials').insert({
-        course_id: selectedCourseId,
-        title: selectedItem.title,
-        description: selectedItem.description ?? null,
-        file_url: selectedItem.files?.public_url ?? null,
-        file_type: selectedItem.files?.file_type ?? selectedItem.content_type,
-        is_active: true,
-        created_at: new Date().toISOString(),
+      const res = await fetch(`/api/content-library/${selectedItem.id}/copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: selectedCourseId }),
       });
-      if (error) throw error;
-      // Bump usage count
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error ?? 'Could not add to course');
       const newCount = (selectedItem.usage_count ?? 0) + 1;
-      await db.from('content_library').update({ usage_count: newCount }).eq('id', selectedItem.id);
       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, usage_count: newCount } : i));
       setSelectedItem(prev => prev ? { ...prev, usage_count: newCount } : null);
       setAssignSuccess(true);
+      setNotice('Content added to course.');
       setTimeout(() => { setAssigningCourse(false); setAssignSuccess(false); setSelectedCourseId(''); }, 2000);
-    } catch {
-      // silent — assignment is best-effort
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not add to course');
     } finally {
       setAssignSaving(false);
     }
@@ -358,11 +389,13 @@ export default function ContentLibraryPage() {
           category: editForm.category || null,
         }),
       });
-      if (!res.ok) throw new Error('Update failed');
+      const up = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(up?.error ?? 'Update failed');
       const updated = { ...selectedItem, ...editForm, tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean) };
       setSelectedItem(updated as ContentItem);
       setItems(prev => prev.map(i => i.id === selectedItem.id ? updated as ContentItem : i));
       setEditingItem(false);
+      setNotice('Content details updated.');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -372,7 +405,7 @@ export default function ContentLibraryPage() {
 
   const handleReplaceFile = async (file: File) => {
     if (!selectedItem) return;
-    const fileId = (selectedItem as any).file_id;
+    const fileId = selectedItem.file_id;
     if (!fileId) { setError('No file attached to replace'); return; }
     setReplaceFileLoading(true);
     try {
@@ -397,17 +430,16 @@ export default function ContentLibraryPage() {
     if (!confirm(`Delete "${selectedItem.title}"? This cannot be undone.`)) return;
     setDeleting(true);
     try {
-      const db = createClient();
-      // Delete the content_library row
-      const { error } = await db.from('content_library').delete().eq('id', selectedItem.id);
-      if (error) throw new Error(error.message);
+      const res = await fetch(`/api/content-library/${selectedItem.id}`, { method: 'DELETE' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error ?? 'Delete failed');
       // Best-effort: delete the files record + R2 object
-      const fileId = (selectedItem as any).file_id;
-      if (fileId) {
-        await fetch(`/api/files/${fileId}`, { method: 'DELETE' }).catch(() => {});
+      if (selectedItem.file_id) {
+        await fetch(`/api/files/${selectedItem.file_id}`, { method: 'DELETE' }).catch(() => {});
       }
       setItems(prev => prev.filter(i => i.id !== selectedItem.id));
       setSelectedItem(null);
+      setNotice('Content deleted.');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -442,7 +474,7 @@ export default function ContentLibraryPage() {
   );
 
   const buildLibraryShareMsg = (item: ContentItem) => {
-    const fileUrl = (item as any).files?.public_url;
+    const fileUrl = item.files?.public_url;
     let msg = `📖 *${item.title}*\n`;
     if (item.description) msg += `${item.description.slice(0, 150)}${item.description.length > 150 ? '…' : ''}\n`;
     msg += `\nType: ${item.content_type || 'Resource'}\n`;
@@ -494,6 +526,23 @@ export default function ContentLibraryPage() {
           </div>
         </header>
 
+        {(error || notice) && (
+          <div className="px-6 pt-4">
+            {error && (
+              <div className="mb-2 bg-rose-500/10 border border-rose-500/20 px-4 py-3 text-rose-400 text-xs flex items-center justify-between gap-2">
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="text-rose-300 hover:text-rose-100">Dismiss</button>
+              </div>
+            )}
+            {notice && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-emerald-400 text-xs flex items-center justify-between gap-2">
+                <span>{notice}</span>
+                <button onClick={() => setNotice(null)} className="text-emerald-300 hover:text-emerald-100">Dismiss</button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Pending approval banner (admin only) */}
         {canApprove && pendingCount > 0 && (
           <div className="mx-6 mt-4 bg-amber-500/10 border border-amber-500/30 px-5 py-3 flex items-center gap-3">
@@ -511,11 +560,7 @@ export default function ContentLibraryPage() {
             <div className="space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Scope</p>
               <div className="space-y-1">
-                {[
-                  { id: 'all',    label: 'All Resources',   icon: GlobeAltIcon },
-                  { id: 'school', label: 'My School',        icon: BuildingOfficeIcon },
-                  { id: 'global', label: 'Rillcod Global',   icon: AcademicCapIcon },
-                ].map(t => (
+                {scopeTabs.map(t => (
                   <button key={t.id} onClick={() => setActiveTab(t.id as any)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-none text-sm font-bold transition-all ${activeTab === t.id ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:bg-card hover:text-foreground'}`}>
                     <t.icon className="w-5 h-5" /> {t.label}
@@ -568,9 +613,9 @@ export default function ContentLibraryPage() {
               <div className="xl:hidden flex gap-2 flex-wrap flex-1">
                 <select value={activeTab} onChange={e => setActiveTab(e.target.value as any)}
                   className="bg-card border border-border px-3 py-2 text-xs font-bold text-foreground outline-none">
-                  <option value="all">All Scopes</option>
-                  <option value="school">My School</option>
-                  <option value="global">Global</option>
+                  {scopeTabs.map(tab => (
+                    <option key={tab.id} value={tab.id}>{tab.label}</option>
+                  ))}
                 </select>
                 <select value={activeCategory} onChange={e => setActiveCategory(e.target.value)}
                   className="bg-card border border-border px-3 py-2 text-xs font-bold text-foreground outline-none">
@@ -1094,7 +1139,7 @@ export default function ContentLibraryPage() {
                       </button>
 
                       {/* Replace file */}
-                      {(selectedItem as any).file_id && (
+                      {selectedItem.file_id && (
                         <div className="border-t border-border pt-3 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Replace File</p>
                           <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed cursor-pointer transition-all text-xs font-bold ${replaceFileLoading ? 'border-orange-500/40 text-orange-400' : 'border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-400'}`}>

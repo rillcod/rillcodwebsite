@@ -1,27 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
 
 // Memory store fallback for edge if Upstash Redis is not available
 // In Edge functions, memory might not be completely shared, but it works well enough
 const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
+let redisClient: Redis | null = null;
+
+export function getClientIp(req: NextRequest): string {
+    const xff = req.headers.get('x-forwarded-for');
+    if (xff) {
+        // x-forwarded-for can be "client, proxy1, proxy2"
+        const first = xff.split(',')[0]?.trim();
+        if (first) return first;
+    }
+    const realIp = req.headers.get('x-real-ip')?.trim();
+    return realIp || '127.0.0.1';
+}
+
+function getRedisClient(): Redis | null {
+    const url = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) return null;
+    if (!redisClient) {
+        redisClient = new Redis({ url, token });
+    }
+    return redisClient;
+}
 
 export async function rateLimitproxy(req: NextRequest) {
     // Simple sliding window or fixed window rate limiter
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
+    const ip = getClientIp(req);
     const key = `rate-limit:${ip}`;
 
     // Limit: 100 requests per 60 seconds
     const windowTimeMs = 60 * 1000;
     const maxRequests = 100;
 
-    // Try to use true Upstash Redis if available:
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    // Try Upstash Redis first when configured
+    const redis = getRedisClient();
+    if (redis) {
         try {
-            const { Redis } = await import('@upstash/redis');
-            const redis = new Redis({
-                url: process.env.UPSTASH_REDIS_REST_URL,
-                token: process.env.UPSTASH_REDIS_REST_TOKEN,
-            });
-
             const currentCount = await redis.incr(key);
             if (currentCount === 1) {
                 await redis.expire(key, 60);
