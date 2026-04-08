@@ -125,6 +125,50 @@ export default function IntegratedCodeRunner({
     }
   }, [lang, initPyodide]);
 
+  const runJavaScriptInWorker = (source: string, timeoutMs = 3000): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const workerSource = `
+        self.onmessage = (event) => {
+          const code = event.data?.code || '';
+          const logs = [];
+          const sandboxConsole = {
+            log: (...args) => logs.push(args.map(a => String(a)).join(' ')),
+            error: (...args) => logs.push('Error: ' + args.map(a => String(a)).join(' ')),
+          };
+          try {
+            const fn = new Function('console', code);
+            fn(sandboxConsole);
+            self.postMessage({ ok: true, logs });
+          } catch (err) {
+            self.postMessage({ ok: false, error: (err && err.message) ? err.message : String(err), logs });
+          }
+        };
+      `;
+      const blob = new Blob([workerSource], { type: 'application/javascript' });
+      const worker = new Worker(URL.createObjectURL(blob));
+      const timer = setTimeout(() => {
+        worker.terminate();
+        reject(new Error('Execution timed out'));
+      }, timeoutMs);
+      worker.onmessage = (event) => {
+        clearTimeout(timer);
+        const data = event.data || {};
+        worker.terminate();
+        if (data.ok) {
+          resolve((data.logs || []) as string[]);
+        } else {
+          reject(new Error(data.error || 'Runtime error'));
+        }
+      };
+      worker.onerror = () => {
+        clearTimeout(timer);
+        worker.terminate();
+        reject(new Error('Worker execution failed'));
+      };
+      worker.postMessage({ code: source });
+    });
+  };
+
   // ─── Execution Logic ───
   const runCode = async () => {
     setRunning(true);
@@ -179,13 +223,7 @@ export default function IntegratedCodeRunner({
       }
     } else if (lang === 'javascript') {
       try {
-        const logs: string[] = [];
-        const customConsole = {
-          log: (...args: any[]) => logs.push(args.map(a => String(a)).join(' ')),
-          error: (...args: any[]) => logs.push(`Error: ${args.map(a => String(a)).join(' ')}`),
-        };
-        const run = new Function('console', code);
-        run(customConsole);
+        const logs = await runJavaScriptInWorker(code);
         setConsoleLogs(logs);
       } catch (err: any) {
         setConsoleLogs([`Runtime Error: ${err.message}`]);

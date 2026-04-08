@@ -24,6 +24,12 @@ export interface WrapperOptions {
 
 type NextApiHandler = (req: NextRequest, ctx: ApiContext) => Promise<Response> | Response;
 
+export function isRoleAllowed(allowedRoles: string[] | undefined, role: string | null): boolean {
+    if (!allowedRoles || allowedRoles.length === 0) return true;
+    if (!role) return false;
+    return allowedRoles.includes(role);
+}
+
 export function withApiProxy(
     handler: NextApiHandler,
     options: WrapperOptions = { requireAuth: true, requireTenant: false, rateLimit: true }
@@ -61,8 +67,9 @@ export function withApiProxy(
                     throw new AppError('Tenant context missing. You must belong to a school.', 403, true);
                 }
 
-                if (options.roles && role && !options.roles.includes(role)) {
-                    throw new AppError(`Access denied. ${role}s are not allowed here.`, 403, true);
+                if (!isRoleAllowed(options.roles, role)) {
+                    const label = role ? `${role}s` : 'This role';
+                    throw new AppError(`Access denied. ${label} are not allowed here.`, 403, true);
                 }
 
                 ctx.user = {

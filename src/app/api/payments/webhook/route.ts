@@ -36,15 +36,15 @@ async function handleStripeWebhook(rawBody: string, signature: string) {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event;
 
-    if (endpointSecret) {
-        try {
-            event = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
-        } catch (err: any) {
-            console.error(`Webhook Error: ${err.message}`);
-            return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
-        }
-    } else {
-        event = JSON.parse(rawBody);
+    if (!endpointSecret) {
+        // Fail closed — accepting unsigned Stripe webhooks is unsafe.
+        return NextResponse.json({ error: 'Stripe webhook misconfigured' }, { status: 500 });
+    }
+    try {
+        event = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
+    } catch (err: any) {
+        console.error(`Webhook Error: ${err.message}`);
+        return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
     }
 
     if (event.type === 'checkout.session.completed') {

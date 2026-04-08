@@ -1,6 +1,6 @@
 import { Server as NetServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { setIO } from './socket-io';
 import { updatePresence } from './presence';
 import { chatService } from '@/services/chat.service';
@@ -14,11 +14,23 @@ export const config = {
 export const initSocket = (res: any) => {
     if (!res.socket.server.io) {
         console.log('Initializing Socket.io server...');
+        const allowedOrigin =
+            process.env.NEXT_PUBLIC_SITE_URL ||
+            process.env.NEXT_PUBLIC_APP_URL ||
+            'http://localhost:3000';
+        const admin = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const anon = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
         const io = new SocketIOServer(res.socket.server as NetServer, {
             path: '/api/socket',
             addTrailingSlash: false,
             cors: {
-                origin: '*',
+                origin: allowedOrigin,
                 methods: ['GET', 'POST'],
             },
         });
@@ -28,20 +40,32 @@ export const initSocket = (res: any) => {
 
             socket.on('authenticate', async (token) => {
                 try {
-                    // Validate token and associate socket with user
-                    // In a real app, you'd use supabase.auth.getUser(token)
-                    // For now, we'll assume a 'user-id' room joining pattern
-                    const userId = socket.handshake.query.userId as string;
-                    const schoolId = socket.handshake.query.schoolId as string;
-
-                    if (userId) {
-                        socket.join(`user:${userId}`);
-                        if (schoolId) {
-                            socket.join(`school:${schoolId}`);
-                        }
-                        socket.emit('authenticated', { success: true });
-                        console.log(`Socket ${socket.id} authenticated as user ${userId}`);
+                    if (!token || typeof token !== 'string') {
+                        socket.emit('authenticated', { success: false, error: 'Missing token' });
+                        socket.disconnect();
+                        return;
                     }
+
+                    // Derive identity only from validated JWT
+                    const { data: authData, error: authError } = await anon.auth.getUser(token);
+                    const userId = authData?.user?.id;
+                    if (authError || !userId) {
+                        socket.emit('authenticated', { success: false, error: 'Invalid token' });
+                        socket.disconnect();
+                        return;
+                    }
+
+                    socket.join(`user:${userId}`);
+                    const { data: profile } = await admin
+                        .from('portal_users')
+                        .select('school_id')
+                        .eq('id', userId)
+                        .maybeSingle();
+                    if (profile?.school_id) {
+                        socket.join(`school:${profile.school_id}`);
+                    }
+                    socket.emit('authenticated', { success: true, userId });
+                    console.log(`Socket ${socket.id} authenticated as user ${userId}`);
                 } catch (err) {
                     console.error('Socket authentication failed:', err);
                     socket.disconnect();

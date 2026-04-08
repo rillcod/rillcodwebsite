@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,30 @@ import { Badge } from '@/components/ui/badge';
 import { MessageCircle, ThumbsUp, Flag, Pin, Lock, CheckCircle2, MoreVertical, Reply as ReplyIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-const formatContent = (content: string) => {
-    // Regex for mentions like @username
-    return content.replace(/@(\w+)/g, '<span class="text-teal-600 font-bold hover:underline cursor-pointer">@$1</span>');
-};
+function renderContentWithMentions(content: string) {
+    // Safe rendering: no HTML injection, mentions become React spans.
+    const parts: React.ReactNode[] = [];
+    const re = /@(\w+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(content)) !== null) {
+        const [full, username] = match;
+        const start = match.index;
+        if (start > lastIndex) {
+            parts.push(content.slice(lastIndex, start));
+        }
+        parts.push(
+            <span key={`${start}-${username}`} className="text-teal-600 font-bold hover:underline cursor-pointer">
+                {full}
+            </span>
+        );
+        lastIndex = start + full.length;
+    }
+    if (lastIndex < content.length) {
+        parts.push(content.slice(lastIndex));
+    }
+    return parts;
+}
 
 interface TopicProps {
     topic: {
@@ -58,7 +78,9 @@ export function DiscussionTopic({ topic }: TopicProps) {
             </CardHeader>
 
             <CardContent className="p-6 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                <div className="line-clamp-3 prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: formatContent(topic.content) }} />
+                <div className="line-clamp-3 prose dark:prose-invert whitespace-pre-wrap">
+                    {renderContentWithMentions(topic.content)}
+                </div>
             </CardContent>
 
             <CardFooter className="bg-slate-50/50 dark:bg-slate-950/50 p-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
@@ -98,7 +120,9 @@ export function DiscussionReply({ reply, isAccepted = false }: { reply: any, isA
                         </div>
                         {isAccepted && <Badge className="bg-green-500 text-white text-[8px] font-black uppercase px-2 h-4">Accepted Answer</Badge>}
                     </div>
-                    <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: formatContent(reply.content) }} />
+                    <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed prose dark:prose-invert whitespace-pre-wrap">
+                        {renderContentWithMentions(reply.content)}
+                    </div>
 
                     <div className="flex gap-4 pt-2">
                         <button className="text-[10px] font-black text-slate-400 hover:text-teal-600 flex items-center gap-1 uppercase tracking-widest">
