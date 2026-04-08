@@ -12,12 +12,20 @@ import { Toaster } from "sonner";
 import { usePathname } from "next/navigation";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
-export default function AppProviders({ children }: { children: ReactNode }) {
+type ThemePreference = "light" | "dark" | "system";
+
+export default function AppProviders({
+  children,
+  initialTheme = "dark",
+}: {
+  children: ReactNode;
+  initialTheme?: ThemePreference;
+}) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith('/dashboard');
 
   return (
-    <ThemeProvider>
+    <ThemeProvider initialTheme={initialTheme}>
       <AuthProvider>
         <Navigation />
         <PwaProvider />
