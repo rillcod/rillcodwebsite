@@ -8,14 +8,6 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   // SafeDev PWA Mode: Disabled in development to ensure stable dashboard loading
   disable: process.env.NODE_ENV === "development",
-  // Prevent stale Next build manifests from being precached across deploys.
-  // These files are versioned per build and can cause 404 loops when an old
-  // service worker serves references after a new deploy is live.
-  buildExcludes: [
-    /app-build-manifest\.json$/,
-    /_buildManifest\.js$/,
-    /_ssgManifest\.js$/,
-  ],
 });
 
 const nextConfig: NextConfig = {

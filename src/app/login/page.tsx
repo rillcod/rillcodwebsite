@@ -45,11 +45,10 @@ function LoginContent() {
     if (type && ROLES.some(r => r.id === type)) setSelectedRole(type);
 
     if (searchParams?.get("clear") === "1") {
-      // AuthContext signOut already clears client session + server cookies.
-      // Avoid a redundant second supabase.auth.signOut() call that can slow
-      // down the post-logout login flow.
+      supabase.auth.signOut().then(() => {
+        window.location.replace('/login');
+      });
       setEmail(""); setPassword(""); setSelectedRole(null); setError(null);
-      window.location.replace('/login');
       return;
     }
     if (envMissing) setError("Configuration error. Please contact support.");

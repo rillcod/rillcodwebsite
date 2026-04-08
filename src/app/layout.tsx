@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { cookies } from "next/headers";
 import "./globals.css";
 import AppProviders from "@/components/layout/AppProviders";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/landing/JsonLd";
@@ -116,24 +115,13 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-type ThemePreference = "light" | "dark" | "system";
-
-function sanitizeTheme(value: string | undefined): ThemePreference {
-  if (value === "light" || value === "dark" || value === "system") return value;
-  return "dark";
-}
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const theme = sanitizeTheme(cookieStore.get("theme")?.value);
-  const resolvedTheme = theme === "light" ? "light" : "dark";
-
   return (
-    <html lang="en" dir="ltr" className={resolvedTheme} style={{ colorScheme: resolvedTheme }}>
+    <html lang="en" dir="ltr">
       <head>
         <OrganizationJsonLd />
         <WebSiteJsonLd />
@@ -147,9 +135,32 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Rillcod" />
         <meta name="mobile-web-app-capable" content="yes" />
+        {/**
+         * Anti-flash theme script: runs synchronously before React hydration.
+         * Prevents the white flash when a user has dark mode saved and the page loads.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('theme') || 'dark';
+                  var effective = t === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : t;
+                  document.documentElement.classList.add(effective);
+                  document.documentElement.style.colorScheme = effective;
+                } catch(e) {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.style.colorScheme = 'dark';
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={`${inter.className} bg-background text-foreground`}>
-        <AppProviders initialTheme={theme}>{children}</AppProviders>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
