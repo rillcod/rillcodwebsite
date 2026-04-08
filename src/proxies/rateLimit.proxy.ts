@@ -5,6 +5,7 @@ import { Redis } from '@upstash/redis';
 // In Edge functions, memory might not be completely shared, but it works well enough
 const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
 let redisClient: Redis | null = null;
+let warnedMemoryFallback = false;
 
 export function getClientIp(req: NextRequest): string {
     const xff = req.headers.get('x-forwarded-for');
@@ -20,7 +21,13 @@ export function getClientIp(req: NextRequest): string {
 function getRedisClient(): Redis | null {
     const url = process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) return null;
+    if (!url || !token) {
+        if (!warnedMemoryFallback) {
+            warnedMemoryFallback = true;
+            console.warn('Rate limiter using in-memory fallback (UPSTASH_REDIS_* env vars missing).');
+        }
+        return null;
+    }
     if (!redisClient) {
         redisClient = new Redis({ url, token });
     }

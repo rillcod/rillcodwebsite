@@ -50,6 +50,8 @@ async function handleStripeWebhook(rawBody: string, signature: string) {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as any;
         await processSuccessfulPayment(session.client_reference_id as string, 'stripe', session);
+    } else {
+        console.info(`Ignoring Stripe webhook type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
@@ -68,6 +70,8 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
 
     if (event.event === 'charge.success') {
         await processSuccessfulPayment(event.data.reference, 'paystack', event.data);
+    } else {
+        console.info(`Ignoring Paystack webhook event: ${event.event}`);
     }
 
     return NextResponse.json({ received: true });
@@ -88,23 +92,30 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         return;
     }
 
-    // 2. Prevent duplicate processing
-    if (transaction.payment_status === 'completed') {
-        return;
-    }
-
-    // 3. Mark completed
-    await supabase
+    // 2. Prevent duplicate processing atomically (handles retries/races)
+    const { data: updatedTx, error: updateErr } = await supabase
         .from('payment_transactions')
         .update({
             payment_status: 'completed',
             paid_at: new Date().toISOString(),
             payment_gateway_response: rawGatewayData
         })
-        .eq('id', transaction.id);
+        .eq('id', transaction.id)
+        .neq('payment_status', 'completed')
+        .select('id')
+        .maybeSingle();
+    if (updateErr) {
+        console.error(`Failed to mark transaction completed: ${reference}`, updateErr);
+        return;
+    }
+    // Already completed by a previous/concurrent webhook, so skip side effects.
+    if (!updatedTx) {
+        return;
+    }
 
-    // 4. Grant access — behaviour differs by payment type
-    const gatewayResponse = transaction.payment_gateway_response as any;
+    // 3. Grant access — behaviour differs by payment type
+    // Prefer current webhook payload over stale DB copy.
+    const gatewayResponse = (rawGatewayData ?? transaction.payment_gateway_response) as any;
     const isRegistrationPayment = gatewayResponse?.payment_type === 'registration';
 
     if (isRegistrationPayment) {
@@ -129,7 +140,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
             .eq('id', (transaction as any).invoice_id);
     }
 
-    // 5. Generate Receipt automatically (Task 23.1)
+    // 4. Generate Receipt automatically (Task 23.1)
     const { paymentsService } = await import('@/services/payments.service');
     try {
         await paymentsService.generateReceipt(transaction.id);
