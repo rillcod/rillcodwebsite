@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Tracks whether a profile fetch has been kicked off already for this session.
   // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
   const profileFetchStartedRef = useRef(false);
+  const profileLoadingSinceRef = useRef<number | null>(null);
 
   // ── Profile fetch via API (service role — bypasses RLS) ───
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -128,6 +129,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchProfile, invalidateCache]);
 
+  // Fail-safe: never allow profileLoading spinner to run forever.
+  useEffect(() => {
+    if (!profileLoading) {
+      profileLoadingSinceRef.current = null;
+      return;
+    }
+    if (!profileLoadingSinceRef.current) {
+      profileLoadingSinceRef.current = Date.now();
+    }
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) setProfileLoading(false);
+    }, 12000);
+    return () => clearTimeout(timeout);
+  }, [profileLoading]);
+
   // ── Sign out — clear everything, then navigate ────────────
   const signOut = useCallback(async () => {
     setUser(null);
@@ -169,12 +185,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Only apply if the currently signed-in user is still the same one
         // (guards against race where SIGNED_IN for a different account fires first)
         if (mountedRef.current) {
-          supabase.auth.getUser().then(({ data }) => {
-            if (data?.user?.id === fastPathUserId) {
-              setProfile(p);
-            }
-            setProfileLoading(false);
-          });
+          supabase.auth.getUser()
+            .then(({ data }) => {
+              if (data?.user?.id === fastPathUserId) {
+                setProfile(p);
+              }
+            })
+            .finally(() => {
+              if (mountedRef.current) setProfileLoading(false);
+            });
         }
       }).catch(() => {
         if (mountedRef.current) setProfileLoading(false);
@@ -184,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mountedRef.current) return;
+        const prevId = storedUser.current?.id;
 
         setSession(s);
         setUser(s?.user ?? null);
@@ -199,7 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // (e.g. session replaced in background), reload so all stale
             // component state is cleared. The login page handles its own
             // navigation after sign-in so skip the reload there.
-            const prevId = storedUser.current?.id;
             const onLoginPage = typeof window !== 'undefined' &&
               window.location.pathname.startsWith('/login');
             if (prevId && prevId !== s.user.id && !onLoginPage) {
@@ -213,24 +232,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             invalidateCache();
             profileFetchStartedRef.current = true;
             setProfileLoading(true);
-            const p = await fetchProfile(s.user.id);
-            if (mountedRef.current) {
-              // Avoid race: only apply if current session still belongs to this user
-              const { data } = await supabase.auth.getUser();
-              if (data?.user?.id === s.user.id) {
-                setProfile(p);
+            try {
+              const p = await fetchProfile(s.user.id);
+              if (mountedRef.current) {
+                // Avoid race: only apply if current session still belongs to this user
+                const { data } = await supabase.auth.getUser();
+                if (data?.user?.id === s.user.id) {
+                  setProfile(p);
+                }
               }
-              setProfileLoading(false);
+            } finally {
+              if (mountedRef.current) {
+                setProfileLoading(false);
+              }
             }
           } else if (!profileFetchStartedRef.current) {
             // INITIAL_SESSION (or any other event) when storedUser fast-path
             // has NOT already started a fetch — fetch now.
             profileFetchStartedRef.current = true;
             setProfileLoading(true);
-            const p = await fetchProfile(s.user.id);
-            if (mountedRef.current) {
-              setProfile(p);
-              setProfileLoading(false);
+            try {
+              const p = await fetchProfile(s.user.id);
+              if (mountedRef.current) {
+                setProfile(p);
+              }
+            } finally {
+              if (mountedRef.current) {
+                setProfileLoading(false);
+              }
             }
           }
           // else: storedUser fast-path is already handling the fetch — skip.
@@ -290,6 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           return true;
         } catch {
+          if (mountedRef.current) setProfileLoading(false);
           return false;
         }
       },
