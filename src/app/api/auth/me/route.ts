@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSafeAutoProfileRole } from './role-utils';
 
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-}
-
-export function getSafeAutoProfileRole(roleFromMeta: unknown): 'student' | 'parent' | 'teacher' {
-  if (roleFromMeta === 'student' || roleFromMeta === 'parent' || roleFromMeta === 'teacher') {
-    return roleFromMeta;
-  }
-  return 'student';
 }
 
 // GET /api/auth/me — returns the portal_users profile for the current session.

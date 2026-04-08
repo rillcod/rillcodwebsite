@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getSafeAutoProfileRole } from './route';
+import { getSafeAutoProfileRole } from './role-utils';
 
 describe('getSafeAutoProfileRole', () => {
   it('keeps allowed roles', () => {
