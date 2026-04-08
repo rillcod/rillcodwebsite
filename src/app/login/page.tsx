@@ -58,7 +58,6 @@ function LoginContent() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (envMissing) return;
-    if (!selectedRole) { setError("Please select your role to continue."); return; }
 
     setLoading(true);
     setError(null);
@@ -88,9 +87,10 @@ function LoginContent() {
         await supabase.auth.signOut();
         throw new Error("Your account is inactive. Please contact support.");
       }
-      if (profileData.role !== selectedRole) {
-        await supabase.auth.signOut();
-        throw new Error(`Wrong role selected. Please choose "${profileData.role}".`);
+      // Use server role as source of truth; do not block login on role picker mismatch.
+      if (profileData.role && profileData.role !== selectedRole) {
+        const role = profileData.role as Role;
+        setSelectedRole(role);
       }
 
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
@@ -246,7 +246,7 @@ function LoginContent() {
 
                     <button
                       type="submit"
-                      disabled={loading || !selectedRole}
+                      disabled={loading}
                       className="w-full py-4 sm:py-5 bg-foreground text-background font-black text-xs uppercase tracking-[0.3em] rounded-xl sm:rounded-2xl hover:bg-orange-600 hover:text-white transition-all transform active:scale-[0.98] disabled:opacity-20 flex items-center justify-center gap-3 shadow-2xl"
                     >
                       {loading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <>EXECUTE LOGIN <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" /></>}
