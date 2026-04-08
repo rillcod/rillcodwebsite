@@ -25,14 +25,31 @@ function getEffectiveTheme(theme: Theme): 'light' | 'dark' {
   return theme === 'system' ? getSystemTheme() : theme
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark')
+export function ThemeProvider({
+  children,
+  initialTheme = 'dark',
+}: {
+  children: React.ReactNode
+  initialTheme?: Theme
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme)
   const [mounted, setMounted] = useState(false)
+
+  const readThemeCookie = (): Theme | null => {
+    if (typeof document === 'undefined') return null
+    const match = document.cookie.match(/(?:^|;\s*)theme=(light|dark|system)(?:;|$)/)
+    return (match?.[1] as Theme | undefined) ?? null
+  }
 
   useEffect(() => {
     setMounted(true)
+    const cookieTheme = readThemeCookie()
     const savedTheme = localStorage.getItem('theme') as Theme | null
-    setThemeState(savedTheme ?? 'dark')
+    const initialTheme = cookieTheme ?? savedTheme ?? 'dark'
+    setThemeState(initialTheme)
+    if (!cookieTheme) {
+      document.cookie = `theme=${initialTheme}; Path=/; Max-Age=31536000; SameSite=Lax`
+    }
   }, [])
 
   useEffect(() => {
@@ -58,6 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Persist preference
+    document.cookie = `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
     if (theme !== 'system') {
       localStorage.setItem('theme', theme)
     } else {
