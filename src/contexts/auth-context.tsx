@@ -58,7 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
   const profileFetchStartedRef = useRef(false);
   const profileLoadingSinceRef = useRef<number | null>(null);
-  const profileHealAttemptsRef = useRef(0);
 
   // ── Profile fetch via API (service role — bypasses RLS) ───
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -148,28 +147,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 12000);
     return () => clearTimeout(timeout);
   }, [profileLoading]);
-
-  // Self-heal: if auth user exists but profile is still null, retry profile fetch
-  // with bounded backoff. This prevents "dashboard appears only after refresh",
-  // especially on slower mobile cookie/session propagation.
-  useEffect(() => {
-    if (!user || profile || profileLoading) return;
-    if (profileHealAttemptsRef.current >= 4) return;
-
-    profileHealAttemptsRef.current += 1;
-    const delay = profileHealAttemptsRef.current * 800; // 0.8s, 1.6s, 2.4s, 3.2s
-    const timer = setTimeout(() => {
-      refreshProfile();
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [user, profile, profileLoading, refreshProfile]);
-
-  // Reset self-heal attempts when profile resolves or user signs out.
-  useEffect(() => {
-    if (!user || profile) {
-      profileHealAttemptsRef.current = 0;
-    }
-  }, [user, profile]);
 
   // ── Sign out — clear everything, then navigate ────────────
   const signOut = useCallback(async () => {
