@@ -72,23 +72,8 @@ function LoginContent() {
 
       if (authError) throw authError;
       if (!authData?.user) throw new Error("Sign in failed. Please try again.");
-
-      const { data: profileData, error: profileError } = await supabase
-        .from('portal_users')
-        .select('role, is_active')
-        .eq('id', authData.user.id)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-      if (!profileData) {
-        await supabase.auth.signOut();
-        throw new Error("No account found. Please contact your administrator.");
-      }
-      if (!profileData.is_active) {
-        await supabase.auth.signOut();
-        throw new Error("Your account is inactive. Please contact support.");
-      }
-      // Do not auto-select role on login; keep user's manual picker state.
+      // Keep login lightweight and deterministic: once credentials are valid,
+      // continue to dashboard and let AuthContext handle profile resolution.
 
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
       window.location.href = redirectTo;
