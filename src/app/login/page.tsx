@@ -88,11 +88,7 @@ function LoginContent() {
         await supabase.auth.signOut();
         throw new Error("Your account is inactive. Please contact support.");
       }
-      // Use server role as source of truth; do not block login on role picker mismatch.
-      if (profileData.role && profileData.role !== selectedRole) {
-        const role = profileData.role as Role;
-        setSelectedRole(role);
-      }
+      // Do not auto-select role on login; keep user's manual picker state.
 
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
       window.location.href = redirectTo;
