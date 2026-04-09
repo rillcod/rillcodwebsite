@@ -13,6 +13,7 @@ const R2_ENDPOINT = process.env.R2_ENDPOINT!;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
 export const R2_BUCKET = process.env.R2_BUCKET_NAME ?? 'rillcod-assests';
+const R2_AUTO_APPLY_CORS = process.env.R2_AUTO_APPLY_CORS === 'true';
 
 let _client: S3Client | null = null;
 
@@ -100,7 +101,13 @@ export async function ensureR2Ready(): Promise<void> {
         return;
     }
 
-    // 2. Apply CORS policy
+    // 2. Apply CORS policy (optional for restricted keys)
+    if (!R2_AUTO_APPLY_CORS) {
+        console.log('[R2] Ready — bucket reachable. Skipping automatic CORS apply (R2_AUTO_APPLY_CORS != true).');
+        _r2Ready = true;
+        return;
+    }
+
     try {
         await client.send(
             new PutBucketCorsCommand({
@@ -120,7 +127,12 @@ export async function ensureR2Ready(): Promise<void> {
         );
         console.log('[R2] Ready — bucket reachable, CORS applied.');
     } catch (err) {
-        console.warn('[R2] CORS apply failed (may need manual setup):', err);
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.toLowerCase().includes('access denied')) {
+            console.warn('[R2] CORS apply skipped: AccessDenied. Configure bucket CORS manually or grant PutBucketCors permission.');
+        } else {
+            console.warn('[R2] CORS apply failed (may need manual setup):', message);
+        }
     }
 
     _r2Ready = true;
