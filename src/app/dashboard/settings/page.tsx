@@ -10,6 +10,7 @@ import {
   CheckIcon, KeyIcon, EnvelopeIcon, PhoneIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BuildingOfficeIcon, MapPinIcon, StarIcon, CpuChipIcon,
+  DocumentTextIcon, ExclamationCircleIcon, TableCellsIcon,
 } from '@/lib/icons';
 
 const BASE_TABS = [
@@ -29,17 +30,38 @@ export default function SettingsPage() {
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
 
-  // Teacher sees Schools tab; Admin sees AI Config tab
+  // Teacher sees Schools tab; Admin sees extra management tabs
   const TABS = profile?.role === 'teacher'
     ? [...BASE_TABS, { id: 'schools', label: 'My Schools', icon: BuildingOfficeIcon }]
     : profile?.role === 'admin'
-      ? [...BASE_TABS, { id: 'ai-config', label: 'AI Config', icon: CpuChipIcon }]
+      ? [
+          ...BASE_TABS,
+          { id: 'ai-config',   label: 'AI Config',   icon: CpuChipIcon },
+          { id: 'templates',   label: 'Templates',   icon: DocumentTextIcon },
+          { id: 'moderation',  label: 'Moderation',  icon: ExclamationCircleIcon },
+          { id: 'audit-log',   label: 'Audit Log',   icon: TableCellsIcon },
+        ]
       : BASE_TABS;
 
   // ── AI Config state (admin only) ────────────────────────────
   const [aiSettings, setAiSettings] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
+
+  // ── Notification Templates state (admin only) ────────────────
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [templateSaving, setTemplateSaving] = useState(false);
+
+  // ── Moderation state (admin only) ────────────────────────────
+  const [flaggedItems, setFlaggedItems] = useState<any[]>([]);
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  // ── Audit Log state (admin only) ─────────────────────────────
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== 'admin' || tab !== 'ai-config') return;
@@ -52,6 +74,37 @@ export default function SettingsPage() {
         setAiSettings(map);
       })
       .finally(() => setAiLoading(false));
+  }, [profile?.role, tab]);
+
+  useEffect(() => {
+    if (profile?.role !== 'admin' || tab !== 'templates') return;
+    (async () => {
+      setTemplatesLoading(true);
+      const { data } = await createClient().from('notification_templates').select('*').order('type').order('name');
+      setTemplates(data ?? []);
+      setTemplatesLoading(false);
+    })();
+  }, [profile?.role, tab]);
+
+  useEffect(() => {
+    if (profile?.role !== 'admin' || tab !== 'moderation') return;
+    (async () => {
+      setModerationLoading(true);
+      const r = await fetch('/api/moderation');
+      const d = await r.json();
+      setFlaggedItems(d.data ?? []);
+      setModerationLoading(false);
+    })();
+  }, [profile?.role, tab]);
+
+  useEffect(() => {
+    if (profile?.role !== 'admin' || tab !== 'audit-log') return;
+    (async () => {
+      setAuditLoading(true);
+      const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(100);
+      setAuditLogs(data ?? []);
+      setAuditLoading(false);
+    })();
   }, [profile?.role, tab]);
 
   const saveAiSettings = async () => {
@@ -69,6 +122,45 @@ export default function SettingsPage() {
       showToast(e.message ?? 'Failed to save', false);
     } finally {
       setAiSaving(false);
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!editingTemplate) return;
+    setTemplateSaving(true);
+    try {
+      const { id, ...payload } = editingTemplate;
+      const { error } = await createClient()
+        .from('notification_templates')
+        .upsert({ ...payload, ...(id ? { id } : {}) }, { onConflict: 'name,type' });
+      if (error) throw error;
+      setEditingTemplate(null);
+      // Reload
+      const { data } = await createClient().from('notification_templates').select('*').order('type').order('name');
+      setTemplates(data ?? []);
+      showToast('Template saved');
+    } catch (e: any) {
+      showToast(e.message ?? 'Failed to save template', false);
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
+  const resolveFlag = async (id: string, status: 'resolved' | 'dismissed') => {
+    setResolvingId(id);
+    try {
+      const res = await fetch('/api/moderation', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setFlaggedItems(prev => prev.filter(f => f.id !== id));
+      showToast(status === 'resolved' ? 'Marked as resolved' : 'Dismissed');
+    } catch (e: any) {
+      showToast(e.message ?? 'Failed', false);
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -674,6 +766,184 @@ export default function SettingsPage() {
                         : <CheckIcon className="w-4 h-4" />}
                       {aiSaving ? 'Saving…' : 'Save AI Settings'}
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Notification Templates tab (admin only) ── */}
+            {tab === 'templates' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center gap-2">
+                  <DocumentTextIcon className="w-4 h-4 text-blue-400" />
+                  <div>
+                    <h2 className="font-bold text-foreground">Notification Templates</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Edit email and SMS templates used by the system.</p>
+                  </div>
+                </div>
+
+                {templatesLoading ? (
+                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-blue-400 rounded-full animate-spin" /></div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {templates.length === 0 && (
+                      <div className="p-8 text-center text-muted-foreground text-sm">No templates found. They are seeded on first use.</div>
+                    )}
+                    {templates.map(tmpl => (
+                      <div key={tmpl.id} className="p-5">
+                        <div className="flex items-center justify-between gap-4 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border ${tmpl.type === 'email' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>{tmpl.type}</span>
+                            <p className="text-sm font-bold text-foreground">{tmpl.name}</p>
+                          </div>
+                          <button onClick={() => setEditingTemplate(editingTemplate?.id === tmpl.id ? null : { ...tmpl })}
+                            className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                            <PencilIcon className="w-3.5 h-3.5" /> Edit
+                          </button>
+                        </div>
+
+                        {editingTemplate?.id === tmpl.id ? (
+                          <div className="space-y-3 border border-border p-4 bg-background">
+                            {editingTemplate.subject !== undefined && (
+                              <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Subject</label>
+                                <input value={editingTemplate.subject ?? ''} onChange={e => setEditingTemplate((t: any) => ({ ...t, subject: e.target.value }))}
+                                  className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-blue-500 transition-all" />
+                              </div>
+                            )}
+                            <div>
+                              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Content</label>
+                              <textarea rows={6} value={editingTemplate.content ?? ''} onChange={e => setEditingTemplate((t: any) => ({ ...t, content: e.target.value }))}
+                                className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground font-mono resize-none focus:outline-none focus:border-blue-500 transition-all" />
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => setEditingTemplate(null)} className="flex-1 py-2.5 text-xs font-bold text-muted-foreground border border-border hover:text-foreground transition-all">Cancel</button>
+                              <button onClick={saveTemplate} disabled={templateSaving}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50">
+                                {templateSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground font-mono leading-relaxed line-clamp-3">{tmpl.content}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Moderation tab (admin only) ── */}
+            {tab === 'moderation' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center gap-2">
+                  <ExclamationCircleIcon className="w-4 h-4 text-rose-400" />
+                  <div>
+                    <h2 className="font-bold text-foreground">Content Moderation</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Review flagged posts from the discussion forum.</p>
+                  </div>
+                </div>
+
+                {moderationLoading ? (
+                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-rose-400 rounded-full animate-spin" /></div>
+                ) : flaggedItems.length === 0 ? (
+                  <div className="p-10 text-center space-y-2">
+                    <CheckCircleIcon className="w-10 h-10 text-emerald-400/30 mx-auto" />
+                    <p className="text-sm font-bold text-muted-foreground">All clear — no pending flags</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {flaggedItems.map(item => (
+                      <div key={item.id} className="p-5 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20">{item.content_type}</span>
+                              {item.status && item.status !== 'pending' && (
+                                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/10">{item.status}</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-foreground font-medium">{item.reason}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Reported by {item.reporter?.full_name ?? 'Unknown'} · {new Date(item.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0">
+                            <button onClick={() => resolveFlag(item.id, 'dismissed')} disabled={!!resolvingId}
+                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all disabled:opacity-50">
+                              Dismiss
+                            </button>
+                            <button onClick={() => resolveFlag(item.id, 'resolved')} disabled={!!resolvingId}
+                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 transition-all disabled:opacity-50">
+                              {resolvingId === item.id ? '…' : 'Resolve'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Audit Log tab (admin only) ── */}
+            {tab === 'audit-log' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TableCellsIcon className="w-4 h-4 text-slate-400" />
+                    <div>
+                      <h2 className="font-bold text-foreground">Audit Log</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">Last 100 tracked activity events.</p>
+                    </div>
+                  </div>
+                  <button onClick={async () => {
+                    setAuditLoading(true);
+                    const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(100);
+                    setAuditLogs(data ?? []);
+                    setAuditLoading(false);
+                  }} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground border border-border transition-all">
+                    <ArrowPathIcon className={`w-4 h-4 ${auditLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+                {auditLoading ? (
+                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-slate-400 rounded-full animate-spin" /></div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="p-10 text-center text-muted-foreground text-sm">No activity logged yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="border-b border-border bg-white/[0.02]">
+                        <tr>
+                          {['Time', 'User', 'Event', 'Details'].map(h => (
+                            <th key={h} className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {auditLogs.map((log: any) => (
+                          <tr key={log.id} className="hover:bg-white/[0.01] transition-colors">
+                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-foreground truncate max-w-[120px]">
+                              {log.portal_users?.full_name ?? log.user_id?.slice(0, 8) ?? '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white/60 whitespace-nowrap">
+                                {log.event_type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
+                              {log.metadata ? JSON.stringify(log.metadata).slice(0, 80) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
