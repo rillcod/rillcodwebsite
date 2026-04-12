@@ -1791,6 +1791,19 @@ export default function StudentsPage() {
                                   {s.approved_at && (
                                     <InfoRow label="Approved" value={new Date(s.approved_at).toLocaleDateString('en-GB')} />
                                   )}
+                                  {/* Registration Payment Status */}
+                                  <InfoRow
+                                    label="Reg. Payment"
+                                    value={s.registration_payment_at
+                                      ? new Date(s.registration_payment_at).toLocaleDateString('en-GB')
+                                      : 'Not paid'}
+                                    icon={s.registration_payment_at
+                                      ? <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
+                                      : <ClockIcon className="w-3 h-3 text-amber-400" />}
+                                  />
+                                  {s.registration_paystack_reference && (
+                                    <InfoRow label="Ref" value={s.registration_paystack_reference} />
+                                  )}
                                 </div>
                               </div>
                             </div>

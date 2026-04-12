@@ -9,7 +9,7 @@ import {
   EyeIcon, EyeSlashIcon, CameraIcon, PencilIcon,
   CheckIcon, KeyIcon, EnvelopeIcon, PhoneIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
-  BuildingOfficeIcon, MapPinIcon, StarIcon,
+  BuildingOfficeIcon, MapPinIcon, StarIcon, CpuChipIcon,
 } from '@/lib/icons';
 
 const BASE_TABS = [
@@ -29,10 +29,48 @@ export default function SettingsPage() {
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
 
-  // Teacher sees a Schools tab too
+  // Teacher sees Schools tab; Admin sees AI Config tab
   const TABS = profile?.role === 'teacher'
     ? [...BASE_TABS, { id: 'schools', label: 'My Schools', icon: BuildingOfficeIcon }]
-    : BASE_TABS;
+    : profile?.role === 'admin'
+      ? [...BASE_TABS, { id: 'ai-config', label: 'AI Config', icon: CpuChipIcon }]
+      : BASE_TABS;
+
+  // ── AI Config state (admin only) ────────────────────────────
+  const [aiSettings, setAiSettings] = useState<Record<string, string>>({});
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile?.role !== 'admin' || tab !== 'ai-config') return;
+    setAiLoading(true);
+    fetch('/api/app-settings')
+      .then(r => r.json())
+      .then(d => {
+        const map: Record<string, string> = {};
+        (d.data ?? []).forEach((row: any) => { map[row.key] = row.value ?? ''; });
+        setAiSettings(map);
+      })
+      .finally(() => setAiLoading(false));
+  }, [profile?.role, tab]);
+
+  const saveAiSettings = async () => {
+    setAiSaving(true);
+    try {
+      const settings = Object.entries(aiSettings).map(([key, value]) => ({ key, value }));
+      const res = await fetch('/api/app-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Save failed');
+      showToast('AI settings saved');
+    } catch (e: any) {
+      showToast(e.message ?? 'Failed to save', false);
+    } finally {
+      setAiSaving(false);
+    }
+  };
 
   const [profileData, setProfileData] = useState({
     full_name: '', email: '', phone: '', bio: '',
@@ -554,6 +592,90 @@ export default function SettingsPage() {
                     Contact an admin to update your school assignments.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* ── AI Config tab (admin only) ── */}
+            {tab === 'ai-config' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CpuChipIcon className="w-4 h-4 text-violet-400" />
+                    <div>
+                      <h2 className="font-bold text-foreground">AI Configuration</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">API keys for AI features. Stored securely in the database.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {aiLoading ? (
+                  <div className="p-10 flex justify-center">
+                    <div className="w-7 h-7 border-4 border-border border-t-violet-400 rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-5">
+                    {/* Info box */}
+                    <div className="p-3 bg-violet-500/5 border border-violet-500/20 rounded-none">
+                      <p className="text-xs text-violet-400 leading-relaxed">
+                        These keys are loaded at runtime for AI features (image generation, project generation, etc.).
+                        Changes take effect immediately — no redeployment needed.
+                      </p>
+                    </div>
+
+                    {/* Known settings rows */}
+                    {[
+                      { key: 'openrouter_api_key', label: 'OpenRouter API Key', hint: 'Used for Gemini text generation fallback. Get it at openrouter.ai', placeholder: 'sk-or-v1-...' },
+                      { key: 'gemini_api_key', label: 'Google Gemini API Key', hint: 'Primary key for Gemini 2.5 Flash text and image generation.', placeholder: 'AIza...' },
+                      { key: 'pollinations_enabled', label: 'Pollinations Fallback', hint: 'Set to "true" to enable the free Pollinations.ai image fallback.', placeholder: 'true or false' },
+                    ].map(({ key, label, hint, placeholder }) => (
+                      <div key={key}>
+                        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5">{label}</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={aiSettings[key] ?? ''}
+                            onChange={e => setAiSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={placeholder}
+                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors font-mono"
+                          />
+                          {(aiSettings[key] ?? '').length > 4 && (
+                            <button
+                              onClick={() => setAiSettings(prev => ({ ...prev, [key]: '' }))}
+                              className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black hover:bg-rose-500/20 transition-colors"
+                              title="Clear">✕</button>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>
+                      </div>
+                    ))}
+
+                    {/* Dynamic: any extra keys in DB not in the list above */}
+                    {Object.entries(aiSettings)
+                      .filter(([k]) => !['openrouter_api_key', 'gemini_api_key', 'pollinations_enabled'].includes(k))
+                      .map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5">{key.replace(/_/g, ' ')}</label>
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={e => setAiSettings(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors font-mono"
+                          />
+                        </div>
+                      ))
+                    }
+
+                    <button
+                      onClick={saveAiSettings}
+                      disabled={aiSaving}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-none text-sm font-bold text-white transition-all mt-2">
+                      {aiSaving
+                        ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        : <CheckIcon className="w-4 h-4" />}
+                      {aiSaving ? 'Saving…' : 'Save AI Settings'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

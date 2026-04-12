@@ -103,10 +103,10 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
     const { data: rawSubs, error } = await client
         .from('assignment_submissions')
         .select(`
-      id, grade, feedback, status, submitted_at, graded_at,
+      id, grade, weighted_score, feedback, status, submitted_at, graded_at,
       submission_text, file_url, portal_user_id, user_id,
       assignments (
-        id, title, max_points, due_date, created_by,
+        id, title, max_points, weight, due_date, created_by,
         courses ( title, teacher_id, programs ( name ) )
       )
     `)
@@ -158,9 +158,9 @@ export async function fetchStudentGrades(portalUserId: string) {
     const { data, error } = await db()
         .from('assignment_submissions')
         .select(`
-      id, grade, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
+      id, grade, weighted_score, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
       assignments (
-        id, title, max_points, due_date, assignment_type,
+        id, title, max_points, weight, due_date, assignment_type,
         courses ( title, programs ( name ) )
       )
     `)
