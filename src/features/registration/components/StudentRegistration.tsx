@@ -238,6 +238,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   };
 
   const paymentStatus = searchParams?.get('payment');
+  const paymentRef = searchParams?.get('reference');
   if (paymentStatus === 'success') {
     return (
       <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
@@ -246,6 +247,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
          </div>
          <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">Confirmed</h2>
          <p className="text-muted-foreground font-medium mb-8">Registration successful! Our team will be in touch within 24 hours to confirm your enrolment details.</p>
+         {paymentRef ? (
+           <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
+         ) : null}
          <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
       </div>
     );

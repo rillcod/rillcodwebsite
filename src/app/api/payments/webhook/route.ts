@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import Stripe from 'stripe';
 import { env } from '@/config/env';
-import { createClient } from '@/lib/supabase/server';
+
+function assertServiceRoleWebhook() {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new AppError('SUPABASE_SERVICE_ROLE_KEY is required for payment webhooks', 500);
+    }
+}
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 
 export async function POST(req: Request) {
@@ -48,6 +54,7 @@ async function handleStripeWebhook(rawBody: string, signature: string) {
     }
 
     if (event.type === 'checkout.session.completed') {
+        assertServiceRoleWebhook();
         const session = event.data.object as any;
         await processSuccessfulPayment(session.client_reference_id as string, 'stripe', session);
     } else {
@@ -69,6 +76,7 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
     const event = JSON.parse(rawBody);
 
     if (event.event === 'charge.success') {
+        assertServiceRoleWebhook();
         await processSuccessfulPayment(event.data.reference, 'paystack', event.data);
     } else {
         console.info(`Ignoring Paystack webhook event: ${event.event}`);
@@ -78,7 +86,7 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
 }
 
 async function processSuccessfulPayment(reference: string, method: string, rawGatewayData: any) {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // 1. Get transaction
     const { data: transaction, error: txError } = await supabase
@@ -92,13 +100,25 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         return;
     }
 
+    const prevGateway =
+        transaction.payment_gateway_response &&
+        typeof transaction.payment_gateway_response === 'object' &&
+        !Array.isArray(transaction.payment_gateway_response)
+            ? (transaction.payment_gateway_response as Record<string, unknown>)
+            : {};
+
+    const mergedGateway =
+        method === 'paystack'
+            ? { ...prevGateway, paystack: rawGatewayData }
+            : { ...prevGateway, stripe: rawGatewayData };
+
     // 2. Prevent duplicate processing atomically (handles retries/races)
     const { data: updatedTx, error: updateErr } = await supabase
         .from('payment_transactions')
         .update({
             payment_status: 'completed',
             paid_at: new Date().toISOString(),
-            payment_gateway_response: rawGatewayData
+            payment_gateway_response: mergedGateway as any,
         })
         .eq('id', transaction.id)
         .neq('payment_status', 'completed')
@@ -113,9 +133,8 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         return;
     }
 
-    // 3. Grant access — behaviour differs by payment type
-    // Prefer current webhook payload over stale DB copy.
-    const gatewayResponse = (rawGatewayData ?? transaction.payment_gateway_response) as any;
+    // 3. Grant access — behaviour differs by payment type (metadata from DB insert survives merge)
+    const gatewayResponse = mergedGateway as any;
     const isRegistrationPayment = gatewayResponse?.payment_type === 'registration';
 
     if (isRegistrationPayment) {
@@ -124,7 +143,11 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         if (studentId) {
             await supabase
                 .from('students')
-                .update({ status: 'pending' }) // remains pending for admin approval, payment confirmed via payment_transactions
+                .update({
+                    status: 'pending', // remains pending for admin approval, payment confirmed via payment_transactions
+                    registration_payment_at: new Date().toISOString(),
+                    registration_paystack_reference: method === 'paystack' ? reference : null,
+                })
                 .eq('id', studentId)
                 .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
         }

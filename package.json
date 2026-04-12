@@ -14,7 +14,20 @@
     "perf:mobile": "node scripts/mobile-performance.js",
     "seed:programs": "node scripts/seed-courses.js",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview"
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "supabase": "npx supabase",
+    "supabase:login": "npx supabase login",
+    "supabase:link": "npx supabase link",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "supabase:status": "npx supabase status",
+    "db:push": "npx supabase db push",
+    "db:pull": "npx supabase db pull",
+    "db:reset": "npx supabase db reset",
+    "db:diff": "npx supabase db diff",
+    "db:types:local": "npx supabase gen types typescript --local > src/types/supabase.ts",
+    "db:types:linked": "npx supabase gen types typescript --linked > src/types/supabase.ts",
+    "supabase:deploy:paystack-webhook": "node scripts/deploy-paystack-webhook.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

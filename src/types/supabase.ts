@@ -69,6 +69,46 @@ export type Database = {
           },
         ]
       }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          portal_user_id: string
+          read_at: string
+        }
+        Insert: {
+          announcement_id: string
+          portal_user_id: string
+          read_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          portal_user_id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           author_id: string | null
@@ -2039,6 +2079,55 @@ export type Database = {
           },
         ]
       }
+      invoice_payment_proofs: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          payer_note: string | null
+          proof_image_url: string
+          submitted_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payer_note?: string | null
+          proof_image_url: string
+          submitted_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payer_note?: string | null
+          proof_image_url?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payment_proofs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_proofs_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_proofs_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -3553,6 +3642,7 @@ export type Database = {
           is_deleted: boolean | null
           is_direct_enrollment: boolean | null
           last_login: string | null
+          metadata: Json | null
           phone: string | null
           photo_url: string | null
           profile_image_url: string | null
@@ -3581,6 +3671,7 @@ export type Database = {
           is_deleted?: boolean | null
           is_direct_enrollment?: boolean | null
           last_login?: string | null
+          metadata?: Json | null
           phone?: string | null
           photo_url?: string | null
           profile_image_url?: string | null
@@ -3609,6 +3700,7 @@ export type Database = {
           is_deleted?: boolean | null
           is_direct_enrollment?: boolean | null
           last_login?: string | null
+          metadata?: Json | null
           phone?: string | null
           photo_url?: string | null
           profile_image_url?: string | null
@@ -4655,6 +4747,8 @@ export type Database = {
           phone: string | null
           preferred_schedule: string | null
           previous_programming_experience: string | null
+          registration_payment_at: string | null
+          registration_paystack_reference: string | null
           school: string | null
           school_id: string | null
           school_name: string | null
@@ -4701,6 +4795,8 @@ export type Database = {
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
+          registration_payment_at?: string | null
+          registration_paystack_reference?: string | null
           school?: string | null
           school_id?: string | null
           school_name?: string | null
@@ -4747,6 +4843,8 @@ export type Database = {
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
+          registration_payment_at?: string | null
+          registration_paystack_reference?: string | null
           school?: string | null
           school_id?: string | null
           school_name?: string | null

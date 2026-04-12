@@ -13,6 +13,9 @@ const envSchema = z.object({
     STRIPE_SECRET_KEY: z.string().optional(),
     PAYSTACK_SECRET_KEY: z.string().optional(),
     NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: z.string().optional(),
+    /** Shared secret: Supabase Edge paystack-webhook → POST /api/payments/internal/generate-receipt */
+    PAYMENT_WEBHOOK_INTERNAL_SECRET: z.string().optional(),
+    PAYMENT_INTERNAL_RECEIPT_SECRET: z.string().optional(),
 
     // Notifications
     SENDPULSE_API_ID: z.string().optional(),
