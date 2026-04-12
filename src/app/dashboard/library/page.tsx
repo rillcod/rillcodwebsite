@@ -83,6 +83,12 @@ export default function ContentLibraryPage() {
   const [replaceFileLoading, setReplaceFileLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Star rating state
+  const [myRating, setMyRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingDone, setRatingDone] = useState(false);
+
   // Upload form state
   const [showUpload, setShowUpload] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -152,7 +158,22 @@ export default function ContentLibraryPage() {
     setAssigningCourse(false);
     setAssignSuccess(false);
     setSelectedCourseId('');
+    setMyRating(0);
+    setHoverRating(0);
+    setRatingDone(false);
   }, [selectedItem?.id]);
+
+  // Load the current user's existing rating for the open item
+  useEffect(() => {
+    if (!selectedItem || !profile) return;
+    createClient()
+      .from('content_ratings')
+      .select('rating')
+      .eq('content_id', selectedItem.id)
+      .eq('portal_user_id', profile.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data) { setMyRating(data.rating ?? 0); setRatingDone(true); } });
+  }, [selectedItem?.id, profile?.id]);
 
   // Unique subjects derived from loaded data
   const subjects = useMemo(() => {
@@ -310,6 +331,27 @@ export default function ContentLibraryPage() {
       setError("AI was unable to generate metadata: " + e.message);
     } finally {
       setGeneratingAi(false);
+    }
+  };
+
+  const submitRating = async (stars: number) => {
+    if (!selectedItem || ratingLoading) return;
+    setRatingLoading(true);
+    try {
+      const res = await fetch(`/api/content-library/${selectedItem.id}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: stars }),
+      });
+      if (!res.ok) throw new Error('Failed to submit rating');
+      setMyRating(stars);
+      setRatingDone(true);
+      // Reload list so rating_average / rating_count reflects the new vote
+      await loadItems();
+    } catch (e: any) {
+      console.error('Rating error:', e);
+    } finally {
+      setRatingLoading(false);
     }
   };
 
@@ -998,6 +1040,29 @@ export default function ContentLibraryPage() {
                 <div className="p-4 bg-background border border-border text-center">
                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Added</p>
                   <p className="text-sm font-black text-foreground">{new Date(selectedItem.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
+                </div>
+              </div>
+
+              {/* Star Rating */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {ratingDone ? 'Your Rating' : 'Rate this Resource'}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      disabled={ratingLoading}
+                      onClick={() => submitRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="transition-transform hover:scale-110 disabled:opacity-50"
+                    >
+                      <StarIcon className={`w-7 h-7 transition-colors ${(hoverRating || myRating) >= star ? 'text-amber-400' : 'text-white/10'}`} />
+                    </button>
+                  ))}
+                  {ratingLoading && <div className="ml-2 w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />}
+                  {ratingDone && !ratingLoading && <span className="ml-2 text-[10px] font-black text-emerald-400 uppercase tracking-widest">Saved</span>}
                 </div>
               </div>
 

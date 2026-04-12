@@ -22,6 +22,10 @@ import {
   BoltIcon,
   SparklesIcon,
   ArrowRightIcon,
+  ChatBubbleLeftEllipsisIcon,
+  UsersIcon,
+  CheckCircleIcon,
+  ChartBarIcon,
 } from '@/lib/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -122,14 +126,293 @@ function blankForm(): SessionForm {
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
+// ─── Polls Modal ─────────────────────────────────────────────────────────────
+
+function PollsModal({ session, canManage, userId, onClose }: {
+  session: LiveSession; canManage: boolean; userId: string; onClose: () => void;
+}) {
+  const [polls, setPolls] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [voted, setVoted] = useState<Record<string, string[]>>({});
+  const [form, setForm] = useState({ question: '', type: 'poll' as 'poll' | 'quiz', options: ['', '', '', ''] });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/live-sessions/${session.id}/polls`);
+      const j = await res.json();
+      setPolls(j.data ?? []);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [session.id]);
+
+  const createPoll = async () => {
+    const opts = form.options.filter(o => o.trim());
+    if (!form.question.trim() || opts.length < 2) return;
+    setSubmitting('create');
+    try {
+      const res = await fetch(`/api/live-sessions/${session.id}/polls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: form.question, pollType: form.type, options: opts.map(t => ({ text: t })) }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setForm({ question: '', type: 'poll', options: ['', '', '', ''] });
+      setCreating(false);
+      await load();
+    } catch (e: any) { alert(e.message); }
+    finally { setSubmitting(null); }
+  };
+
+  const vote = async (pollId: string, optionId: string) => {
+    if (submitting || voted[pollId]) return;
+    setSubmitting(pollId);
+    try {
+      await fetch(`/api/live-sessions/${session.id}/polls/${pollId}/responses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionIds: [optionId] }),
+      });
+      setVoted(v => ({ ...v, [pollId]: [optionId] }));
+      await load();
+    } catch { }
+    finally { setSubmitting(null); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <ChartBarIcon className="w-5 h-5 text-orange-400" />
+            <div>
+              <p className="text-sm font-black text-white uppercase tracking-widest">Session Polls</p>
+              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {loading ? (
+            <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-orange-600 border-t-transparent animate-spin" /></div>
+          ) : polls.length === 0 && !creating ? (
+            <div className="text-center py-12 space-y-2">
+              <ChartBarIcon className="w-10 h-10 text-white/10 mx-auto" />
+              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No polls yet</p>
+            </div>
+          ) : polls.map((poll: any) => {
+            const total = (poll.options ?? []).reduce((s: number, o: any) => s + (o.response_count ?? 0), 0);
+            const hasVoted = !!voted[poll.id];
+            return (
+              <div key={poll.id} className="bg-white/[0.02] border border-white/[0.06] p-5 space-y-4">
+                <p className="text-sm font-black text-white">{poll.question}</p>
+                <div className="space-y-2">
+                  {(poll.options ?? []).map((opt: any) => {
+                    const pct = total > 0 ? Math.round((opt.response_count ?? 0) / total * 100) : 0;
+                    const isMyVote = voted[poll.id]?.includes(opt.id);
+                    return (
+                      <button key={opt.id} disabled={!!hasVoted || !!submitting} onClick={() => vote(poll.id, opt.id)}
+                        className={`w-full text-left relative overflow-hidden border transition-all py-3 px-4 ${isMyVote ? 'border-orange-500/50 bg-orange-500/10' : 'border-white/[0.06] hover:border-white/20 hover:bg-white/[0.03]'} disabled:cursor-default`}>
+                        {hasVoted && <div className="absolute left-0 top-0 bottom-0 bg-white/[0.04] transition-all" style={{ width: `${pct}%` }} />}
+                        <div className="relative flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold text-white">{opt.text}</span>
+                          {hasVoted && <span className="text-[10px] font-black text-white/40">{pct}%</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {hasVoted && <p className="text-[10px] text-white/30 font-bold">{total} response{total !== 1 ? 's' : ''}</p>}
+              </div>
+            );
+          })}
+
+          {creating && (
+            <div className="bg-white/[0.02] border border-white/10 p-5 space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">New Poll</p>
+              <input value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+                placeholder="Ask a question…"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all" />
+              <div className="flex items-center gap-3">
+                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
+                  className="px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white/60 focus:outline-none focus:border-orange-500">
+                  <option value="poll" className="bg-[#0d0d0d]">Poll</option>
+                  <option value="quiz" className="bg-[#0d0d0d]">Quiz (with correct answer)</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                {form.options.map((opt, i) => (
+                  <input key={i} value={opt} onChange={e => setForm(f => { const o = [...f.options]; o[i] = e.target.value; return { ...f, options: o }; })}
+                    placeholder={`Option ${i + 1}${i < 2 ? ' *' : ''}`}
+                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all" />
+                ))}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-white/30 hover:text-white border border-white/10 transition-all">Cancel</button>
+                <button onClick={createPoll} disabled={!!submitting}
+                  className="flex-1 py-2.5 text-xs font-black bg-orange-600 hover:bg-orange-500 text-white transition-all disabled:opacity-50">
+                  {submitting === 'create' ? 'Creating…' : 'Create Poll'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {canManage && !creating && (
+          <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
+            <button onClick={() => setCreating(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+              <PlusIcon className="w-4 h-4" /> Create Poll
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Breakout Rooms Modal ─────────────────────────────────────────────────────
+
+function RoomsModal({ session, canManage, onClose }: {
+  session: LiveSession; canManage: boolean; onClose: () => void;
+}) {
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', maxParticipants: '' });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/live-sessions/${session.id}/breakout-rooms`);
+      const j = await res.json();
+      setRooms(j.data ?? []);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [session.id]);
+
+  const createRoom = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/live-sessions/${session.id}/breakout-rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setForm({ name: '', maxParticipants: '' });
+      setCreating(false);
+      await load();
+    } catch (e: any) { alert(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const joinRoom = async (roomId: string) => {
+    if (joining) return;
+    setJoining(roomId);
+    try {
+      await fetch(`/api/live-sessions/${session.id}/breakout-rooms/${roomId}/participants`, { method: 'POST' });
+      await load();
+    } catch { }
+    finally { setJoining(null); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <UsersIcon className="w-5 h-5 text-purple-400" />
+            <div>
+              <p className="text-sm font-black text-white uppercase tracking-widest">Breakout Rooms</p>
+              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-purple-600 border-t-transparent animate-spin" /></div>
+          ) : rooms.length === 0 && !creating ? (
+            <div className="text-center py-12 space-y-2">
+              <UsersIcon className="w-10 h-10 text-white/10 mx-auto" />
+              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No breakout rooms</p>
+            </div>
+          ) : rooms.map((room: any) => (
+            <div key={room.id} className="bg-white/[0.02] border border-white/[0.06] p-5 flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-sm font-black text-white">{room.name}</p>
+                <p className="text-[10px] text-white/30 font-bold">
+                  {room.participant_count ?? 0} participant{(room.participant_count ?? 0) !== 1 ? 's' : ''}
+                  {room.max_participants ? ` / ${room.max_participants} max` : ''}
+                </p>
+              </div>
+              <button onClick={() => joinRoom(room.id)} disabled={!!joining}
+                className="flex items-center gap-2 px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-400 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                {joining === room.id ? <div className="w-3.5 h-3.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
+                Join
+              </button>
+            </div>
+          ))}
+
+          {creating && (
+            <div className="bg-white/[0.02] border border-white/10 p-5 space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">New Room</p>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Room name (e.g. Group A)"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all" />
+              <input type="number" value={form.maxParticipants} onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))}
+                placeholder="Max participants (optional)"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500 transition-all" />
+              <div className="flex gap-3">
+                <button onClick={() => setCreating(false)} className="flex-1 py-2.5 text-xs font-bold text-white/30 hover:text-white border border-white/10 transition-all">Cancel</button>
+                <button onClick={createRoom} disabled={saving}
+                  className="flex-1 py-2.5 text-xs font-black bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50">
+                  {saving ? 'Creating…' : 'Create Room'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {canManage && !creating && (
+          <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
+            <button onClick={() => setCreating(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+              <PlusIcon className="w-4 h-4" /> Add Room
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Session Card ─────────────────────────────────────────────────────────────
+
 function SessionCard({
-  session, canManage, onEdit, onDelete, onJoin
+  session, canManage, onEdit, onDelete, onJoin, onPolls, onRooms
 }: {
   session: LiveSession;
   canManage: boolean;
   onEdit: (s: LiveSession) => void;
   onDelete: (id: string) => void;
   onJoin: (id: string, url: string) => void;
+  onPolls: (s: LiveSession) => void;
+  onRooms: (s: LiveSession) => void;
 }) {
   const platCfg = PLATFORM_CONFIG[session.platform];
   const statusCfg = STATUS_CONFIG[session.status];
@@ -222,34 +505,48 @@ function SessionCard({
       </div>
 
       {/* Action buttons */}
-      {(showJoin || showRecording) && (
-        <div className="flex border-t border-white/5">
-          {showJoin && (
-            <button
-              onClick={() => onJoin(session.id, session.session_url!)}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
-                isLive
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
-                  : 'bg-orange-600 hover:bg-orange-500 text-white'
-              }`}
-            >
-              {isLive ? <SignalIcon className="w-4 h-4 animate-pulse" /> : <LinkIcon className="w-4 h-4" />}
-              {isLive ? 'Join Live Now' : 'Join Session'}
-            </button>
-          )}
-          {showRecording && (
-            <a
-              href={session.recording_url!}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-3 py-4 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest transition-all"
-            >
-              <FilmIcon className="w-4 h-4" />
-              Watch Recording
-            </a>
-          )}
+      <div className="border-t border-white/5">
+        {(showJoin || showRecording) && (
+          <div className="flex">
+            {showJoin && (
+              <button
+                onClick={() => onJoin(session.id, session.session_url!)}
+                className={`flex-1 flex items-center justify-center gap-3 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
+                  isLive
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
+                    : 'bg-orange-600 hover:bg-orange-500 text-white'
+                }`}
+              >
+                {isLive ? <SignalIcon className="w-4 h-4 animate-pulse" /> : <LinkIcon className="w-4 h-4" />}
+                {isLive ? 'Join Live Now' : 'Join Session'}
+              </button>
+            )}
+            {showRecording && (
+              <a
+                href={session.recording_url!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-3 py-4 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                <FilmIcon className="w-4 h-4" />
+                Watch Recording
+              </a>
+            )}
+          </div>
+        )}
+        {/* Polls + Rooms quick-access */}
+        <div className="flex border-t border-white/[0.04]">
+          <button onClick={() => onPolls(session)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-orange-400 hover:bg-white/[0.02] transition-all">
+            <ChartBarIcon className="w-3.5 h-3.5" /> Polls
+          </button>
+          <span className="w-px bg-white/[0.04]" />
+          <button onClick={() => onRooms(session)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-purple-400 hover:bg-white/[0.02] transition-all">
+            <UsersIcon className="w-3.5 h-3.5" /> Rooms
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -459,6 +756,9 @@ export default function LiveSessionsPage() {
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin   = profile?.role === 'admin';
+
+  const [pollsSession, setPollsSession] = useState<LiveSession | null>(null);
+  const [roomsSession, setRoomsSession] = useState<LiveSession | null>(null);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
@@ -730,6 +1030,8 @@ export default function LiveSessionsPage() {
                 onEdit={openEdit}
                 onDelete={handleDelete}
                 onJoin={handleJoin}
+                onPolls={setPollsSession}
+                onRooms={setRoomsSession}
               />
             ))}
           </div>
@@ -744,6 +1046,25 @@ export default function LiveSessionsPage() {
           schools={schools} programs={programs}
           isAdmin={isAdmin} saving={saving} error={modalError}
           onClose={() => setShowModal(false)} onSave={handleSave}
+        />
+      )}
+
+      {/* ── Polls Modal ── */}
+      {pollsSession && (
+        <PollsModal
+          session={pollsSession}
+          canManage={canManage}
+          userId={profile?.id ?? ''}
+          onClose={() => setPollsSession(null)}
+        />
+      )}
+
+      {/* ── Breakout Rooms Modal ── */}
+      {roomsSession && (
+        <RoomsModal
+          session={roomsSession}
+          canManage={canManage}
+          onClose={() => setRoomsSession(null)}
         />
       )}
     </div>

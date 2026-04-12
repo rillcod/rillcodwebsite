@@ -138,7 +138,7 @@ export default function MessagesPage() {
 
       // Load already-read announcement IDs for this user
       if (profile?.id) {
-        db.from('announcement_reads')
+        createClient().from('announcement_reads')
           .select('announcement_id')
           .eq('portal_user_id', profile.id)
           .then(({ data: reads }) => {
