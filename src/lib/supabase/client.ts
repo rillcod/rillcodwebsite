@@ -1,20 +1,17 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
-// Safely wrap the database type to prevent deep recursion in TypeScript
-// while maintaining full autocomplete for tables and columns.
-export type SafeDatabase = {
-  [K in keyof Database]: Database[K] extends { Tables: any }
-  ? {
-    [T in keyof Database[K]]: T extends 'Tables'
-    ? {
-      [Table in keyof Database[K]['Tables']]: Omit<Database[K]['Tables'][Table], 'Relationships'> & {
-        Relationships: []
-      }
-    }
-    : Database[K][T]
-  }
-  : Database[K]
+/** Strip heavy Relationships arrays to avoid TS deep recursion; map only `public.Tables`. */
+type PublicTablesSafe = {
+  [T in keyof Database['public']['Tables']]: Omit<
+    Database['public']['Tables'][T],
+    'Relationships'
+  > & { Relationships: [] };
+};
+
+// Map top-level keys except `public` unchanged; rebuild `public.Tables` so every table (e.g. announcement_reads) stays in the `.from()` union.
+export type SafeDatabase = Omit<Database, 'public'> & {
+  public: Omit<Database['public'], 'Tables'> & { Tables: PublicTablesSafe };
 };
 
 export function createClient() {

@@ -185,7 +185,7 @@ export async function POST(req: Request) {
                 email: parent_email,
                 amount: amount * 100, // convert to kobo
                 reference,
-                callback_url: `${baseUrl}/online-registration?payment=success&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
+                callback_url: `${baseUrl}/online-registration?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
                 metadata: {
                     student_id: student.id,
                     student_name: full_name,

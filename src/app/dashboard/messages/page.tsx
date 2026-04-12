@@ -138,10 +138,10 @@ export default function MessagesPage() {
 
       // Load already-read announcement IDs for this user
       if (profile?.id) {
-        createClient().from('announcement_reads')
+        (createClient() as any).from('announcement_reads')
           .select('announcement_id')
           .eq('portal_user_id', profile.id)
-          .then(({ data: reads }) => {
+          .then(({ data: reads }: any) => {
             setReadAnnouncements(new Set((reads ?? []).map((r: any) => r.announcement_id)));
           });
       }
@@ -611,7 +611,7 @@ export default function MessagesPage() {
                       const markRead = () => {
                         if (isRead || !profile?.id) return;
                         setReadAnnouncements(prev => new Set([...prev, ann.id]));
-                        createClient().from('announcement_reads').upsert(
+                        (createClient() as any).from('announcement_reads').upsert(
                           { portal_user_id: profile.id, announcement_id: ann.id },
                           { onConflict: 'portal_user_id,announcement_id' }
                         ).then(() => {});

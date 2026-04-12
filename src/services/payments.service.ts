@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import Stripe from 'stripe';
@@ -229,7 +230,7 @@ export class PaymentsService {
             throw new AppError('pdfmake not installed or failed to load', 500);
         }
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const { data: transaction } = await (supabase as any)
             .from('payment_transactions')
             .select('*, courses(title), invoices(invoice_number), portal_users(full_name, email), schools(name)')
