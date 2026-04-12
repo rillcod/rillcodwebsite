@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
+import { BADGES, Badge, calculateMilestones, Milestone } from '@/lib/badges';
 
 export interface BadgeCriteria {
     type: 'course_complete' | 'points_milestone' | 'streak_milestone' | 'discussion_expert';
@@ -8,7 +9,98 @@ export interface BadgeCriteria {
     course_id?: string;
 }
 
+export interface BadgeProgress {
+    badges: Badge[];
+    earnedBadgeIds: string[];
+    milestones: Milestone[];
+    totalBadgesEarned: number;
+}
+
 export class BadgeService {
+    async getBadgeProgress(userId: string): Promise<BadgeProgress> {
+        const supabase = await createClient();
+
+        // Get user's learning data
+        const [lessonsData, assignmentsData, projectsData, streakData] = await Promise.all([
+            supabase
+                .from('lesson_completions')
+                .select('id')
+                .eq('user_id', userId),
+            supabase
+                .from('assignment_submissions')
+                .select('id, score')
+                .eq('user_id', userId)
+                .eq('status', 'completed'),
+            supabase
+                .from('portfolio_projects')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('is_published', true),
+            supabase
+                .from('user_learning_stats')
+                .select('current_streak, lessons_completed, assignments_completed')
+                .eq('user_id', userId)
+                .single()
+        ]);
+
+        const lessonsCompleted = lessonsData.data?.length || 0;
+        const assignmentsCompleted = assignmentsData.data?.length || 0;
+        const projectsCreated = projectsData.data?.length || 0;
+        const currentStreak = streakData.data?.current_streak || 0;
+
+        // Calculate earned badges
+        const earnedBadgeIds = this.calculateEarnedBadges(
+            lessonsCompleted,
+            assignmentsCompleted,
+            projectsCreated,
+            currentStreak,
+            assignmentsData.data || []
+        );
+
+        const milestones = calculateMilestones(
+            lessonsCompleted,
+            assignmentsCompleted,
+            projectsCreated,
+            currentStreak
+        );
+
+        return {
+            badges: Object.values(BADGES),
+            earnedBadgeIds,
+            milestones,
+            totalBadgesEarned: earnedBadgeIds.length
+        };
+    }
+
+    private calculateEarnedBadges(
+        lessonsCompleted: number,
+        assignmentsCompleted: number,
+        projectsCreated: number,
+        currentStreak: number,
+        assignments: any[]
+    ): string[] {
+        const earned: string[] = [];
+
+        if (lessonsCompleted >= 1) earned.push('first_step');
+        if (currentStreak >= 7) earned.push('lesson_streak_7');
+        if (lessonsCompleted >= 10) earned.push('speed_learner');
+        if (assignmentsCompleted >= 20) {
+            const highScoreCount = assignments.filter(a => (a.score || 0) >= 90).length;
+            if (highScoreCount >= 20) earned.push('assignment_excellence');
+        }
+        if (projectsCreated >= 5) earned.push('project_creator');
+        if (projectsCreated >= 1) earned.push('portfolio_star');
+        if (currentStreak >= 30) earned.push('consistency_champion');
+        if (assignmentsCompleted >= 15) {
+            const perfectCodeAssignments = assignments.filter(a => (a.score || 0) >= 95).length;
+            if (perfectCodeAssignments >= 15) earned.push('code_ninja');
+        }
+        if (lessonsCompleted >= 50) earned.push('course_mastery');
+        if (lessonsCompleted >= 35) earned.push('all_rounder');
+
+        return earned;
+    }
+
     async awardBadgeIfEligible(userId: string, criteriaType: BadgeCriteria['type'], data: any = {}) {
         const supabase = await createClient();
 
