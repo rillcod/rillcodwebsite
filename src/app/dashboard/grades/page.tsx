@@ -1153,9 +1153,31 @@ export default function GradesPage() {
                             )}
                         </div>
 
-                        {/* Course breakdown */}
-                        <div className="lg:col-span-2">
+                        {/* Course breakdown + weighted total */}
+                        <div className="lg:col-span-2 space-y-4">
                             <CourseBreakdown items={items} />
+                            {/* Weighted total summary */}
+                            {(() => {
+                                const weightedItems = items.filter(s => s.weighted_score != null && (s.assignments?.weight ?? 0) > 0);
+                                if (weightedItems.length === 0) return null;
+                                const totalEarned = weightedItems.reduce((a: number, s: any) => a + (s.weighted_score ?? 0), 0);
+                                const totalPossible = weightedItems.reduce((a: number, s: any) => a + (s.assignments?.weight ?? 0), 0);
+                                const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+                                return (
+                                    <div className="bg-card shadow-sm border border-violet-500/20 rounded-none p-5 space-y-3">
+                                        <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Weighted Grade Total</p>
+                                        <div className="flex items-end gap-3">
+                                            <span className="text-3xl font-black text-foreground">{totalEarned}</span>
+                                            <span className="text-muted-foreground text-sm mb-0.5">/ {totalPossible} pts</span>
+                                            <span className={`text-lg font-black ml-auto ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</span>
+                                        </div>
+                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                            <div className={`h-full rounded-full transition-all duration-700 ${pct >= 70 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">{weightedItems.length} weighted assignment{weightedItems.length !== 1 ? 's' : ''} · contributes to report card score</p>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
@@ -1402,9 +1424,14 @@ export default function GradesPage() {
 
                                                 {/* Score detail */}
                                                 {info && (
-                                                    <div className="flex items-center gap-3 mt-2">
+                                                    <div className="flex items-center gap-3 mt-2 flex-wrap">
                                                         <span className={`text-xs font-bold ${colorClass(info.color, 'text')}`}>{info.pct}% · {info.label}</span>
                                                         <span className="text-xs text-muted-foreground">{s.grade}/{max} pts</span>
+                                                        {s.weighted_score != null && (s.assignments?.weight ?? 0) > 0 && (
+                                                            <span className="text-[10px] font-black text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                                                                {s.weighted_score}/{s.assignments.weight} weighted
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

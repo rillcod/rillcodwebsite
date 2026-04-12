@@ -11,6 +11,7 @@ import {
   InformationCircleIcon, ClockIcon, CreditCardIcon, ArrowTrendingUpIcon,
   MagnifyingGlassIcon, DocumentTextIcon, ReceiptPercentIcon,
   ArrowPathIcon, EnvelopeIcon, ArrowDownTrayIcon, CheckBadgeIcon, UserGroupIcon,
+  PaperClipIcon, EyeIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 
@@ -414,6 +415,99 @@ ${notes ? `<div class="notes-box"><b>Notes:</b> ${notes}</div>` : ''}
   return html;
 }
 
+// ── Payment Proof Review Modal ──────────────────────────────────────────────
+function ProofReviewModal({ invoiceId, invoiceNumber, onClose, onApprove }: {
+  invoiceId: string;
+  invoiceNumber: string;
+  onClose: () => void;
+  onApprove: () => void;
+}) {
+  const [proofs, setProofs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/invoices/${invoiceId}/proofs`)
+      .then(r => r.json())
+      .then(d => { setProofs(d.data ?? []); setLoading(false); });
+  }, [invoiceId]);
+
+  const handleApprove = async () => {
+    setApproving(true);
+    await fetch(`/api/invoices/${invoiceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'paid' }),
+    });
+    setApproving(false);
+    onApprove();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-background border border-border w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+          <div>
+            <p className="font-black text-foreground text-sm">Payment Proofs</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Invoice #{invoiceNumber}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground font-black text-xl">✕</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : proofs.length === 0 ? (
+            <div className="text-center py-10">
+              <PaperClipIcon className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground font-bold">No proof submitted yet</p>
+              <p className="text-xs text-muted-foreground mt-1">The parent has not uploaded payment proof for this invoice.</p>
+            </div>
+          ) : (
+            proofs.map(proof => (
+              <div key={proof.id} className="border border-border rounded-none overflow-hidden">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-foreground text-sm">{proof.portal_users?.full_name ?? 'Parent'}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(proof.created_at).toLocaleString()}</p>
+                      {proof.payer_note && <p className="text-xs text-amber-400 mt-1 italic">{proof.payer_note}</p>}
+                    </div>
+                  </div>
+                  {proof.signed_url && (
+                    proof.proof_image_url?.endsWith('.pdf')
+                      ? <a href={proof.signed_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 underline">
+                          <DocumentTextIcon className="w-4 h-4" /> View PDF
+                        </a>
+                      : <a href={proof.signed_url} target="_blank" rel="noopener noreferrer">
+                          <img src={proof.signed_url} alt="Payment proof" className="w-full max-h-64 object-contain bg-muted border border-border" />
+                        </a>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {proofs.length > 0 && (
+          <div className="p-4 border-t border-border flex-shrink-0 flex gap-3">
+            <button onClick={onClose} className="flex-1 py-2.5 text-sm font-bold text-muted-foreground bg-card hover:bg-muted border border-border transition-colors">Cancel</button>
+            <button onClick={handleApprove} disabled={approving}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors">
+              {approving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+              {approving ? 'Approving…' : 'Approve & Mark Paid'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Receipt HTML builder ────────────────────────────────────────────────────
 function buildReceiptHTML(p: {
   docRef: string; dateStr: string; payDateStr: string;
@@ -598,6 +692,7 @@ export default function PaymentsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [filterInvStatus, setFilterInvStatus] = useState<'all' | 'sent' | 'paid' | 'overdue' | 'draft'>('all');
+  const [proofModal, setProofModal] = useState<{ id: string; number: string } | null>(null);
   const [editingInv, setEditingInv] = useState<Invoice | null>(null);
   const [editInvForm, setEditInvForm] = useState<{
     due_date: string;
@@ -2435,6 +2530,13 @@ export default function PaymentsPage() {
                         {/* Action bar */}
                         {canManage && (
                           <div className="flex border-t border-border divide-x divide-border" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => setProofModal({ id: inv.id, number: inv.invoice_number })}
+                              className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-blue-400 hover:bg-blue-500/10 transition-colors uppercase tracking-widest"
+                              title="View payment proofs"
+                            >
+                              <PaperClipIcon className="w-3 h-3" /> Proofs
+                            </button>
                             {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                               <button
                                 onClick={() => handleMarkInvoicePaid(inv.id)}
@@ -3083,6 +3185,18 @@ export default function PaymentsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Payment Proof Review Modal ─────────────────────────────── */}
+      {proofModal && (
+        <ProofReviewModal
+          invoiceId={proofModal.id}
+          invoiceNumber={proofModal.number}
+          onClose={() => setProofModal(null)}
+          onApprove={() => {
+            setInvoices(prev => prev.map(inv => inv.id === proofModal.id ? { ...inv, status: 'paid' } : inv));
+          }}
+        />
       )}
     </div>
   );

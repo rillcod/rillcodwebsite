@@ -28,6 +28,9 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [sent2, setSent2] = useState(false);
 
+  // Announcement read tracking
+  const [readAnnouncements, setReadAnnouncements] = useState<Set<string>>(new Set());
+
   // Announcement form
   const [announcement, setAnnouncement] = useState({ title: '', content: '', target_audience: 'all' });
   const [posting, setPosting] = useState(false);
@@ -132,7 +135,17 @@ export default function MessagesPage() {
         });
       }
       setAnnouncements(filteredAnn);
-      
+
+      // Load already-read announcement IDs for this user
+      if (profile?.id) {
+        db.from('announcement_reads')
+          .select('announcement_id')
+          .eq('portal_user_id', profile.id)
+          .then(({ data: reads }) => {
+            setReadAnnouncements(new Set((reads ?? []).map((r: any) => r.announcement_id)));
+          });
+      }
+
       setNewsletters(nwlRes.data ?? []);
       setLoading(false);
     });
@@ -593,22 +606,37 @@ export default function MessagesPage() {
                 )}
 
                 <div className="lg:col-span-12 space-y-4">
-                    {announcements.map(ann => (
-                      <div key={ann.id} className="group bg-white/[0.02] border border-border rounded-[2rem] p-7 space-y-4 hover:bg-white/[0.04] hover:border-border transition-all duration-300 relative shadow-lg">
+                    {announcements.map(ann => {
+                      const isRead = readAnnouncements.has(ann.id);
+                      const markRead = () => {
+                        if (isRead || !profile?.id) return;
+                        setReadAnnouncements(prev => new Set([...prev, ann.id]));
+                        createClient().from('announcement_reads').upsert(
+                          { portal_user_id: profile.id, announcement_id: ann.id },
+                          { onConflict: 'portal_user_id,announcement_id' }
+                        ).then(() => {});
+                      };
+                      return (
+                      <div key={ann.id} onClick={markRead}
+                        className={`group bg-white/[0.02] border rounded-[2rem] p-7 space-y-4 hover:bg-white/[0.04] transition-all duration-300 relative shadow-lg cursor-pointer ${isRead ? 'border-border opacity-70' : 'border-[#7a0606]/30'}`}>
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-none bg-[#7a0606]/10 flex items-center justify-center border border-[#7a0606]/20">
-                                <MegaphoneIcon className="w-5 h-5 text-[#7a0606]" />
+                             <div className={`w-10 h-10 rounded-none flex items-center justify-center border ${isRead ? 'bg-muted border-border' : 'bg-[#7a0606]/10 border-[#7a0606]/20'}`}>
+                                <MegaphoneIcon className={`w-5 h-5 ${isRead ? 'text-muted-foreground' : 'text-[#7a0606]'}`} />
                              </div>
                              <div>
-                                <h4 className="font-black text-foreground text-base tracking-tight leading-none group-hover:text-[#7a0606] transition-colors">{ann.title}</h4>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-black text-foreground text-base tracking-tight leading-none group-hover:text-[#7a0606] transition-colors">{ann.title}</h4>
+                                  {!isRead && <span className="w-2 h-2 rounded-full bg-[#7a0606] flex-shrink-0" title="Unread" />}
+                                </div>
                                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Author: {ann.portal_users?.full_name ?? 'Nexus Admin'}</p>
                              </div>
                           </div>
                           <div className="flex items-center gap-2">
+                             {isRead && <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Read</span>}
                              <span className="px-2 py-0.5 bg-card shadow-sm rounded-full text-[9px] font-black text-muted-foreground uppercase tracking-widest">{ann.target_audience}</span>
                              {isStaff && (isAdmin || ann.author_id === profile?.id) && (
-                               <button onClick={() => deleteAnnouncement(ann.id)}
+                               <button onClick={e => { e.stopPropagation(); deleteAnnouncement(ann.id); }}
                                  className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-rose-400 bg-card shadow-sm hover:bg-rose-500/10 rounded-none transition-all">
                                  <TrashIcon className="w-4 h-4" />
                                </button>
@@ -622,9 +650,11 @@ export default function MessagesPage() {
                               <div className="w-1 h-1 bg-muted rounded-full" />
                               <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter italic">Verified Bulletin</span>
                            </div>
+                           {!isRead && <span className="text-[9px] text-[#7a0606] font-black uppercase tracking-wider">Click to mark as read</span>}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     {announcements.length === 0 && (
                       <div className="text-center py-24 border border-dashed border-border rounded-[2.5rem] opacity-30">
                         <MegaphoneIcon className="w-16 h-16 mx-auto mb-4" />

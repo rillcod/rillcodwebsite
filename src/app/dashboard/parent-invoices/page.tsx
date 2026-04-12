@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   BanknotesIcon, AcademicCapIcon, CheckCircleIcon,
   ClockIcon, ExclamationTriangleIcon, ArrowTopRightOnSquareIcon,
-  PrinterIcon,
+  PrinterIcon, ArrowUpTrayIcon, DocumentCheckIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -52,6 +52,66 @@ const STATUS_CONFIG: Record<string, { label: string; style: string; icon: any }>
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', minimumFractionDigits: 0 }).format(amount);
+}
+
+// ── Proof Upload Component ────────────────────────────────────
+function ProofUpload({ invoiceId }: { invoiceId: string }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (note) fd.append('note', note);
+      const res = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+      setUploaded(true);
+      toast.success('Proof uploaded! Admin will review and confirm your payment.');
+    } catch (err: any) {
+      setError(err.message ?? 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  if (uploaded) {
+    return (
+      <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-none">
+        <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <p className="text-[11px] text-emerald-400 font-bold">Proof submitted — admin will review and confirm.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 mt-2">
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upload Payment Proof</p>
+      <input
+        type="text"
+        placeholder="Optional note (e.g. paid on 12 Apr, used child's name as ref)"
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+      />
+      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-orange-500/50'}`}>
+        {uploading
+          ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</>
+          : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload Screenshot / PDF</>
+        }
+        <input type="file" accept="image/*,application/pdf" className="hidden" disabled={uploading} onChange={handleUpload} />
+      </label>
+      {error && <p className="text-[10px] text-rose-400">{error}</p>}
+    </div>
+  );
 }
 
 function PayModal({
@@ -207,9 +267,12 @@ function PayModal({
 
                     <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-none">
                       <p className="text-[10px] text-amber-400 leading-relaxed">
-                        <span className="font-black">Important:</span> After making a bank transfer, send proof of payment to your school admin. Once approved, a receipt will be sent to your email and appear in your portal.
+                        <span className="font-black">Important:</span> After making a bank transfer, upload your proof of payment below. Admin will confirm and your receipt will be issued automatically.
                       </p>
                     </div>
+
+                    {/* Proof Upload */}
+                    <ProofUpload invoiceId={invoice.id} />
                   </div>
                 </div>
               )}
