@@ -14,7 +14,7 @@ export interface BillingAutomationConfig {
   notify_in_app: boolean;
 }
 
-const DEFAULT_CONFIG: BillingAutomationConfig = {
+export const DEFAULT_CONFIG: BillingAutomationConfig = {
   invoice_reminders_enabled: true,
   reminder_1_days_after_issue: 1,
   reminder_2_days_before_due: 3,
