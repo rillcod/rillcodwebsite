@@ -46,13 +46,29 @@ export async function GET(_request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (caller.role === 'teacher') {
+      const schoolIds: string[] = [];
+      if (caller.school_id) schoolIds.push(caller.school_id);
+      const { data: ts } = await admin
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', caller.id);
+      (ts ?? []).forEach((r: any) => {
+        if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id);
+      });
+
       if (schoolFilter) {
-        // Browsing a specific school's classes — show all classes at that school
-        // (teacher must be assigned to it via teacher_schools; trust the UI)
+        // Browsing a specific school — only allow if teacher has scope to it.
+        if (schoolIds.length > 0 && !schoolIds.includes(schoolFilter)) {
+          return NextResponse.json({ data: [] });
+        }
         query = query.eq('school_id', schoolFilter) as any;
       } else {
-        // Default: only their own classes
-        query = query.eq('teacher_id', caller.id) as any;
+        // Default: classes they teach OR classes in their assigned schools.
+        if (schoolIds.length > 0) {
+          query = query.or(`teacher_id.eq.${caller.id},school_id.in.(${schoolIds.join(',')})`) as any;
+        } else {
+          query = query.eq('teacher_id', caller.id) as any;
+        }
       }
     } else if (schoolFilter) {
       query = query.eq('school_id', schoolFilter) as any;
