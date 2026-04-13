@@ -51,18 +51,16 @@ export async function PATCH(request: Request) {
   }
 
   const db = createAdminClient();
-  const { data, error } = await db
+  const { error } = await db
     .from('billing_notices')
     .update({
       is_resolved: true,
       resolved_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', body.id)
-    .select('*')
-    .single();
+    .eq('id', body.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  return NextResponse.json({ success: true, id: body.id });
 }
 
