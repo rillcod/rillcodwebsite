@@ -101,7 +101,7 @@ export default function SettingsPage() {
     if (profile?.role !== 'admin' || tab !== 'audit-log') return;
     (async () => {
       setAuditLoading(true);
-      const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(100);
+      const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(5);
       setAuditLogs(data ?? []);
       setAuditLoading(false);
     })();
@@ -835,73 +835,72 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* ── Moderation tab (admin only) ── */}
+            {/* ── Moderation tab (admin only) — links to dedicated page ── */}
             {tab === 'moderation' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2">
                   <ExclamationCircleIcon className="w-4 h-4 text-rose-400" />
                   <div>
                     <h2 className="font-bold text-foreground">Content Moderation</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Review flagged posts from the discussion forum.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Review and action flagged community content.</p>
                   </div>
                 </div>
-
-                {moderationLoading ? (
-                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-rose-400 rounded-full animate-spin" /></div>
-                ) : flaggedItems.length === 0 ? (
-                  <div className="p-10 text-center space-y-2">
-                    <CheckCircleIcon className="w-10 h-10 text-emerald-400/30 mx-auto" />
-                    <p className="text-sm font-bold text-muted-foreground">All clear — no pending flags</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {flaggedItems.map(item => (
-                      <div key={item.id} className="p-5 space-y-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20">{item.content_type}</span>
-                              {item.status && item.status !== 'pending' && (
-                                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/10">{item.status}</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-foreground font-medium">{item.reason}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              Reported by {item.reporter?.full_name ?? 'Unknown'} · {new Date(item.created_at).toLocaleDateString()}
-                            </p>
+                <div className="p-6 space-y-4">
+                  {moderationLoading ? (
+                    <div className="flex justify-center py-6"><div className="w-7 h-7 border-4 border-border border-t-rose-400 rounded-full animate-spin" /></div>
+                  ) : (
+                    <>
+                      {/* Quick stats */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: 'Pending', count: flaggedItems.filter(f => f.status === 'pending').length, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                          { label: 'Reviewed', count: flaggedItems.filter(f => f.status === 'reviewed').length, color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                          { label: 'Dismissed', count: flaggedItems.filter(f => f.status === 'dismissed').length, color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' },
+                        ].map(s => (
+                          <div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}>
+                            <p className="text-xl font-black">{s.count}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">{s.label}</p>
                           </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <button onClick={() => resolveFlag(item.id, 'dismissed')} disabled={!!resolvingId}
-                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all disabled:opacity-50">
-                              Dismiss
-                            </button>
-                            <button onClick={() => resolveFlag(item.id, 'resolved')} disabled={!!resolvingId}
-                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 transition-all disabled:opacity-50">
-                              {resolvingId === item.id ? '…' : 'Resolve'}
-                            </button>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {/* Recent pending items preview */}
+                      {flaggedItems.filter(f => f.status === 'pending').slice(0, 3).map(item => (
+                        <div key={item.id} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-border rounded-xl">
+                          <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">{item.content_type}</span>
+                          <p className="text-xs text-foreground flex-1 truncate">{item.reason}</p>
+                          <p className="text-[10px] text-muted-foreground shrink-0">{new Date(item.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
+                        </div>
+                      ))}
+                      {flaggedItems.filter(f => f.status === 'pending').length === 0 && (
+                        <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span className="font-semibold">No pending flags — all clear</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <a href="/dashboard/moderation"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-sm font-bold rounded-xl transition-all">
+                    Open Moderation Dashboard →
+                  </a>
+                </div>
               </div>
             )}
 
-            {/* ── Audit Log tab (admin only) ── */}
+            {/* ── Audit Log tab (admin only) — links to dedicated page ── */}
             {tab === 'audit-log' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <TableCellsIcon className="w-4 h-4 text-slate-400" />
                     <div>
-                      <h2 className="font-bold text-foreground">Audit Log</h2>
-                      <p className="text-xs text-muted-foreground mt-0.5">Last 100 tracked activity events.</p>
+                      <h2 className="font-bold text-foreground">Activity & Audit Log</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">Recent platform activity — last 5 events.</p>
                     </div>
                   </div>
                   <button onClick={async () => {
                     setAuditLoading(true);
-                    const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(100);
+                    const { data } = await createClient().from('activity_logs').select('*, portal_users(full_name)').order('created_at', { ascending: false }).limit(5);
                     setAuditLogs(data ?? []);
                     setAuditLoading(false);
                   }} className="p-2 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground border border-border transition-all">
@@ -912,40 +911,30 @@ export default function SettingsPage() {
                 {auditLoading ? (
                   <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-slate-400 rounded-full animate-spin" /></div>
                 ) : auditLogs.length === 0 ? (
-                  <div className="p-10 text-center text-muted-foreground text-sm">No activity logged yet.</div>
+                  <div className="p-6 text-center text-muted-foreground text-sm">No activity logged yet.</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="border-b border-border bg-white/[0.02]">
-                        <tr>
-                          {['Time', 'User', 'Event', 'Details'].map(h => (
-                            <th key={h} className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {auditLogs.map((log: any) => (
-                          <tr key={log.id} className="hover:bg-white/[0.01] transition-colors">
-                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                              {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td className="px-4 py-3 font-medium text-foreground truncate max-w-[120px]">
-                              {log.portal_users?.full_name ?? log.user_id?.slice(0, 8) ?? '—'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white/60 whitespace-nowrap">
-                                {log.event_type}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
-                              {log.metadata ? JSON.stringify(log.metadata).slice(0, 80) : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="divide-y divide-border">
+                    {auditLogs.slice(0, 5).map((log: any) => (
+                      <div key={log.id} className="px-5 py-3 flex items-center gap-3">
+                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-wider text-white/60 whitespace-nowrap shrink-0">
+                          {log.event_type}
+                        </span>
+                        <span className="text-xs font-medium text-foreground truncate flex-1">
+                          {log.portal_users?.full_name ?? '—'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0 whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
+                <div className="p-4 border-t border-border">
+                  <a href="/dashboard/activity-logs"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/20 text-slate-300 text-sm font-bold rounded-xl transition-all">
+                    View Full Activity & Audit Log →
+                  </a>
+                </div>
               </div>
             )}
 

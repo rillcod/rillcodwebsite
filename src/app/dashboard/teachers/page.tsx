@@ -868,6 +868,13 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                           title="Reset Password">
                           <KeyIcon className="w-4 h-4" />
                         </button>
+                        <Link
+                          href={`/dashboard/card-studio?mode=issuance&type=teacher&q=${encodeURIComponent(t.full_name || t.email || '')}`}
+                          className="p-2.5 rounded-none hover:bg-orange-500/10 text-orange-400/40 hover:text-orange-400 transition-all"
+                          title="Print Access Card"
+                        >
+                          <ClipboardIcon className="w-4 h-4" />
+                        </Link>
                         <button onClick={() => handlePromoteToAdmin(t)} disabled={promoting === t.id}
                           className="p-2.5 rounded-none hover:bg-orange-500/10 text-orange-400/40 hover:text-orange-400 transition-all disabled:opacity-50"
                           title="Promote to Admin">

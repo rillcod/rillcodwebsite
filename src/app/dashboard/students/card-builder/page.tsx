@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useSearchParams } from 'next/navigation';
 import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
   CheckCircleIcon, EyeIcon, ArrowUpIcon, ArrowDownIcon, TrashIcon,
@@ -76,6 +77,36 @@ const DEFAULT_CONFIG: CardConfig = {
   footerRight: 'Student ID',
   fields: DEFAULT_FIELDS,
   typo: DEFAULT_TYPO,
+};
+
+const ROLE_PRESETS: Record<'student' | 'parent' | 'teacher', Partial<CardConfig>> = {
+  student: {
+    cardLabel: 'Student Access Card',
+    footerRight: 'Student ID',
+  },
+  parent: {
+    cardLabel: 'Parent Access Card',
+    footerRight: 'Parent ID',
+    fields: DEFAULT_FIELDS.map((f) => {
+      if (f.key === 'password') return { ...f, visible: true, label: 'Temporary Password' };
+      if (f.key === 'studentId') return { ...f, visible: true, label: 'Parent ID' };
+      if (f.key === 'programme') return { ...f, visible: false };
+      if (f.key === 'className') return { ...f, visible: false };
+      if (f.key === 'school') return { ...f, visible: true, label: 'Home School' };
+      return f;
+    }),
+  },
+  teacher: {
+    cardLabel: 'Teacher Access Card',
+    footerRight: 'Staff ID',
+    fields: DEFAULT_FIELDS.map((f) => {
+      if (f.key === 'password') return { ...f, visible: true, label: 'Temporary Password' };
+      if (f.key === 'studentId') return { ...f, visible: true, label: 'Staff ID' };
+      if (f.key === 'programme') return { ...f, visible: true, label: 'Department' };
+      if (f.key === 'className') return { ...f, visible: true, label: 'Role' };
+      return f;
+    }),
+  },
 };
 
 // ─── Templates ───────────────────────────────────────────────────────────────
@@ -276,14 +307,26 @@ function CardPreview({ cfg }: { cfg: CardConfig }) {
 
 export default function CardBuilderPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'templates' | 'design' | 'fields' | 'text' | 'typography'>('templates');
+
+  const applyRolePreset = (base: CardConfig, roleType: string | null): CardConfig => {
+    if (roleType !== 'student' && roleType !== 'parent' && roleType !== 'teacher') return base;
+    const p = ROLE_PRESETS[roleType];
+    return {
+      ...base,
+      ...p,
+      fields: p.fields ? p.fields : base.fields,
+    };
+  };
 
   useEffect(() => {
     fetch('/api/admin/settings')
       .then(res => res.json())
       .then(data => {
+        const presetType = searchParams.get('type');
         if (data.config) {
           const parsed = data.config;
           if (parsed.fields) {
@@ -294,11 +337,13 @@ export default function CardBuilderPage() {
             parsed.fields = mergedFields;
           }
           if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
-          setCfg({ ...DEFAULT_CONFIG, ...parsed });
+          setCfg(applyRolePreset({ ...DEFAULT_CONFIG, ...parsed }, presetType));
+          return;
         }
+        setCfg(applyRolePreset(DEFAULT_CONFIG, presetType));
       })
       .catch(console.error);
-  }, []);
+  }, [searchParams]);
 
   if (authLoading || !profile) {
     return (

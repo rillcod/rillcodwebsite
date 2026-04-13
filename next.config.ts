@@ -52,6 +52,16 @@ const nextConfig: NextConfig = {
   compress: true,
 
   // ── Security headers ───────────────────────────────────────────
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/identity-cards',
+        destination: '/dashboard/card-studio',
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
