@@ -9,6 +9,7 @@ import {
   ExclamationTriangleIcon, ClockIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 
 type SubStatus = 'active' | 'cancelled' | 'expired' | 'suspended';
 
@@ -145,6 +146,7 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+      <BillingStickyNotices />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

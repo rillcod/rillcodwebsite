@@ -23,6 +23,7 @@ import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import TeacherDashboard from '@/components/dashboard/TeacherDashboard';
 import SchoolDashboard from '@/components/dashboard/SchoolDashboard';
 import ParentDashboard from '@/components/dashboard/ParentDashboard';
+import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 
 /* ── Types ────────────────────────────────────────────── */
 interface DashStats { label: string; value: string | number; change?: string; icon: any; gradient: string }
@@ -760,6 +761,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Sticky Billing Notices (web + mobile responsive card) */}
+      <BillingStickyNotices />
 
       {/* ── Role-specific dashboard ── */}
       {role === 'admin' && (

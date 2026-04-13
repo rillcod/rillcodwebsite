@@ -20,6 +20,10 @@ const envSchema = z.object({
     // Notifications
     SENDPULSE_API_ID: z.string().optional(),
     SENDPULSE_API_SECRET: z.string().optional(),
+    WHATSAPP_API_URL: z.string().optional(),
+    WHATSAPP_API_TOKEN: z.string().optional(),
+    MOBILE_APP_URL: z.string().optional(),
+    BILLING_CRON_SECRET: z.string().optional(),
 
     // Zoom (Video Conferencing)
     ZOOM_ACCOUNT_ID: z.string().optional(),

@@ -153,6 +153,32 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 })
                 .eq('id', studentId)
                 .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
+    } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
+        const billingCycleId = gatewayResponse.billing_cycle_id as string;
+        const { data: cycle } = await (supabase as any)
+            .from('billing_cycles')
+            .select('id, sticky_notice_id')
+            .eq('id', billingCycleId)
+            .maybeSingle();
+
+        await (supabase as any)
+            .from('billing_cycles')
+            .update({
+                status: 'paid',
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', billingCycleId);
+
+        if (cycle?.sticky_notice_id) {
+            await (supabase as any)
+                .from('billing_notices')
+                .update({
+                    is_resolved: true,
+                    resolved_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', cycle.sticky_notice_id);
+        }
     } else if ((transaction as any).invoice_id) {
         // Invoice paid — update invoice status
         await (supabase as any)
