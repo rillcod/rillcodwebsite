@@ -138,9 +138,12 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
     const isRegistrationPayment = gatewayResponse?.payment_type === 'registration';
 
     if (isRegistrationPayment) {
-        // Registration fee paid — mark the student record so admin can see payment is confirmed
         const studentId = gatewayResponse?.student_id;
-        if (studentId) {
+        if (!studentId) {
+            console.error(`Registration payment missing student_id metadata: ${reference}`);
+            return;
+        }
+        // Registration fee paid — mark the student record so admin can see payment is confirmed
             await supabase
                 .from('students')
                 .update({
@@ -150,7 +153,6 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 })
                 .eq('id', studentId)
                 .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
-        }
     } else if ((transaction as any).invoice_id) {
         // Invoice paid — update invoice status
         await (supabase as any)
@@ -165,9 +167,34 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
 
     // 4. Generate Receipt automatically (Task 23.1)
     const { paymentsService } = await import('@/services/payments.service');
+    const { notificationsService } = await import('@/services/notifications.service');
+    
     try {
-        await paymentsService.generateReceipt(transaction.id);
+        const receiptUrl = await paymentsService.generateReceipt(transaction.id);
+        
+        // 5. Send automated receipt email (Mobile-Web Parity)
+        const portalUsers = (transaction as any).portal_users;
+        if (portalUsers?.email) {
+            await notificationsService.sendEmail(portalUsers.id, {
+                to: portalUsers.email,
+                subject: 'Payment Receipt: Rillcod Academy',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+                        <h2 style="color: #4f46e5;">Payment Received!</h2>
+                        <p>Hi ${portalUsers.full_name || 'Student'},</p>
+                        <p>Thank you for your payment of <strong>${transaction.currency} ${transaction.amount.toLocaleString()}</strong>.</p>
+                        <p>Your transaction was successful and your access has been updated.</p>
+                        <div style="margin: 30px 0;">
+                            <a href="${receiptUrl}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Download Official Receipt</a>
+                        </div>
+                        <p style="color: #64748b; font-size: 12px;">Reference: ${transaction.transaction_reference}</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                        <p style="font-size: 10px; color: #94a3b8;">Rillcod Academy &bull; STEM & Coding Education</p>
+                    </div>
+                `
+            });
+        }
     } catch (err) {
-        console.error('Failed to generate automated receipt:', err);
+        console.error('Failed to generate automated receipt or notify user:', err);
     }
 }
