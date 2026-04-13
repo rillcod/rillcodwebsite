@@ -26,6 +26,13 @@ import NeuralVoiceReader from '@/components/ai/NeuralVoiceReader';
 import StudyAssistant from '@/components/ai/StudyAssistant';
 
 const CodeVisualizer = dynamic(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false }) as any;
+const BlocklyEditor = dynamic(() => import('@/components/studio/BlocklyEditor'), { ssr: false }) as any;
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false }) as any;
+
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 
 function VisualizerBlock({ block }: { block: any }) {
   const [step, setStep] = useState(0);
@@ -1080,6 +1087,175 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
   );
 }
 
+// ── Recharts wrapper (simpler alternative to D3 for data charts) ─────────────
+const RCHART_COLORS = ['#06b6d4', '#8b5cf6', '#f97316', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899'];
+
+function RechartsBlock({ chartType, data, dataKey, labels }: { chartType: string; data: any[]; dataKey?: string; labels?: string[] }) {
+  const normalized = data.map((v: any, i: number) => ({
+    name: labels?.[i] ?? (typeof v === 'object' ? v.name ?? `${i + 1}` : `${i + 1}`),
+    value: typeof v === 'number' ? v : (v.value ?? v.y ?? 0),
+  }));
+
+  const commonProps = {
+    margin: { top: 10, right: 10, left: -20, bottom: 5 },
+  };
+
+  if (chartType === 'pie') {
+    return (
+      <ResponsiveContainer width="100%" height={280}>
+        <PieChart>
+          <Pie data={normalized} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={40} paddingAngle={2}>
+            {normalized.map((_: any, i: number) => <Cell key={i} fill={RCHART_COLORS[i % RCHART_COLORS.length]} />)}
+          </Pie>
+          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  }
+  if (chartType === 'area') {
+    return (
+      <ResponsiveContainer width="100%" height={240}>
+        <AreaChart data={normalized} {...commonProps}>
+          <defs>
+            <linearGradient id="rcg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+          <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="url(#rcg)" />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  }
+  if (chartType === 'line') {
+    return (
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={normalized} {...commonProps}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+          <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2.5} dot={{ fill: '#f97316', r: 4 }} activeDot={{ r: 6 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }
+  // Default: bar
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={normalized} {...commonProps}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+        <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+        <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+          {normalized.map((_: any, i: number) => <Cell key={i} fill={RCHART_COLORS[i % RCHART_COLORS.length]} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Lottie animation block ────────────────────────────────────────────────────
+// Free Lottie JSON presets by topic keyword
+const LOTTIE_PRESETS: Record<string, string> = {
+  robot:    'https://assets7.lottiefiles.com/packages/lf20_ysrn2iwp.json',
+  code:     'https://assets10.lottiefiles.com/packages/lf20_fcfjwiyb.json',
+  science:  'https://assets2.lottiefiles.com/packages/lf20_i9mxcD.json',
+  idea:     'https://assets5.lottiefiles.com/packages/lf20_twijbubv.json',
+  success:  'https://assets2.lottiefiles.com/packages/lf20_jbrw3hcz.json',
+  loading:  'https://assets4.lottiefiles.com/packages/lf20_p8bfn5to.json',
+  star:     'https://assets4.lottiefiles.com/packages/lf20_touohxv0.json',
+  math:     'https://assets4.lottiefiles.com/packages/lf20_YXD37q.json',
+};
+
+function LottieBlock({ url, keyword, title, loop = true }: { url?: string; keyword?: string; title?: string; loop?: boolean }) {
+  const [animData, setAnimData] = useState<any>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const src = url || LOTTIE_PRESETS[keyword?.toLowerCase() ?? ''] || LOTTIE_PRESETS['idea'];
+    fetch(src)
+      .then(r => r.json())
+      .then(setAnimData)
+      .catch(() => setError(true));
+  }, [url, keyword]);
+
+  if (error) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-4">
+      {animData && (
+        <div className="w-48 h-48 sm:w-64 sm:h-64">
+          <Lottie animationData={animData} loop={loop} />
+        </div>
+      )}
+      {title && <p className="text-[10px] font-black text-white/30 uppercase tracking-widest text-center">{title}</p>}
+    </div>
+  );
+}
+
+// ── Blockly block (read-only display with live code gen) ──────────────────────
+function BlocklyBlock({ xml, language, title }: { xml?: string; language?: string; title?: string }) {
+  const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [showCode, setShowCode] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      {title && (
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-yellow-500/20 text-yellow-400">
+            <RectangleGroupIcon className="w-4 h-4" />
+          </div>
+          <p className="text-[10px] font-black text-yellow-400 uppercase tracking-[0.4em]">{title}</p>
+        </div>
+      )}
+      <div className="border border-yellow-500/20 bg-[#0a0f1a] overflow-hidden" style={{ minHeight: 360 }}>
+        <BlocklyEditor
+          xml={xml}
+          language={language || 'python'}
+          onChange={(_xml: string, code: string) => setGeneratedCode(code)}
+        />
+      </div>
+      {generatedCode && (
+        <div>
+          <button
+            onClick={() => setShowCode(s => !s)}
+            className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-yellow-400/60 hover:text-yellow-400 transition-colors mb-2"
+          >
+            <ChevronRightIcon className={`w-3 h-3 transition-transform ${showCode ? 'rotate-90' : ''}`} />
+            {showCode ? 'Hide' : 'Show'} generated {language || 'python'} code
+          </button>
+          {showCode && (
+            <pre className="p-4 bg-black/50 border border-white/5 text-xs font-mono text-emerald-300 overflow-x-auto rounded-none leading-relaxed">
+              {generatedCode}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AnimatedBlock: scroll-triggered entrance for every lesson block ──────────
+function AnimatedBlock({ children, i }: { children: React.ReactNode; i: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.5, delay: Math.min(i * 0.04, 0.2), ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, lessonContext }: {
   blocks: any[];
   lessonType?: string;
@@ -1089,277 +1265,580 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
 }) {
   if (!blocks || blocks.length === 0) return null;
 
+  const INFO_COLORS = [
+    { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
+    { accent: 'border-l-violet-500',  num: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/5'  },
+    { accent: 'border-l-orange-500',  num: 'bg-orange-500',  text: 'text-orange-400',  bg: 'bg-orange-500/5'  },
+    { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
+    { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
+    { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/5'   },
+  ];
+
   return (
-    <div className={`space-y-10 sm:space-y-20 ${lessonType === 'reading' ? 'max-w-3xl mx-auto' : ''}`}>
+    <div className={`space-y-10 sm:space-y-16 ${lessonType === 'reading' ? 'max-w-3xl mx-auto' : ''}`}>
       {blocks.map((block: any, i: number) => {
         switch (block.type) {
+
+          /* ── HEADING ───────────────────────────────────────────────── */
           case 'heading':
             return (
-              <div key={i} className="relative group pt-6">
-                <div className="absolute -left-6 sm:-left-12 top-0 bottom-0 w-1.5 bg-gradient-to-b from-orange-600 to-orange-400 to-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                <h2 className="text-lg sm:text-2xl font-black tracking-tight text-foreground leading-snug break-words">
-                  {block.content}
-                </h2>
-              </div>
+              <AnimatedBlock key={i} i={i}>
+                <div className="relative group pt-4">
+                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-orange-500 via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
+                  <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text">
+                    {block.content}
+                  </h2>
+                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-orange-500/50 via-violet-500/30 to-transparent transition-all duration-500" />
+                </div>
+              </AnimatedBlock>
             );
+
+          /* ── TEXT ──────────────────────────────────────────────────── */
           case 'text':
             return (
-              <div key={i} className="relative py-4">
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
-                  {block.content}
-                </p>
-              </div>
+              <AnimatedBlock key={i} i={i}>
+                <div className="relative py-2 pl-4 border-l-2 border-white/5 hover:border-violet-500/30 transition-colors duration-300">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
+                    {block.content}
+                  </p>
+                </div>
+              </AnimatedBlock>
             );
+
+          /* ── CODE ──────────────────────────────────────────────────── */
           case 'code':
-            return <MonacoEditorBlock key={i} code={block.content} language={block.language} />;
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <MonacoEditorBlock code={block.content} language={block.language} />
+              </AnimatedBlock>
+            );
+
+          /* ── IMAGE ─────────────────────────────────────────────────── */
           case 'image':
             return (
-              <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="rounded-none sm:rounded-none overflow-hidden border border-border shadow-3xl transition-all hover:scale-[1.01] duration-700 hover:border-cyan-500/20">
-                  <img src={block.url} alt={block.caption} className="w-full object-cover" />
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="overflow-hidden border border-border shadow-2xl hover:border-cyan-500/20 transition-colors duration-500 group">
+                    <img src={block.url} alt={block.caption} className="w-full object-cover group-hover:scale-[1.02] transition-transform duration-700" />
+                  </div>
+                  {block.caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
                 </div>
-                {block.caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
-              </div>
+              </AnimatedBlock>
             );
-          case 'callout':
+
+          /* ── CALLOUT ───────────────────────────────────────────────── */
+          case 'callout': {
             const isWarning = block.style === 'warning';
             return (
-              <div key={i} className={`p-8 sm:p-16 rounded-none sm:rounded-none border-2 shadow-2xl relative overflow-hidden group ${isWarning ? 'bg-rose-500/5 border-rose-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
-                <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 ${isWarning ? 'text-rose-500' : 'text-cyan-500'}`}>
-                  {isWarning ? <ExclamationTriangleIcon /> : <InformationCircleIcon />}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-8 sm:gap-12 relative z-10">
-                  <div className={`shrink-0 p-5 sm:p-7 rounded-none sm:rounded-none shadow-xl ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
-                    {isWarning ? <ExclamationTriangleIcon className="w-10 h-10 sm:w-16 sm:h-16" /> : <InformationCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />}
+              <AnimatedBlock key={i} i={i}>
+                <div className={`p-8 sm:p-12 border-2 shadow-2xl relative overflow-hidden group ${isWarning ? 'bg-rose-500/5 border-rose-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
+                  <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 ${isWarning ? 'text-rose-500' : 'text-cyan-500'}`}>
+                    {isWarning ? <ExclamationTriangleIcon /> : <InformationCircleIcon />}
                   </div>
-                  <div className="space-y-3">
-                    <p className={`text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
-                      {isWarning ? 'Strict Requirement' : 'Key Insight'}
-                    </p>
-                    <p className="text-sm sm:text-base font-black text-foreground leading-relaxed tracking-tight">{block.content}</p>
+                  <div className="flex flex-col sm:flex-row gap-6 sm:gap-10 relative z-10">
+                    <div className={`shrink-0 p-4 sm:p-6 shadow-xl ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                      {isWarning ? <ExclamationTriangleIcon className="w-8 h-8 sm:w-12 sm:h-12" /> : <InformationCircleIcon className="w-8 h-8 sm:w-12 sm:h-12" />}
+                    </div>
+                    <div className="space-y-2">
+                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
+                        {isWarning ? 'Important Note' : 'Key Insight'}
+                      </p>
+                      <p className="text-sm sm:text-base font-bold text-foreground leading-relaxed">{block.content}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </AnimatedBlock>
             );
+          }
+
+          /* ── ACTIVITY ──────────────────────────────────────────────── */
           case 'activity':
             return (
-              <div key={i} className="p-8 sm:p-12 rounded-none sm:rounded-none border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden transition-all my-12 shadow-3xl group/activity">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl pointer-events-none" />
-                <div className="flex items-center gap-6">
-                  <div className="p-4 rounded-none bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
-                    <RocketLaunchIcon className="w-8 h-8" />
+              <AnimatedBlock key={i} i={i}>
+                <div className="p-8 sm:p-12 border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden shadow-2xl group/activity">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl pointer-events-none" />
+                  <div className="flex items-center gap-6">
+                    <div className="p-4 bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
+                      <RocketLaunchIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] mb-1">Interactive Synthesis Lab</p>
+                      <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{block.title || 'Practical Implementation'}</h3>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] mb-1">Interactive Synthesis Lab</p>
-                    <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{block.title || 'Practical Implementation'}</h3>
+                  <div className="space-y-6">
+                    {block.steps && Array.isArray(block.steps) ? (
+                      <ActivitySteps steps={block.steps} isCoding={block.is_coding} />
+                    ) : (
+                      <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
+                        <p className="text-base font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
+                          {block.instructions || 'Follow the experiential learning prompt below.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="space-y-6">
-                  {block.steps && Array.isArray(block.steps) ? (
-                    <ActivitySteps steps={block.steps} isCoding={block.is_coding} />
-                  ) : (
-                    <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
-                      <p className="text-lg font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
-                        {block.instructions || 'Follow the experiential learning prompt below.'}
-                      </p>
+                  {block.is_coding && (
+                    <div className="mt-8">
+                      <IntegratedCodeRunner
+                        initialCode={block.initialCode || ''}
+                        language={block.language?.toLowerCase() as any || 'javascript'}
+                        title={block.title || 'Implementation Sandbox'}
+                        onRun={() => onInteraction?.(i)}
+                      />
                     </div>
                   )}
                 </div>
-
-                {block.is_coding && (
-                  <div className="mt-8">
-                    <IntegratedCodeRunner
-                      initialCode={block.initialCode || ""}
-                      language={block.language?.toLowerCase() as any || "javascript"}
-                      title={block.title || "Implementation Sandbox"}
-                      onRun={() => onInteraction?.(i)}
-                    />
-                  </div>
-                )}
-              </div>
+              </AnimatedBlock>
             );
+
+          /* ── QUIZ ──────────────────────────────────────────────────── */
           case 'quiz':
-            return <InteractiveQuiz key={i} block={{ ...block, onComplete: () => onInteraction?.(i) }} lessonContext={lessonContext} />;
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <InteractiveQuiz block={{ ...block, onComplete: () => onInteraction?.(i) }} lessonContext={lessonContext} />
+              </AnimatedBlock>
+            );
+
+          /* ── VIDEO ─────────────────────────────────────────────────── */
           case 'video':
             return (
-              <div key={i} className="space-y-4 sm:space-y-8">
-                <VideoPlayer url={block.url} title={block.caption} />
-                {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
-              </div>
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-4 sm:space-y-6">
+                  <VideoPlayer url={block.url} title={block.caption} />
+                  {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
+                </div>
+              </AnimatedBlock>
             );
+
+          /* ── SCRATCH ───────────────────────────────────────────────── */
           case 'scratch':
             return (
-              <div key={i} className="border-2 border-yellow-500/20 bg-yellow-500/5 space-y-6 my-12 p-6 sm:p-10">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-yellow-500/20 text-yellow-400 flex-shrink-0">
-                    <RectangleGroupIcon className="w-7 h-7" />
+              <AnimatedBlock key={i} i={i}>
+                <div className="border-2 border-yellow-500/20 bg-yellow-500/5 space-y-6 p-6 sm:p-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                      <RectangleGroupIcon className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-0.5">Visual Coding Lab — KG to Basic 6</p>
+                      <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Scratch Block Mission</h3>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-0.5">Visual Coding Lab — KG to Basic 6</p>
-                    <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Scratch Block Mission</h3>
-                  </div>
+                  <ScratchBlockRenderer blocks={block.blocks || []} instructions={block.instructions} />
                 </div>
-                <ScratchBlockRenderer blocks={block.blocks || []} instructions={block.instructions} />
-              </div>
+              </AnimatedBlock>
             );
+
+          /* ── FILE ──────────────────────────────────────────────────── */
           case 'file':
             return (
-              <div key={i} className="p-6 sm:p-12 rounded-none sm:rounded-none border-2 border-border bg-card shadow-sm flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
-                <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 relative z-10">
-                  <div className="p-5 sm:p-8 rounded-none sm:rounded-none bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
-                    <ArrowDownTrayIcon className="w-8 h-8 sm:w-12 sm:h-12" />
+              <AnimatedBlock key={i} i={i}>
+                <div className="p-6 sm:p-10 border-2 border-border bg-card flex flex-col sm:flex-row items-center justify-between gap-6 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
+                  <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 relative z-10">
+                    <div className="p-5 bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-lg">
+                      <ArrowDownTrayIcon className="w-8 h-8 sm:w-10 sm:h-10" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Ready for Download</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xl sm:text-3xl font-black text-foreground group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Ready for Download</p>
-                  </div>
+                  <a href={block.url} target="_blank" className="relative z-10 w-full sm:w-auto px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95">Download Now</a>
                 </div>
-                <a href={block.url} target="_blank" className="relative z-10 w-full sm:w-auto px-10 py-5 rounded-none bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-xs sm:text-sm uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95">Download Now</a>
-              </div>
+              </AnimatedBlock>
             );
+
+          /* ── ILLUSTRATION (bento grid) ─────────────────────────────── */
           case 'illustration': {
-            const INFO_COLORS = [
-              { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
-              { accent: 'border-l-violet-500',  num: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/5'  },
-              { accent: 'border-l-orange-500',  num: 'bg-orange-500',  text: 'text-orange-400',  bg: 'bg-orange-500/5'  },
-              { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
-              { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
-              { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/5'   },
-            ];
             return (
-              <div key={i} className="my-10 space-y-5">
-                <div className="flex items-center gap-4">
-                  <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/30 to-transparent" />
-                  <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.4em] shrink-0 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                    {block.title || 'Key Concepts'}
-                  </h3>
-                  <div className="h-px flex-1 bg-gradient-to-l from-indigo-500/30 to-transparent" />
+              <AnimatedBlock key={i} i={i}>
+                <div className="my-4 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/30 to-transparent" />
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] shrink-0 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                      {block.title || 'Key Concepts'}
+                    </h3>
+                    <div className="h-px flex-1 bg-gradient-to-l from-indigo-500/30 to-transparent" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(block.items || []).map((item: any, idx: number) => {
+                      const col = INFO_COLORS[idx % INFO_COLORS.length];
+                      return (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 16 }}
+                          whileInView={{ opacity: 1, y: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ delay: idx * 0.07, type: 'spring', stiffness: 180 }}
+                          className={`flex gap-4 p-4 border border-border border-l-4 ${col.accent} ${col.bg} group hover:shadow-lg transition-all`}
+                        >
+                          <div className={`w-7 h-7 ${col.num} flex items-center justify-center text-[10px] font-black text-white shrink-0 mt-0.5`}>
+                            {idx + 1}
+                          </div>
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <p className={`text-[9px] font-black ${col.text} uppercase tracking-widest leading-none`}>{item.label}</p>
+                            <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">{item.value}</p>
+                            {onExplainRequest && (
+                              <button
+                                onClick={() => onExplainRequest(`Explain "${item.label}": ${item.value}`)}
+                                className={`mt-1 text-[8px] font-black uppercase tracking-widest ${col.text} opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity flex items-center gap-1`}
+                              >
+                                <span>✦</span> Ask AI
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(block.items || []).map((item: any, idx: number) => {
-                    const col = INFO_COLORS[idx % INFO_COLORS.length];
-                    return (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: idx % 2 === 0 ? -16 : 16 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.09, type: 'spring', stiffness: 150 }}
-                        className={`flex gap-4 p-4 bg-background border border-border border-l-4 ${col.accent} ${col.bg} group hover:border-opacity-60 transition-all`}
-                      >
-                        <div className={`w-7 h-7 ${col.num} rounded-none flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-md mt-0.5`}>
-                          {idx + 1}
-                        </div>
-                        <div className="space-y-1 flex-1 min-w-0">
-                          <p className={`text-[9px] font-black ${col.text} uppercase tracking-widest leading-none`}>{item.label}</p>
-                          <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">{item.value}</p>
+              </AnimatedBlock>
+            );
+          }
+
+          /* ── CODE-MAP (timeline) ───────────────────────────────────── */
+          case 'code-map':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="p-8 sm:p-12 bg-card border border-white/5 shadow-2xl">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                    <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em]">Logic Maps &amp; Flow</p>
+                  </div>
+                  <div className="relative pl-6 border-l border-cyan-500/20 space-y-0">
+                    {(block.components || []).map((comp: any, idx: number) => (
+                      <div key={idx} className="relative pb-8 group last:pb-0">
+                        <div className="absolute -left-[25px] top-1 w-4 h-4 rounded-full bg-cyan-500/20 border-2 border-cyan-500 group-hover:bg-cyan-500 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.4)]" />
+                        <div className="space-y-1">
+                          <h4 className="text-base font-black text-white uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
+                          <p className="text-sm text-white/40 leading-relaxed">{comp.description}</p>
                           {onExplainRequest && (
                             <button
-                              onClick={() => onExplainRequest(`Explain "${item.label}": ${item.value}`)}
-                              className={`mt-1.5 text-[8px] font-black uppercase tracking-widest ${col.text} opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity flex items-center gap-1`}
+                              onClick={() => onExplainRequest(`Explain "${comp.name}": ${comp.description}`)}
+                              className="mt-1 text-[8px] font-black uppercase tracking-widest text-cyan-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity flex items-center gap-1"
                             >
                               <span>✦</span> Ask AI
                             </button>
                           )}
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </AnimatedBlock>
+            );
+
+          /* ── ASSIGNMENT-BLOCK ──────────────────────────────────────── */
+          case 'assignment-block':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-2 border-emerald-500/20" />
+                  <div className="relative p-8 sm:p-12 space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                        <TrophyIcon className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Capstone Challenge</p>
+                        <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{block.title || 'Mastery Synthesis'}</h3>
+                      </div>
+                    </div>
+                    <div className="p-6 bg-white/5 border border-white/10 shadow-lg">
+                      <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap mb-6">{block.instructions}</p>
+                      {block.deliverables && block.deliverables.length > 0 && (
+                        <div className="space-y-3 pt-4 border-t border-emerald-500/20">
+                          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Required Deliverables</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {block.deliverables.map((del: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/10">
+                                <div className="w-5 h-5 bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-500">{idx + 1}</div>
+                                <span className="text-xs font-bold text-foreground/80">{del}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </AnimatedBlock>
+            );
+
+          /* ── MATH ──────────────────────────────────────────────────── */
+          case 'math':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <MathRenderer formula={block.formula || ''} />
+              </AnimatedBlock>
+            );
+
+          /* ── MOTION-GRAPHICS ───────────────────────────────────────── */
+          case 'motion-graphics':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <MotionGraphicRenderer
+                  type={block.animationType || 'particles'}
+                  config={block.config || {}}
+                  title={block.title || block.concept}
+                />
+              </AnimatedBlock>
+            );
+
+          /* ── D3-CHART ──────────────────────────────────────────────── */
+          case 'd3-chart':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-3">
+                  {(block.title || block.concept) && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-4 bg-orange-500 rounded-full" />
+                      <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+                    </div>
+                  )}
+                  <D3ChartRenderer type={block.chartType || 'bar'} dataset={block.dataset || []} labels={block.labels} />
+                </div>
+              </AnimatedBlock>
+            );
+
+          /* ── VISUALIZER ────────────────────────────────────────────── */
+          case 'visualizer':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <VisualizerBlock block={block} />
+              </AnimatedBlock>
+            );
+
+          /* ── KEY-TERMS ─────────────────────────────────────────────── */
+          case 'key-terms': {
+            const terms: { term: string; definition: string }[] = block.terms || block.items || [];
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500/20 text-amber-400">
+                      <BookOpenIcon className="w-4 h-4" />
+                    </div>
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em]">{block.title || 'Key Terms & Definitions'}</p>
+                  </div>
+                  <div className="divide-y divide-white/5 border border-white/8">
+                    {terms.map((t: any, idx: number) => (
+                      <div key={idx} className="group flex gap-4 p-4 hover:bg-white/3 transition-colors">
+                        <div className="shrink-0 mt-1">
+                          <div className="w-2 h-2 rounded-full bg-amber-500/60 group-hover:bg-amber-400 transition-colors" />
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-sm font-black text-amber-300 tracking-tight">{t.term || t.label || t.word}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{t.definition || t.value || t.meaning}</p>
+                        </div>
+                        {onExplainRequest && (
+                          <button
+                            onClick={() => onExplainRequest(`Explain term: "${t.term || t.label}". Definition: ${t.definition || t.value}`)}
+                            className="shrink-0 self-start text-[8px] font-black uppercase tracking-widest text-amber-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity mt-1"
+                          >
+                            ✦ AI
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </AnimatedBlock>
+            );
+          }
+
+          /* ── QUOTE ─────────────────────────────────────────────────── */
+          case 'quote':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="relative pl-8 py-6 border-l-4 border-violet-500/60 bg-violet-500/5 overflow-hidden group">
+                  <div className="absolute top-3 right-4 text-5xl font-black text-violet-500/10 leading-none select-none">"</div>
+                  <blockquote className="text-base sm:text-lg font-semibold text-foreground/80 italic leading-relaxed mb-3">
+                    "{block.content || block.quote}"
+                  </blockquote>
+                  {(block.author || block.source) && (
+                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                      — {block.author || block.source}
+                    </p>
+                  )}
+                </div>
+              </AnimatedBlock>
+            );
+
+          /* ── STEPS-LIST ────────────────────────────────────────────── */
+          case 'steps-list': {
+            const steps: string[] = block.steps || block.items || [];
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-3">
+                  {block.title && (
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      {block.title}
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {steps.map((step: any, idx: number) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -12 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: idx * 0.07, type: 'spring', stiffness: 200 }}
+                        className="flex items-start gap-4 p-4 bg-white/3 border border-white/5 hover:border-emerald-500/20 hover:bg-emerald-500/5 transition-all group"
+                      >
+                        <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                          {idx + 1}
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors pt-0.5">
+                          {typeof step === 'string' ? step : step.text || step.content || step.label || JSON.stringify(step)}
+                        </p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </AnimatedBlock>
+            );
+          }
+
+          /* ── TABLE ─────────────────────────────────────────────────── */
+          case 'table': {
+            const headers: string[] = block.headers || block.columns || [];
+            const rows: any[][] = block.rows || block.data || [];
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-3">
+                  {block.title && (
+                    <p className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em]">{block.title}</p>
+                  )}
+                  <div className="overflow-x-auto border border-white/8">
+                    <table className="w-full text-sm border-collapse">
+                      {headers.length > 0 && (
+                        <thead>
+                          <tr className="bg-white/5">
+                            {headers.map((h: string, hi: number) => (
+                              <th key={hi} className="px-4 py-3 text-left text-[10px] font-black text-white/50 uppercase tracking-widest border-b border-white/8">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                      )}
+                      <tbody>
+                        {rows.map((row: any[], ri: number) => (
+                          <tr key={ri} className="border-b border-white/5 hover:bg-white/3 transition-colors group">
+                            {(Array.isArray(row) ? row : Object.values(row)).map((cell: any, ci: number) => (
+                              <td key={ci} className={`px-4 py-3 text-sm text-muted-foreground group-hover:text-foreground transition-colors ${ci === 0 ? 'font-semibold text-foreground/80' : ''}`}>
+                                {String(cell ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </AnimatedBlock>
+            );
+          }
+
+          /* ── COLUMNS ───────────────────────────────────────────────── */
+          case 'columns': {
+            const cols: any[] = block.columns || block.items || [];
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {cols.map((col: any, ci: number) => {
+                    const accent = INFO_COLORS[ci % INFO_COLORS.length];
+                    return (
+                      <motion.div
+                        key={ci}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: ci * 0.1, type: 'spring', stiffness: 160 }}
+                        className={`p-5 border border-border border-t-2 ${accent.accent.replace('border-l-', 'border-t-')} ${accent.bg} space-y-2 group hover:shadow-lg transition-all`}
+                      >
+                        {(col.title || col.heading || col.label) && (
+                          <p className={`text-[10px] font-black uppercase tracking-widest ${accent.text}`}>
+                            {col.title || col.heading || col.label}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
+                          {col.content || col.text || col.value || col.body || ''}
+                        </p>
                       </motion.div>
                     );
                   })}
                 </div>
-              </div>
+              </AnimatedBlock>
             );
           }
-          case 'code-map':
+
+          /* ── MERMAID / DIAGRAM ─────────────────────────────────────── */
+          case 'mermaid':
+          case 'diagram':
             return (
-              <div key={i} className="my-10 p-10 bg-card border border-white/5 rounded-none shadow-3xl lg:p-16">
-                <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em] mb-10">Logic Maps & Flow</p>
-                <div className="space-y-6">
-                  {(block.components || []).map((comp: any, idx: number) => (
-                    <div key={idx} className="flex gap-8 group">
-                      <div className="flex flex-col items-center">
-                        <div className="w-4 h-4 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)] group-hover:scale-125 transition-transform" />
-                        {idx < (block.components.length - 1) && <div className="w-0.5 h-full bg-cyan-500/20 my-2" />}
-                      </div>
-                      <div className="pb-8">
-                        <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2 italic group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
-                        <p className="text-sm text-white/40 leading-relaxed max-w-2xl">{comp.description}</p>
-                        {onExplainRequest && (
-                          <button
-                            onClick={() => onExplainRequest(`Explain "${comp.name}": ${comp.description}`)}
-                            className="mt-2 text-[8px] font-black uppercase tracking-widest text-cyan-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity flex items-center gap-1"
-                          >
-                            <span>✦</span> Ask AI
-                          </button>
-                        )}
-                      </div>
+              <AnimatedBlock key={i} i={i}>
+                <MermaidRenderer code={block.code || block.content || ''} />
+              </AnimatedBlock>
+            );
+
+          /* ── LOTTIE ANIMATION ──────────────────────────────────────── */
+          case 'lottie':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <LottieBlock
+                  url={block.url}
+                  keyword={block.keyword || block.topic}
+                  title={block.title || block.caption}
+                  loop={block.loop !== false}
+                />
+              </AnimatedBlock>
+            );
+
+          /* ── BLOCKLY VISUAL CODING ─────────────────────────────────── */
+          case 'blockly':
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <BlocklyBlock
+                  xml={block.xml || block.workspace}
+                  language={block.language || 'python'}
+                  title={block.title}
+                />
+              </AnimatedBlock>
+            );
+
+          /* ── RECHARTS DATA CHART ───────────────────────────────────── */
+          case 'chart':
+          case 'recharts': {
+            const chartData = block.data || block.dataset || [];
+            return (
+              <AnimatedBlock key={i} i={i}>
+                <div className="space-y-3">
+                  {(block.title || block.concept) && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-4 bg-violet-500 rounded-full" />
+                      <p className="text-[10px] font-black text-violet-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
                     </div>
-                  ))}
+                  )}
+                  <div className="p-4 bg-[#08081A] border border-white/5">
+                    <RechartsBlock
+                      chartType={block.chartType || block.type2 || 'bar'}
+                      data={chartData}
+                      labels={block.labels}
+                    />
+                  </div>
+                  {block.caption && (
+                    <p className="text-center text-[10px] text-muted-foreground italic">{block.caption}</p>
+                  )}
                 </div>
-              </div>
+              </AnimatedBlock>
             );
-          case 'assignment-block':
-            return (
-              <div key={i} className="my-12 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-none border-2 border-emerald-500/20 shadow-4xl animate-pulse-slow" />
-                <div className="relative p-10 lg:p-16 space-y-8">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-none bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 rotate-3 group-hover:rotate-0 transition-transform duration-500">
-                      <TrophyIcon className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-emerald-500 uppercase tracking-widest leading-none mb-1">Capstone Level-Up Challenge</h4>
-                      <h3 className="text-3xl lg:text-4xl font-black text-foreground uppercase tracking-tight italic leading-tight">{block.title || 'Mastery Synthesis'}</h3>
-                    </div>
-                  </div>
-                  
-                  <div className="p-8 bg-white/40 backdrop-blur-xl border border-white/40 rounded-none shadow-xl">
-                    <p className="text-sm lg:text-base font-medium text-muted-foreground leading-relaxed italic whitespace-pre-wrap mb-8">
-                      {block.instructions}
-                    </p>
-                    {block.deliverables && block.deliverables.length > 0 && (
-                      <div className="space-y-4 pt-6 border-t border-emerald-500/20">
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Required Deliverables</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {block.deliverables.map((del: string, idx: number) => (
-                            <div key={idx} className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-none">
-                              <div className="w-5 h-5 rounded-none bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-600 italic">{idx + 1}</div>
-                              <span className="text-xs font-bold text-foreground/80 uppercase tracking-wider">{del}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          case 'math':
-            return <MathRenderer key={i} formula={block.formula || ''} />;
-          case 'motion-graphics':
-            return (
-              <MotionGraphicRenderer
-                key={i}
-                type={block.animationType || 'particles'}
-                config={block.config || {}}
-                title={block.title || block.concept}
-              />
-            );
-          case 'd3-chart':
-            return (
-              <div key={i} className="my-10 space-y-3">
-                {(block.title || block.concept) && (
-                  <div className="flex items-center gap-3 px-1">
-                    <div className="w-1 h-4 bg-orange-500 rounded-full" />
-                    <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
-                  </div>
-                )}
-                <D3ChartRenderer type={block.chartType || 'bar'} dataset={block.dataset || []} labels={block.labels} />
-              </div>
-            );
-          case 'visualizer':
-            return <VisualizerBlock key={i} block={block} />;
+          }
+
           default:
             return null;
         }
@@ -1369,6 +1848,55 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
 }
 
 // ── Full markdown renderer for lesson_notes ──────────────────────────────────
+function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  const LANG_COLOR: Record<string, string> = {
+    python: 'text-emerald-400 bg-emerald-500/10',
+    javascript: 'text-yellow-400 bg-yellow-500/10',
+    js: 'text-yellow-400 bg-yellow-500/10',
+    html: 'text-orange-400 bg-orange-500/10',
+    css: 'text-blue-400 bg-blue-500/10',
+    robotics: 'text-violet-400 bg-violet-500/10',
+    bash: 'text-white/50 bg-white/5',
+    json: 'text-cyan-400 bg-cyan-500/10',
+  };
+  const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-400 bg-cyan-500/10';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="my-5 bg-[#070712] border border-white/8 overflow-hidden shadow-xl"
+    >
+      <div className="flex items-center justify-between px-4 py-2 bg-white/3 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
+          </div>
+          {lang && <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${langClass}`}>{lang}</span>}
+        </div>
+        <button
+          onClick={copy}
+          className="text-[9px] font-black uppercase tracking-widest text-white/25 hover:text-white/60 transition-colors flex items-center gap-1"
+        >
+          {copied ? '✓ Copied' : '⧉ Copy'}
+        </button>
+      </div>
+      <pre className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed" style={{ color: '#a5f3fc' }}>
+        <code>{code}</code>
+      </pre>
+    </motion.div>
+  );
+}
+
 function renderMarkdownNotes(md: string): React.ReactNode[] {
   const lines = md.split('\n');
   const nodes: React.ReactNode[] = [];
@@ -1377,9 +1905,10 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
 
   const inline = (text: string, k: number | string) => {
     const html = text
-      .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);color:#67e8f9;padding:2px 6px;border-radius:4px;font-size:0.85em;font-family:monospace">$1</code>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(6,182,212,0.12);color:#67e8f9;padding:2px 7px;border-radius:4px;font-size:0.83em;font-family:monospace;border:1px solid rgba(6,182,212,0.2)">$1</code>')
       .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--foreground);font-weight:900">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>');
+      .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>')
+      .replace(/~~(.+?)~~/g, '<s style="opacity:0.4">$1</s>');
     return <span key={k} dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
@@ -1392,64 +1921,100 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
       const codeLines: string[] = [];
       i++;
       while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
+      nodes.push(<NoteCodeBlock key={key++} lang={lang} code={codeLines.join('\n')} />);
+      i++; continue;
+    }
+
+    // Blockquote / callout (> prefix)
+    if (line.trim().startsWith('> ')) {
+      const quotes: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('> ')) { quotes.push(lines[i].slice(lines[i].indexOf('> ') + 2)); i++; }
       nodes.push(
-        <div key={key++} className="my-4 bg-black/50 border border-white/10 rounded-lg overflow-hidden">
-          {lang && <div className="px-4 py-1.5 bg-white/5 text-[10px] font-black text-cyan-400 uppercase tracking-widest border-b border-white/10">{lang}</div>}
-          <pre className="p-4 overflow-x-auto text-sm font-mono text-emerald-300 leading-relaxed"><code>{codeLines.join('\n')}</code></pre>
-        </div>
+        <motion.blockquote
+          key={key++}
+          initial={{ opacity: 0, x: -8 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35 }}
+          className="my-4 pl-5 border-l-4 border-violet-500/50 bg-violet-500/5 py-3 pr-4"
+        >
+          <p className="text-sm text-foreground/70 italic leading-relaxed">{inline(quotes.join(' '), 'bq')}</p>
+        </motion.blockquote>
+      );
+      continue;
+    }
+
+    // Headings with scroll-triggered fade-in
+    if (/^### /.test(line)) {
+      nodes.push(
+        <motion.h3 key={key++} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.3 }}
+          className="text-base font-black text-white/80 pt-5 pb-1 flex items-center gap-2">
+          <span className="w-1 h-1 rounded-full bg-cyan-500 inline-block" />
+          {inline(line.slice(4), 'h3')}
+        </motion.h3>
+      );
+      i++; continue;
+    }
+    if (/^## /.test(line)) {
+      nodes.push(
+        <motion.h2 key={key++} initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35 }}
+          className="text-lg font-black text-foreground pt-8 pb-2 border-b border-white/5 uppercase tracking-widest mt-4">
+          {inline(line.slice(3), 'h2')}
+        </motion.h2>
+      );
+      i++; continue;
+    }
+    if (/^# /.test(line)) {
+      nodes.push(
+        <motion.h1 key={key++} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }}
+          className="text-2xl font-black text-foreground pt-6 pb-2 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
+          {inline(line.slice(2), 'h1')}
+        </motion.h1>
       );
       i++; continue;
     }
 
-    // Headings
-    if (/^### /.test(line)) {
-      nodes.push(<h3 key={key++} className="text-lg font-black text-foreground pt-4 tracking-wide">{inline(line.slice(4), 'h3')}</h3>);
-      i++; continue;
-    }
-    if (/^## /.test(line)) {
-      nodes.push(<h2 key={key++} className="text-xl font-black text-foreground pt-6 pb-2 border-b border-white/5 uppercase tracking-widest">{inline(line.slice(3), 'h2')}</h2>);
-      i++; continue;
-    }
-    if (/^# /.test(line)) {
-      nodes.push(<h1 key={key++} className="text-2xl font-black text-foreground pt-6">{inline(line.slice(2), 'h1')}</h1>);
-      i++; continue;
-    }
-
-    // Bullet list — collect consecutive bullets
+    // Bullet list
     if (/^[-*] /.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^[-*] /.test(lines[i])) { items.push(lines[i].slice(2)); i++; }
       nodes.push(
-        <ul key={key++} className="list-none space-y-2 pl-0 my-2">
+        <ul key={key++} className="list-none space-y-2 pl-0 my-3">
           {items.map((item, ii) => (
-            <li key={ii} className="flex gap-3 items-start">
-              <span className="text-indigo-500 mt-1 shrink-0">▸</span>
+            <motion.li key={ii} initial={{ opacity: 0, x: -6 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              transition={{ delay: ii * 0.05, duration: 0.3 }}
+              className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
+            >
+              <span className="text-cyan-500/70 mt-1.5 shrink-0 text-xs">▸</span>
               <span className="flex-1">{inline(item, ii)}</span>
-            </li>
+            </motion.li>
           ))}
         </ul>
       );
       continue;
     }
 
-    // Numbered list — collect consecutive numbered items
+    // Numbered list
     if (/^\d+\. /.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++; }
       nodes.push(
-        <ol key={key++} className="list-none space-y-2 pl-0 my-2">
+        <ol key={key++} className="list-none space-y-2 pl-0 my-3">
           {items.map((item, ii) => (
-            <li key={ii} className="flex gap-3 items-start">
-              <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{ii + 1}</span>
+            <motion.li key={ii} initial={{ opacity: 0, x: -6 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              transition={{ delay: ii * 0.05, duration: 0.3 }}
+              className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
+            >
+              <span className="w-5 h-5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{ii + 1}</span>
               <span className="flex-1">{inline(item, ii)}</span>
-            </li>
+            </motion.li>
           ))}
         </ol>
       );
       continue;
     }
 
-    // Table
+    // Markdown table
     if (line.trim().startsWith('|')) {
       const tableLines: string[] = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) {
@@ -1459,16 +2024,24 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
       if (tableLines.length > 0) {
         const rows = tableLines.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
         nodes.push(
-          <div key={key++} className="overflow-x-auto my-4">
+          <div key={key++} className="overflow-x-auto my-4 border border-white/8">
             <table className="w-full text-xs border-collapse">
-              {rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? 'bg-white/5 font-black text-foreground' : 'border-t border-white/5 text-muted-foreground'}>
-                  {row.map((cell, ci) => ri === 0
-                    ? <th key={ci} className="px-4 py-2 text-left text-[10px] uppercase tracking-widest">{cell}</th>
-                    : <td key={ci} className="px-4 py-2">{inline(cell, ci)}</td>
-                  )}
+              <thead>
+                <tr className="bg-white/5">
+                  {(rows[0] || []).map((cell, ci) => (
+                    <th key={ci} className="px-4 py-2.5 text-left text-[10px] font-black text-white/50 uppercase tracking-widest border-b border-white/8">{cell}</th>
+                  ))}
                 </tr>
-              ))}
+              </thead>
+              <tbody>
+                {rows.slice(1).map((row, ri) => (
+                  <tr key={ri} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className={`px-4 py-2.5 text-sm ${ci === 0 ? 'font-semibold text-foreground/80' : 'text-muted-foreground'}`}>{inline(cell, ci)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         );
@@ -1479,15 +2052,20 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
     // Empty line
     if (!line.trim()) { i++; continue; }
 
-    // Paragraph — collect non-special lines
+    // Paragraph
     const paraLines: string[] = [];
     while (
       i < lines.length && lines[i].trim() &&
       !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) &&
-      !/^\d+\. /.test(lines[i]) && !lines[i].trim().startsWith('```') && !lines[i].trim().startsWith('|')
+      !/^\d+\. /.test(lines[i]) && !lines[i].trim().startsWith('```') &&
+      !lines[i].trim().startsWith('|') && !lines[i].trim().startsWith('> ')
     ) { paraLines.push(lines[i]); i++; }
     if (paraLines.length > 0) {
-      nodes.push(<p key={key++} className="whitespace-pre-wrap">{inline(paraLines.join('\n'), 'p')}</p>);
+      nodes.push(
+        <p key={key++} className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap my-1.5">
+          {inline(paraLines.join('\n'), 'p')}
+        </p>
+      );
     }
   }
   return nodes;

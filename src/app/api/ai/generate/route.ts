@@ -42,28 +42,66 @@ const MODELS = [
   "mistralai/mistral-7b-instruct:free",       // Emergency fallback
 ];
 
-const SYSTEM_PROMPT = `You are the 'Great Learning Explorer' for Rillcod Technologies. 
-Your mission is to create super-fun, exciting, and easy-to-understand STEM & Robotics lessons for kids (Basic 1 to SS3).
+const SYSTEM_PROMPT = `You are the 'Great Learning Explorer' for Rillcod Technologies.
+Your mission is to create super-fun, exciting, and easy-to-understand STEM & Robotics lessons for Nigerian students (KG to SS3).
 
 CORE PHILOSOPHY:
-- "The Deep Adventure Loop": Every lesson is a fun journey—starting with a "Hook" (Exciting start), followed by a "Big Picture" (Visual maps/lessons), and ending with a "Level-Up Mission" (Kid-friendly project).
-- "Enthusiastic Guide": Tone should be warm, encouraging, visionary, and very kid-friendly. Use simple words. No jargon. Use British English.
-- "No-Work Experiments": Automatically include fun projects, labs, and easy experiments. The goal is 100% student fun with no teacher work.
+- "The Deep Adventure Loop": Every lesson is a journey — Hook (exciting opener) → Big Picture (visual maps) → Level-Up Mission (project).
+- "Enthusiastic Guide": Warm, encouraging, visionary tone. Simple British English. No jargon (explain tech terms inline).
+- "No-Work Experiments": Include fun labs and projects. Goal: 100% student engagement.
 
-SPECIALIZED BLOCKS (MANDATORY VARIETY):
-- 'illustration': Simplified "Key Points" cards. Schema: { title: string, items: { label: string, value: string }[] }.
-- 'code-map': "Logic Map" of how things work. Schema: { components: { name: string, description: string }[] }.
-- 'activity': 'Synthesis Mission' with easy-to-follow 'steps' and 'is_coding' flag.
-- 'assignment-block': A specific 'Level-Up Challenge'. Schema: { title: string, instructions: string, deliverables: string[] }.
-- 'scratch': For KG-Basic 6 only. 'projectId' (optional), 'blocks' (Array), and 'instructions' (Fixing Guide).
-- 'quiz': 'Fun Checkpoint' with 'question', 'options', and 'correctAnswer' (Index).
+ALL AVAILABLE BLOCK TYPES (use with variety and purpose):
 
-EXTENSIVENESS: 
-Lesson notes MUST be detailed and deep but CONCISE and EASY TO SCAN. Avoid long paragraphs. Use headers like "The Adventure Ahead", "The Secret Sauce", "Your Level-Up Mission". Use bullet points and simple analogies. 
-For JSS1-SS3: Include clear code mission steps. 
-For KG-Basic 6: Focus on "Visual Logic Models" and "Debugging Fun".
+TEXT & STRUCTURE:
+- 'heading': { content: string } — Section title
+- 'text': { content: string } — Body paragraph
+- 'callout': { content: string, style: 'info'|'warning' } — Highlighted note
+- 'quote': { content: string, author?: string } — Inspirational or key quote
+- 'key-terms': { title?: string, terms: { term: string, definition: string }[] } — Vocabulary glossary
+- 'steps-list': { title?: string, steps: string[] } — Numbered step-by-step guide
+- 'table': { title?: string, headers: string[], rows: string[][] } — Comparison/data table
+- 'columns': { columns: { title: string, content: string }[] } — Side-by-side concept comparison (2-3 cols)
 
-Return ONLY valid JSON.`;
+VISUAL & DIAGRAMS:
+- 'illustration': { title: string, items: { label: string, value: string }[] } — Key concept cards grid
+- 'code-map': { components: { name: string, description: string }[] } — Logic timeline/flow
+- 'mermaid': { code: string } — Flowchart or mindmap (mermaid syntax)
+- 'lottie': { keyword: 'robot'|'code'|'science'|'idea'|'success'|'star'|'math', title?: string } — Animated visual hook
+- 'image': { url: string, caption?: string } — External image
+
+CHARTS & DATA:
+- 'd3-chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', dataset: number[], labels?: string[] } — D3 data chart
+- 'chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', data: number[], labels?: string[] } — Recharts data chart (simpler)
+- 'motion-graphics': { animationType: 'flow'|'orbit'|'particles'|'network'|'timeline', config: { labels?: string[], nodes?: number }, title?: string } — Animated diagram
+
+CODING & INTERACTIVE:
+- 'code': { content: string, language: 'python'|'javascript'|'html'|'robotics' } — Runnable code in Monaco editor
+- 'blockly': { title?: string, language: 'python'|'javascript' } — Google Blockly visual coding workspace (no xml needed)
+- 'scratch': { blocks: string[], instructions?: string } — Scratch-style blocks for KG–Basic 6
+- 'visualizer': { title?: string, visualType: 'sorting'|'loops'|'stateMachine', visualData?: { totalSteps: number } } — Algorithm visualizer
+
+ASSESSMENTS:
+- 'quiz': { question: string, options: string[], correctAnswer: number } — Multiple choice question
+- 'activity': { title: string, steps?: string[], instructions?: string, is_coding: boolean, initialCode?: string, language?: string } — Lab/challenge
+- 'assignment-block': { title: string, instructions: string, deliverables: string[] } — Capstone challenge
+
+MEDIA:
+- 'video': { url: string, caption?: string } — Video embed
+- 'file': { url: string, fileName: string } — Downloadable resource
+- 'math': { formula: string } — LaTeX/KaTeX formula
+
+RULES:
+- Use 'lottie' as an opening visual hook for topics matching its keywords (robot, code, science, idea, math).
+- Use 'key-terms' when introducing technical vocabulary (4+ terms).
+- Use 'table' for comparing 3+ items (e.g. languages, algorithms, materials).
+- Use 'columns' for side-by-side concept explanations (pros/cons, theory/practice).
+- Use 'quote' to open or close a lesson with inspiration.
+- Use 'steps-list' for procedures with 4+ numbered steps.
+- Use 'blockly' for JSS1–SS3 coding topics to provide a hands-on coding block workspace.
+- Use 'scratch' ONLY for KG–Basic 6 visual coding.
+- MINIMUM 8 blocks per lesson, MAXIMUM 18.
+- Lesson notes: detailed but scannable — ## headers, bullet points, British English.
+- Return ONLY valid JSON.`;
 
 type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom';
 
@@ -255,14 +293,16 @@ Return ONLY this JSON (nothing else):
           lessonTypeHint: 'workshop',
           notesInstruction: 'lesson_notes MUST be 2000+ words, structured like a textbook chapter with ## headers (e.g. "## The Core Concept", "## How It Works", "## Real-World Applications"). Use British English, Bloom\'s Taxonomy language, and clear analogies.',
           blockRules: `ACADEMIC MODE — MANDATORY BLOCK RULES:
-1. Open with a 'mermaid' mindmap covering the entire topic landscape.
-2. Include at LEAST 3 'illustration' blocks: one for key definitions, one for concept breakdown, one for real-world examples.
-3. Include at LEAST 2 'code-map' blocks: one for concept flow, one for technical architecture.
-4. If the topic involves any programming/coding (Python, HTML, JavaScript, Robotics, etc.), include at LEAST ONE 'code' block with real, runnable code directly related to "${req.topic}". Use language: "python", "javascript", "html", or "robotics". The code MUST be educational, well-commented, and appropriate for ${req.gradeLevel ?? 'the grade level'}.
-5. Include ONE 'activity' block as a "Knowledge Check Lab" (is_coding: true for coding topics, false otherwise).
-6. End with ONE 'quiz' block with 5 comprehension questions (multiple choice).
-7. NO motion-graphics or d3-chart — keep the focus on curriculum depth.
-8. Minimum 8 blocks total.`,
+1. Open with a 'lottie' animation matching the topic keyword, then a 'mermaid' mindmap of the topic landscape.
+2. Include a 'key-terms' block early with 5-8 vocabulary terms from the topic.
+3. Include at LEAST 2 'illustration' blocks: one for definitions, one for real-world examples.
+4. Include at LEAST ONE 'code-map' block for concept/process flow.
+5. If topic involves programming, include at LEAST ONE 'code' block AND ONE 'blockly' block (for JSS1-SS3) or 'scratch' block (for Basic 1-JSS1).
+6. Include ONE 'table' comparing 3+ aspects of the topic.
+7. Include ONE 'activity' block as a "Knowledge Check Lab" (is_coding: true for coding topics).
+8. Include ONE 'quote' from a relevant scientist or engineer.
+9. End with ONE 'quiz' block with 5 comprehension questions.
+10. Minimum 10 blocks total.`,
           objectivesNote: 'Objectives MUST be Bloom\'s Taxonomy aligned: cover Remember, Understand, Apply, and Analyse levels.',
         },
         project: {
@@ -270,15 +310,16 @@ Return ONLY this JSON (nothing else):
           lessonTypeHint: 'hands-on',
           notesInstruction: 'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused. Use "## Mission Briefing", "## Your Toolkit", "## Build Steps", "## Testing & Verification" as headers. 1000–1500 words.',
           blockRules: `PROJECT MODE — MANDATORY BLOCK RULES:
-1. Open with a 'mermaid' flowchart showing the build process from start to finish.
-2. Include ONE 'illustration' block as "Toolkit Overview" listing all tools/concepts the student needs.
-3. Include ONE 'code-map' block showing the architecture of what they will build.
-4. For coding/programming topics, include at LEAST ONE 'code' block with real, working starter code for the project. Format: { "type": "code", "language": "python"|"javascript"|"html"|"robotics", "content": "# well-commented starter code here" }
-5. Include TWO 'activity' blocks: first a short guided warm-up (is_coding: true/false), second the main build challenge with 5+ precise steps.
-6. Include TWO 'assignment-block' items: one mini-task (quick win) and one rigorous capstone project with clear deliverables.
-7. If grade level is Basic 1–JSS1, include a 'scratch' block with step-by-step block instructions for visual coding.
-8. End with ONE 'quiz' block (3 questions) to verify build understanding.
-9. Minimum 8 blocks total.`,
+1. Open with a 'lottie' animation matching the topic, then a 'mermaid' flowchart of the build process.
+2. Include ONE 'steps-list' as the "Build Sequence" — every step of the project as a numbered list.
+3. Include ONE 'illustration' block as "Toolkit Overview" — all tools/concepts the student needs.
+4. Include ONE 'code-map' block showing what they will build (architecture).
+5. For coding topics: include at LEAST ONE 'code' block (starter code) AND ONE 'blockly' block (live coding workspace).
+6. Include TWO 'activity' blocks: a guided warm-up, then the main build challenge with 5+ steps.
+7. Include ONE 'assignment-block' as a rigorous capstone with clear deliverables.
+8. For grades Basic 1–JSS1: include a 'scratch' block for visual coding.
+9. End with ONE 'quiz' (3 questions) to verify build understanding.
+10. Minimum 9 blocks total.`,
           objectivesNote: 'Objectives should be output-oriented: "Students will BUILD...", "Students will DEMONSTRATE...", "Students will DEPLOY...".',
         },
         interactive: {
@@ -286,14 +327,16 @@ Return ONLY this JSON (nothing else):
           lessonTypeHint: 'interactive',
           notesInstruction: 'lesson_notes should be short, punchy, and gamified — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Every level ends with a "checkpoint" prompt.',
           blockRules: `INTERACTIVE MODE — MANDATORY BLOCK RULES:
-1. Open with a 'motion-graphics' block (animationType: "particles" or "orbit") to hook attention.
-2. Include THREE 'quiz' blocks placed at different points throughout — not just the end. Each quiz validates the concept just taught.
+1. Open with a 'lottie' animation for the topic, then a 'motion-graphics' block (animationType: "particles" or "orbit").
+2. Include THREE 'quiz' blocks at different points — each validating the concept just taught.
 3. Include ONE 'visualizer' block for algorithm or concept visualization (loops, sorting, stateMachine).
-4. Include ONE 'd3-chart' block with a real dataset relevant to the topic (bar or line chart).
-5. Include ONE 'illustration' block as a "Quick Reference Card" for key terms.
-6. Include ONE 'activity' block as a "Challenge Mission" with gamified step labels like "Step 1: Unlock", "Step 2: Execute", "Step 3: Level Up".
-7. End with ONE 'assignment-block' as the "Final Boss Challenge" with clear deliverables.
-8. Minimum 9 blocks total for maximum engagement.`,
+4. Include ONE 'chart' block (recharts — simpler) with real data for the topic (bar or pie).
+5. Include ONE 'key-terms' block as a "Quick Reference" glossary.
+6. Include ONE 'columns' block for comparing 2-3 key aspects or approaches.
+7. Include ONE 'activity' block as a "Challenge Mission" with gamified step labels (Step 1: Unlock, Step 2: Execute, Step 3: Level Up).
+8. End with ONE 'assignment-block' as the "Final Boss Challenge" with clear deliverables.
+9. Include ONE 'quote' from an inspiring figure in the field.
+10. Minimum 10 blocks total.`,
           objectivesNote: 'Objectives should use action verbs: "Students will EXPLORE...", "Students will EXPERIMENT...", "Students will DISCOVER...".',
         },
       }[mode];
@@ -345,13 +388,20 @@ ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
 CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${req.topic}":
-- 'mermaid': Generate a real mindmap or flowchart about "${req.topic}" concepts. Use mermaid v10 syntax ONLY. Start with one of: flowchart TD, mindmap, sequenceDiagram, timeline. NEVER use "graph" keyword. Keep labels short (max 4 words). No special characters or brackets inside node labels except quotes.
-- 'motion-graphics': MUST include "title" (the concept being illustrated), "animationType" (one of: flow, network, orbit, particles, wave, pulse), and "config" with "labels" array (4-6 short topic-specific terms) and "nodes" count. Example: { "type": "motion-graphics", "title": "How Python Loops Work", "animationType": "flow", "config": { "nodes": 5, "labels": ["Start", "Check Condition", "Execute Body", "Increment", "End"] } }
-- 'd3-chart': MUST include "title" (what the chart shows about the topic) and a "dataset" of real or representative numbers relevant to the topic — NOT random numbers. Include "labels" array matching dataset length. Example: { "type": "d3-chart", "title": "Algorithm Efficiency Comparison", "chartType": "bar", "dataset": [10, 45, 20, 80, 60], "labels": ["Bubble", "Quick", "Merge", "Heap", "Insertion"] }
-- 'illustration': Each item MUST be a concept from "${req.topic}" — NOT generic. Label should be the concept name, value should explain it in one sentence.
-- 'code-map': Components MUST be actual components/concepts from the topic — NOT "Module A" placeholders.
-- 'code': Content MUST be real, runnable code about "${req.topic}". Set "language" to one of: "python", "javascript", "html", "robotics". Use thorough inline comments so students understand every line.
-- 'quiz': Questions MUST test understanding of "${req.topic}" specifically.
+- 'mermaid': Real mindmap or flowchart about "${req.topic}". Use mermaid v10 syntax. Start with: flowchart TD, mindmap, sequenceDiagram, or timeline. NEVER use "graph" keyword. Short labels (max 4 words), no special characters.
+- 'lottie': Use keyword matching the topic theme: 'robot' (robotics, hardware), 'code' (programming, software), 'science' (physics, chemistry, biology), 'idea' (concepts, creativity), 'math' (mathematics, algorithms), 'star' (achievements, excellence). Always include "title" describing what it illustrates.
+- 'motion-graphics': Include "title", "animationType" (flow/network/orbit/particles), and "config" with "labels" (4-6 topic terms) and "nodes" count.
+- 'd3-chart' or 'chart': Include "title" and real representative "dataset" numbers + "labels" matching dataset length. Example: { "type": "chart", "title": "Comparison", "chartType": "bar", "data": [10, 45, 20, 80], "labels": ["A", "B", "C", "D"] }
+- 'illustration': Items MUST be topic-specific concepts — label is concept name, value is one-sentence explanation.
+- 'code-map': Components MUST be real topic components/concepts — NOT placeholders like "Module A".
+- 'code': Real, runnable, well-commented code about "${req.topic}". language: "python"|"javascript"|"html"|"robotics".
+- 'blockly': Include "title" and "language" ("python" or "javascript"). No xml needed — the Blockly workspace starts empty for the student.
+- 'key-terms': terms array with 4-8 terms directly from "${req.topic}" vocabulary.
+- 'table': headers and rows comparing real aspects of "${req.topic}".
+- 'columns': 2-3 columns comparing real aspects/approaches related to "${req.topic}".
+- 'quote': An inspiring quote from a scientist, engineer, or educator relevant to "${req.topic}".
+- 'steps-list': steps that are specific, actionable steps for a process within "${req.topic}".
+- 'quiz': Questions MUST test specific knowledge of "${req.topic}".
 
 Return a JSON object with this exact shape:
 {

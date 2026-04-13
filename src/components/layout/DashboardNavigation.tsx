@@ -16,7 +16,7 @@ import {
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
-  CreditCardIcon, ChatBubbleLeftEllipsisIcon,
+  CreditCardIcon, ChatBubbleLeftEllipsisIcon, BoltIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -140,6 +140,7 @@ export default function DashboardNavigation() {
           { name: 'Transactions', href: '/dashboard/transactions', icon: CreditCardIcon },
           { name: 'Subscriptions', href: '/dashboard/subscriptions', icon: CreditCardIcon },
           { name: 'Billing Contacts', href: '/dashboard/billing', icon: BanknotesIcon },
+          { name: 'Billing Automation', href: '/dashboard/billing-automation', icon: BoltIcon },
           { divider: true, label: 'System' },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },

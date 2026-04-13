@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
-    CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
+    CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon, ArrowDownTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
     CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon, PrinterIcon,
     ClipboardDocumentListIcon, ChevronDownIcon
@@ -87,6 +87,81 @@ function CodingBlocksChallenge({
                     Reset
                 </button>
             </div>
+        </div>
+    );
+}
+
+// ── SmartImage: loading skeleton + error fallback ───────────────────────────
+function SmartImage({ src, alt, className, onClick }: {
+    src: string; alt: string; className?: string; onClick?: () => void;
+}) {
+    const [loaded, setLoaded] = useState(false);
+    const [error, setError] = useState(false);
+    if (error) return (
+        <div className={`flex items-center justify-center bg-white/5 border border-white/10 rounded-xl ${className ?? ''}`}>
+            <div className="text-center py-4 px-2">
+                <DocumentTextIcon className="w-7 h-7 text-white/20 mx-auto mb-1" />
+                <p className="text-[9px] text-white/25 uppercase tracking-wide">Image unavailable</p>
+            </div>
+        </div>
+    );
+    return (
+        <div className="relative inline-block w-full">
+            {!loaded && <div className={`absolute inset-0 bg-white/5 animate-pulse rounded-xl ${className ?? ''}`} />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={alt}
+                className={`${className ?? ''} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setLoaded(true)}
+                onError={() => setError(true)}
+                onClick={onClick}
+            />
+        </div>
+    );
+}
+
+// ── EnhancedLightbox: keyboard nav, zoom, download ────────────────────────
+function EnhancedLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+    const [zoom, setZoom] = useState(1);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+            if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.25, 3));
+            if (e.key === '-') setZoom(z => Math.max(z - 0.25, 0.5));
+            if (e.key === '0') setZoom(1);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <div className="fixed inset-0 z-[70] bg-black/97 flex flex-col" onClick={onClose}>
+            {/* Toolbar */}
+            <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 bg-black/60 backdrop-blur-sm border-b border-white/10" onClick={e => e.stopPropagation()}>
+                <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest flex-1">Photo Preview</span>
+                <button onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))}
+                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm font-bold transition-colors">−</button>
+                <span className="text-xs font-bold text-white/60 w-10 text-center">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(z => Math.min(z + 0.25, 3))}
+                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm font-bold transition-colors">+</button>
+                <button onClick={() => setZoom(1)}
+                    className="px-3 h-8 bg-white/10 hover:bg-white/20 rounded-lg text-white/60 text-xs font-bold transition-colors">Reset</button>
+                <a href={url} download target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-3 h-8 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 text-xs font-bold rounded-lg transition-colors">
+                    <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
+                </a>
+                <button onClick={onClose}
+                    className="flex items-center gap-1.5 px-3 h-8 bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-bold rounded-lg transition-colors">
+                    <XMarkIcon className="w-4 h-4" /> Close <span className="text-white/30 hidden sm:inline">· Esc</span>
+                </button>
+            </div>
+            {/* Image */}
+            <div className="flex-1 overflow-auto flex items-center justify-center p-6" onClick={onClose}>
+                <div onClick={e => e.stopPropagation()} style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', transition: 'transform 0.2s ease' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="Submission photo" className="max-w-[80vw] max-h-[75vh] object-contain rounded-xl shadow-2xl select-none" draggable={false} />
+                </div>
+            </div>
+            <p className="text-center text-[10px] text-white/20 pb-3">Scroll or pinch to zoom · + / − keys · Click outside to close</p>
         </div>
     );
 }
@@ -219,18 +294,8 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
 
     return (
         <div className="fixed inset-0 z-50 bg-[#0f0f1a] flex flex-col">
-            {/* Image lightbox */}
-            {lightbox && (
-                <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center" onClick={() => setLightbox(null)}>
-                    <button onClick={() => setLightbox(null)}
-                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
-                        <XMarkIcon className="w-5 h-5" /> Close
-                    </button>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={lightbox} alt="Submission photo" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
-                        onClick={e => e.stopPropagation()} />
-                </div>
-            )}
+            {/* Enhanced lightbox */}
+            {lightbox && <EnhancedLightbox url={lightbox} onClose={() => setLightbox(null)} />}
 
             {/* File preview canvas panel */}
             {filePreviewOpen && sub.file_url && (
@@ -433,37 +498,56 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                             placeholder="No text submission…" />
                     </div>
 
-                    {/* Submitted photo — thumbnail, click to open lightbox */}
+                    {/* Submitted photo — thumbnail, click to open enhanced lightbox */}
                     {isImage && (
                         <div className="space-y-2">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Photo</p>
-                            <div
-                                className="relative inline-block cursor-zoom-in group"
-                                onClick={() => setLightbox(sub.file_url)}
-                            >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={sub.file_url} alt="Student submission"
-                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-amber-500/40 transition-colors" />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
-                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
+                            <div className="relative cursor-zoom-in group rounded-xl overflow-hidden border border-white/10 hover:border-amber-500/40 transition-colors max-w-xs">
+                                <SmartImage src={sub.file_url} alt="Student submission"
+                                    className="w-full max-h-52 object-contain bg-black/20"
+                                    onClick={() => setLightbox(sub.file_url)} />
+                                <div className="absolute inset-0 flex items-end justify-start bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 pointer-events-none">
+                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Click to enlarge · Zoom available</span>
                                 </div>
                             </div>
                         </div>
                     )}
                     {sub.file_url && !isImage && (
-                        <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden">
-                            <div className="flex items-center gap-3 px-4 py-3">
-                                <PaperClipIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                                <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
-                                    {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setFilePreviewOpen(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all rounded-lg flex-shrink-0"
-                                >
-                                    View File
-                                </button>
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Submitted Document</p>
+                            <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden">
+                                {/* Document preview header */}
+                                <div className="flex items-center gap-3 px-4 py-3 border-b border-blue-500/15">
+                                    <div className="w-8 h-8 bg-blue-500/15 border border-blue-500/25 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <PaperClipIcon className="w-4 h-4 text-blue-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-blue-300 font-bold truncate">
+                                            {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
+                                        </p>
+                                        <p className="text-[10px] text-blue-400/40 mt-0.5">
+                                            {sub.file_url.toLowerCase().endsWith('.pdf') ? 'PDF Document' :
+                                             sub.file_url.toLowerCase().match(/\.(doc|docx)$/) ? 'Word Document' :
+                                             sub.file_url.toLowerCase().match(/\.(txt)$/) ? 'Text File' : 'Document'}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button type="button" onClick={() => setFilePreviewOpen(true)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all rounded-lg">
+                                            Preview
+                                        </button>
+                                        <a href={sub.file_url} download target="_blank" rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-white/50 uppercase tracking-widest bg-white/5 border border-white/10 hover:bg-white/10 transition-all rounded-lg">
+                                            <ArrowDownTrayIcon className="w-3 h-3" /> Download
+                                        </a>
+                                    </div>
+                                </div>
+                                {/* Inline PDF embed for PDF files */}
+                                {sub.file_url.toLowerCase().match(/\.pdf(\?|$)/i) && (
+                                    <div className="h-64 bg-white">
+                                        <iframe src={sub.file_url} title="PDF preview" className="w-full h-full border-0" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1079,18 +1163,8 @@ export default function AssignmentDetailPage() {
                 />
             )}
 
-            {/* Global image lightbox (student view photos) */}
-            {lightboxUrl && (
-                <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setLightboxUrl(null)}>
-                    <button onClick={() => setLightboxUrl(null)}
-                        className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white text-sm font-bold transition-colors backdrop-blur-sm">
-                        <XMarkIcon className="w-5 h-5" /> Close
-                    </button>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={lightboxUrl} alt="Submission photo" className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
-                        onClick={e => e.stopPropagation()} />
-                </div>
-            )}
+            {/* Global enhanced lightbox */}
+            {lightboxUrl && <EnhancedLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
 
             {/* Sticky top navigation bar */}
             <div className="sticky top-0 z-30 bg-[#0B132B]/95 backdrop-blur-sm border-b border-white/10 shadow-lg">
@@ -1169,18 +1243,11 @@ export default function AssignmentDetailPage() {
                             )}
                         </div>
                         {!isStaff && submission?.status && (
-                            <div className="flex-shrink-0 text-right">
+                            <div className="flex-shrink-0 text-right space-y-1">
                                 <Badge status={submission.status} />
-                                {pct != null ? (
-                                    <div className="mt-2 text-center">
-                                        <span className={`text-4xl font-black ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                            {letter}
-                                        </span>
-                                        <p className="text-muted-foreground text-xs">{pct}% · {submission.grade}/{effectiveMax} pts</p>
-                                    </div>
-                                ) : submission?.status === 'submitted' ? (
-                                    <p className="text-[10px] text-white/30 mt-2">Awaiting grade</p>
-                                ) : null}
+                                {submission?.status === 'submitted' && (
+                                    <p className="text-[10px] text-white/30 mt-1">Awaiting grade</p>
+                                )}
                             </div>
                         )}
 
@@ -1217,6 +1284,57 @@ export default function AssignmentDetailPage() {
                         </span>
                     </div>
                 </div>
+
+                {/* ── STUDENT GRADE CARD ── */}
+                {!isStaff && isGraded && pct != null && (
+                    <div className={`border rounded-2xl overflow-hidden ${pct >= 70 ? 'border-emerald-500/30 bg-emerald-500/5' : pct >= 50 ? 'border-amber-500/30 bg-amber-500/5' : 'border-rose-500/30 bg-rose-500/5'}`}>
+                        <div className={`px-5 py-3 border-b flex items-center gap-2 ${pct >= 70 ? 'border-emerald-500/20 bg-emerald-500/10' : pct >= 50 ? 'border-amber-500/20 bg-amber-500/10' : 'border-rose-500/20 bg-rose-500/10'}`}>
+                            <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`} />
+                            <span className={`text-xs font-black uppercase tracking-widest ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>Assignment Graded</span>
+                        </div>
+                        <div className="p-6 flex items-center gap-6 flex-wrap">
+                            {/* Circular grade gauge */}
+                            <div className="flex-shrink-0 relative w-28 h-28">
+                                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/5" />
+                                    <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8"
+                                        stroke={pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'}
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${2 * Math.PI * 42}`}
+                                        strokeDashoffset={`${2 * Math.PI * 42 * (1 - pct / 100)}`}
+                                        style={{ transition: 'stroke-dashoffset 1s ease' }}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className={`text-3xl font-black leading-none ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{letter}</span>
+                                    <span className="text-[10px] font-bold text-white/40 mt-0.5">{pct}%</span>
+                                </div>
+                            </div>
+                            {/* Score details */}
+                            <div className="flex-1 space-y-2 min-w-[160px]">
+                                <div>
+                                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-0.5">Your Score</p>
+                                    <p className="text-2xl font-black text-foreground">{submission.grade} <span className="text-sm font-bold text-white/30">/ {effectiveMax} pts</span></p>
+                                </div>
+                                <div className="w-full h-2 bg-white/8 rounded-full overflow-hidden">
+                                    <div style={{ width: `${pct}%` }} className={`h-2 rounded-full transition-all duration-1000 ${pct >= 70 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                                </div>
+                                <p className={`text-xs font-semibold ${pct >= 90 ? 'text-emerald-400' : pct >= 70 ? 'text-emerald-300' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                    {pct >= 90 ? 'Excellent work!' : pct >= 70 ? 'Good job!' : pct >= 50 ? 'Keep practising.' : 'Needs improvement.'}
+                                </p>
+                            </div>
+                        </div>
+                        {/* Feedback */}
+                        {submission.feedback && (
+                            <div className="px-6 pb-6">
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Teacher's Feedback</p>
+                                    <p className="text-sm text-white/80 leading-relaxed">{submission.feedback}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Description */}
                 {assignment.description && (
@@ -1298,36 +1416,45 @@ export default function AssignmentDetailPage() {
                         </h2>
 
                         {submitDone && (
-                            <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 mb-4">
-                                <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                                <p className="text-emerald-400 text-sm font-semibold">Submitted successfully!</p>
+                            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-5 mb-4 text-center space-y-2">
+                                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                                    <CheckCircleIcon className="w-7 h-7 text-emerald-400" />
+                                </div>
+                                <p className="text-emerald-400 font-black text-base">Submitted successfully!</p>
+                                <p className="text-emerald-400/60 text-xs">Your teacher will review and grade your work. Check back here for your result.</p>
                             </div>
                         )}
 
                         {submission?.status === 'graded' || submission?.status === 'submitted' ? (
                             <div className="space-y-4">
-                                {/* Show submitted photo if still available (deleted after grading) */}
+                                {/* Submitted photo */}
                                 {submission.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Your Submitted Photo</p>
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src={submission.file_url}
-                                            alt="Your submission"
-                                            className="w-full max-h-72 object-contain bg-black/20 border border-border rounded-none cursor-zoom-in hover:border-amber-500/30 transition-colors"
-                                            onClick={() => setLightboxUrl(submission.file_url)}
-                                        />
-                                        <p className="text-[10px] text-white/25">Click image to enlarge</p>
+                                        <div className="relative rounded-xl overflow-hidden border border-border group cursor-zoom-in max-w-md"
+                                            onClick={() => setLightboxUrl(submission.file_url)}>
+                                            <SmartImage src={submission.file_url} alt="Your submission"
+                                                className="w-full max-h-64 object-contain bg-black/20 hover:border-amber-500/30 transition-colors" />
+                                            <div className="absolute inset-0 flex items-end p-3 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Click to zoom · Download available</span>
+                                            </div>
+                                        </div>
                                         {submission.status === 'submitted' && (
                                             <p className="text-[10px] text-muted-foreground italic">Photo will be removed after grading.</p>
                                         )}
                                     </div>
                                 )}
                                 {submission.file_url && !/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
-                                    <a href={submission.file_url} target="_blank" rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold">
-                                        <PaperClipIcon className="w-4 h-4" /> View submitted file
-                                    </a>
+                                    <div className="flex items-center gap-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                                        <PaperClipIcon className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                                        <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
+                                            {submission.file_url.split('/').pop()?.split('?')[0] || 'Submitted File'}
+                                        </p>
+                                        <a href={submission.file_url} target="_blank" rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/25 text-blue-400 rounded-lg transition-colors flex-shrink-0">
+                                            <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
+                                        </a>
+                                    </div>
                                 )}
                                 {/* Show which questions were attempted */}
                                 {assignment.questions?.length > 0 && submission.answers && (
@@ -1595,46 +1722,100 @@ export default function AssignmentDetailPage() {
 
                 {/* ── STAFF VIEW: All Submissions ── */}
                 {isStaff && allSubs.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
-                        <div className="p-5 border-b border-border">
-                            <h2 className="font-bold text-foreground">All Submissions</h2>
-                        </div>
-                        <div className="divide-y divide-white/5">
-                            {allSubs.map((s: any) => (
-                                <div key={s.id} className="flex items-center gap-3 p-3 sm:p-4 hover:bg-card transition-colors flex-wrap sm:flex-nowrap">
-                                    {/* Avatar + name */}
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
-                                        {(s.portal_users?.full_name ?? '?')[0]}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-foreground truncate">{s.portal_users?.full_name ?? 'Student'}</p>
-                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                            <Badge status={s.status} />
-                                            {s.submitted_at && (
-                                                <p className="text-xs text-muted-foreground hidden sm:block">
-                                                    {new Date(s.submitted_at).toLocaleString()}
-                                                </p>
-                                            )}
+                    <div className="bg-card shadow-sm border border-border rounded-2xl overflow-hidden">
+                        {/* Header + grade distribution */}
+                        <div className="p-5 border-b border-border space-y-3">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <h2 className="font-bold text-foreground">All Submissions</h2>
+                                <div className="flex items-center gap-2 text-xs flex-wrap">
+                                    {[
+                                        { label: 'Submitted', key: 'submitted', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/25' },
+                                        { label: 'Graded',    key: 'graded',    cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' },
+                                        { label: 'Late',      key: 'late',      cls: 'bg-amber-500/15 text-amber-400 border-amber-500/25' },
+                                        { label: 'Missing',   key: 'missing',   cls: 'bg-rose-500/15 text-rose-400 border-rose-500/25' },
+                                    ].map(({ label, key, cls }) => {
+                                        const count = allSubs.filter((s: any) => s.status === key).length;
+                                        if (!count) return null;
+                                        return <span key={key} className={`px-2.5 py-1 rounded-full font-bold border ${cls}`}>{count} {label}</span>;
+                                    })}
+                                </div>
+                            </div>
+                            {/* Grade distribution bar */}
+                            {allSubs.some((s: any) => s.grade != null) && (() => {
+                                const gradedList = allSubs.filter((s: any) => s.grade != null);
+                                const avg = Math.round(gradedList.reduce((sum: number, s: any) => sum + s.grade, 0) / gradedList.length);
+                                const avgPct = Math.round((avg / (assignment.max_points ?? 100)) * 100);
+                                return (
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-[10px] text-white/40 font-bold uppercase tracking-wider">
+                                            <span>Class Average</span>
+                                            <span>{avg}/{assignment.max_points ?? 100} pts · {avgPct}%</span>
+                                        </div>
+                                        <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+                                            <div style={{ width: `${avgPct}%` }}
+                                                className={`h-2 rounded-full ${avgPct >= 70 ? 'bg-emerald-500' : avgPct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                         </div>
                                     </div>
-                                    {/* Photo thumbnail */}
-                                    {s.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(s.file_url) && (
-                                        <button type="button" onClick={() => setGrading(s)}
-                                            className="flex-shrink-0 w-10 h-10 overflow-hidden border border-border rounded-none hover:border-amber-500/40 transition-colors"
-                                            title="View photo submission">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={s.file_url} alt="" className="w-full h-full object-cover" />
+                                );
+                            })()}
+                        </div>
+                        {/* Submission rows */}
+                        <div className="divide-y divide-white/5">
+                            {allSubs.map((s: any) => {
+                                const isImg = s.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(s.file_url);
+                                const isDoc = s.file_url && !isImg;
+                                const sGrade = s.grade != null ? s.grade : null;
+                                const sPct = sGrade != null ? Math.round((sGrade / (assignment.max_points ?? 100)) * 100) : null;
+                                return (
+                                    <div key={s.id} className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors">
+                                        {/* Avatar */}
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                            {(s.portal_users?.full_name ?? '?')[0]}
+                                        </div>
+                                        {/* Name + meta */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-foreground truncate">{s.portal_users?.full_name ?? 'Student'}</p>
+                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                <Badge status={s.status} />
+                                                {s.submitted_at && (
+                                                    <p className="text-[10px] text-muted-foreground hidden sm:block">
+                                                        {new Date(s.submitted_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Image thumbnail — larger, with hover */}
+                                        {isImg && (
+                                            <button type="button" onClick={() => setGrading(s)} title="Open submission"
+                                                className="flex-shrink-0 w-14 h-14 overflow-hidden rounded-xl border border-white/10 hover:border-amber-500/50 transition-all group relative">
+                                                <SmartImage src={s.file_url} alt="" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <span className="text-[9px] font-black text-white uppercase">View</span>
+                                                </div>
+                                            </button>
+                                        )}
+                                        {/* Document attachment badge */}
+                                        {isDoc && (
+                                            <button type="button" onClick={() => setGrading(s)} title="View document"
+                                                className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-colors">
+                                                <PaperClipIcon className="w-3.5 h-3.5" />
+                                                <span className="hidden sm:inline">File</span>
+                                            </button>
+                                        )}
+                                        {/* Grade pill */}
+                                        {sPct != null ? (
+                                            <div className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-black border ${sPct >= 70 ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400' : sPct >= 50 ? 'bg-amber-500/15 border-amber-500/25 text-amber-400' : 'bg-rose-500/15 border-rose-500/25 text-rose-400'}`}>
+                                                {sGrade}/{assignment.max_points} · {sPct}%
+                                            </div>
+                                        ) : null}
+                                        {/* Grade button */}
+                                        <button onClick={() => setGrading(s)}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex-shrink-0 ${s.status === 'graded' ? 'bg-white/5 hover:bg-white/10 text-white/50 border border-white/10' : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/20'}`}>
+                                            {s.status === 'graded' ? 'Re-grade' : 'Grade'}
                                         </button>
-                                    )}
-                                    {s.grade != null && (
-                                        <span className="text-emerald-400 font-bold text-sm flex-shrink-0">{s.grade}/{assignment.max_points}</span>
-                                    )}
-                                    <button onClick={() => setGrading(s)}
-                                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-none transition-colors flex-shrink-0 ml-auto sm:ml-0">
-                                        {s.status === 'graded' ? 'Re-grade' : 'Grade'}
-                                    </button>
-                                </div>
-                            ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

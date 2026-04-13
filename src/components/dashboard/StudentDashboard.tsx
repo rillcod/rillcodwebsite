@@ -280,7 +280,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* Score */}
-          <div className="shrink-0 text-center p-4 bg-card border border-border shadow-sm min-w-[80px]">
+          <div className="w-full sm:w-auto shrink-0 text-center p-4 bg-card border border-border shadow-sm sm:min-w-[80px]">
             <p className="text-3xl font-black text-foreground tabular-nums">{data.avgScore}%</p>
             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg Score</p>
           </div>
@@ -400,13 +400,13 @@ export default function StudentDashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-sm font-black text-foreground">{data.nextLesson.title}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-foreground break-words">{data.nextLesson.title}</p>
                     <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you'll learn</p>
                   </div>
-                  <button onClick={generateHook} disabled={loadingHook}
-                    className="shrink-0 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2">
+                  <button type="button" onClick={generateHook} disabled={loadingHook}
+                    className="w-full sm:w-auto shrink-0 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2">
                     {loadingHook ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Loading...</> : '✦ Preview'}
                   </button>
                 </div>

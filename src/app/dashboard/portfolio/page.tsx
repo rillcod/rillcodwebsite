@@ -126,7 +126,7 @@ function DrawingCanvas() {
   }, []);
 
   return (
-    <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+    <div className="bg-card border border-border rounded-none overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <PaintBrushIcon className="w-4 h-4 text-pink-400" />
@@ -520,7 +520,7 @@ function StaffPortfolioView() {
         />
         {/* Dropdown results */}
         {(students.length > 0 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-[#0d1526] border border-border rounded-none shadow-xl z-20 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-none shadow-xl z-20 overflow-hidden">
             {loading && <p className="text-muted-foreground text-sm px-4 py-3">Searching…</p>}
             {students.map(s => (
               <button key={s.id} onClick={() => selectStudent(s)}
@@ -541,16 +541,16 @@ function StaffPortfolioView() {
       {/* Selected student portfolio */}
       {selectedStudent && (
         <div>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground">
+          <div className="flex flex-wrap items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-primary-foreground shrink-0">
               {(selectedStudent.full_name ?? '?')[0]}
             </div>
-            <div>
-              <p className="text-foreground font-bold">{selectedStudent.full_name}</p>
-              <p className="text-muted-foreground text-xs">{selectedStudent.school_name ?? selectedStudent.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-foreground font-bold truncate">{selectedStudent.full_name}</p>
+              <p className="text-muted-foreground text-xs truncate">{selectedStudent.school_name ?? selectedStudent.email}</p>
             </div>
-            <button onClick={() => { setSelectedStudent(null); setStudentProjects([]); }}
-              className="ml-auto text-muted-foreground hover:text-foreground text-xs underline">
+            <button type="button" onClick={() => { setSelectedStudent(null); setStudentProjects([]); }}
+              className="sm:ml-auto w-full sm:w-auto text-center sm:text-left text-muted-foreground hover:text-foreground text-xs underline py-1">
               Clear
             </button>
           </div>
@@ -724,7 +724,7 @@ export default function PortfolioPage() {
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -733,8 +733,8 @@ export default function PortfolioPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <RocketLaunchIcon className="w-5 h-5 text-orange-400" />
               <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Portfolio</span>
@@ -748,7 +748,7 @@ export default function PortfolioPage() {
                 : 'Showcase your projects, ideas, and creations'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {saveError && (
               <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-none">
                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {saveError}
@@ -772,7 +772,7 @@ export default function PortfolioPage() {
 
         {/* Stats strip — own projects only */}
         {tab !== 'browse' && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: 'Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-orange-400' },
               { label: 'Featured', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400' },
@@ -789,18 +789,18 @@ export default function PortfolioPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border pb-4 flex-wrap">
-          <button onClick={() => setTab('projects')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'projects' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button type="button" onClick={() => setTab('projects')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'projects' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
             <CodeBracketIcon className="w-4 h-4" /> My Projects
           </button>
           {isStaff && (
-            <button onClick={() => setTab('browse')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'browse' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button type="button" onClick={() => setTab('browse')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'browse' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
               <UserGroupIcon className="w-4 h-4" /> Student Portfolios
             </button>
           )}
-          <button onClick={() => setTab('canvas')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'canvas' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button type="button" onClick={() => setTab('canvas')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'canvas' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
             <PaintBrushIcon className="w-4 h-4" /> Canvas
           </button>
           <Link href="/dashboard/playground"
@@ -844,8 +844,8 @@ export default function PortfolioPage() {
             {/* Category filter */}
             <div className="flex gap-2 flex-wrap">
               {CATEGORIES.map(c => (
-                <button key={c} onClick={() => setCatFilter(c)}
-                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${catFilter === c ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" key={c} onClick={() => setCatFilter(c)}
+                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all border border-transparent ${catFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'}`}>
                   {c} {c !== 'All' && projects.filter(p => p.category === c).length > 0 && (
                     <span className="ml-1 opacity-60">{projects.filter(p => p.category === c).length}</span>
                   )}
@@ -900,7 +900,7 @@ export default function PortfolioPage() {
                   { emoji: '📊', title: 'Data Dashboard', desc: 'Visualize data with charts' },
                 ].map(idea => (
                   <div key={idea.title}
-                    className="bg-white/3 border border-border rounded-none p-4 cursor-pointer hover:border-orange-500/30 hover:bg-orange-500/5 transition-all"
+                    className="bg-muted/30 border border-border rounded-none p-4 cursor-pointer hover:border-orange-500/30 hover:bg-orange-500/10 transition-all"
                     onClick={() => { setEditing(null); setShowForm(true); }}>
                     <div className="text-2xl mb-2">{idea.emoji}</div>
                     <p className="text-foreground text-xs font-bold">{idea.title}</p>
