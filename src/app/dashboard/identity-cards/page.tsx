@@ -77,9 +77,9 @@ export default function IdentityCardsPage() {
   const canAccess =
     profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
-  const loadConfig = async () => {
+  const loadConfig = async (type: CardType) => {
     try {
-      const res = await fetch('/api/admin/settings', { cache: 'no-store' });
+      const res = await fetch(`/api/admin/settings?type=${type}`, { cache: 'no-store' });
       const json = await res.json();
       const cfg = json?.config || {};
       setConfig({
@@ -138,8 +138,8 @@ export default function IdentityCardsPage() {
 
   useEffect(() => {
     if (!canAccess) return;
-    loadConfig();
-  }, [canAccess]);
+    loadConfig(activeType);
+  }, [canAccess, activeType]);
 
   useEffect(() => {
     const t = (searchParams.get('type') || '').toLowerCase();

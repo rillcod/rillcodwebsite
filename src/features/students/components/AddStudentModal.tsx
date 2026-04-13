@@ -9,6 +9,7 @@ import {
     BuildingOfficeIcon, BookOpenIcon, CheckIcon, ArrowPathIcon,
     ExclamationTriangleIcon, ClipboardDocumentListIcon,
 } from '@/lib/icons';
+import { toast } from 'sonner';
 
 const GRADE_LEVELS = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
     'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;
@@ -34,6 +35,8 @@ interface Credentials {
     name: string;
     section_class: string;
     grade_level: string;
+    cardIssued?: boolean;
+    cardId?: string | null;
 }
 
 export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, classId, inline }: AddStudentModalProps) {
@@ -162,6 +165,11 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     const actJson = await actRes.json();
 
                     if (actRes.ok && actJson.portalUserId) {
+                        if (actJson.cardId) {
+                            toast.success(actJson.cardIssued ? 'Card ready' : 'Card already exists');
+                        } else {
+                            toast.message('Student activated', { description: 'Card sync is in progress.' });
+                        }
                         if (classId) {
                             await fetch(`/api/classes/${classId}/enroll`, {
                                 method: 'PUT',
@@ -182,6 +190,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                 name: savedName,
                                 section_class: savedSectionClass,
                                 grade_level: savedGradeLevel,
+                                cardIssued: actJson.cardIssued,
+                                cardId: actJson.cardId || null,
                             });
                             return;
                         }
@@ -297,6 +307,11 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                 Save these credentials now. The student must update their password on first login.
                             </p>
                         </div>
+                        {credentials.cardId && (
+                            <div className={`rounded-none p-3 border text-xs font-semibold ${credentials.cardIssued ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' : 'bg-blue-500/10 border-blue-500/25 text-blue-300'}`}>
+                                {credentials.cardIssued ? 'Card ready: identity card issued automatically.' : 'Card already exists: linked to this student.'}
+                            </div>
+                        )}
 
                         <div className="space-y-3">
                             {[

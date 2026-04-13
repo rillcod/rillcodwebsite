@@ -2,6 +2,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
+import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,11 +53,28 @@ export async function POST(req: NextRequest) {
         .select('id, email')
         .eq('id', student.user_id)
         .single();
+      let cardIssued = false;
+      let cardId: string | null = null;
+      try {
+        const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+          holderId: student.user_id,
+          schoolId: student.school_id ?? null,
+          classId: (student as any).class_id ?? null,
+          actorId: user.id,
+          metadata: { source: 'student_activate_existing', student_id: studentId },
+        });
+        cardIssued = card.created;
+        cardId = card.id;
+      } catch (cardErr) {
+        console.error('[ActivateStudent] Card ensure failed:', cardErr);
+      }
       return NextResponse.json({
         success: true,
         alreadyActivated: true,
         email: existing?.email ?? null,
         portalUserId: student.user_id,
+        cardIssued,
+        cardId,
         message: 'Student already has a portal account.',
       });
     }
@@ -124,12 +142,30 @@ export async function POST(req: NextRequest) {
       approved_by: user.id,
     }).eq('id', studentId);
 
+    let cardIssued = false;
+    let cardId: string | null = null;
+    try {
+      const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+        holderId: portalUserId,
+        schoolId: student.school_id ?? null,
+        classId: (student as any).class_id ?? null,
+        actorId: user.id,
+        metadata: { source: 'student_activate', student_id: studentId },
+      });
+      cardIssued = card.created;
+      cardId = card.id;
+    } catch (cardErr) {
+      console.error('[ActivateStudent] Card auto-issue failed:', cardErr);
+    }
+
     return NextResponse.json({
       success: true,
       alreadyActivated: false,
       email: loginEmail,
       tempPassword,
       portalUserId,
+      cardIssued,
+      cardId,
       message: `Portal account created for ${student.full_name}. Share the credentials with the student.`,
     });
 

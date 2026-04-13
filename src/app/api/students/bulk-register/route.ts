@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,6 +82,8 @@ export async function POST(request: Request) {
       status: 'created' | 'updated' | 'skipped' | 'failed';
       error?: string;
       userId?: string;
+      cardIssued?: boolean;
+      cardId?: string | null;
     }> = [];
 
     // ── Duplicate barricade: fetch all existing students at this school by name ──
@@ -215,7 +218,28 @@ export async function POST(request: Request) {
         }
 
         const effectiveClass = class_name || batchClassName || undefined;
-        results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId });
+        let cardIssued = false;
+        let cardId: string | null = null;
+
+        try {
+          const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+            holderId: authUserId,
+            schoolId: resolvedSchoolId,
+            classId: batchClassId || null,
+            actorId: user.id,
+            metadata: {
+              source: 'bulk_register',
+              class_name: effectiveClass || null,
+              batch_id: body.batch_id || null,
+            },
+          });
+          cardIssued = card.created;
+          cardId = card.id;
+        } catch (cardErr) {
+          console.error('[BulkRegister] Card auto-issue failed:', cardErr);
+        }
+
+        results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId, cardIssued, cardId });
       } catch (err: any) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: err.message });
       }
@@ -272,6 +296,8 @@ export async function POST(request: Request) {
     // Include portal_user_id so frontend can display RC-XXXXXXXX student codes
     const publicResults = results.map(({ userId, ...rest }) => ({
       ...rest,
+      cardIssued: rest.cardIssued ?? false,
+      cardId: rest.cardId ?? null,
       portal_user_id: userId || null,
       batch_id: body.batch_id || null
     }));
