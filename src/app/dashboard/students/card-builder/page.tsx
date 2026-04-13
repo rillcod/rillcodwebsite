@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -363,6 +363,10 @@ interface RealStudent {
   section_class: string | null;
 }
 
+function studentSchoolLabel(s: RealStudent) {
+  return s.school_name?.trim() || '— No school —';
+}
+
 export default function CardBuilderPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
@@ -374,6 +378,8 @@ export default function CardBuilderPage() {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedSchoolGen, setSelectedSchoolGen] = useState<string>('all');
+  const [selectedClassGen, setSelectedClassGen] = useState<string>('all');
 
   const applyRolePreset = (base: CardConfig, roleType: string | null): CardConfig => {
     if (roleType !== 'student' && roleType !== 'parent' && roleType !== 'teacher') return base;
@@ -408,6 +414,68 @@ export default function CardBuilderPage() {
       .catch(console.error);
   }, [searchParams]);
 
+  const allSchoolsGen = useMemo(() => {
+    const set = new Set(students.map(studentSchoolLabel));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [students]);
+
+  const allClassesGen = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.section_class?.trim()) set.add(s.section_class.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [students]);
+
+  const hasStudentsWithoutClass = useMemo(
+    () => students.some((s) => !(s.section_class || '').trim()),
+    [students],
+  );
+
+  const schoolLockGen = profile?.role === 'school' ? String(profile.school_name || '').trim() : '';
+
+  const showSchoolFilterGen =
+    !!schoolLockGen ||
+    ((profile?.role === 'admin' || profile?.role === 'teacher') && allSchoolsGen.length > 1);
+
+  const showClassFilterGen = allClassesGen.length > 0 || hasStudentsWithoutClass;
+
+  const visibleStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    return students.filter((s) => {
+      const sch = studentSchoolLabel(s);
+      if (schoolLockGen && sch !== schoolLockGen && (s.school_name || '').trim() !== schoolLockGen) {
+        return false;
+      }
+      if (
+        (profile?.role === 'admin' || profile?.role === 'teacher') &&
+        allSchoolsGen.length > 1 &&
+        selectedSchoolGen !== 'all' &&
+        sch !== selectedSchoolGen
+      ) {
+        return false;
+      }
+      const cl = (s.section_class || '').trim();
+      if (selectedClassGen !== 'all') {
+        if (selectedClassGen === '__NONE__') {
+          if (cl) return false;
+        } else if (cl !== selectedClassGen) return false;
+      }
+      if (!q) return true;
+      return [s.full_name, s.email, s.school_name, s.section_class].some((v) =>
+        (v || '').toLowerCase().includes(q),
+      );
+    });
+  }, [
+    students,
+    studentSearch,
+    selectedSchoolGen,
+    selectedClassGen,
+    schoolLockGen,
+    profile?.role,
+    allSchoolsGen.length,
+  ]);
+
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -418,7 +486,12 @@ export default function CardBuilderPage() {
 
   const cardType = (searchParams.get('type') || 'student').toLowerCase();
 
-  if (profile.role !== 'admin' && profile.role !== 'teacher') {
+  const canUseStudentBuilder =
+    profile.role === 'admin' ||
+    profile.role === 'teacher' ||
+    (profile.role === 'school' && cardType === 'student');
+
+  if (!canUseStudentBuilder) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <p className="text-muted-foreground">Access denied.</p>
@@ -1263,10 +1336,10 @@ export default function CardBuilderPage() {
                         </button>
                       </>
                     )}
-                    {students.length > 0 && (
-                      <button onClick={() => setSelectedIds(new Set(students.map(s => s.id)))}
+                    {visibleStudents.length > 0 && (
+                      <button onClick={() => setSelectedIds(new Set(visibleStudents.map(s => s.id)))}
                         className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground text-[9px] font-black uppercase tracking-widest transition-all">
-                        Select All ({students.length})
+                        Select All ({visibleStudents.length})
                       </button>
                     )}
                   </div>
@@ -1282,6 +1355,55 @@ export default function CardBuilderPage() {
                   </div>
                 )}
 
+                {/* School / class filters (role-sensitive) */}
+                {students.length > 0 && (showSchoolFilterGen || showClassFilterGen) && (
+                  <div className="flex flex-wrap items-center gap-3 bg-card border border-border p-3">
+                    {showSchoolFilterGen && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">School</span>
+                        {schoolLockGen ? (
+                          <span className="px-3 py-2 bg-background border border-border text-xs font-bold truncate max-w-[200px]" title={schoolLockGen}>
+                            {schoolLockGen}
+                          </span>
+                        ) : (
+                          <select
+                            value={selectedSchoolGen}
+                            onChange={(e) => setSelectedSchoolGen(e.target.value)}
+                            className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-orange-500 max-w-[220px]"
+                          >
+                            <option value="all">All schools ({students.length})</option>
+                            {allSchoolsGen.map((sch) => (
+                              <option key={sch} value={sch}>
+                                {sch} ({students.filter((x) => studentSchoolLabel(x) === sch).length})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+                    {showClassFilterGen && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Class</span>
+                        <select
+                          value={selectedClassGen}
+                          onChange={(e) => setSelectedClassGen(e.target.value)}
+                          className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-orange-500 max-w-[200px]"
+                        >
+                          <option value="all">All classes</option>
+                          {allClassesGen.map((cls) => (
+                            <option key={cls} value={cls}>
+                              {cls} ({students.filter((x) => (x.section_class || '').trim() === cls).length})
+                            </option>
+                          ))}
+                          {hasStudentsWithoutClass && (
+                            <option value="__NONE__">No class assigned</option>
+                          )}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Student list */}
                 {studentsLoading ? (
                   <div className="flex items-center justify-center py-10">
@@ -1290,9 +1412,12 @@ export default function CardBuilderPage() {
                 ) : students.length > 0 ? (
                   <div className="bg-card border border-border">
                     <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
-                      {students
-                        .filter(s => !studentSearch || [s.full_name, s.email, s.school_name, s.section_class].some(v => v?.toLowerCase().includes(studentSearch.toLowerCase())))
-                        .map(s => {
+                      {visibleStudents.length === 0 ? (
+                        <div className="px-4 py-10 text-center text-xs text-muted-foreground font-bold">
+                          No students match the current filters.
+                        </div>
+                      ) : (
+                        visibleStudents.map((s) => {
                           const selected = selectedIds.has(s.id);
                           const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
                           return (
@@ -1311,7 +1436,8 @@ export default function CardBuilderPage() {
                               </div>
                             </div>
                           );
-                        })}
+                        })
+                      )}
                     </div>
                   </div>
                 ) : null}

@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { env } from '@/config/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -265,16 +266,23 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
             try {
                 const studName = String(gatewayResponse?.student_name || 'Student');
                 const amt = `${transaction.currency || 'NGN'} ${Number(transaction.amount).toLocaleString()}`;
+                const opsHtml = buildRillcodTransactionalEmailHtml({
+                    eyebrow: 'Operations',
+                    title: 'Registration fee received',
+                    bodyHtml: `<p style="margin:0 0 10px;">A new student registration payment has been confirmed via the payment gateway.</p>`,
+                    summaryRows: [
+                        { label: 'Student', value: studName },
+                        { label: 'Amount', value: amt },
+                        { label: 'Reference', value: String(transaction.transaction_reference) },
+                    ],
+                    footerNote: '<span style="color:#a1a1aa;">Internal ops notice — not a receipt for the payer.</span>',
+                });
                 await notificationsService.sendExternalEmail({
                     to: adminTo,
                     subject: `New registration payment — ${studName}`,
                     fromName: 'Rillcod Academy',
                     fromEmail: 'support@rillcod.com',
-                    html: `<div style="font-family:sans-serif;max-width:560px;padding:16px;">
-            <p><strong>Registration fee received</strong></p>
-            <p>Student: ${studName}<br/>Amount: ${amt}<br/>Reference: ${transaction.transaction_reference}</p>
-            <p style="color:#64748b;font-size:12px;">Internal ops notice (email).</p>
-          </div>`,
+                    html: opsHtml,
                 });
             } catch (opsErr) {
                 console.error('Admin ops registration email failed:', opsErr);
@@ -287,23 +295,21 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 : '';
 
         if (isRegistrationPayment && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+            const payLine = `${transaction.currency} ${Number(transaction.amount).toLocaleString()}`;
+            const parentHtml = buildRillcodTransactionalEmailHtml({
+                title: 'Registration confirmed',
+                bodyHtml: `<p style="margin:0 0 10px;">Thank you for your registration payment of <strong style="color:#fff;">${escapeHtml(payLine)}</strong>.</p>
+                        <p style="margin:0;">Our team will review the application and follow up by email.</p>`,
+                summaryRows: [{ label: 'Reference', value: String(transaction.transaction_reference) }],
+                cta: { href: receiptUrl, label: 'Download receipt (PDF)' },
+                footerNote: '<span style="color:#a1a1aa;">Rillcod Academy — STEM &amp; coding education.</span>',
+            });
             await notificationsService.sendExternalEmail({
                 to: parentEmail,
                 subject: 'Registration Confirmed — Rillcod Academy',
                 fromName: 'Rillcod Academy',
                 fromEmail: 'support@rillcod.com',
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
-                        <h2 style="color: #4f46e5;">Payment Received</h2>
-                        <p>Thank you for your registration payment of <strong>${transaction.currency} ${Number(transaction.amount).toLocaleString()}</strong>.</p>
-                        <p style="color: #64748b; font-size: 12px;">Reference: ${transaction.transaction_reference}</p>
-                        <div style="margin: 30px 0;">
-                            <a href="${receiptUrl}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Download receipt (PDF)</a>
-                        </div>
-                        <p>Our team will review the application and follow up by email.</p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-                        <p style="font-size: 10px; color: #94a3b8;">Rillcod Academy — STEM & Coding Education</p>
-                    </div>`,
+                html: parentHtml,
             });
         } else if (transaction.portal_user_id) {
             const { data: portalUsers } = await supabase
@@ -313,23 +319,21 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 .maybeSingle();
 
             if (portalUsers?.email) {
+                const greet = escapeHtml(portalUsers.full_name || 'Student');
+                const amtLine = `${transaction.currency} ${Number(transaction.amount).toLocaleString()}`;
+                const portalHtml = buildRillcodTransactionalEmailHtml({
+                    title: 'Payment received',
+                    bodyHtml: `<p style="margin:0 0 8px;">Hi ${greet},</p>
+                        <p style="margin:0 0 10px;">Thank you for your payment of <strong style="color:#fff;">${escapeHtml(amtLine)}</strong>.</p>
+                        <p style="margin:0;">Your transaction was successful and your access has been updated.</p>`,
+                    summaryRows: [{ label: 'Reference', value: String(transaction.transaction_reference) }],
+                    cta: { href: receiptUrl, label: 'Download official receipt' },
+                    footerNote: '<span style="color:#a1a1aa;">Rillcod Academy — STEM &amp; coding education.</span>',
+                });
                 await notificationsService.sendEmail(portalUsers.id, {
                     to: portalUsers.email,
                     subject: 'Payment Receipt: Rillcod Academy',
-                    html: `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
-                        <h2 style="color: #4f46e5;">Payment Received!</h2>
-                        <p>Hi ${portalUsers.full_name || 'Student'},</p>
-                        <p>Thank you for your payment of <strong>${transaction.currency} ${transaction.amount.toLocaleString()}</strong>.</p>
-                        <p>Your transaction was successful and your access has been updated.</p>
-                        <div style="margin: 30px 0;">
-                            <a href="${receiptUrl}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Download Official Receipt</a>
-                        </div>
-                        <p style="color: #64748b; font-size: 12px;">Reference: ${transaction.transaction_reference}</p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-                        <p style="font-size: 10px; color: #94a3b8;">Rillcod Academy &bull; STEM & Coding Education</p>
-                    </div>
-                `,
+                    html: portalHtml,
                 });
             }
         }

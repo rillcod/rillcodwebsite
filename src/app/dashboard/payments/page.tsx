@@ -922,6 +922,22 @@ export default function PaymentsPage() {
     }
   }
 
+  async function deleteTransaction(id: string) {
+    if (!isAdmin) return;
+    if (!confirm('Remove this transaction record? Only use for abandoned or duplicate gateway attempts. This cannot be undone.')) return;
+    setLoadingTx(true);
+    try {
+      const res = await fetch(`/api/payments/transactions/${id}`, { method: 'DELETE' });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((result as { error?: string }).error || 'Delete failed');
+      await loadTransactions();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setLoadingTx(false);
+    }
+  }
+
   async function loadReceipts() {
     const res = await fetch('/api/receipts?limit=50');
     if (res.ok) {
@@ -2066,6 +2082,9 @@ export default function PaymentsPage() {
                       ).map(t => {
                         const isSuccess = t.payment_status === 'completed' || t.payment_status === 'success';
                         const isPending = t.payment_status === 'pending';
+                        const stLower = String(t.payment_status || '').toLowerCase();
+                        const canDeleteTx =
+                          isAdmin && ['pending', 'processing', 'failed'].includes(stLower);
                         const gw = t.payment_gateway_response && typeof t.payment_gateway_response === 'object' && !Array.isArray(t.payment_gateway_response)
                           ? t.payment_gateway_response as Record<string, unknown>
                           : {};
@@ -2112,6 +2131,18 @@ export default function PaymentsPage() {
                                       onClick={(e) => { e.stopPropagation(); approveTransaction(t.id); }}
                                       className="px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase rounded-full border border-emerald-500/20 transition-all">
                                       Approve
+                                    </button>
+                                  )}
+                                  {canDeleteTx && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteTransaction(t.id);
+                                      }}
+                                      className="px-2 py-0.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[9px] font-black uppercase rounded-full border border-rose-500/20 transition-all"
+                                    >
+                                      Delete
                                     </button>
                                   )}
                                   {isSuccess && (

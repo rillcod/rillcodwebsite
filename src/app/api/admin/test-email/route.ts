@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 async function requireAdmin() {
     const supabase = await createClient();
@@ -51,30 +52,41 @@ export async function POST(request: Request) {
     const sent: { to: string; subject: string }[] = [];
 
     try {
+        const checkHtml = buildRillcodTransactionalEmailHtml({
+            title: 'Payment system mail check',
+            bodyHtml: `<p style="margin:0 0 10px;">This is a <strong style="color:#fff;">diagnostic send</strong> from your Rillcod admin dashboard.</p>
+        <p style="margin:0 0 10px;">If you received this in your inbox (or Spam), SendPulse is delivering to <strong style="color:#fff;">${escapeHtml(checkTo)}</strong> correctly.</p>`,
+            summaryRows: [
+                { label: 'Recipient', value: checkTo },
+                { label: 'Sent at (UTC)', value: new Date().toISOString() },
+            ],
+            footerNote: '<span style="color:#a1a1aa;">Internal test — not a payment receipt.</span>',
+        });
         await notificationsService.sendExternalEmail({
             to: checkTo,
             subject: 'Rillcod — payment system mail check',
             fromName,
             fromEmail,
-            html: `<div style="font-family:system-ui,sans-serif;max-width:560px;padding:16px;line-height:1.5">
-        <p><strong>Mail check</strong></p>
-        <p>If you see this in your inbox (or Spam), SendPulse delivery to <code>${checkTo}</code> is working.</p>
-        <p style="color:#64748b;font-size:12px">Sent from LMS admin test · ${new Date().toISOString()}</p>
-      </div>`,
+            html: checkHtml,
         });
         sent.push({ to: checkTo, subject: 'Rillcod — payment system mail check' });
 
+        const feedbackHtml = buildRillcodTransactionalEmailHtml({
+            title: 'Feedback / pay test',
+            bodyHtml: `<p style="margin:0 0 10px;">This message simulates the <strong style="color:#fff;">tone and layout</strong> used for internal payment notices (e.g. registration fee received).</p>
+        <p style="margin:0;">It uses the same branded template as billing reminders and registration emails.</p>`,
+            summaryRows: [
+                { label: 'Recipient', value: feedbackTo },
+                { label: 'Sent at (UTC)', value: new Date().toISOString() },
+            ],
+            footerNote: '<span style="color:#a1a1aa;">Internal test — no charge was made.</span>',
+        });
         await notificationsService.sendExternalEmail({
             to: feedbackTo,
             subject: 'Rillcod — feedback / pay test',
             fromName,
             fromEmail,
-            html: `<div style="font-family:system-ui,sans-serif;max-width:560px;padding:16px;line-height:1.5">
-        <p><strong>Feedback / pay test</strong></p>
-        <p>This simulates an internal-style notice (similar tone to ops payment alerts).</p>
-        <p>Recipient: <code>${feedbackTo}</code></p>
-        <p style="color:#64748b;font-size:12px">Sent from LMS admin test · ${new Date().toISOString()}</p>
-      </div>`,
+            html: feedbackHtml,
         });
         sent.push({ to: feedbackTo, subject: 'Rillcod — feedback / pay test' });
 
