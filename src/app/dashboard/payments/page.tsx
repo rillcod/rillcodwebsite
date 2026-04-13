@@ -417,6 +417,13 @@ ${notes ? `<div class="notes-box"><b>Notes:</b> ${notes}</div>` : ''}
 }
 
 // ── Payment Proof Review Modal ──────────────────────────────────────────────
+const PROOF_STATUS_STYLES: Record<string, string> = {
+  pending:      'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  approved:     'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  rejected:     'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  request_more: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+};
+
 function ProofReviewModal({ invoiceId, invoiceNumber, onClose, onApprove }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -425,85 +432,163 @@ function ProofReviewModal({ invoiceId, invoiceNumber, onClose, onApprove }: {
 }) {
   const [proofs, setProofs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [adminNote, setAdminNote] = useState('');
+  const [acting, setActing] = useState(false);
 
-  useEffect(() => {
+  const loadProofs = () => {
     fetch(`/api/invoices/${invoiceId}/proofs`)
       .then(r => r.json())
       .then(d => { setProofs(d.data ?? []); setLoading(false); });
-  }, [invoiceId]);
+  };
 
-  const handleApprove = async () => {
-    setApproving(true);
-    await fetch(`/api/invoices/${invoiceId}`, {
+  useEffect(() => { loadProofs(); }, [invoiceId]); // eslint-disable-line
+
+  const handleReview = async (proofId: string, action: 'approved' | 'rejected' | 'request_more') => {
+    setActing(true);
+    const res = await fetch(`/api/invoices/${invoiceId}/proofs`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'paid' }),
+      body: JSON.stringify({ proof_id: proofId, action, admin_note: adminNote || undefined }),
     });
-    setApproving(false);
-    onApprove();
-    onClose();
+    setActing(false);
+    if (res.ok) {
+      if (action === 'approved') { onApprove(); onClose(); return; }
+      setReviewingId(null);
+      setAdminNote('');
+      loadProofs();
+    }
   };
+
+  const pendingProofs = proofs.filter(p => (p.status ?? 'pending') === 'pending');
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-background border border-border w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+      <div className="bg-background border border-border w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
           <div>
-            <p className="font-black text-foreground text-sm">Payment Proofs</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Invoice #{invoiceNumber}</p>
+            <p className="font-black text-foreground text-sm">Payment Evidence Review</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Invoice #{invoiceNumber} · {proofs.length} submission{proofs.length !== 1 ? 's' : ''}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground font-black text-xl">✕</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {loading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-10">
               <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
             </div>
           ) : proofs.length === 0 ? (
-            <div className="text-center py-10">
-              <PaperClipIcon className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground font-bold">No proof submitted yet</p>
-              <p className="text-xs text-muted-foreground mt-1">The parent has not uploaded payment proof for this invoice.</p>
+            <div className="text-center py-12 space-y-2">
+              <PaperClipIcon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm font-bold text-muted-foreground">No proof submitted yet</p>
+              <p className="text-xs text-muted-foreground">The payer has not uploaded payment evidence for this invoice.</p>
             </div>
           ) : (
-            proofs.map(proof => (
-              <div key={proof.id} className="border border-border rounded-none overflow-hidden">
-                <div className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-foreground text-sm">{proof.portal_users?.full_name ?? 'Parent'}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(proof.created_at).toLocaleString()}</p>
-                      {proof.payer_note && <p className="text-xs text-amber-400 mt-1 italic">{proof.payer_note}</p>}
+            proofs.map(proof => {
+              const proofStatus = proof.status ?? 'pending';
+              const isReviewing = reviewingId === proof.id;
+              return (
+                <div key={proof.id} className={`border rounded-none overflow-hidden ${proofStatus === 'approved' ? 'border-emerald-500/30' : proofStatus === 'rejected' ? 'border-rose-500/30' : 'border-border'}`}>
+                  {/* Proof header */}
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-foreground text-sm">{proof.portal_users?.full_name ?? 'Payer'}</p>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${PROOF_STATUS_STYLES[proofStatus] ?? PROOF_STATUS_STYLES.pending}`}>
+                            {proofStatus.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{proof.portal_users?.email ?? ''}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(proof.created_at).toLocaleString()}</p>
+                        {proof.payer_note && (
+                          <div className="mt-2 bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-300 italic">
+                            "{proof.payer_note}"
+                          </div>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Evidence */}
+                    {proof.signed_url && (
+                      proof.proof_image_url?.endsWith('.pdf')
+                        ? <a href={proof.signed_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300 underline">
+                            <DocumentTextIcon className="w-4 h-4" /> View PDF Evidence
+                          </a>
+                        : <a href={proof.signed_url} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={proof.signed_url} alt="Payment evidence" className="w-full max-h-72 object-contain bg-muted border border-border rounded cursor-zoom-in hover:opacity-90" />
+                          </a>
+                    )}
+
+                    {/* Admin note (if already reviewed) */}
+                    {proof.admin_note && (
+                      <div className="bg-card border border-border px-3 py-2 text-xs text-card-foreground/70">
+                        <span className="font-bold text-card-foreground/50 uppercase tracking-wide text-[10px]">Admin note: </span>{proof.admin_note}
+                      </div>
+                    )}
                   </div>
-                  {proof.signed_url && (
-                    proof.proof_image_url?.endsWith('.pdf')
-                      ? <a href={proof.signed_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 underline">
-                          <DocumentTextIcon className="w-4 h-4" /> View PDF
-                        </a>
-                      : <a href={proof.signed_url} target="_blank" rel="noopener noreferrer">
-                          <img src={proof.signed_url} alt="Payment proof" className="w-full max-h-64 object-contain bg-muted border border-border" />
-                        </a>
+
+                  {/* Review actions — only for pending proofs */}
+                  {proofStatus === 'pending' && (
+                    <div className="border-t border-border bg-card/50 p-3 space-y-3">
+                      {isReviewing ? (
+                        <>
+                          <textarea
+                            value={adminNote}
+                            onChange={e => setAdminNote(e.target.value)}
+                            placeholder="Add a note to the payer (optional)…"
+                            rows={2}
+                            className="w-full px-3 py-2 bg-background border border-border text-foreground text-xs placeholder-muted-foreground focus:outline-none focus:border-primary/50 resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleReview(proof.id, 'approved')} disabled={acting}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors">
+                              <CheckIcon className="w-3.5 h-3.5" /> Approve & Mark Paid
+                            </button>
+                            <button onClick={() => handleReview(proof.id, 'request_more')} disabled={acting}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors">
+                              Request More Info
+                            </button>
+                            <button onClick={() => handleReview(proof.id, 'rejected')} disabled={acting}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors">
+                              Reject
+                            </button>
+                            <button onClick={() => { setReviewingId(null); setAdminNote(''); }}
+                              className="px-3 py-2 text-xs font-bold text-muted-foreground border border-border hover:bg-muted transition-colors">
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <button onClick={() => setReviewingId(proof.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors">
+                          <EyeIcon className="w-3.5 h-3.5" /> Review This Submission
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {proofs.length > 0 && (
-          <div className="p-4 border-t border-border flex-shrink-0 flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 text-sm font-bold text-muted-foreground bg-card hover:bg-muted border border-border transition-colors">Cancel</button>
-            <button onClick={handleApprove} disabled={approving}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors">
-              {approving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {approving ? 'Approving…' : 'Approve & Mark Paid'}
-            </button>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="p-4 border-t border-border flex-shrink-0 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            {pendingProofs.length > 0
+              ? `${pendingProofs.length} awaiting review`
+              : proofs.length > 0 ? 'All submissions reviewed' : ''}
+          </p>
+          <button onClick={onClose} className="px-5 py-2 text-sm font-bold text-muted-foreground bg-card hover:bg-muted border border-border transition-colors">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2555,6 +2640,33 @@ export default function PaymentsPage() {
                             >
                               <PencilIcon className="w-3 h-3" /> Edit
                             </button>
+                            {/* PDF download */}
+                            <button
+                              onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, '_blank')}
+                              className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 transition-colors uppercase tracking-widest"
+                              title="Download invoice PDF"
+                            >
+                              <ArrowDownTrayIcon className="w-3 h-3" /> PDF
+                            </button>
+                            {/* Reminder buttons */}
+                            {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              <button
+                                onClick={async () => {
+                                  const n = (inv as any).reminder_1_sent_at ? ((inv as any).reminder_2_sent_at ? 3 : 2) : 1;
+                                  const res = await fetch(`/api/invoices/${inv.id}/remind`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ reminder_number: n }),
+                                  });
+                                  if (res.ok) alert(`Reminder ${n} sent!`);
+                                  else alert('Failed to send reminder');
+                                }}
+                                className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-orange-400 hover:bg-orange-500/10 transition-colors uppercase tracking-widest"
+                                title="Send reminder email (auto-picks next reminder 1→2→3)"
+                              >
+                                <EnvelopeIcon className="w-3 h-3" /> Remind
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 const invRow = invoices.find(i => i.invoice_number === inv.invoice_number);
@@ -2562,7 +2674,7 @@ export default function PaymentsPage() {
                               }}
                               disabled={loadingTx}
                               className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest disabled:opacity-40"
-                              title="Send email to student"
+                              title="Send initial invoice email"
                             >
                               <EnvelopeIcon className="w-3 h-3" /> Send
                             </button>
