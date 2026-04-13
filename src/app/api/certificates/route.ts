@@ -3,6 +3,17 @@ import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { certificateService } from '@/services/certificate.service';
 import { AppError } from '@/lib/errors';
 
+async function getTeacherSchoolIds(supabase: any, teacherId: string, tenantId?: string) {
+    const ids = new Set<string>();
+    if (tenantId) ids.add(tenantId);
+    const { data } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+    for (const row of data ?? []) {
+        const sid = (row as { school_id: string | null }).school_id;
+        if (sid) ids.add(sid);
+    }
+    return Array.from(ids);
+}
+
 async function listHandler(req: Request, ctx: ApiContext) {
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
@@ -75,13 +86,35 @@ async function issueHandler(req: Request, ctx: ApiContext) {
 
         const body = await req.json();
         const { studentId, courseId, schoolId, isBulk, classId } = body;
+        const { createClient } = await import('@/lib/supabase/server');
+        const supabase = await createClient();
+        const teacherSchoolIds = role === 'teacher' ? await getTeacherSchoolIds(supabase, ctx.user!.id, ctx.user?.tenantId) : [];
+
+        const requestedSchoolId = schoolId || ctx.user?.tenantId || null;
+        if (role === 'teacher' && requestedSchoolId && !teacherSchoolIds.includes(requestedSchoolId)) {
+            throw new AppError('Forbidden for this school scope', 403);
+        }
         
         if (isBulk) {
             if (!classId || !courseId) throw new AppError('Missing classId or courseId', 400);
+            if (role === 'teacher') {
+                const { data: klass } = await supabase.from('classes').select('school_id').eq('id', classId).maybeSingle();
+                const classSchoolId = (klass as any)?.school_id as string | null;
+                if (!classSchoolId || !teacherSchoolIds.includes(classSchoolId)) {
+                    throw new AppError('Forbidden class scope', 403);
+                }
+            }
             const result = await certificateService.bulkIssue(classId, courseId, ctx.user!.id, schoolId);
             return NextResponse.json({ success: true, data: result });
         } else {
             if (!studentId || !courseId) throw new AppError('Missing studentId or courseId', 400);
+            if (role === 'teacher') {
+                const { data: student } = await supabase.from('portal_users').select('school_id').eq('id', studentId).maybeSingle();
+                const studentSchoolId = (student as any)?.school_id as string | null;
+                if (!studentSchoolId || !teacherSchoolIds.includes(studentSchoolId)) {
+                    throw new AppError('Forbidden student scope', 403);
+                }
+            }
             const cert = await certificateService.issueCertificate(studentId, courseId, ctx.user!.id, schoolId);
             return NextResponse.json({ success: true, data: cert });
         }

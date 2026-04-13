@@ -22,6 +22,17 @@ async function requireStaff() {
   return profile;
 }
 
+async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const { data } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
 // POST /api/progress-reports — insert or update a student progress report
 export async function POST(request: NextRequest) {
   const caller = await requireStaff();
@@ -51,6 +62,22 @@ export async function POST(request: NextRequest) {
   payload.updated_at = new Date().toISOString();
 
   const admin = adminClient();
+  const teacherSchoolIds =
+    caller.role === 'teacher'
+      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
+      : [];
+
+  if (payload.student_id && caller.role === 'teacher') {
+    const { data: student } = await admin
+      .from('portal_users')
+      .select('school_id')
+      .eq('id', String(payload.student_id))
+      .maybeSingle();
+    const studentSchoolId = (student as any)?.school_id as string | null;
+    if (!studentSchoolId || !teacherSchoolIds.includes(studentSchoolId)) {
+      return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+    }
+  }
 
   if (existing_id) {
     const { data, error } = await admin

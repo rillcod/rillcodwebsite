@@ -15,11 +15,43 @@ async function requireStaff() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
   if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) return null;
   return profile;
+}
+
+async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const { data } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
+async function canModifyReport(caller: any, reportId: string) {
+  if (caller.role === 'admin') return true;
+  const admin = adminClient();
+  const teacherSchoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null);
+  const { data: report } = await admin
+    .from('student_progress_reports')
+    .select('id, school_id, student_id')
+    .eq('id', reportId)
+    .maybeSingle();
+  if (!report) return false;
+  const reportSchoolId = (report as any).school_id as string | null;
+  if (reportSchoolId) return teacherSchoolIds.includes(reportSchoolId);
+  const { data: student } = await admin
+    .from('portal_users')
+    .select('school_id')
+    .eq('id', (report as any).student_id)
+    .maybeSingle();
+  const studentSchoolId = (student as any)?.school_id as string | null;
+  return !!studentSchoolId && teacherSchoolIds.includes(studentSchoolId);
 }
 
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)
@@ -31,6 +63,9 @@ export async function PATCH(
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
+  if (!(await canModifyReport(caller, id))) {
+    return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
+  }
   const body = await request.json();
 
   const allowed: Record<string, any> = {};
@@ -62,6 +97,9 @@ export async function DELETE(
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
+  if (!(await canModifyReport(caller, id))) {
+    return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
+  }
   const { error } = await adminClient()
     .from('student_progress_reports')
     .delete()

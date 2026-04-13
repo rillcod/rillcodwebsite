@@ -10,12 +10,48 @@ async function getUser() {
   return data ? { ...user, role: data.role, school_id: data.school_id } : null;
 }
 
+async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
+  const db = createAdminClient();
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const { data } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
+async function canManageExam(user: Awaited<ReturnType<typeof getUser>>, examId: string) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const db = createAdminClient();
+  const { data: exam } = await db
+    .from('exams')
+    .select('id, created_by, course_id, courses!course_id(school_id)')
+    .eq('id', examId)
+    .maybeSingle();
+  if (!exam) return false;
+  const courseSchoolId = (exam as any)?.courses?.school_id as string | null;
+  if (user.role === 'teacher') {
+    if ((exam as any).created_by === user.id) return true;
+    const schoolIds = await getTeacherSchoolIds(user.id, user.school_id ?? null);
+    return !!courseSchoolId && schoolIds.includes(courseSchoolId);
+  }
+  if (user.role === 'school') {
+    return !!user.school_id && !!courseSchoolId && user.school_id === courseSchoolId;
+  }
+  return false;
+}
+
 // GET /api/exams/[id]/questions
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const allowed = await canManageExam(user as any, id);
+  if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const db = createAdminClient();
 
   const { data, error } = await db
@@ -34,6 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id: exam_id } = await params;
+  if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const body = await request.json();
   const { question_text, question_type, points, options, correct_answer, explanation } = body;
 
@@ -66,6 +103,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id: exam_id } = await params;
+  if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const { questions } = await request.json(); // Array of { id, order_index }
 
   if (!Array.isArray(questions)) return NextResponse.json({ error: 'questions array required' }, { status: 400 });

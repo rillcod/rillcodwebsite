@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { getSafeAutoProfileRole } from './role-utils';
 
 describe('getSafeAutoProfileRole', () => {

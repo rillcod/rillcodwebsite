@@ -7,12 +7,32 @@ import type { Database, Json } from '@/types/supabase';
 type ExamAttemptUpdate = Database['public']['Tables']['exam_attempts']['Update'];
 
 export class ExamTakingService {
+    private shuffleArray<T>(items: T[]): T[] {
+        const arr = [...items];
+        for (let i = arr.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
     async startExam(examId: string, userId: string) {
         const supabase = await createClient();
 
         // 1. Get Exam details
         const exam = await examService.getExam(examId);
         if (!exam.is_active) throw new AppError('Exam is not active', 400);
+
+        const { data: activeAttempt } = await supabase
+            .from('exam_attempts')
+            .select('id')
+            .eq('exam_id', examId)
+            .eq('portal_user_id', userId)
+            .eq('status', 'in_progress')
+            .maybeSingle();
+        if (activeAttempt?.id) {
+            throw new AppError('You already have an in-progress attempt for this exam', 400);
+        }
 
         // 2. Check current attempts
         const { count: attemptCount } = await supabase
@@ -44,7 +64,7 @@ export class ExamTakingService {
         let questions = await questionService.listQuestions(examId);
 
         if (exam.randomize_questions) {
-            questions = questions.sort(() => Math.random() - 0.5);
+            questions = this.shuffleArray(questions);
         }
 
         // Strip correct answers if it's currently in progress
@@ -54,7 +74,7 @@ export class ExamTakingService {
             question_type: q.question_type,
             points: q.points,
             options: exam.randomize_options && q.options && Array.isArray(q.options)
-                ? [...q.options].sort(() => Math.random() - 0.5)
+                ? this.shuffleArray(q.options)
                 : q.options
         }));
 
