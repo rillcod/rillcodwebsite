@@ -102,15 +102,23 @@ function buildBillingReminderEmailHtml(args: {
 async function ensureStickyNotice(db: ReturnType<typeof createAdminClient>, cycle: BillingCycle, mobileUrl: string) {
   const title = `Billing due for ${cycle.term_label}`;
   const message = `Payment is due for ${cycle.term_label}. Open ${mobileUrl} to complete payment and clear this notice.`;
-  const { data: existing } = await db
+  let existingQuery = db
     .from('billing_notices')
     .select('id')
     .eq('is_resolved', false)
-    .eq('owner_type', cycle.owner_type)
-    .eq('owner_school_id', cycle.owner_school_id)
-    .eq('owner_user_id', cycle.owner_user_id)
-    .limit(1)
-    .maybeSingle();
+    .eq('owner_type', cycle.owner_type);
+
+  existingQuery =
+    cycle.owner_school_id === null
+      ? existingQuery.is('owner_school_id', null)
+      : existingQuery.eq('owner_school_id', cycle.owner_school_id);
+
+  existingQuery =
+    cycle.owner_user_id === null
+      ? existingQuery.is('owner_user_id', null)
+      : existingQuery.eq('owner_user_id', cycle.owner_user_id);
+
+  const { data: existing } = await existingQuery.limit(1).maybeSingle();
 
   if (existing?.id) return existing.id;
 
