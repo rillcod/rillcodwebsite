@@ -22,6 +22,25 @@ async function requireStaff() {
   return caller;
 }
 
+async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const admin = adminClient();
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
+function canCreateLesson(role: string | undefined) {
+  return role === 'admin' || role === 'teacher';
+}
+
 // GET /api/lessons — list lessons visible to current user
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +58,12 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (caller.role === 'teacher') {
-      query = query.eq('created_by', caller.id) as any;
+      const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id ?? null);
+      if (schoolIds.length > 0) {
+        query = query.or(`created_by.eq.${caller.id},school_id.in.(${schoolIds.join(',')})`) as any;
+      } else {
+        query = query.eq('created_by', caller.id) as any;
+      }
     } else if (caller.role === 'school' && caller.school_id) {
       // School role: scope to their school's lessons only
       query = query.eq('school_id', caller.school_id) as any;
@@ -59,7 +83,9 @@ export async function POST(request: NextRequest) {
   try {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-    if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized to create lessons' }, { status: 403 });
+    if (!canCreateLesson(caller.role)) {
+      return NextResponse.json({ error: 'Only admin and teacher can create lessons' }, { status: 403 });
+    }
 
     const body = await request.json();
     const allowed = ['title', 'description', 'content', 'lesson_type', 'status',

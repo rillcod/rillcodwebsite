@@ -13,6 +13,24 @@ function adminClient() {
 }
 
 export class CertificateService {
+    private async generateUniqueCertificateNumber() {
+        for (let i = 0; i < 8; i += 1) {
+            const code = `RC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+            const { data } = await adminClient().from('certificates').select('id').eq('certificate_number', code).maybeSingle();
+            if (!data?.id) return code;
+        }
+        return `RC-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    }
+
+    private async generateUniqueVerificationCode() {
+        for (let i = 0; i < 8; i += 1) {
+            const code = Math.random().toString(36).substring(2, 12).toUpperCase();
+            const { data } = await adminClient().from('certificates').select('id').eq('verification_code', code).maybeSingle();
+            if (!data?.id) return code;
+        }
+        return Math.random().toString(36).substring(2, 14).toUpperCase();
+    }
+
     async issueCertificate(studentId: string, courseId: string, issuerId?: string, schoolId?: string) {
         // 1. Verify eligibility (check if student already has it to avoid duplicates)
         const { data: existing } = await adminClient()
@@ -25,8 +43,8 @@ export class CertificateService {
         if (existing) return existing; // Skip if already issued
 
         // 2. Generate unique numbers
-        const certNumber = `RC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const verifyCode = Math.random().toString(36).substring(2, 12).toUpperCase();
+        const certNumber = await this.generateUniqueCertificateNumber();
+        const verifyCode = await this.generateUniqueVerificationCode();
 
         // 3. Create record
         const { data: cert, error } = await adminClient()
@@ -40,6 +58,8 @@ export class CertificateService {
                 created_at: new Date().toISOString(),
                 metadata: {
                     is_published: false,
+                    status: 'issued',
+                    pdf_status: 'pending',
                     issued_by: issuerId,
                     school_id: schoolId
                 }
@@ -107,10 +127,17 @@ export class CertificateService {
             const uploadedFile = await filesService.uploadFile(file, studentId);
 
             // Update certificate with PDF URL
-            await adminClient().from('certificates').update({ pdf_url: uploadedFile.storage_path }).eq('id', certId);
+            await adminClient().from('certificates').update({
+                pdf_url: uploadedFile.storage_path,
+                metadata: { ...(cert?.metadata as Record<string, unknown> ?? {}), pdf_status: 'generated' },
+            }).eq('id', certId);
 
         } catch (error) {
             console.error('Failed to generate/store certificate PDF:', error);
+            const { data: cert } = await adminClient().from('certificates').select('metadata').eq('id', certId).maybeSingle();
+            await adminClient().from('certificates').update({
+                metadata: { ...(cert?.metadata as Record<string, unknown> ?? {}), pdf_status: 'failed' },
+            }).eq('id', certId);
         }
     }
 
@@ -172,7 +199,13 @@ export class CertificateService {
             .single();
 
         if (error || !data) throw new NotFoundError('Certificate not found');
-        return data;
+        return {
+            certificate_number: data.certificate_number,
+            issued_date: data.issued_date,
+            student_name: (data as any).portal_users?.full_name ?? null,
+            course_title: (data as any).courses?.title ?? null,
+            is_published: ((data.metadata as Record<string, unknown> | null)?.is_published ?? false) === true,
+        };
     }
 }
 

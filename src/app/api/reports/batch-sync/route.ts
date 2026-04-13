@@ -22,6 +22,20 @@ async function requireStaff() {
   return profile;
 }
 
+async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
 export async function POST(request: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -45,6 +59,14 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = adminClient();
+  const teacherSchoolIds =
+    caller.role === 'teacher'
+      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
+      : [];
+
+  if (caller.role === 'teacher' && teacherSchoolIds.length === 0) {
+    return NextResponse.json({ error: 'No school scope assigned for this teacher' }, { status: 403 });
+  }
   
   // 1. Fetch Students in the specified School/Class
   let studentQuery = admin
@@ -59,7 +81,13 @@ export async function POST(request: NextRequest) {
     studentQuery = studentQuery.eq('section_class', class_name);
   }
 
-  if (school_id) {
+  if (caller.role === 'teacher') {
+    studentQuery = studentQuery.in('school_id', teacherSchoolIds);
+    if (school_id && !teacherSchoolIds.includes(school_id)) {
+      return NextResponse.json({ error: 'Forbidden school scope' }, { status: 403 });
+    }
+    if (school_id) studentQuery = studentQuery.eq('school_id', school_id);
+  } else if (school_id) {
     studentQuery = studentQuery.eq('school_id', school_id);
   } else if (school_name) {
     studentQuery = studentQuery.eq('school_name', school_name);

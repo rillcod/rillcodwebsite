@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { canAccessLessonScope } from '../authz';
 
 async function getUser() {
   const supabase = await createClient();
@@ -8,6 +9,21 @@ async function getUser() {
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   return data ? { ...user, role: data.role, school_id: data.school_id } : null;
+}
+
+async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const db = createAdminClient();
+  const { data } = await db
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +38,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   `).eq('id', id).single();
 
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (user.role !== 'admin') {
+    const teacherSchoolIds =
+      user.role === 'teacher' ? await getTeacherSchoolIds(user.id, user.school_id) : [];
+    const allowed = canAccessLessonScope(
+      { id: user.id, role: user.role, school_id: user.school_id },
+      {
+        school_id: (data as any)?.lessons?.school_id ?? null,
+        created_by: (data as any)?.lessons?.created_by ?? null,
+      },
+      teacherSchoolIds,
+    );
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   return NextResponse.json({ data });
 }
 
@@ -34,6 +63,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await request.json();
   const db = createAdminClient();
+
+  const { data: existingPlan, error: existingErr } = await db
+    .from('lesson_plans')
+    .select('id, lessons(school_id, created_by)')
+    .eq('id', id)
+    .maybeSingle();
+  if (existingErr || !existingPlan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const teacherSchoolIds =
+    user.role === 'teacher' ? await getTeacherSchoolIds(user.id, user.school_id) : [];
+  const allowed = canAccessLessonScope(
+    { id: user.id, role: user.role, school_id: user.school_id },
+    {
+      school_id: (existingPlan as any)?.lessons?.school_id ?? null,
+      created_by: (existingPlan as any)?.lessons?.created_by ?? null,
+    },
+    teacherSchoolIds,
+  );
+  if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data, error } = await db.from('lesson_plans')
     .update({ ...body, updated_at: new Date().toISOString() } as any)
