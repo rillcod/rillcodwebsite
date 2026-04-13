@@ -163,7 +163,7 @@ export default function BillingAutomationPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border text-sm font-bold transition-all ${
+        <div className={`fixed top-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border text-sm font-bold transition-all ${
           toast.type === 'success'
             ? 'bg-emerald-950 border-emerald-500/30 text-emerald-300'
             : 'bg-rose-950 border-rose-500/30 text-rose-300'
