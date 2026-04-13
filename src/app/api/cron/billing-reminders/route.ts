@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { env } from '@/config/env';
 import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
+import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
+import type { Json } from '@/types/supabase';
 
 type BillingCycle = {
   id: string;
@@ -183,6 +185,35 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       .maybeSingle();
     if (exists?.id) continue;
 
+    const schoolIdForRollup =
+      sub.school_id || cycle.owner_school_id || cycle.school_id || null;
+
+    let itemsPayload: Json = [];
+    let rollupTotal = 0;
+    let cycleCurrency = String(cycle.currency || 'NGN').toUpperCase();
+    let rillcodRetain: number | null = null;
+    let schoolSettlement: number | null = null;
+
+    if (schoolIdForRollup && cycle.owner_type === 'school') {
+      const agg = await aggregateOpenSchoolInvoices(db, schoolIdForRollup);
+      itemsPayload = agg.items as Json;
+      rollupTotal = agg.totalAmount;
+      if (agg.items.length) cycleCurrency = agg.primaryCurrency;
+      const { data: schRow } = await db
+        .from('schools')
+        .select('commission_rate')
+        .eq('id', schoolIdForRollup)
+        .maybeSingle();
+      const commissionRate = Number(
+        (schRow as { commission_rate?: number | null } | null)?.commission_rate ?? 15,
+      );
+      const gross = Math.round((nextAmount + rollupTotal) * 100) / 100;
+      const split = computeSettlementSplit(gross, commissionRate);
+      rillcodRetain = split.rillcodRetain;
+      schoolSettlement = split.schoolSettlement;
+      nextAmount = gross;
+    }
+
     await db.from('billing_cycles').insert({
       subscription_id: cycle.subscription_id,
       owner_type: cycle.owner_type,
@@ -193,7 +224,11 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       term_start_date: termStart,
       due_date: dueDate,
       amount_due: nextAmount,
+      currency: cycleCurrency,
       status: 'due',
+      items: itemsPayload,
+      rillcod_retain_amount: rillcodRetain,
+      school_settlement_amount: schoolSettlement,
     });
 
     await db.from('billing_cycles').update({ status: 'rolled_over', updated_at: new Date().toISOString() }).eq('id', cycle.id);

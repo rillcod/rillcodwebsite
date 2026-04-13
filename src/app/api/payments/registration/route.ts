@@ -43,6 +43,8 @@ const TYPE_FEES: Record<string, number> = {
     in_person: 50000,
 };
 
+const PARENT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
 function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
     if (enrollment_type === 'school') {
         const lower = (course_interest || '').toLowerCase();
@@ -60,6 +62,52 @@ function getFee(enrollment_type: string, preferred_schedule: string, course_inte
         return NON_SCHOOL_FEES[preferred_schedule];
     }
     return TYPE_FEES[enrollment_type] ?? 30000;
+}
+
+/** Primary: programs.price via program_id or app_settings.default_registration_program_id. Fallback: hardcoded fee tables. */
+async function resolveRegistrationPrice(
+    supabase: any,
+    program_id: string | undefined,
+    enrollment_type: string,
+    preferred_schedule: string,
+    course_interest?: string,
+): Promise<{ amount: number; programName: string | null; resolvedProgramId: string | null }> {
+    const tryProgram = async (id: string) => {
+        const { data: prog } = await supabase
+            .from('programs')
+            .select('price, name')
+            .eq('id', id)
+            .maybeSingle();
+        if (prog?.price != null && Number(prog.price) > 0) {
+            return {
+                amount: Number(prog.price),
+                programName: prog.name ?? null,
+                resolvedProgramId: id,
+            };
+        }
+        return null;
+    };
+
+    if (program_id) {
+        const fromId = await tryProgram(program_id);
+        if (fromId) return fromId;
+    }
+
+    const { data: setting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'default_registration_program_id')
+        .maybeSingle();
+    if (setting?.value?.trim()) {
+        const fromDefault = await tryProgram(setting.value.trim());
+        if (fromDefault) return fromDefault;
+    }
+
+    return {
+        amount: getFee(enrollment_type, preferred_schedule, course_interest),
+        programName: null,
+        resolvedProgramId: null,
+    };
 }
 
 export async function POST(req: Request) {
@@ -84,6 +132,7 @@ export async function POST(req: Request) {
             preferred_schedule,
             heard_about_us,
             program_id, // optional — if set, price comes from programs table
+            payment_plan, // optional: 'full' | 'instalment' (requires programs.instalments_enabled for instalment)
         } = body;
 
         // Validate required fields
@@ -92,6 +141,9 @@ export async function POST(req: Request) {
         }
         if (!parent_email) {
             return NextResponse.json({ error: 'Parent email is required to process payment' }, { status: 400 });
+        }
+        if (!PARENT_EMAIL_RE.test(String(parent_email).trim())) {
+            return NextResponse.json({ error: 'Invalid parent email address' }, { status: 400 });
         }
         if (!full_name) {
             return NextResponse.json({ error: 'Student name is required' }, { status: 400 });
@@ -106,6 +158,46 @@ export async function POST(req: Request) {
             process.env.SUPABASE_SERVICE_ROLE_KEY!,
         );
 
+        let resolvedSchoolId: string | null = null;
+        if (school_name && String(school_name).trim()) {
+            const q = String(school_name).trim();
+            const { data: schoolMatch } = await supabase
+                .from('schools')
+                .select('id')
+                .ilike('name', q)
+                .limit(1)
+                .maybeSingle();
+            resolvedSchoolId = schoolMatch?.id ?? null;
+        }
+
+        const { amount, programName, resolvedProgramId } = await resolveRegistrationPrice(
+            supabase,
+            program_id,
+            enrollment_type,
+            preferred_schedule,
+            course_interest,
+        );
+
+        if (payment_plan === 'instalment') {
+            if (!resolvedProgramId) {
+                return NextResponse.json(
+                    { error: 'Instalment plan requires a programme price (program_id or default_registration_program_id in app_settings)' },
+                    { status: 400 },
+                );
+            }
+            const { data: progInst } = await supabase
+                .from('programs')
+                .select('instalments_enabled')
+                .eq('id', resolvedProgramId)
+                .maybeSingle();
+            if (!progInst?.instalments_enabled) {
+                return NextResponse.json(
+                    { error: 'This programme does not support instalment payments' },
+                    { status: 400 },
+                );
+            }
+        }
+
         // 1. Save student registration (status: 'pending' — awaiting admin approval after payment)
         const { data: student, error: studentErr } = await supabase
             .from('students')
@@ -116,6 +208,7 @@ export async function POST(req: Request) {
                 gender: gender?.toLowerCase() || null,
                 grade_level,
                 school_name: school_name || null,
+                school_id: resolvedSchoolId,
                 city: city || null,
                 state: state || null,
                 student_email: student_email || null,
@@ -129,6 +222,7 @@ export async function POST(req: Request) {
                 preferred_schedule: preferred_schedule || null,
                 heard_about_us: heard_about_us || null,
                 enrollment_type,
+                payment_plan: payment_plan === 'instalment' ? 'instalment' : 'full',
                 status: 'pending',
                 created_at: new Date().toISOString(),
             }])
@@ -140,24 +234,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
         }
 
-        // If a program_id was passed, use its price from the DB (admin-controlled)
-        let amount = getFee(enrollment_type, preferred_schedule, course_interest);
-        if (program_id) {
-            const { data: prog } = await supabase
-                .from('programs')
-                .select('price')
-                .eq('id', program_id)
-                .single();
-            if (prog?.price && Number(prog.price) > 0) {
-                amount = Number(prog.price);
-            }
-        }
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 
         // 2. Create pending payment transaction record
         await supabase.from('payment_transactions').insert([{
             portal_user_id: null,
+            school_id: resolvedSchoolId,
             course_id: null,
             amount,
             currency: 'NGN',
@@ -169,6 +252,9 @@ export async function POST(req: Request) {
                 student_name: full_name,
                 enrollment_type,
                 parent_email,
+                school_name: school_name || null,
+                program_id: program_id || null,
+                program_name: programName,
                 payment_type: 'registration',
             },
             created_at: new Date().toISOString(),

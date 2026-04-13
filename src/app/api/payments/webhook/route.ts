@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import Stripe from 'stripe';
 import { env } from '@/config/env';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { AppError } from '@/lib/errors';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
         throw new AppError('SUPABASE_SERVICE_ROLE_KEY is required for payment webhooks', 500);
     }
 }
-import { createAdminClient } from '@/lib/supabase/admin';
-import { AppError } from '@/lib/errors';
 
 export async function POST(req: Request) {
     try {
@@ -143,16 +143,73 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
             console.error(`Registration payment missing student_id metadata: ${reference}`);
             return;
         }
-        // Registration fee paid — mark the student record so admin can see payment is confirmed
-            await supabase
-                .from('students')
-                .update({
-                    status: 'pending', // remains pending for admin approval, payment confirmed via payment_transactions
-                    registration_payment_at: new Date().toISOString(),
-                    registration_paystack_reference: method === 'paystack' ? reference : null,
+        await supabase
+            .from('students')
+            .update({
+                status: 'pending',
+                registration_payment_at: new Date().toISOString(),
+                registration_paystack_reference: method === 'paystack' ? reference : null,
+            })
+            .eq('id', studentId)
+            .eq('status', 'pending');
+
+        const { data: stud } = await supabase
+            .from('students')
+            .select('school_id, enrollment_type, full_name, name')
+            .eq('id', studentId)
+            .maybeSingle();
+
+        const { data: existingInv } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('payment_transaction_id', transaction.id)
+            .maybeSingle();
+
+        if (!existingInv) {
+            const enrollLabel = String(gatewayResponse?.enrollment_type || stud?.enrollment_type || 'Registration');
+            const progName = gatewayResponse?.program_name ? String(gatewayResponse.program_name) : '';
+            const displayName = String(stud?.full_name || stud?.name || gatewayResponse?.student_name || 'Student');
+            const rawRef = String(transaction.transaction_reference || transaction.id);
+            const invoiceNumber = `INV-REG-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
+
+            const { data: newInv, error: invErr } = await supabase
+                .from('invoices')
+                .insert({
+                    invoice_number: invoiceNumber,
+                    amount: Number(transaction.amount),
+                    currency: transaction.currency || 'NGN',
+                    status: 'paid',
+                    due_date: null,
+                    portal_user_id: null,
+                    school_id: stud?.school_id ?? transaction.school_id ?? null,
+                    payment_transaction_id: transaction.id,
+                    items: [
+                        {
+                            description: progName ? `${enrollLabel} — ${progName}` : `${enrollLabel} Registration Fee`,
+                            program_name: progName || null,
+                            enrollment_type: enrollLabel,
+                            unit_price: Number(transaction.amount),
+                            quantity: 1,
+                        },
+                    ],
+                    metadata: {
+                        registration_student_id: studentId,
+                        student_name: displayName,
+                        source: 'registration_webhook',
+                    },
                 })
-                .eq('id', studentId)
-                .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
+                .select('id')
+                .single();
+
+            if (invErr) {
+                console.error('Failed to create registration invoice:', invErr);
+            } else if (newInv?.id) {
+                await supabase
+                    .from('payment_transactions')
+                    .update({ invoice_id: newInv.id })
+                    .eq('id', transaction.id);
+            }
+        }
     } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
         const billingCycleId = gatewayResponse.billing_cycle_id as string;
         const { data: cycle } = await (supabase as any)
@@ -167,7 +224,8 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 status: 'paid',
                 updated_at: new Date().toISOString(),
             })
-            .eq('id', billingCycleId);
+            .eq('id', billingCycleId)
+            .neq('status', 'paid');
 
         if (cycle?.sticky_notice_id) {
             await (supabase as any)
@@ -197,14 +255,68 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
     
     try {
         const receiptUrl = await paymentsService.generateReceipt(transaction.id);
-        
-        // 5. Send automated receipt email (Mobile-Web Parity)
-        const portalUsers = (transaction as any).portal_users;
-        if (portalUsers?.email) {
-            await notificationsService.sendEmail(portalUsers.id, {
-                to: portalUsers.email,
-                subject: 'Payment Receipt: Rillcod Academy',
+
+        const adminTo = env.ADMIN_OPS_EMAIL?.trim();
+        if (
+            isRegistrationPayment &&
+            adminTo &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)
+        ) {
+            try {
+                const studName = String(gatewayResponse?.student_name || 'Student');
+                const amt = `${transaction.currency || 'NGN'} ${Number(transaction.amount).toLocaleString()}`;
+                await notificationsService.sendExternalEmail({
+                    to: adminTo,
+                    subject: `New registration payment — ${studName}`,
+                    fromName: 'Rillcod Academy',
+                    fromEmail: 'support@rillcod.com',
+                    html: `<div style="font-family:sans-serif;max-width:560px;padding:16px;">
+            <p><strong>Registration fee received</strong></p>
+            <p>Student: ${studName}<br/>Amount: ${amt}<br/>Reference: ${transaction.transaction_reference}</p>
+            <p style="color:#64748b;font-size:12px;">Internal ops notice (email).</p>
+          </div>`,
+                });
+            } catch (opsErr) {
+                console.error('Admin ops registration email failed:', opsErr);
+            }
+        }
+
+        const parentEmail =
+            typeof gatewayResponse?.parent_email === 'string'
+                ? gatewayResponse.parent_email.trim()
+                : '';
+
+        if (isRegistrationPayment && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+            await notificationsService.sendExternalEmail({
+                to: parentEmail,
+                subject: 'Registration Confirmed — Rillcod Academy',
+                fromName: 'Rillcod Academy',
+                fromEmail: 'support@rillcod.com',
                 html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+                        <h2 style="color: #4f46e5;">Payment Received</h2>
+                        <p>Thank you for your registration payment of <strong>${transaction.currency} ${Number(transaction.amount).toLocaleString()}</strong>.</p>
+                        <p style="color: #64748b; font-size: 12px;">Reference: ${transaction.transaction_reference}</p>
+                        <div style="margin: 30px 0;">
+                            <a href="${receiptUrl}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Download receipt (PDF)</a>
+                        </div>
+                        <p>Our team will review the application and follow up by email.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                        <p style="font-size: 10px; color: #94a3b8;">Rillcod Academy — STEM & Coding Education</p>
+                    </div>`,
+            });
+        } else if (transaction.portal_user_id) {
+            const { data: portalUsers } = await supabase
+                .from('portal_users')
+                .select('id, email, full_name')
+                .eq('id', transaction.portal_user_id)
+                .maybeSingle();
+
+            if (portalUsers?.email) {
+                await notificationsService.sendEmail(portalUsers.id, {
+                    to: portalUsers.email,
+                    subject: 'Payment Receipt: Rillcod Academy',
+                    html: `
                     <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
                         <h2 style="color: #4f46e5;">Payment Received!</h2>
                         <p>Hi ${portalUsers.full_name || 'Student'},</p>
@@ -217,8 +329,9 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
                         <p style="font-size: 10px; color: #94a3b8;">Rillcod Academy &bull; STEM & Coding Education</p>
                     </div>
-                `
-            });
+                `,
+                });
+            }
         }
     } catch (err) {
         console.error('Failed to generate automated receipt or notify user:', err);

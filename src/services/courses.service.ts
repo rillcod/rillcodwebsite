@@ -11,6 +11,7 @@ export interface CourseInput {
     duration_hours?: number;
     start_date?: string;
     end_date?: string;
+    /** Maps to `courses.is_active` — active courses must have a programme with a positive `price` for checkout. */
     is_published?: boolean;
 }
 
@@ -25,6 +26,38 @@ export interface CourseFilters {
 type CourseInsert = Database['public']['Tables']['courses']['Insert'];
 type CourseUpdate = Database['public']['Tables']['courses']['Update'];
 type EnrollmentInsert = Database['public']['Tables']['enrollments']['Insert'];
+
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+
+/** Active (“sellable”) courses must link to a programme with a positive price (Paystack checkout). */
+async function assertActiveCourseHasPricedProgram(
+    supabase: SupabaseServer,
+    programId: string | null | undefined,
+    isActive: boolean | null | undefined,
+) {
+    if (isActive !== true) return;
+    if (!programId) {
+        throw new AppError(
+            'An active course must be linked to a programme (program_id).',
+            400,
+            true,
+        );
+    }
+    const { data: prog, error } = await supabase
+        .from('programs')
+        .select('price, name')
+        .eq('id', programId)
+        .maybeSingle();
+    if (error || !prog) throw new NotFoundError('Program not found');
+    const price = Number(prog.price);
+    if (!Number.isFinite(price) || price <= 0) {
+        throw new AppError(
+            `Program "${prog.name ?? programId}" must have programs.price greater than zero for paid checkout. Set a price on the programme or save the course as a draft (unpublished).`,
+            400,
+            true,
+        );
+    }
+}
 
 export class CoursesService {
     async listCourses(filters: CourseFilters = {}) {
@@ -65,8 +98,13 @@ export class CoursesService {
             throw new AppError(`Failed to fetch courses: ${error.message}`, 500);
         }
 
+        const dataWithPublish = (data ?? []).map((row: any) => ({
+            ...row,
+            is_published: row.is_active === true,
+        }));
+
         const result = {
-            data,
+            data: dataWithPublish,
             metadata: {
                 total: count || 0,
                 page,
@@ -93,7 +131,7 @@ export class CoursesService {
             throw new NotFoundError('Course not found');
         }
 
-        return data;
+        return { ...data, is_published: data.is_active === true };
     }
 
     async createCourse(input: CourseInput, tenantId: string) {
@@ -115,16 +153,21 @@ export class CoursesService {
             throw new AppError('Program does not belong to your school', 403);
         }
 
+        const isActive = input.is_published !== false;
+        await assertActiveCourseHasPricedProgram(supabase, input.program_id, isActive);
+
+        const { is_published: _omit, ...inputRow } = input as CourseInput & { is_published?: boolean };
+        const insertRow: CourseInsert = {
+            ...(inputRow as CourseInsert),
+            school_id: tenantId,
+            is_active: isActive,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+
         const { data, error } = await supabase
             .from('courses')
-            .insert([
-                {
-                    ...(input as CourseInsert),
-                    school_id: tenantId,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }
-            ])
+            .insert([insertRow])
             .select()
             .single();
 
@@ -149,12 +192,33 @@ export class CoursesService {
             }
         }
 
+        const { data: current } = await supabase
+            .from('courses')
+            .select('program_id, is_active')
+            .eq('id', id)
+            .single();
+
+        const nextProgramId = input.program_id ?? current?.program_id ?? null;
+        let nextActive = current?.is_active ?? true;
+        if (input.is_published !== undefined) {
+            nextActive = input.is_published;
+        } else if ((input as CourseUpdate).is_active !== undefined) {
+            nextActive = (input as CourseUpdate).is_active as boolean;
+        }
+
+        await assertActiveCourseHasPricedProgram(supabase, nextProgramId, nextActive);
+
+        const patch: CourseUpdate = { ...(input as CourseUpdate), updated_at: new Date().toISOString() };
+        if (input.is_published !== undefined) {
+            patch.is_active = input.is_published;
+        }
+        delete (patch as Record<string, unknown>).is_published;
+        delete (patch as Record<string, unknown>).start_date;
+        delete (patch as Record<string, unknown>).end_date;
+
         const { data, error } = await supabase
             .from('courses')
-            .update({
-                ...(input as CourseUpdate),
-                updated_at: new Date().toISOString()
-            })
+            .update(patch)
             .eq('id', id)
             .select()
             .single();

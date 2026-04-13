@@ -43,6 +43,7 @@ type PaymentTransaction = {
   portal_user_id: string | null;
   course_id: string | null;
   invoice_id: string | null;
+  payment_gateway_response?: Record<string, unknown> | null;
   portal_users?: { full_name: string; email: string } | null;
   schools?: { name: string; rillcod_quota_percent: number | null } | null;
   courses?: { title: string } | null;
@@ -94,6 +95,14 @@ const BLANK: Omit<PaymentAccount, 'id' | 'schools'> = {
   account_number: '', account_name: '', account_type: 'savings',
   payment_note: '', is_active: true,
 };
+
+function formatLedgerCurrency(currency: string | null | undefined, amount: number): string {
+  const c = (currency || 'NGN').toUpperCase();
+  const n = Number(amount) || 0;
+  if (c === 'USD') return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (c === 'NGN') return `₦${n.toLocaleString('en-NG')}`;
+  return `${c} ${n.toLocaleString('en-US')}`;
+}
 
 function AccountCard({ account, onEdit, onDelete, canManage }: {
   account: PaymentAccount;
@@ -218,11 +227,16 @@ function buildSchoolInvHTML(p: {
   dateStr: string; dueStr: string; docRef: string;
   payToAcc?: { bank_name: string; account_number: string; account_name: string } | null;
   showRevenueShare: boolean; showWhatsapp: boolean; notes: string;
+  currency?: string;
 }): string {
   const { sch, isFixed, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit,
     rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef,
-    payToAcc, showRevenueShare, showWhatsapp, notes } = p;
-  const fmtNGN = (n: number) => `₦${n.toLocaleString('en-NG')}`;
+    payToAcc, showRevenueShare, showWhatsapp, notes, currency } = p;
+  const cur = (currency || 'NGN').toUpperCase();
+  const fmtNGN = (n: number) =>
+    cur === 'USD'
+      ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `₦${n.toLocaleString('en-NG')}`;
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>School Invoice — ${sch.name}</title>
 <style>
@@ -756,7 +770,7 @@ export default function PaymentsPage() {
     portal_users?: { full_name: string; email: string } | null;
     schools?: { name: string } | null;
   }[]>([]);
-  const [schools, setSchools] = useState<{ id: string; name: string; rillcod_quota_percent: number | null }[]>([]);
+  const [schools, setSchools] = useState<{ id: string; name: string; rillcod_quota_percent: number | null; commission_rate?: number | null }[]>([]);
   const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; email: string; school_id: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingTx, setLoadingTx] = useState(false);
@@ -798,6 +812,7 @@ export default function PaymentsPage() {
     rate_per_child: '',
     fixed_package_price: '',
     rillcod_quota_percent: '',
+    currency: 'NGN' as 'NGN' | 'USD',
     notes: '',
     due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
     deposit_amount: '',
@@ -840,7 +855,7 @@ export default function PaymentsPage() {
   async function loadTransactions() {
     setLoadingTx(true);
     const txBase = db.from('payment_transactions')
-      .select('*, portal_users(full_name, email), schools(name, rillcod_quota_percent), courses(title), receipts(receipt_number, pdf_url)')
+      .select('*, payment_gateway_response, portal_users(full_name, email), schools(name, rillcod_quota_percent), courses(title), receipts(receipt_number, pdf_url)')
       .order('created_at', { ascending: false });
     const { data, error: err } = await (
       isSchool && profile?.school_id
@@ -988,6 +1003,7 @@ export default function PaymentsPage() {
         rate_per_child: isFixed ? '' : String(mainItem.unit_price || ''),
         fixed_package_price: isFixed ? String(mainItem.unit_price || '') : '',
         rillcod_quota_percent: quota,
+        currency: inv.currency === 'USD' ? 'USD' : 'NGN',
         notes: inv.notes || '',
         due_date: inv.due_date?.split('T')[0] ?? '',
         deposit_amount: depositItem ? String(Math.abs(Number(depositItem.unit_price || 0))) : '',
@@ -1219,7 +1235,7 @@ export default function PaymentsPage() {
       : '—';
     const fmtNGN = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
-    const html = buildSchoolInvHTML({ sch: sch!, isFixed, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit, rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef, payToAcc, showRevenueShare: schoolInvForm.show_revenue_share, showWhatsapp: schoolInvForm.show_whatsapp_option, notes: schoolInvForm.notes || '' });
+    const html = buildSchoolInvHTML({ sch: sch!, isFixed, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit, rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef, payToAcc, showRevenueShare: schoolInvForm.show_revenue_share, showWhatsapp: schoolInvForm.show_whatsapp_option, notes: schoolInvForm.notes || '', currency: schoolInvForm.currency });
 
     const w = window.open('', '_blank', 'width=900,height=800');
     if (!w) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
@@ -1259,7 +1275,7 @@ export default function PaymentsPage() {
       
       const invPayload = {
         amount: balance,
-        currency: 'NGN',
+        currency: schoolInvForm.currency,
         status: 'sent' as const,
         due_date: dueISO,
         items: revenueShareOn ? [
@@ -1396,9 +1412,9 @@ export default function PaymentsPage() {
     loadStudents();
     loadReceipts();
     if (isAdmin) {
-      db.from('schools').select('id, name, rillcod_quota_percent').order('name')
+      db.from('schools').select('id, name, rillcod_quota_percent, commission_rate').order('name')
         .then(({ data }) => {
-          if (data) setSchools(data as { id: string; name: string; rillcod_quota_percent: number | null }[]);
+          if (data) setSchools(data as { id: string; name: string; rillcod_quota_percent: number | null; commission_rate?: number | null }[]);
         });
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
@@ -1489,6 +1505,7 @@ export default function PaymentsPage() {
       showRevenueShare: schoolInvForm.show_revenue_share,
       showWhatsapp: schoolInvForm.show_whatsapp_option,
       notes: schoolInvForm.notes || '',
+      currency: schoolInvForm.currency,
     });
   }, [schoolInvForm, schoolInvStudentCount, schools, accounts]);
 
@@ -1800,11 +1817,17 @@ export default function PaymentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {(() => {
                 const completed = transactions.filter(t => t.payment_status === 'completed' || t.payment_status === 'success');
-                const totalRevenue = completed.reduce((sum, t) => sum + t.amount, 0);
+                const byCur = completed.reduce<Record<string, number>>((acc, t) => {
+                  const c = (t.currency || 'NGN').toUpperCase();
+                  acc[c] = (acc[c] || 0) + (Number(t.amount) || 0);
+                  return acc;
+                }, {});
+                const curLines = Object.entries(byCur).sort(([a], [b]) => a.localeCompare(b));
                 const totalQuota = completed.reduce((sum, t) => {
                   const pct = t.schools?.rillcod_quota_percent || 0;
                   return sum + (t.amount * (Number(pct) / 100));
                 }, 0);
+                const totalRevenueNgn = byCur.NGN ?? 0;
 
                 return (
                   <>
@@ -1813,17 +1836,23 @@ export default function PaymentsPage() {
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Gross Revenue</p>
                         <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-400" />
                       </div>
-                      <p className="text-2xl font-black text-foreground">₦{totalRevenue.toLocaleString()}</p>
+                      <div className="space-y-1">
+                        {curLines.length === 0 ? (
+                          <p className="text-2xl font-black text-foreground">—</p>
+                        ) : curLines.map(([c, tot]) => (
+                          <p key={c} className="text-xl font-black text-foreground">{formatLedgerCurrency(c, tot)}</p>
+                        ))}
+                      </div>
                       <p className="text-[10px] text-muted-foreground mt-1">{completed.length} total payments</p>
                     </div>
                     {isAdmin && (
                       <div className="bg-primary/5 border border-primary/20 rounded-none p-6">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rillcod Quota</p>
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rillcod Quota (NGN est.)</p>
                           <ShieldCheckIcon className="w-4 h-4 text-primary" />
                         </div>
-                        <p className="text-2xl font-black text-foreground">₦{totalQuota.toLocaleString()}</p>
-                        <p className="text-[10px] text-primary/40 mt-1">Calculated from school split %</p>
+                        <p className="text-2xl font-black text-foreground">₦{totalQuota.toLocaleString('en-NG')}</p>
+                        <p className="text-[10px] text-primary/40 mt-1">From school split % on each tx (non-NGN not converted)</p>
                       </div>
                     )}
                     <div className="bg-card shadow-sm border border-border rounded-none p-6">
@@ -1837,11 +1866,11 @@ export default function PaymentsPage() {
                     {!isAdmin && (
                       <div className="bg-card shadow-sm border border-border rounded-none p-6">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">School Share</p>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">School Share (NGN est.)</p>
                           <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground" />
                         </div>
-                        <p className="text-2xl font-black text-foreground">₦{(totalRevenue - totalQuota).toLocaleString()}</p>
-                        <p className="text-[10px] text-muted-foreground/60 mt-1">Net after service fee</p>
+                        <p className="text-2xl font-black text-foreground">₦{Math.max(0, totalRevenueNgn - totalQuota).toLocaleString('en-NG')}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Net after service fee (NGN leg only)</p>
                       </div>
                     )}
                   </>
@@ -1897,16 +1926,25 @@ export default function PaymentsPage() {
                       ).map(t => {
                         const isSuccess = t.payment_status === 'completed' || t.payment_status === 'success';
                         const isPending = t.payment_status === 'pending';
+                        const gw = t.payment_gateway_response && typeof t.payment_gateway_response === 'object' && !Array.isArray(t.payment_gateway_response)
+                          ? t.payment_gateway_response as Record<string, unknown>
+                          : {};
+                        const enrollLbl = gw.payment_type === 'registration' && gw.enrollment_type
+                          ? String(gw.enrollment_type).replace(/_/g, ' ')
+                          : null;
                         return (
                           <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
                             <td className="px-6 py-4">
                               <p className="text-[13px] font-bold text-foreground group-hover:text-primary transition-colors">
-                                {t.portal_users?.full_name || 'Anonymous Student'}
+                                {t.portal_users?.full_name || (gw.payment_type === 'registration' ? (gw.student_name as string) || 'Public registration' : 'Anonymous Student')}
                               </p>
+                              {enrollLbl && (
+                                <p className="text-[9px] text-orange-500 font-black uppercase tracking-widest mt-0.5">{enrollLbl}</p>
+                              )}
                               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t.schools?.name || 'Individual'}</p>
                             </td>
                             <td className="px-6 py-4">
-                              <p className="text-sm font-black text-foreground tracking-tight">₦{t.amount.toLocaleString()}</p>
+                              <p className="text-sm font-black text-foreground tracking-tight">{formatLedgerCurrency(t.currency, t.amount)}</p>
                               <p className="text-[9px] text-muted-foreground font-mono">
                                 {t.receipts?.[0]?.receipt_number || t.transaction_reference}
                               </p>
@@ -2067,6 +2105,25 @@ export default function PaymentsPage() {
                     >
                       <option value="">— Choose school —</option>
                       {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    {schoolInvForm.school_id && (() => {
+                      const s = schools.find(x => x.id === schoolInvForm.school_id);
+                      return s?.commission_rate != null ? (
+                        <p className="text-[9px] text-muted-foreground mt-1.5 font-semibold">
+                          Billing commission (Rillcod retain): <span className="text-foreground font-black">{s.commission_rate}%</span> — used on term cycle rollups
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Invoice currency</label>
+                    <select
+                      value={schoolInvForm.currency}
+                      onChange={e => setSchoolInvForm(prev => ({ ...prev, currency: e.target.value as 'NGN' | 'USD' }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
+                    >
+                      <option value="NGN">NGN — Nigerian Naira</option>
+                      <option value="USD">USD — US Dollar</option>
                     </select>
                   </div>
                   <div>

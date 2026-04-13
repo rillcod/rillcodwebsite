@@ -24,6 +24,8 @@ const envSchema = z.object({
     WHATSAPP_API_TOKEN: z.string().optional(),
     MOBILE_APP_URL: z.string().optional(),
     BILLING_CRON_SECRET: z.string().optional(),
+    /** Comma-separated optional — internal ops alerts (email only; no Slack). */
+    ADMIN_OPS_EMAIL: z.string().optional(),
 
     // Zoom (Video Conferencing)
     ZOOM_ACCOUNT_ID: z.string().optional(),
