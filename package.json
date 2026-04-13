@@ -22,6 +22,7 @@
     "supabase:stop": "npx supabase stop",
     "supabase:status": "npx supabase status",
     "db:push": "npx supabase db push",
+    "db:push:yes": "npx supabase db push --yes",
     "db:pull": "npx supabase db pull",
     "db:reset": "npx supabase db reset",
     "db:diff": "npx supabase db diff",

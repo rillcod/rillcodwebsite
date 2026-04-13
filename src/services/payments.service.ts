@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
+import { paystackInitializeMinorUnits } from '@/lib/payments/paystack-amounts';
 import Stripe from 'stripe';
 import crypto from 'crypto';
 
@@ -107,43 +108,72 @@ export class PaymentsService {
     }
 
     // Task 20.2: Create Paystack integration
-    async createPaystackCheckout(userId: string, userEmail: string, amount: number, options: { courseId?: string, invoiceId?: string, tenantId?: string }) {
+    async createPaystackCheckout(
+        userId: string,
+        userEmail: string,
+        amount: number,
+        options: {
+            courseId?: string;
+            invoiceId?: string;
+            tenantId?: string;
+            /** Major-unit currency (NGN or USD); must match Paystack dashboard capabilities. */
+            currency?: string;
+        },
+    ) {
         if (!env.PAYSTACK_SECRET_KEY) {
             throw new AppError('Paystack configuration missing', 500);
         }
 
-        const { courseId, invoiceId, tenantId } = options;
+        const { courseId, invoiceId, tenantId, currency: currencyOpt } = options;
         const supabase = await createClient();
 
-        // Calculate amount with fees passed to user
-        const totalAmount = this.calculatePaystackTotal(amount);
+        let payCurrency: 'NGN' | 'USD';
+        let amountMinor: number;
+        let totalAmount: number;
+        try {
+            const minor = paystackInitializeMinorUnits(amount, currencyOpt, (net) => this.calculatePaystackTotal(net));
+            payCurrency = minor.currency;
+            amountMinor = minor.amountMinor;
+            totalAmount =
+                payCurrency === 'NGN'
+                    ? this.calculatePaystackTotal(amount)
+                    : Math.round(amount * 100) / 100;
+        } catch (e: any) {
+            throw new AppError(e?.message || 'Invalid currency for Paystack', 400, true);
+        }
 
         const reference = `PYS-${Date.now()}-${userId.substring(0, 5)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
         try {
+            const initBody: Record<string, unknown> = {
+                email: userEmail,
+                amount: amountMinor,
+                reference,
+                callback_url: invoiceId
+                    ? `${baseUrl}/dashboard/payments?payment=success&ref=${reference}`
+                    : `${baseUrl}/courses/${courseId}?payment=success`,
+                metadata: {
+                    userId,
+                    courseId,
+                    invoiceId,
+                    tenantId: tenantId || '',
+                    originalAmount: amount,
+                    paystackFees: totalAmount - amount,
+                    currency: payCurrency,
+                },
+            };
+            if (payCurrency !== 'NGN') {
+                initBody.currency = payCurrency;
+            }
+
             const response = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    email: userEmail,
-                    amount: Math.round(totalAmount * 100), // Paystack uses kobo
-                    reference,
-                    callback_url: invoiceId 
-                        ? `${baseUrl}/dashboard/payments?payment=success&ref=${reference}`
-                        : `${baseUrl}/courses/${courseId}?payment=success`,
-                    metadata: {
-                        userId,
-                        courseId,
-                        invoiceId,
-                        tenantId: tenantId || '',
-                        originalAmount: amount,
-                        paystackFees: totalAmount - amount
-                    }
-                })
+                body: JSON.stringify(initBody),
             });
 
             const paystackData = await response.json();
@@ -152,19 +182,18 @@ export class PaymentsService {
                 throw new Error(paystackData.message);
             }
 
-            // Store transaction
             await supabase.from('payment_transactions').insert([{
                 school_id: tenantId,
                 portal_user_id: userId,
                 course_id: courseId || null,
                 invoice_id: invoiceId || null,
                 amount: totalAmount,
-                currency: 'NGN',
+                currency: payCurrency,
                 payment_method: 'paystack',
                 payment_status: 'pending',
                 transaction_reference: reference,
                 external_transaction_id: paystackData.data.reference,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
             }]);
 
             return { url: paystackData.data.authorization_url, reference };

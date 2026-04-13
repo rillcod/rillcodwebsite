@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
+import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 
 // ── Partner school pricing (Young Innovators & Teen Developers are subsidised) ──
 const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
@@ -179,22 +180,23 @@ export async function POST(req: Request) {
         );
 
         if (payment_plan === 'instalment') {
-            if (!resolvedProgramId) {
-                return NextResponse.json(
-                    { error: 'Instalment plan requires a programme price (program_id or default_registration_program_id in app_settings)' },
-                    { status: 400 },
-                );
+            let instalmentsEnabled: boolean | null | undefined;
+            if (resolvedProgramId) {
+                const { data: progInst } = await supabase
+                    .from('programs')
+                    .select('instalments_enabled')
+                    .eq('id', resolvedProgramId)
+                    .maybeSingle();
+                instalmentsEnabled = progInst?.instalments_enabled;
             }
-            const { data: progInst } = await supabase
-                .from('programs')
-                .select('instalments_enabled')
-                .eq('id', resolvedProgramId)
-                .maybeSingle();
-            if (!progInst?.instalments_enabled) {
-                return NextResponse.json(
-                    { error: 'This programme does not support instalment payments' },
-                    { status: 400 },
-                );
+            try {
+                assertRegistrationInstalmentAllowed({
+                    payment_plan,
+                    resolvedProgramId,
+                    instalmentsEnabled,
+                });
+            } catch (e: any) {
+                return NextResponse.json({ error: e?.message || 'Invalid instalment selection' }, { status: 400 });
             }
         }
 

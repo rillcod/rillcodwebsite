@@ -80,6 +80,18 @@ type ReceiptMeta = {
   deposit_account?: { bank_name: string; account_number: string; account_name: string } | null;
 };
 
+type BillingHealthPayload = {
+  admin_ops_email_configured: boolean;
+  default_registration_program_id: {
+    set: boolean;
+    valid_uuid: boolean;
+    programme_exists: boolean;
+  };
+  programs_with_instalments_enabled: number;
+  active_courses_without_priced_programme: number;
+  hints: string[];
+};
+
 const NIGERIAN_BANKS = [
   'Access Bank', 'Citibank Nigeria', 'Ecobank Nigeria', 'Fidelity Bank',
   'First Bank of Nigeria', 'First City Monument Bank (FCMB)', 'Guaranty Trust Bank (GTB)',
@@ -778,6 +790,9 @@ export default function PaymentsPage() {
   const [searchTx, setSearchTx] = useState('');
   const [searchInv, setSearchInv] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [billingHealth, setBillingHealth] = useState<BillingHealthPayload | null>(null);
+  const [billingHealthLoading, setBillingHealthLoading] = useState(false);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [viewDoc, setViewDoc] = useState<{ type: 'invoice' | 'receipt', data: any } | null>(null);
@@ -912,6 +927,41 @@ export default function PaymentsPage() {
     if (res.ok) {
       const json = await res.json();
       setSavedReceipts(json.data ?? []);
+    }
+  }
+
+  async function loadBillingHealthCheck() {
+    setBillingHealthLoading(true);
+    setBillingHealth(null);
+    try {
+      const res = await fetch('/api/admin/billing-health');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Billing health check failed');
+      setBillingHealth(json as BillingHealthPayload);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Billing health check failed');
+    } finally {
+      setBillingHealthLoading(false);
+    }
+  }
+
+  async function sendAdminTestEmails() {
+    if (!confirm('Send two test emails (ausiat1@gmail.com + rillcod@gmail.com) via SendPulse?')) return;
+    setTestEmailLoading(true);
+    try {
+      const res = await fetch('/api/admin/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : JSON.stringify(json.error) || 'Test email failed');
+      const list = (json.sent as { to: string; subject: string }[] | undefined)?.map((s) => `${s.to}: ${s.subject}`).join('\n');
+      alert(list ? `Sent:\n${list}` : 'Sent.');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Test email failed');
+    } finally {
+      setTestEmailLoading(false);
     }
   }
 
@@ -1581,6 +1631,96 @@ export default function PaymentsPage() {
         )}
 
         <BillingStickyNotices />
+
+        {isAdmin && (
+          <section className="rounded-none border border-border bg-card/40 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Billing ops health</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                  Verifies production setup: ops email, default registration programme, instalment flags, and courses that would fail Paystack checkout.
+                  Configure keys in{' '}
+                  <Link href="/dashboard/settings" className="text-primary underline font-semibold">Settings</Link>
+                  {' '}(<code className="text-[10px]">app_settings</code>) and your host env (e.g. Vercel).
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Test mail: <code className="text-[10px]">ausiat1@gmail.com</code> (check) and <code className="text-[10px]">rillcod@gmail.com</code> (feedback/pay copy). Uses SendPulse + <code className="text-[10px]">support@rillcod.com</code> as sender.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={billingHealthLoading}
+                  onClick={() => void loadBillingHealthCheck()}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 border border-border text-[10px] font-black uppercase tracking-widest rounded-none disabled:opacity-50"
+                >
+                  {billingHealthLoading ? (
+                    <>
+                      <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Checking…
+                    </>
+                  ) : (
+                    <>
+                      <InformationCircleIcon className="w-3.5 h-3.5" /> Run check
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  disabled={testEmailLoading}
+                  onClick={() => void sendAdminTestEmails()}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary/15 hover:bg-primary/25 border border-primary/30 text-[10px] font-black uppercase tracking-widest text-primary rounded-none disabled:opacity-50"
+                >
+                  {testEmailLoading ? (
+                    <>
+                      <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Sending…
+                    </>
+                  ) : (
+                    <>
+                      <EnvelopeIcon className="w-3.5 h-3.5" /> Send test emails
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            {billingHealth && (
+              <div className="grid gap-3 sm:grid-cols-2 text-xs border-t border-border pt-3">
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground">ADMIN_OPS_EMAIL</p>
+                  <p className={billingHealth.admin_ops_email_configured ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                    {billingHealth.admin_ops_email_configured ? 'Configured' : 'Missing or invalid on server'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground">default_registration_program_id</p>
+                  <p className="text-muted-foreground">
+                    {billingHealth.default_registration_program_id.set
+                      ? billingHealth.default_registration_program_id.programme_exists
+                        ? 'Set and programme exists'
+                        : billingHealth.default_registration_program_id.valid_uuid
+                          ? 'UUID set but programme not found'
+                          : 'Value present but not a valid UUID'
+                      : 'Not set (optional if form always sends program_id)'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground">Programmes with instalments on</p>
+                  <p className="text-muted-foreground">{billingHealth.programs_with_instalments_enabled}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground">Active courses without priced programme</p>
+                  <p className={billingHealth.active_courses_without_priced_programme === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                    {billingHealth.active_courses_without_priced_programme}
+                  </p>
+                </div>
+                <ul className="sm:col-span-2 list-disc pl-4 space-y-1 text-muted-foreground">
+                  {billingHealth.hints.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
 
         {view === 'accounts' ? (
           <>
