@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
-import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/route';
+import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com';
 
