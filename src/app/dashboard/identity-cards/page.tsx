@@ -293,7 +293,7 @@ export default function IdentityCardsPage() {
               >
                 <CreditCardIcon className="w-4 h-4" /> Issuance
               </button>
-              <button onClick={() => { loadConfig(); loadRecords(activeType); }} className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2">
+              <button onClick={() => { loadConfig(activeType); loadRecords(activeType); }} className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2">
                 <ArrowPathIcon className="w-4 h-4" /> Refresh
               </button>
             </div>
