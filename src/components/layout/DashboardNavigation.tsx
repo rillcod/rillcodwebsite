@@ -215,6 +215,10 @@ export default function DashboardNavigation() {
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { name: 'Certificate Vault', href: '/dashboard/certificates', icon: TrophyIcon },
           { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'My Access Card', href: '/dashboard/my-card', icon: CreditCardIcon },
+          ...(['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
+            ? [{ name: 'My Payments', href: '/dashboard/my-payments', icon: BanknotesIcon }]
+            : []),
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -257,6 +261,7 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Grades', href: '/dashboard/parent-grades', icon: ClipboardDocumentListIcon },
           { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
+          { name: "Children's Access Cards", href: '/dashboard/parent-card', icon: CreditCardIcon },
           { divider: true, label: 'Finance' },
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
           { divider: true, label: 'Community' },
@@ -279,7 +284,9 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
   const BOTTOM_NAV_NAMES = new Set(
     profile?.role === 'student'
-      ? ['Dashboard', 'Learning Center', 'Code Playground', 'My Report Card', 'Messages']
+      ? ['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
+        ? ['Dashboard', 'Learning Center', 'My Payments', 'My Report Card', 'Messages']
+        : ['Dashboard', 'Learning Center', 'My Report Card', 'Messages']
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
         : profile?.role === 'admin'
@@ -458,6 +465,8 @@ export default function DashboardNavigation() {
             name === 'My Courses' ? 'Courses' :
             name === 'My Classes' ? 'Classes' :
             name === 'My Report Card' ? 'Report' :
+            name === 'My Access Card' ? 'My Card' :
+            name === 'My Payments' ? 'Payments' :
             name === 'Code Playground' ? 'Code' :
             name === 'Progress Reports' ? 'Reports' :
             name === 'Student Reports' ? 'Reports' :

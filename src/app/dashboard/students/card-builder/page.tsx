@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
-  CheckCircleIcon, EyeIcon, ArrowUpIcon, ArrowDownIcon, TrashIcon,
+  CheckCircleIcon, EyeIcon, ArrowUpIcon, ArrowDownIcon,
+  MagnifyingGlassIcon,
 } from '@/lib/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,6 +34,11 @@ interface CardConfig {
   cardLabel: string;
   footerLeft: string;
   footerRight: string;
+  cornerRadius: 'sharp' | 'rounded' | 'pill';
+  bgColor: string;
+  showLogo: boolean;
+  showPhotoSlot: boolean;
+  cardOrientation: 'portrait' | 'landscape';
   fields: FieldConfig[];
   typo: {
     orgName:    TypoStyle;
@@ -75,6 +81,11 @@ const DEFAULT_CONFIG: CardConfig = {
   cardLabel: 'Student Access Card',
   footerLeft: 'rillcod.com/login',
   footerRight: 'Student ID',
+  cornerRadius: 'sharp',
+  bgColor: '#ffffff',
+  showLogo: true,
+  showPhotoSlot: false,
+  cardOrientation: 'portrait',
   fields: DEFAULT_FIELDS,
   typo: DEFAULT_TYPO,
 };
@@ -168,15 +179,54 @@ const TEMPLATES: { name: string; description: string; config: Partial<CardConfig
   },
 ];
 
+// ─── Extra Templates ──────────────────────────────────────────────────────────
+
+TEMPLATES.push(
+  {
+    name: 'Royal Blue',
+    description: 'Deep navy header — formal and academic',
+    config: { accentColor: '#1d4ed8', headerStyle: 'band', fields: DEFAULT_FIELDS },
+  },
+  {
+    name: 'Rose Gold',
+    description: 'Warm rose accent — modern and distinctive',
+    config: { accentColor: '#e11d48', headerStyle: 'band', fields: DEFAULT_FIELDS },
+  },
+  {
+    name: 'Government Green',
+    description: 'Deep green — official and authoritative',
+    config: { accentColor: '#15803d', headerStyle: 'band', fields: DEFAULT_FIELDS },
+  },
+  {
+    name: 'Dark Pro',
+    description: 'Slate header — premium dark look',
+    config: { accentColor: '#1e293b', headerStyle: 'band', fields: DEFAULT_FIELDS },
+  },
+  {
+    name: 'Teal Academic',
+    description: 'Teal side border — clean and fresh',
+    config: { accentColor: '#0f766e', headerStyle: 'border', fields: DEFAULT_FIELDS },
+  },
+  {
+    name: 'Violet Pro',
+    description: 'Deep violet band — tech and innovation feel',
+    config: { accentColor: '#7c3aed', headerStyle: 'band', fields: DEFAULT_FIELDS },
+  },
+);
+
 const PRESET_COLORS = [
   { label: 'Orange',  value: '#ea580c' },
   { label: 'Indigo',  value: '#4f46e5' },
   { label: 'Emerald', value: '#059669' },
   { label: 'Rose',    value: '#e11d48' },
-  { label: 'Slate',   value: '#334155' },
+  { label: 'Slate',   value: '#1e293b' },
   { label: 'Amber',   value: '#d97706' },
   { label: 'Violet',  value: '#7c3aed' },
   { label: 'Teal',    value: '#0f766e' },
+  { label: 'Navy',    value: '#1d4ed8' },
+  { label: 'Green',   value: '#15803d' },
+  { label: 'Crimson', value: '#b91c1c' },
+  { label: 'Gold',    value: '#b45309' },
 ];
 
 const SAMPLE = {
@@ -305,12 +355,25 @@ function CardPreview({ cfg }: { cfg: CardConfig }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+interface RealStudent {
+  id: string;
+  full_name: string;
+  email: string | null;
+  school_name: string | null;
+  section_class: string | null;
+}
+
 export default function CardBuilderPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'templates' | 'design' | 'fields' | 'text' | 'typography'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'design' | 'fields' | 'text' | 'typography' | 'generate'>('templates');
+  // Generate tab state
+  const [students, setStudents] = useState<RealStudent[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const applyRolePreset = (base: CardConfig, roleType: string | null): CardConfig => {
     if (roleType !== 'student' && roleType !== 'parent' && roleType !== 'teacher') return base;
@@ -353,6 +416,8 @@ export default function CardBuilderPage() {
     );
   }
 
+  const cardType = (searchParams.get('type') || 'student').toLowerCase();
+
   if (profile.role !== 'admin' && profile.role !== 'teacher') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -360,6 +425,109 @@ export default function CardBuilderPage() {
       </div>
     );
   }
+
+  // Teacher cards are admin-only
+  if (cardType === 'teacher' && profile.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
+        <CreditCardIcon className="w-16 h-16 text-rose-500/30" />
+        <p className="text-lg font-black text-foreground">Admin Only</p>
+        <p className="text-muted-foreground text-sm text-center max-w-sm">Teacher access card design is restricted to administrators. Contact your admin to update the teacher card template.</p>
+      </div>
+    );
+  }
+
+  const loadStudents = () => {
+    if (students.length > 0) return;
+    setStudentsLoading(true);
+    fetch('/api/portal-users?role=student&scoped=true')
+      .then(r => r.json())
+      .then(j => setStudents((j.data ?? []).map((s: any) => ({
+        id: s.id,
+        full_name: s.full_name,
+        email: s.email ?? null,
+        school_name: s.school_name ?? null,
+        section_class: s.section_class ?? null,
+      }))))
+      .catch(() => {})
+      .finally(() => setStudentsLoading(false));
+  };
+
+  const toggleStudent = (id: string) =>
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const printStudentCards = (list: RealStudent[]) => {
+    if (!list.length) return;
+    const acc = cfg.accentColor;
+    const logo = `${window.location.origin}/images/logo.png`;
+    const hStyle = cfg.headerStyle;
+    const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
+
+    const cardHtml = (s: RealStudent) => {
+      const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/verify/${s.id}`)}`;
+      const hdrClass = hStyle === 'border' ? 'hdr-border' : hStyle === 'minimal' ? 'hdr-min' : 'hdr-band';
+      const fieldRows = [
+        vis('school') && s.school_name ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='school')?.label||'School'}</div><div class="val-a">${s.school_name}</div></div>` : '',
+        vis('className') && s.section_class ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='className')?.label||'Class'}</div><div class="val">${s.section_class}</div></div>` : '',
+        vis('email') && s.email ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='email')?.label||'Email'}</div><div class="val">${s.email}</div></div>` : '',
+        vis('studentId') ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='studentId')?.label||'Student ID'}</div><div class="val-a">${code}</div></div>` : '',
+      ].filter(Boolean).join('');
+
+      return `<div class="card">
+        <div class="${hdrClass}">
+          ${cfg.showLogo ? `<img class="logo" src="${logo}" />` : ''}
+          <div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div>
+          <div class="cbadge">${cfg.cardLabel}</div>
+        </div>
+        <div class="body">
+          <div class="left">
+            ${s.school_name ? `<div class="school">${s.school_name}</div>` : ''}
+            <div class="name">${s.full_name}</div>
+            ${fieldRows}
+          </div>
+          ${vis('qr') ? `<div class="right"><img class="qr" src="${qrUrl}" /><div class="code">${code}</div></div>` : ''}
+        </div>
+        <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div>
+      </div>`;
+    };
+
+    const html = `<!doctype html><html><head><title>Student Access Cards</title>
+    <style>
+      @page { size: A4 portrait; margin: 8mm; }
+      * { box-sizing:border-box; }
+      body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
+      .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8mm; }
+      .card { width:100%; min-height:62mm; border:1px solid #e5e7eb; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor||'#fff'}; }
+      .hdr-band { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
+      .hdr-border { border-left:2.5mm solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
+      .hdr-min { border-bottom:1px solid #e5e7eb; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
+      .logo { width:5mm; height:5mm; object-fit:contain; }
+      .org { font-weight:900; font-size:2.5mm; text-transform:uppercase; line-height:1; }
+      .web { font-size:1.8mm; opacity:.8; margin-top:.5mm; }
+      .cbadge { margin-left:auto; background:rgba(0,0,0,0.22); color:#fff; padding:.5mm 1.5mm; font-size:1.6mm; font-weight:900; text-transform:uppercase; }
+      .body { display:flex; flex:1; }
+      .left { flex:1; padding:2.5mm 3mm; border-right:1px solid #f3f4f6; }
+      .school { color:${acc}; font-size:1.8mm; font-weight:900; text-transform:uppercase; }
+      .name { font-size:4mm; font-weight:900; margin:.8mm 0 1.2mm; text-transform:uppercase; line-height:1.2; }
+      .row { margin:.6mm 0; }
+      .lbl { color:#9ca3af; font-size:1.5mm; text-transform:uppercase; }
+      .val { font-size:2mm; font-weight:700; }
+      .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${acc}; }
+      .right { width:22mm; background:#fafafa; padding:2mm; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1mm; }
+      .qr { width:15mm; height:15mm; border:1px solid #e5e7eb; }
+      .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; }
+      .ftr { border-top:1px solid #f3f4f6; background:#fafafa; color:#6b7280; display:flex; justify-content:space-between; padding:1.2mm 3mm; font-size:1.5mm; }
+      @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    </style></head><body>
+    <div class="grid">${list.map(s => cardHtml(s)).join('')}</div>
+    <script>window.onload=()=>{window.print(); setTimeout(()=>window.close(),500);};</script>
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
+    win.document.write(html); win.document.close();
+  };
 
   const update = (patch: Partial<CardConfig>) => setCfg(prev => ({ ...prev, ...patch }));
 
@@ -685,6 +853,7 @@ export default function CardBuilderPage() {
     { key: 'fields',     label: 'Fields'     },
     { key: 'text',       label: 'Text'       },
     { key: 'typography', label: 'Typography' },
+    { key: 'generate',   label: 'Generate'   },
   ] as const;
 
   return (
@@ -723,17 +892,17 @@ export default function CardBuilderPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+        <div className={`grid gap-8 ${activeTab === 'generate' ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[1fr_380px]'}`}>
 
           {/* ── Config Panel ──────────────────────────────────────────── */}
           <div>
-            {/* Tab bar */}
-            <div className="flex bg-card border border-border mb-6 w-fit">
+            {/* Tab bar — scrollable on mobile */}
+            <div className="flex bg-card border border-border mb-6 overflow-x-auto">
               {tabs.map(t => (
                 <button
                   key={t.key}
-                  onClick={() => setActiveTab(t.key)}
-                  className={`px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${activeTab === t.key ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => { setActiveTab(t.key); if (t.key === 'generate') loadStudents(); }}
+                  className={`px-4 sm:px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all flex-shrink-0 ${activeTab === t.key ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {t.label}
                 </button>
@@ -839,6 +1008,72 @@ export default function CardBuilderPage() {
                       className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50"
                     />
                   </div>
+                </div>
+
+                {/* Card Shape */}
+                <div className="bg-card border border-border p-5">
+                  <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-4">Card Corners</h2>
+                  <div className="grid grid-cols-3 gap-3">
+                    {([
+                      { value: 'sharp',   label: 'Sharp',   desc: 'No radius — crisp, formal' },
+                      { value: 'rounded', label: 'Rounded', desc: 'Soft corners — modern' },
+                      { value: 'pill',    label: 'Pill',    desc: 'Heavy radius — casual' },
+                    ] as const).map(s => (
+                      <button key={s.value} onClick={() => update({ cornerRadius: s.value })}
+                        className={`p-3 border text-left transition-all ${cfg.cornerRadius === s.value ? 'border-orange-500 bg-orange-500/5' : 'border-border hover:border-border/60'}`}>
+                        <div className={`w-full h-6 mb-2 bg-card border border-border ${s.value === 'rounded' ? 'rounded-md' : s.value === 'pill' ? 'rounded-xl' : ''}`} />
+                        <div className="text-[9px] font-black uppercase tracking-widest text-foreground">{s.label}</div>
+                        <div className="text-[8px] text-muted-foreground mt-0.5">{s.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Card Background */}
+                <div className="bg-card border border-border p-5">
+                  <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-4">Card Background</h2>
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {[
+                      { label: 'White',     value: '#ffffff' },
+                      { label: 'Off-White', value: '#f9fafb' },
+                      { label: 'Light',     value: '#f3f4f6' },
+                      { label: 'Cream',     value: '#fffbeb' },
+                    ].map(c => (
+                      <button key={c.value} onClick={() => update({ bgColor: c.value })}
+                        style={{ background: c.value }}
+                        className={`h-9 border text-[8px] font-bold text-gray-700 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-orange-500 ring-offset-1' : 'border-gray-200 hover:border-orange-400'}`}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Custom</label>
+                    <input type="color" value={cfg.bgColor} onChange={e => update({ bgColor: e.target.value })}
+                      className="w-10 h-9 cursor-pointer border border-border bg-transparent p-0" />
+                    <input type="text" value={cfg.bgColor}
+                      onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ bgColor: e.target.value })}
+                      className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50" />
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="bg-card border border-border p-5 space-y-4">
+                  <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">Card Options</h2>
+                  {([
+                    { key: 'showLogo',     label: 'Show Logo Placeholder', desc: 'Displays school logo space in the header' },
+                    { key: 'showPhotoSlot', label: 'Show Photo Slot', desc: 'Adds a student photo placeholder on the card' },
+                  ] as { key: keyof CardConfig; label: string; desc: string }[]).map(opt => (
+                    <label key={opt.key} className="flex items-start gap-3 cursor-pointer">
+                      <div onClick={() => update({ [opt.key]: !(cfg as any)[opt.key] })}
+                        className={`w-10 h-5 rounded-full flex-shrink-0 transition-all relative mt-0.5 ${(cfg as any)[opt.key] ? 'bg-orange-600' : 'bg-muted'}`}>
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${(cfg as any)[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-foreground">{opt.label}</div>
+                        <div className="text-[9px] text-muted-foreground mt-0.5">{opt.desc}</div>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               </div>
             )}
@@ -1001,9 +1236,97 @@ export default function CardBuilderPage() {
                 ))}
               </div>
             )}
+
+            {/* ── Generate Tab ── */}
+            {activeTab === 'generate' && (
+              <div className="space-y-5">
+                {/* Header */}
+                <div className="bg-card border border-border p-5">
+                  <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Generate Real Cards</h2>
+                  <p className="text-[9px] text-muted-foreground mb-4">Select students and print or download their actual access cards using the current design.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => { loadStudents(); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest transition-all">
+                      {studentsLoading ? <ArrowDownTrayIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                      {studentsLoading ? 'Loading…' : 'Load Students'}
+                    </button>
+                    {selectedIds.size > 0 && (
+                      <>
+                        <button onClick={() => printStudentCards(students.filter(s => selectedIds.has(s.id)))}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest transition-all">
+                          <PrinterIcon className="w-3.5 h-3.5" />
+                          Print {selectedIds.size} Card{selectedIds.size > 1 ? 's' : ''}
+                        </button>
+                        <button onClick={() => setSelectedIds(new Set())}
+                          className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground text-[9px] font-black uppercase tracking-widest transition-all">
+                          Clear
+                        </button>
+                      </>
+                    )}
+                    {students.length > 0 && (
+                      <button onClick={() => setSelectedIds(new Set(students.map(s => s.id)))}
+                        className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground text-[9px] font-black uppercase tracking-widest transition-all">
+                        Select All ({students.length})
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search */}
+                {students.length > 0 && (
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                      placeholder="Search students by name, email, school, class…"
+                      className="w-full pl-9 pr-4 py-2.5 bg-card border border-border text-foreground text-xs placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 font-mono" />
+                  </div>
+                )}
+
+                {/* Student list */}
+                {studentsLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : students.length > 0 ? (
+                  <div className="bg-card border border-border">
+                    <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
+                      {students
+                        .filter(s => !studentSearch || [s.full_name, s.email, s.school_name, s.section_class].some(v => v?.toLowerCase().includes(studentSearch.toLowerCase())))
+                        .map(s => {
+                          const selected = selectedIds.has(s.id);
+                          const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
+                          return (
+                            <div key={s.id} onClick={() => toggleStudent(s.id)}
+                              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${selected ? 'bg-orange-500/5 border-l-2 border-l-orange-500' : 'hover:bg-muted/40'}`}>
+                              <div className={`w-5 h-5 border flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'bg-orange-600 border-orange-600' : 'border-border'}`}>
+                                {selected && <span className="text-white text-[10px]">✓</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-foreground truncate">{s.full_name}</p>
+                                <p className="text-[9px] text-muted-foreground truncate">{s.email || '—'} {s.section_class ? `· ${s.section_class}` : ''}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[9px] font-mono font-bold text-orange-400">{code}</p>
+                                {s.school_name && <p className="text-[8px] text-muted-foreground truncate max-w-[100px]">{s.school_name}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Bulk Register link */}
+                <div className="bg-blue-500/[0.06] border border-blue-500/20 p-4 text-xs text-blue-300/80">
+                  <p className="font-bold text-blue-300 mb-0.5">Tip: Bulk Register &amp; Print</p>
+                  <p>After bulk-registering students, come back here and use <strong>Load Students</strong> to immediately generate their access cards.</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ── Live Preview ──────────────────────────────────────────── */}
+          {/* ── Live Preview (hidden on generate tab on mobile) ──────── */}
+          {activeTab !== 'generate' && (
           <div className="lg:sticky lg:top-6 self-start">
             <div className="bg-card border border-border p-5">
               <div className="flex items-center gap-2 mb-5">
@@ -1011,7 +1334,9 @@ export default function CardBuilderPage() {
                 <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Live Preview</h2>
                 <span className="text-[9px] text-muted-foreground ml-auto italic">Sample data</span>
               </div>
-              <CardPreview cfg={cfg} />
+              <div className="overflow-x-auto">
+                <CardPreview cfg={cfg} />
+              </div>
               <div className="mt-4 pt-4 border-t border-border space-y-2">
                 <p className="text-[9px] text-muted-foreground leading-relaxed">
                   Click <strong className="text-foreground">Save Design</strong> to apply this design globally. All access card prints (Students page, Bulk Register) will use this layout.
@@ -1033,6 +1358,7 @@ export default function CardBuilderPage() {
               </div>
             </div>
           </div>
+          )}
 
         </div>
       </div>

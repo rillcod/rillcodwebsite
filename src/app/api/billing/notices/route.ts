@@ -20,11 +20,11 @@ export async function GET() {
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = createAdminClient();
-  let query = db
+  let query = (db as any)
     .from('billing_notices')
     .select('*')
     .eq('is_resolved', false)
-    .order('created_at', { ascending: false }) as any;
+    .order('created_at', { ascending: false });
 
   if (caller.role !== 'admin') {
     query = query.or(`owner_user_id.eq.${caller.id},owner_school_id.eq.${caller.school_id ?? ''}`) as any;

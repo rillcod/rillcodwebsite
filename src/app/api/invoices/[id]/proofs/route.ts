@@ -145,3 +145,77 @@ export async function POST(
 
   return NextResponse.json({ success: true, data: { ...data, signed_url: signedUrl } });
 }
+
+// PATCH /api/invoices/[id]/proofs — admin reviews a proof (approve / reject / request_more)
+// Body: { proof_id: string; action: 'approved' | 'rejected' | 'request_more'; admin_note?: string }
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await getUser();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['admin', 'school', 'teacher'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Staff only' }, { status: 403 });
+  }
+
+  const { id: invoiceId } = await params;
+  const body = await req.json().catch(() => ({}));
+  const { proof_id, action, admin_note } = body as { proof_id: string; action: string; admin_note?: string };
+
+  if (!proof_id || !action) {
+    return NextResponse.json({ error: 'proof_id and action are required' }, { status: 400 });
+  }
+
+  if (!['approved', 'rejected', 'request_more'].includes(action)) {
+    return NextResponse.json({ error: 'Invalid action. Use: approved | rejected | request_more' }, { status: 400 });
+  }
+
+  const admin = adminClient();
+
+  const { data, error } = await admin
+    .from('invoice_payment_proofs')
+    .update({
+      status: action,
+      admin_note: admin_note ?? null,
+      reviewed_by: caller.id,
+      reviewed_at: new Date().toISOString(),
+    } as any)
+    .eq('id', proof_id)
+    .eq('invoice_id', invoiceId)
+    .select('id, status, admin_note')
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // If approved → mark invoice as paid
+  if (action === 'approved') {
+    await admin
+      .from('invoices')
+      .update({ status: 'paid', updated_at: new Date().toISOString() } as any)
+      .eq('id', invoiceId);
+  }
+
+  // Notify the submitter
+  const { data: proof } = await admin
+    .from('invoice_payment_proofs')
+    .select('submitted_by, portal_users!invoice_payment_proofs_submitted_by_fkey(id, email, full_name)')
+    .eq('id', proof_id)
+    .single();
+
+  const submitter = (proof as any)?.portal_users;
+  if (submitter?.email) {
+    const actionLabel = action === 'approved' ? 'approved ✓' : action === 'rejected' ? 'rejected' : 'flagged for more info';
+    const msgHtml = `<p>Hello ${submitter.full_name},</p><p>Your payment proof for invoice <strong>${invoiceId}</strong> has been <strong>${actionLabel}</strong> by our team.</p>${admin_note ? `<p><strong>Note from reviewer:</strong> ${admin_note}</p>` : ''}<p>Log in to your dashboard for more details.</p>`;
+    try {
+      await (await import('@/services/notifications.service')).notificationsService.sendEmail(submitter.id, {
+        to: submitter.email,
+        subject: `Your payment proof has been ${actionLabel}`,
+        html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">${msgHtml}</div>`,
+        fromName: 'Rillcod Technologies',
+        fromEmail: 'support@rillcod.com',
+      });
+    } catch { /* non-critical */ }
+  }
+
+  return NextResponse.json({ success: true, data });
+}
