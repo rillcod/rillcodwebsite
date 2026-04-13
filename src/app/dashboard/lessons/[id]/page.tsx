@@ -51,7 +51,7 @@ function VisualizerBlock({ block }: { block: any }) {
           <p className="text-[10px] font-black text-cyan-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
         </div>
       )}
-      <div className="bg-[#0a0a0a] border border-white/5 overflow-hidden">
+      <div className="bg-card border border-border overflow-hidden">
         <CodeVisualizer
           visualizationType={block.visualType || 'sorting'}
           codeData={codeData}
@@ -234,7 +234,7 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
               </span>
             ))}
         </div>
-        <button onClick={copyAll} className="text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white/70 transition-colors flex items-center gap-1">
+        <button onClick={copyAll} className="text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
           {copied ? '✓ Copied!' : '⧉ Copy blocks'}
         </button>
       </div>
@@ -245,7 +245,7 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
           <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2">
             🚩 Step-by-Step Guide
           </p>
-          <p className="text-sm text-white/70 leading-relaxed whitespace-pre-line">{instructions}</p>
+          <p className="text-sm text-foreground/70 leading-relaxed whitespace-pre-line">{instructions}</p>
         </div>
       )}
     </div>
@@ -351,7 +351,7 @@ function MermaidRenderer({ code }: { code: string }) {
             <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Oops! A Tiny Snag</p>
             <p className="text-sm font-bold text-muted-foreground">The visual map is taking a quick nap. Refresh to wake it up!</p>
           </div>
-          <pre className="mt-4 w-full p-6 bg-black/40 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
+          <pre className="mt-4 w-full p-6 bg-card/80 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
             {code}
           </pre>
           <p className="text-[10px] text-rose-400/40 font-black uppercase tracking-widest">Double check the blocks or hit refresh to see the path!</p>
@@ -531,7 +531,7 @@ function D3ChartRenderer({ type, dataset, labels }: { type: string; dataset: any
   };
 
   return (
-    <div className="p-5 bg-[#08081A] border border-white/5 rounded-none overflow-hidden">
+    <div className="p-5 bg-card border border-border rounded-none overflow-hidden">
       <svg ref={containerRef} className="w-full h-auto" style={{ maxHeight: 340 }} />
     </div>
   );
@@ -552,7 +552,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
   const effectiveLabels = labels.length > 0 ? labels : Array.from({ length: Math.min(nodeCount, 7) }, (_, i) => `Step ${i + 1}`);
 
   return (
-    <div className="my-10 relative rounded-none border border-white/5 bg-[#05050F] overflow-hidden" style={{ minHeight: '340px' }}>
+    <div className="my-10 relative rounded-none border border-border bg-card overflow-hidden" style={{ minHeight: '340px' }}>
       {/* Layered gradient backdrops */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-transparent to-cyan-950/30 pointer-events-none" />
       <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/5 blur-3xl rounded-full pointer-events-none" />
@@ -568,7 +568,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
       {/* Header */}
       <div className="absolute top-4 left-5 z-10 flex flex-col gap-0.5">
         <p className="text-[8px] font-black text-indigo-400/50 uppercase tracking-[0.5em]">Motion Illustration</p>
-        {title && <p className="text-[11px] font-black text-white/60 uppercase tracking-tight max-w-[260px] truncate">{title}</p>}
+        {title && <p className="text-[11px] font-black text-foreground/60 uppercase tracking-tight max-w-[260px] truncate">{title}</p>}
       </div>
       <div className="absolute top-4 right-5 z-10">
         <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[8px] font-black text-indigo-400/60 uppercase tracking-widest">{type}</span>
@@ -715,7 +715,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
               );
             })}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <motion.p animate={{ opacity: [0.05, 0.15, 0.05] }} transition={{ duration: 3, repeat: Infinity }} className="text-5xl font-black text-white/10 uppercase tracking-[0.3em] select-none">LIVE</motion.p>
+              <motion.p animate={{ opacity: [0.05, 0.15, 0.05] }} transition={{ duration: 3, repeat: Infinity }} className="text-5xl font-black text-foreground/10 uppercase tracking-[0.3em] select-none">LIVE</motion.p>
             </div>
           </div>
         )}
@@ -933,7 +933,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6"
+      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-6"
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(30)].map((_, i) => (
@@ -1035,11 +1035,11 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
       {hasBlocks && (
         <div className="flex items-center gap-2">
           <button onClick={() => setViewMode('steps')}
-            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'steps' ? 'bg-emerald-500/20 text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'steps' ? 'bg-emerald-500/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
             📋 Steps
           </button>
           <button onClick={() => setViewMode('blocks')}
-            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'blocks' ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/30 hover:text-white/60'}`}>
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'blocks' ? 'bg-yellow-500/20 text-yellow-400' : 'text-muted-foreground hover:text-foreground'}`}>
             🧩 Block View
           </button>
         </div>
@@ -1107,7 +1107,7 @@ function RechartsBlock({ chartType, data, dataKey, labels }: { chartType: string
           <Pie data={normalized} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={40} paddingAngle={2}>
             {normalized.map((_: any, i: number) => <Cell key={i} fill={RCHART_COLORS[i % RCHART_COLORS.length]} />)}
           </Pie>
-          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
           <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }} />
         </PieChart>
       </ResponsiveContainer>
@@ -1126,7 +1126,7 @@ function RechartsBlock({ chartType, data, dataKey, labels }: { chartType: string
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
           <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
           <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="url(#rcg)" />
         </AreaChart>
       </ResponsiveContainer>
@@ -1139,7 +1139,7 @@ function RechartsBlock({ chartType, data, dataKey, labels }: { chartType: string
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
           <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
           <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2.5} dot={{ fill: '#f97316', r: 4 }} activeDot={{ r: 6 }} />
         </LineChart>
       </ResponsiveContainer>
@@ -1152,7 +1152,7 @@ function RechartsBlock({ chartType, data, dataKey, labels }: { chartType: string
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
         <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={{ background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+        <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
         <Bar dataKey="value" radius={[3, 3, 0, 0]}>
           {normalized.map((_: any, i: number) => <Cell key={i} fill={RCHART_COLORS[i % RCHART_COLORS.length]} />)}
         </Bar>
@@ -1195,7 +1195,7 @@ function LottieBlock({ url, keyword, title, loop = true }: { url?: string; keywo
           <Lottie animationData={animData} loop={loop} />
         </div>
       )}
-      {title && <p className="text-[10px] font-black text-white/30 uppercase tracking-widest text-center">{title}</p>}
+      {title && <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">{title}</p>}
     </div>
   );
 }
@@ -1215,7 +1215,7 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
           <p className="text-[10px] font-black text-yellow-400 uppercase tracking-[0.4em]">{title}</p>
         </div>
       )}
-      <div className="border border-yellow-500/20 bg-[#0a0f1a] overflow-hidden" style={{ minHeight: 360 }}>
+      <div className="border border-yellow-500/20 bg-card overflow-hidden" style={{ minHeight: 360 }}>
         <BlocklyEditor
           xml={xml}
           language={language || 'python'}
@@ -1232,7 +1232,7 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
             {showCode ? 'Hide' : 'Show'} generated {language || 'python'} code
           </button>
           {showCode && (
-            <pre className="p-4 bg-black/50 border border-white/5 text-xs font-mono text-emerald-300 overflow-x-auto rounded-none leading-relaxed">
+            <pre className="p-4 bg-card/80 border border-border text-xs font-mono text-emerald-300 overflow-x-auto rounded-none leading-relaxed">
               {generatedCode}
             </pre>
           )}
@@ -1297,7 +1297,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'text':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative py-2 pl-4 border-l-2 border-white/5 hover:border-violet-500/30 transition-colors duration-300">
+                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-violet-500/30 transition-colors duration-300">
                   <p className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
                     {block.content}
                   </p>
@@ -1456,7 +1456,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="my-4 space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/30 to-transparent" />
-                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] shrink-0 flex items-center gap-2">
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] shrink-0 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
                       {block.title || 'Key Concepts'}
                     </h3>
@@ -1502,7 +1502,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'code-map':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="p-8 sm:p-12 bg-card border border-white/5 shadow-2xl">
+                <div className="p-8 sm:p-12 bg-card border border-border shadow-2xl">
                   <div className="flex items-center gap-3 mb-8">
                     <div className="w-2 h-2 rounded-full bg-cyan-500" />
                     <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em]">Logic Maps &amp; Flow</p>
@@ -1512,8 +1512,8 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       <div key={idx} className="relative pb-8 group last:pb-0">
                         <div className="absolute -left-[25px] top-1 w-4 h-4 rounded-full bg-cyan-500/20 border-2 border-cyan-500 group-hover:bg-cyan-500 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.4)]" />
                         <div className="space-y-1">
-                          <h4 className="text-base font-black text-white uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
-                          <p className="text-sm text-white/40 leading-relaxed">{comp.description}</p>
+                          <h4 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{comp.description}</p>
                           {onExplainRequest && (
                             <button
                               onClick={() => onExplainRequest(`Explain "${comp.name}": ${comp.description}`)}
@@ -1546,7 +1546,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{block.title || 'Mastery Synthesis'}</h3>
                       </div>
                     </div>
-                    <div className="p-6 bg-white/5 border border-white/10 shadow-lg">
+                    <div className="p-6 bg-muted/50 border border-border shadow-lg">
                       <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap mb-6">{block.instructions}</p>
                       {block.deliverables && block.deliverables.length > 0 && (
                         <div className="space-y-3 pt-4 border-t border-emerald-500/20">
@@ -1623,9 +1623,9 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                     </div>
                     <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em]">{block.title || 'Key Terms & Definitions'}</p>
                   </div>
-                  <div className="divide-y divide-white/5 border border-white/8">
+                  <div className="divide-y divide-white/5 border border-border">
                     {terms.map((t: any, idx: number) => (
-                      <div key={idx} className="group flex gap-4 p-4 hover:bg-white/3 transition-colors">
+                      <div key={idx} className="group flex gap-4 p-4 hover:bg-muted/30 transition-colors">
                         <div className="shrink-0 mt-1">
                           <div className="w-2 h-2 rounded-full bg-amber-500/60 group-hover:bg-amber-400 transition-colors" />
                         </div>
@@ -1687,7 +1687,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: idx * 0.07, type: 'spring', stiffness: 200 }}
-                        className="flex items-start gap-4 p-4 bg-white/3 border border-white/5 hover:border-emerald-500/20 hover:bg-emerald-500/5 transition-all group"
+                        className="flex items-start gap-4 p-4 bg-muted/30 border border-border hover:border-emerald-500/20 hover:bg-emerald-500/5 transition-all group"
                       >
                         <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                           {idx + 1}
@@ -1713,13 +1713,13 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                   {block.title && (
                     <p className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em]">{block.title}</p>
                   )}
-                  <div className="overflow-x-auto border border-white/8">
+                  <div className="overflow-x-auto border border-border">
                     <table className="w-full text-sm border-collapse">
                       {headers.length > 0 && (
                         <thead>
-                          <tr className="bg-white/5">
+                          <tr className="bg-muted/50">
                             {headers.map((h: string, hi: number) => (
-                              <th key={hi} className="px-4 py-3 text-left text-[10px] font-black text-white/50 uppercase tracking-widest border-b border-white/8">
+                              <th key={hi} className="px-4 py-3 text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">
                                 {h}
                               </th>
                             ))}
@@ -1728,7 +1728,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       )}
                       <tbody>
                         {rows.map((row: any[], ri: number) => (
-                          <tr key={ri} className="border-b border-white/5 hover:bg-white/3 transition-colors group">
+                          <tr key={ri} className="border-b border-border hover:bg-muted/30 transition-colors group">
                             {(Array.isArray(row) ? row : Object.values(row)).map((cell: any, ci: number) => (
                               <td key={ci} className={`px-4 py-3 text-sm text-muted-foreground group-hover:text-foreground transition-colors ${ci === 0 ? 'font-semibold text-foreground/80' : ''}`}>
                                 {String(cell ?? '')}
@@ -1824,7 +1824,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       <p className="text-[10px] font-black text-violet-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
                     </div>
                   )}
-                  <div className="p-4 bg-[#08081A] border border-white/5">
+                  <div className="p-4 bg-card border border-border">
                     <RechartsBlock
                       chartType={block.chartType || block.type2 || 'bar'}
                       data={chartData}
@@ -1862,7 +1862,7 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     html: 'text-orange-400 bg-orange-500/10',
     css: 'text-blue-400 bg-blue-500/10',
     robotics: 'text-violet-400 bg-violet-500/10',
-    bash: 'text-white/50 bg-white/5',
+    bash: 'text-muted-foreground bg-muted/50',
     json: 'text-cyan-400 bg-cyan-500/10',
   };
   const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-400 bg-cyan-500/10';
@@ -1872,9 +1872,9 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="my-5 bg-[#070712] border border-white/8 overflow-hidden shadow-xl"
+      className="my-5 bg-card border border-border overflow-hidden shadow-xl"
     >
-      <div className="flex items-center justify-between px-4 py-2 bg-white/3 border-b border-white/5">
+      <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
             <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50" />
@@ -1885,12 +1885,12 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
         </div>
         <button
           onClick={copy}
-          className="text-[9px] font-black uppercase tracking-widest text-white/25 hover:text-white/60 transition-colors flex items-center gap-1"
+          className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 hover:text-muted-foreground transition-colors flex items-center gap-1"
         >
           {copied ? '✓ Copied' : '⧉ Copy'}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed" style={{ color: '#a5f3fc' }}>
+      <pre className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed text-cyan-700 dark:text-cyan-300">
         <code>{code}</code>
       </pre>
     </motion.div>
@@ -1905,7 +1905,7 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
 
   const inline = (text: string, k: number | string) => {
     const html = text
-      .replace(/`([^`]+)`/g, '<code style="background:rgba(6,182,212,0.12);color:#67e8f9;padding:2px 7px;border-radius:4px;font-size:0.83em;font-family:monospace;border:1px solid rgba(6,182,212,0.2)">$1</code>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(6,182,212,0.1);color:var(--inline-code-color,#0e7490);padding:2px 7px;border-radius:4px;font-size:0.83em;font-family:monospace;border:1px solid rgba(6,182,212,0.25)">$1</code>')
       .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--foreground);font-weight:900">$1</strong>')
       .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>')
       .replace(/~~(.+?)~~/g, '<s style="opacity:0.4">$1</s>');
@@ -1948,7 +1948,7 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
     if (/^### /.test(line)) {
       nodes.push(
         <motion.h3 key={key++} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.3 }}
-          className="text-base font-black text-white/80 pt-5 pb-1 flex items-center gap-2">
+          className="text-base font-black text-foreground/80 pt-5 pb-1 flex items-center gap-2">
           <span className="w-1 h-1 rounded-full bg-cyan-500 inline-block" />
           {inline(line.slice(4), 'h3')}
         </motion.h3>
@@ -1958,7 +1958,7 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
     if (/^## /.test(line)) {
       nodes.push(
         <motion.h2 key={key++} initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35 }}
-          className="text-lg font-black text-foreground pt-8 pb-2 border-b border-white/5 uppercase tracking-widest mt-4">
+          className="text-lg font-black text-foreground pt-8 pb-2 border-b border-border uppercase tracking-widest mt-4">
           {inline(line.slice(3), 'h2')}
         </motion.h2>
       );
@@ -2024,18 +2024,18 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
       if (tableLines.length > 0) {
         const rows = tableLines.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
         nodes.push(
-          <div key={key++} className="overflow-x-auto my-4 border border-white/8">
+          <div key={key++} className="overflow-x-auto my-4 border border-border">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-white/5">
+                <tr className="bg-muted/50">
                   {(rows[0] || []).map((cell, ci) => (
-                    <th key={ci} className="px-4 py-2.5 text-left text-[10px] font-black text-white/50 uppercase tracking-widest border-b border-white/8">{cell}</th>
+                    <th key={ci} className="px-4 py-2.5 text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">{cell}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.slice(1).map((row, ri) => (
-                  <tr key={ri} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                  <tr key={ri} className="border-b border-border hover:bg-muted/30 transition-colors">
                     {row.map((cell, ci) => (
                       <td key={ci} className={`px-4 py-2.5 text-sm ${ci === 0 ? 'font-semibold text-foreground/80' : 'text-muted-foreground'}`}>{inline(cell, ci)}</td>
                     ))}
@@ -2341,7 +2341,7 @@ export default function LessonDetailPage() {
   const isReading = lesson.lesson_type === 'reading';
 
   return (
-    <div className="min-h-screen bg-[#070710] text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
       {alwaysScripts}
       <AnimatePresence>
         {showCelebration && (
@@ -2374,7 +2374,7 @@ export default function LessonDetailPage() {
       {/* Sidebar - Course Syllabus (Nucleus Style) */}
       <aside className={`fixed inset-0 z-[60] md:relative md:inset-auto transition-all duration-700 ease-in-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0 w-full md:w-[360px]' : '-translate-x-full w-full md:w-0 overflow-hidden'}`}>
         {/* Mobile Backdrop */}
-        <div className={`md:hidden absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
+        <div className={`md:hidden absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
 
         <div className="relative h-full bg-background border-r border-border flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
           <div className="p-8 border-b border-border flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
@@ -2622,7 +2622,7 @@ export default function LessonDetailPage() {
                   {/* Logic: Interaction Progress Check */}
                   <div className="mt-24 sm:mt-40 pt-24 border-t border-border space-y-12">
                     {!completed && (
-                      <div className="max-w-xl mx-auto p-8 bg-card border border-white/5 space-y-6">
+                      <div className="max-w-xl mx-auto p-8 bg-card border border-border space-y-6">
                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em]">
                           <span className="text-muted-foreground flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
@@ -2630,7 +2630,7 @@ export default function LessonDetailPage() {
                           </span>
                           <span className="text-orange-500">{interactions.size} interactive blocks done</span>
                         </div>
-                        <div className="h-1 bg-white/5 rounded-none overflow-hidden">
+                        <div className="h-1 bg-muted/50 rounded-none overflow-hidden">
                           <motion.div
                             className="h-full bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.5)]"
                             initial={{ width: 0 }}
@@ -2717,7 +2717,7 @@ export default function LessonDetailPage() {
                   ))}
                   {materials.length === 0 && (
                     <div className="col-span-full py-40 text-center bg-background border border-dashed border-border rounded-none shadow-2xl">
-                      <PaperClipIcon className="w-16 h-16 mx-auto text-white/5 mb-6 opacity-20" />
+                      <PaperClipIcon className="w-16 h-16 mx-auto text-foreground/10 mb-6 opacity-20" />
                       <p className="text-xl font-black text-muted-foreground uppercase tracking-widest">No shared resources</p>
                     </div>
                   )}
