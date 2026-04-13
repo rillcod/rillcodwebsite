@@ -6,9 +6,7 @@ import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { paymentsService } from '@/services/payments.service';
 import { withValidation } from '@/proxies/validation.proxy';
 import { AppError } from '@/lib/errors';
-
-// Fix 5: parents are a legitimate paying party alongside students/schools
-const ALLOWED_ROLES = ['student', 'school', 'parent', 'admin'] as const;
+import { canRoleInitiateCheckout } from '@/lib/payments/checkout-access';
 
 const createCheckoutSchema = z.object({
     course_id:      z.string().uuid('Invalid course ID').optional(),
@@ -81,7 +79,7 @@ async function assertUserCanPayInvoice(
 
 async function postHandler(req: Request, ctx: ApiContext) {
     // Fix 5: allow parents to pay invoices
-    if (!ALLOWED_ROLES.includes(ctx.user?.role as any)) {
+    if (!canRoleInitiateCheckout(ctx.user?.role)) {
         throw new AppError(
             `Role '${ctx.user?.role}' is not permitted to initiate checkout`,
             403,
@@ -114,7 +112,10 @@ async function postHandler(req: Request, ctx: ApiContext) {
         await assertUserCanPayInvoice(supabase, ctx, inv as InvoiceRow);
 
         resolvedAmount   = Number(inv.amount);
-        resolvedCurrency = inv.currency || resolvedCurrency;
+        resolvedCurrency = (inv.currency || resolvedCurrency).toUpperCase();
+        if (resolvedCurrency !== 'NGN' && resolvedCurrency !== 'USD') {
+            throw new AppError('Unsupported currency for Paystack checkout. Use NGN or USD.', 400, true);
+        }
 
     } else if (data!.course_id) {
         const { data: course, error: courseErr } = await supabase
@@ -129,16 +130,20 @@ async function postHandler(req: Request, ctx: ApiContext) {
         if (course.program_id) {
             const { data: prog } = await supabase
                 .from('programs')
-                .select('price')
+                .select('price, default_currency')
                 .eq('id', course.program_id)
                 .maybeSingle();
             if (prog?.price != null && Number(prog.price) > 0) {
                 programPrice = Number(prog.price);
+                resolvedCurrency = (prog.default_currency || 'NGN').toUpperCase();
             }
         }
 
         if (programPrice != null && programPrice > 0) {
             resolvedAmount = programPrice;
+            if (resolvedCurrency !== 'NGN' && resolvedCurrency !== 'USD') {
+                throw new AppError('Unsupported programme currency for Paystack checkout. Set programs.default_currency to NGN or USD.', 400, true);
+            }
         } else {
             throw new AppError(
                 'This course has no programme price configured. Checkout amounts cannot be supplied by the client.',
@@ -178,6 +183,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
                 courseId:   data!.course_id,
                 invoiceId:  data!.invoice_id,
                 tenantId:   user.tenantId,
+                currency:   resolvedCurrency,
             },
         );
     }

@@ -58,6 +58,35 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'settings array required' }, { status: 400 });
   }
 
+  for (const s of settings) {
+    if (s.key === 'default_registration_program_id') {
+      const v = (s.value ?? '').trim();
+      if (!v) continue;
+      const uuidOk =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+      if (!uuidOk) {
+        return NextResponse.json(
+          { error: 'default_registration_program_id must be a valid UUID or empty' },
+          { status: 400 },
+        );
+      }
+      const { data: prog, error: pe } = await adminClient()
+        .from('programs')
+        .select('id, price')
+        .eq('id', v)
+        .maybeSingle();
+      if (pe || !prog) {
+        return NextResponse.json({ error: 'default_registration_program_id: programme not found' }, { status: 400 });
+      }
+      if (prog.price == null || Number(prog.price) <= 0) {
+        return NextResponse.json(
+          { error: 'default_registration_program_id: programme must have price > 0' },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
   const rows = settings.map(s => ({
     key: s.key,
     value: s.value ?? '',
