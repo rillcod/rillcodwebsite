@@ -118,7 +118,7 @@ function NotificationSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-16 bg-white/5 border border-white/10 rounded-none animate-pulse"
+          className="h-16 bg-muted/50 border border-border rounded-none animate-pulse"
         />
       ))}
     </div>
@@ -129,15 +129,15 @@ function NotificationSkeleton() {
 
 function EmptyState({ filter }: { filter: Filter }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-      <div className="w-16 h-16 rounded-none bg-white/5 border border-white/10 flex items-center justify-center">
-        <BellIcon className="w-8 h-8 text-white/20" />
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center px-4">
+      <div className="w-16 h-16 rounded-none bg-muted/50 border border-border flex items-center justify-center">
+        <BellIcon className="w-8 h-8 text-muted-foreground/50" />
       </div>
       <div>
-        <p className="text-sm font-black text-white/60 uppercase tracking-widest">
+        <p className="text-sm font-black text-foreground uppercase tracking-widest">
           {filter === 'all' ? 'All caught up!' : 'Nothing here'}
         </p>
-        <p className="text-xs text-white/30 mt-1">
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
           {filter === 'all'
             ? 'You have no notifications right now.'
             : `No ${filter === 'unread' ? 'unread' : filter} notifications to display.`}
@@ -269,27 +269,27 @@ export default function NotificationsPage() {
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen" style={{ background: '#0f0f1a' }}>
-      <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-              <BellAlertIcon className="w-5 h-5 text-orange-400" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-none bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0">
+              <BellAlertIcon className="w-5 h-5 text-orange-500" />
             </div>
-            <div>
-              <h1 className="text-lg font-black text-white uppercase tracking-widest leading-tight">
+            <div className="min-w-0">
+              <h1 className="text-lg font-black text-foreground uppercase tracking-widest leading-tight">
                 Notifications
               </h1>
               {unreadCount > 0 && (
-                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
                   {unreadCount} unread
                 </p>
               )}
             </div>
             {unreadCount > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-none bg-orange-500 text-[10px] font-black text-white">
+              <span className="ml-1 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-none bg-orange-600 text-[10px] font-black text-primary-foreground shrink-0">
                 {unreadCount}
               </span>
             )}
@@ -312,7 +312,7 @@ export default function NotificationsPage() {
         </div>
 
         {/* ── Filter Tabs ── */}
-        <div className="flex items-center gap-0 mb-6 border border-white/10 rounded-none overflow-x-auto">
+        <div className="flex items-center gap-0 mb-6 border border-border bg-card rounded-none overflow-x-auto">
           {FILTER_TABS.map((tab) => {
             const isActive = filter === tab.key;
             const tabUnread =
@@ -321,17 +321,18 @@ export default function NotificationsPage() {
             return (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setFilter(tab.key)}
                 className={[
-                  'flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border-r border-white/10 last:border-r-0',
+                  'flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors border-r border-border last:border-r-0',
                   isActive
-                    ? 'bg-orange-500/20 text-orange-400'
-                    : 'text-white/40 hover:text-white/70 hover:bg-white/5',
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 ].join(' ')}
               >
                 {tab.label}
                 {tabUnread !== undefined && tabUnread > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-orange-500 text-[9px] font-black text-white">
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-orange-600 text-[9px] font-black text-primary-foreground">
                     {tabUnread}
                   </span>
                 )}
@@ -363,7 +364,7 @@ export default function NotificationsPage() {
                     cfg.bg,
                     isUnread
                       ? 'border-l-current'
-                      : 'border-l-white/10 opacity-80',
+                      : 'border-l-border opacity-90',
                     'rounded-none',
                   ].join(' ')}
                   style={
@@ -378,7 +379,7 @@ export default function NotificationsPage() {
                               ? 'rgb(52 211 153)'
                               : 'rgb(251 113 133)',
                         }
-                      : { borderLeftColor: 'rgba(255,255,255,0.1)' }
+                      : undefined
                   }
                 >
                   <div className="flex items-start gap-3 px-4 py-3">
@@ -394,7 +395,7 @@ export default function NotificationsPage() {
                         <span
                           className={[
                             'inline-block w-2 h-2 rounded-none shrink-0',
-                            isUnread ? cfg.dot : 'border border-white/20 bg-transparent',
+                            isUnread ? cfg.dot : 'border border-border bg-transparent',
                           ].join(' ')}
                         />
 
@@ -402,8 +403,8 @@ export default function NotificationsPage() {
                         <span
                           className={
                             isUnread
-                              ? 'text-sm font-black text-white'
-                              : 'text-sm font-semibold text-white/50'
+                              ? 'text-sm font-black text-foreground'
+                              : 'text-sm font-semibold text-muted-foreground'
                           }
                         >
                           {notification.title}
@@ -420,7 +421,7 @@ export default function NotificationsPage() {
                       {/* Message preview / expanded */}
                       <p
                         className={[
-                          'text-xs text-white/50 mt-1 leading-relaxed',
+                          'text-xs text-muted-foreground mt-1 leading-relaxed',
                           isExpanded ? '' : 'line-clamp-1',
                         ].join(' ')}
                       >
@@ -428,15 +429,16 @@ export default function NotificationsPage() {
                       </p>
 
                       {/* Time */}
-                      <p className="text-[10px] text-white/25 mt-1.5 font-medium tracking-wide">
+                      <p className="text-[10px] text-muted-foreground/80 mt-1.5 font-medium tracking-wide">
                         {relativeTime(notification.created_at)}
                       </p>
                     </div>
 
                     {/* Delete button */}
                     <button
+                      type="button"
                       onClick={(e) => deleteNotification(notification.id, e)}
-                      className="shrink-0 p-1.5 rounded-none text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                      className="shrink-0 p-1.5 rounded-none text-muted-foreground/40 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-0 group-hover:opacity-100"
                       title="Delete notification"
                     >
                       <TrashIcon className="w-3.5 h-3.5" />
@@ -450,7 +452,7 @@ export default function NotificationsPage() {
 
         {/* ── Footer count ── */}
         {!loading && notifications.length > 0 && (
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/20 text-center mt-8">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center mt-8">
             {filteredNotifications.length}{' '}
             {filteredNotifications.length === 1 ? 'notification' : 'notifications'}
             {filter !== 'all' && ` · ${filter}`}
