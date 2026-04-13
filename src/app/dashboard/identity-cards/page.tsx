@@ -82,6 +82,7 @@ export default function IdentityCardsPage() {
 
   // Sorting / grouping state
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('none');
   const [sortBy, setSortBy] = useState<'name' | 'class'>('name');
 
@@ -129,6 +130,7 @@ export default function IdentityCardsPage() {
     setLoading(true);
     setError(null);
     setSelectedClass('all');
+    setSelectedSchool('all');
     try {
       if (type === 'parent') {
         const res = await fetch('/api/parents/manage', { cache: 'no-store' });
@@ -177,6 +179,21 @@ export default function IdentityCardsPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [records]);
 
+  const allSchools = useMemo(() => {
+    const set = new Set<string>();
+    records.forEach((r) => {
+      if (r.school) set.add(r.school);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [records]);
+
+  const schoolLock =
+    profile?.role === 'school' ? String(profile.school_name || '').trim() : '';
+
+  const showSchoolFilter =
+    !!schoolLock ||
+    ((profile?.role === 'admin' || profile?.role === 'teacher') && allSchools.length > 1);
+
   /** Records after search + class filter + sort */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -189,7 +206,12 @@ export default function IdentityCardsPage() {
         );
       const matchClass =
         selectedClass === 'all' || r.sectionClass === selectedClass;
-      return matchSearch && matchClass;
+      const matchSchool = (() => {
+        if (schoolLock) return (r.school || '') === schoolLock;
+        if (selectedSchool === 'all') return true;
+        return (r.school || '') === selectedSchool;
+      })();
+      return matchSearch && matchClass && matchSchool;
     });
 
     // Sort
@@ -202,7 +224,7 @@ export default function IdentityCardsPage() {
     });
 
     return list;
-  }, [records, query, selectedClass, sortBy]);
+  }, [records, query, selectedClass, selectedSchool, sortBy, schoolLock]);
 
   /** Records grouped by class (only used when groupMode === 'class') */
   const grouped = useMemo(() => {
@@ -450,7 +472,7 @@ export default function IdentityCardsPage() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search name, email, class..."
+                  placeholder="Search name, email, school, class..."
                   className="w-full pl-9 pr-3 py-2.5 bg-card border border-border rounded-none text-sm focus:outline-none focus:border-orange-500"
                 />
               </div>
@@ -459,6 +481,34 @@ export default function IdentityCardsPage() {
             {/* ── Class filter / sort / group toolbar ── */}
             <div className="flex flex-wrap items-center gap-3 bg-card border border-border rounded-none p-3 sm:p-4">
               <FunnelIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
+              {/* School filter (role-sensitive) */}
+              {showSchoolFilter && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">School</span>
+                  {schoolLock ? (
+                    <span className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold text-foreground max-w-[220px] truncate" title={schoolLock}>
+                      {schoolLock}
+                    </span>
+                  ) : (
+                    <select
+                      value={selectedSchool}
+                      onChange={(e) => setSelectedSchool(e.target.value)}
+                      className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-orange-500 cursor-pointer max-w-[220px]"
+                    >
+                      <option value="all">All Schools ({records.length})</option>
+                      {allSchools.map((sch) => {
+                        const count = records.filter((r) => r.school === sch).length;
+                        return (
+                          <option key={sch} value={sch}>
+                            {sch} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                </div>
+              )}
 
               {/* Class filter dropdown */}
               <div className="flex items-center gap-2">
@@ -521,6 +571,9 @@ export default function IdentityCardsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-none p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
                 {filtered.length} card holder{filtered.length === 1 ? '' : 's'}
+                {selectedSchool !== 'all' && !schoolLock && (
+                  <span className="ml-2 text-orange-400">· {selectedSchool}</span>
+                )}
                 {selectedClass !== 'all' && selectedClass !== '' && (
                   <span className="ml-2 text-orange-400">in {selectedClass}</span>
                 )}
@@ -528,14 +581,14 @@ export default function IdentityCardsPage() {
               <div className="flex flex-wrap gap-2">
                 {/* Print filtered (or selected class) */}
                 <button
-                  onClick={() =>
-                    printCards(
-                      filtered,
-                      selectedClass !== 'all'
-                        ? `Access Cards — ${selectedClass || 'No Class'}`
-                        : `${activeType} access cards`,
-                    )
-                  }
+                  onClick={() => {
+                    const parts: string[] = [];
+                    if (selectedSchool !== 'all' && !schoolLock) parts.push(selectedSchool);
+                    if (selectedClass !== 'all') parts.push(selectedClass || 'No Class');
+                    const title =
+                      parts.length > 0 ? `Access Cards — ${parts.join(' · ')}` : `${activeType} access cards`;
+                    printCards(filtered, title);
+                  }}
                   className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white rounded-none transition-all inline-flex items-center gap-2"
                 >
                   <PrinterIcon className="w-4 h-4" />
