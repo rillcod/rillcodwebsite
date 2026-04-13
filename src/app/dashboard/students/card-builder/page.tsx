@@ -323,10 +323,10 @@ export default function CardBuilderPage() {
   };
 
   useEffect(() => {
-    fetch('/api/admin/settings')
+    const presetType = (searchParams.get('type') || 'student').toLowerCase();
+    fetch(`/api/admin/settings?type=${presetType}`)
       .then(res => res.json())
       .then(data => {
-        const presetType = searchParams.get('type');
         if (data.config) {
           const parsed = data.config;
           if (parsed.fields) {
@@ -392,11 +392,12 @@ export default function CardBuilderPage() {
   };
 
   const handleSave = async () => {
+    const rolePreset = (searchParams.get('type') || 'student').toLowerCase();
     try {
       await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: cfg }),
+        body: JSON.stringify({ config: cfg, type: rolePreset }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -406,12 +407,13 @@ export default function CardBuilderPage() {
   };
 
   const handleReset = async () => {
+    const rolePreset = (searchParams.get('type') || 'student').toLowerCase();
     setCfg(DEFAULT_CONFIG);
     try {
       await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: DEFAULT_CONFIG }),
+        body: JSON.stringify({ config: DEFAULT_CONFIG, type: rolePreset }),
       });
     } catch (err) { /* ignore */ }
   };

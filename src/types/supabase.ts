@@ -585,6 +585,130 @@ export type Database = {
           },
         ]
       }
+      card_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          card_id: string | null
+          created_at: string
+          details: Json | null
+          entity: string
+          id: string
+          school_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          card_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity?: string
+          id?: string
+          school_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          card_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity?: string
+          id?: string
+          school_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "card_audit_logs_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "identity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_audit_logs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      card_scan_logs: {
+        Row: {
+          card_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          scan_result: string
+          scanned_by: string | null
+          school_id: string | null
+          source: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          scan_result?: string
+          scanned_by?: string | null
+          school_id?: string | null
+          source?: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          scan_result?: string
+          scanned_by?: string | null
+          school_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_scan_logs_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "identity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_scan_logs_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_scan_logs_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "card_scan_logs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cbt_exams: {
         Row: {
           course_id: string | null
@@ -2076,6 +2200,129 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_cards: {
+        Row: {
+          activated_at: string | null
+          card_number: string
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          holder_id: string
+          holder_type: string
+          id: string
+          issued_at: string
+          metadata: Json | null
+          revoked_at: string | null
+          revoked_reason: string | null
+          school_id: string | null
+          status: string
+          template_type: string
+          updated_at: string
+          updated_by: string | null
+          verification_code: string
+        }
+        Insert: {
+          activated_at?: string | null
+          card_number: string
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          holder_id: string
+          holder_type: string
+          id?: string
+          issued_at?: string
+          metadata?: Json | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          school_id?: string | null
+          status?: string
+          template_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          verification_code: string
+        }
+        Update: {
+          activated_at?: string | null
+          card_number?: string
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          holder_id?: string
+          holder_type?: string
+          id?: string
+          issued_at?: string
+          metadata?: Json | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          school_id?: string | null
+          status?: string
+          template_type?: string
+          updated_at?: string
+          updated_by?: string | null
+          verification_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_cards_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "identity_cards_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_cards_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "identity_cards_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_cards_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_cards_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
         ]
       }

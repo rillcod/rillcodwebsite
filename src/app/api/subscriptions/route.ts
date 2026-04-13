@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const db = createAdminClient();
 
-  let query = db.from('subscriptions').select(`
+  let query: any = db.from('subscriptions').select(`
     *, schools(id, name, email, status)
   `, { count: 'exact' }).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
 

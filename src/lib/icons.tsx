@@ -67,6 +67,9 @@ export function XMarkIcon({ className }: IconProps) {
 export function MagnifyingGlassIcon({ className }: IconProps) {
   return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>;
 }
+export function FunnelIcon({ className }: IconProps) {
+  return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.188 8.097.552a1.125 1.125 0 0 1 .872 1.522 23.09 23.09 0 0 1-4.28 7.689A4.5 4.5 0 0 0 15.75 15v3.126c0 .621-.336 1.194-.878 1.496l-2.25 1.286A1.125 1.125 0 0 1 11 19.922V15a4.5 4.5 0 0 0-.939-2.737A23.09 23.09 0 0 1 5.78 5.074a1.125 1.125 0 0 1 .872-1.522A59.706 59.706 0 0 1 12 3Z" /></svg>;
+}
 export function PlusIcon({ className }: IconProps) {
   return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>;
 }

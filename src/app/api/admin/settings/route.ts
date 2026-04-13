@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+const CARD_CONFIG_KEYS = {
+  student: 'card_builder_config_student',
+  parent: 'card_builder_config_parent',
+  teacher: 'card_builder_config_teacher',
+  legacy: 'card_builder_config',
+} as const;
+
 export async function GET(_request: Request) {
   try {
     const supabase = await createClient();
@@ -11,13 +18,15 @@ export async function GET(_request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Must be admin to access settings? Or at least teacher?
-    // Let's just pull it
+    const url = new URL(_request.url);
+    const type = (url.searchParams.get('type') || 'student').toLowerCase() as 'student' | 'parent' | 'teacher';
+    const key = CARD_CONFIG_KEYS[type] || CARD_CONFIG_KEYS.student;
+
     const db = createAdminClient();
-    const { data: setting, error } = await db
+    let { data: setting, error } = await db
       .from('system_settings')
       .select('setting_value')
-      .eq('setting_key', 'card_builder_config')
+      .eq('setting_key', key)
       .maybeSingle();
 
     if (error) {
@@ -25,7 +34,17 @@ export async function GET(_request: Request) {
       return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
     }
 
-    if (!setting || !setting.setting_value) {
+    // Backward compatibility: if per-type key is missing, fallback to legacy value
+    if (!setting?.setting_value) {
+      const { data: legacy } = await db
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', CARD_CONFIG_KEYS.legacy)
+        .maybeSingle();
+      setting = legacy as any;
+    }
+
+    if (!setting?.setting_value) {
       return NextResponse.json({ config: null });
     }
 
@@ -46,7 +65,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { config } = body;
+    const { config } = body || {};
+    const type = (body?.type || 'student').toLowerCase() as 'student' | 'parent' | 'teacher';
+    const key = CARD_CONFIG_KEYS[type] || CARD_CONFIG_KEYS.student;
 
     const db = createAdminClient();
     
@@ -54,7 +75,7 @@ export async function POST(request: Request) {
     const { data: existing } = await db
       .from('system_settings')
       .select('id')
-      .eq('setting_key', 'card_builder_config')
+      .eq('setting_key', key)
       .maybeSingle();
 
     let saveErr;
@@ -70,8 +91,8 @@ export async function POST(request: Request) {
         .from('system_settings')
         .insert({
           category: 'admin',
-          description: 'Global configuration for the student card builder',
-          setting_key: 'card_builder_config',
+          description: `Global configuration for ${type} card builder`,
+          setting_key: key,
           setting_value: JSON.stringify(config),
           is_public: false,
         });

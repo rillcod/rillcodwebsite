@@ -1410,6 +1410,13 @@ export default function StudentsPage() {
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                  <Link
+                    href="/dashboard/card-studio?mode=issuance&type=student"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-none border border-orange-500/30 transition-all print:hidden"
+                    title="Open Card Studio"
+                  >
+                    <ClipboardIcon className="w-4 h-4" /> Card Studio
+                  </Link>
                   <button onClick={handlePrintRegistry}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
                     <PrinterIcon className="w-4 h-4" /> Print Registry

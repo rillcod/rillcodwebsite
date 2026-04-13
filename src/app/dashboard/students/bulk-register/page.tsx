@@ -111,6 +111,8 @@ interface RegisterResult extends GeneratedStudent {
   error?: string;
   batch_id?: string;
   portal_user_id?: string;
+  cardIssued?: boolean;
+  cardId?: string | null;
 }
 
 interface School {
@@ -1079,14 +1081,23 @@ export default function BulkRegisterPage() {
       <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8 font-sans">
 
         {/* Page Header */}
-        <div className="max-w-7xl mx-auto mb-6 flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform flex-shrink-0">
-            <SparklesIcon className="w-5 h-5 text-white" />
+        <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform flex-shrink-0">
+              <SparklesIcon className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-foreground italic tracking-tighter uppercase">Student Registration</h1>
+              <p className="text-muted-foreground text-[9px] uppercase font-bold tracking-[0.4em] mt-1">Add students individually or in bulk</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-foreground italic tracking-tighter uppercase">Student Registration</h1>
-            <p className="text-muted-foreground text-[9px] uppercase font-bold tracking-[0.4em] mt-1">Add students individually or in bulk</p>
-          </div>
+          <Link
+            href="/dashboard/card-studio?mode=issuance&type=student"
+            className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-[9px] font-black uppercase tracking-[0.2em] transition-all"
+          >
+            <RectangleGroupIcon className="w-4 h-4" />
+            Card Studio
+          </Link>
         </div>
 
         {/* Unified Tab Bar */}
@@ -1797,9 +1808,14 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
                             <td className="px-4 py-4 font-mono font-bold text-orange-400 text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                              <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                              <span className={`inline-block px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                 {r.status}
                               </span>
+                              {r.cardId && (
+                                <div className={`mt-1 inline-block px-2 py-0.5 rounded-none text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-blue-500/10 text-blue-300 border-blue-500/30'}`}>
+                                  {r.cardIssued ? 'Card Ready' : 'Card Exists'}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}

@@ -268,7 +268,6 @@ export default function LessonPlansPage() {
                     {unplannedLessons.map(l => (
                       <option key={l.id} value={l.id}>{l.title}{l.courses ? ` — ${l.courses.title}` : ''}</option>
                     ))}
-                    {editPlan && <option value={form.lesson_id}>{editPlan.lessons?.title}</option>}
                   </select>
                 </div>
               )}
