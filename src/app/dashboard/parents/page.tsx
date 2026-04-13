@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   UserGroupIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon,
@@ -1391,6 +1392,18 @@ export default function ParentsPage() {
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 hidden sm:block">Message</span>
                     </a>
+
+                    {/* Card Studio shortcut */}
+                    <Link
+                      href={`/dashboard/card-studio?mode=issuance&type=parent&q=${encodeURIComponent(parent.full_name || parent.email || '')}`}
+                      title="Open in card studio"
+                      className="group flex items-center gap-2 px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/20 hover:border-orange-500/50 transition-all"
+                    >
+                      <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
+                        <CreditCardIcon className="w-3.5 h-3.5 text-orange-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 hidden sm:block">Card</span>
+                    </Link>
 
                     {/* Delete — pushed right */}
                     <button

@@ -17,11 +17,18 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const db = createAdminClient();
-  const { data, error } = await db
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+
+  let query = db
     .from('flagged_content')
     .select('*, reporter:portal_users!flagged_content_reporter_id_fkey(full_name, email)')
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(200);
+
+  if (status && status !== 'all') query = query.eq('status', status);
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
@@ -32,15 +39,26 @@ export async function PATCH(request: Request) {
   const user = await requireAdmin();
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id, status } = await request.json();
-  if (!id || !['resolved', 'dismissed'].includes(status)) {
+  const body = await request.json();
+  const { id, status, moderator_notes } = body;
+
+  if (!id || !['resolved', 'dismissed', 'reviewed', 'removed'].includes(status)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
   const db = createAdminClient();
+
+  // Map 'resolved' → 'reviewed', 'dismissed' → 'dismissed' (schema only allows pending/reviewed/dismissed/removed)
+  const dbStatus = status === 'resolved' ? 'reviewed' : status;
+
   const { error } = await db
     .from('flagged_content')
-    .update({ status: status as string, resolved_by: user.id, resolved_at: new Date().toISOString() } as any)
+    .update({
+      status: dbStatus,
+      moderator_id: user.id,
+      moderator_notes: moderator_notes || null,
+      updated_at: new Date().toISOString(),
+    } as any)
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
