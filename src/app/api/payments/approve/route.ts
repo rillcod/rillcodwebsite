@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { paymentsService } from '@/services/payments.service';
-import { AppError } from '@/lib/errors';
 
 export async function POST(req: Request) {
     try {
@@ -61,6 +61,43 @@ export async function POST(req: Request) {
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', (transaction as any).invoice_id);
+        }
+
+        // 4b. Billing cycle (e.g. bank transfer) — mirror webhook behaviour
+        const gw =
+            transaction.payment_gateway_response &&
+            typeof transaction.payment_gateway_response === 'object' &&
+            !Array.isArray(transaction.payment_gateway_response)
+                ? (transaction.payment_gateway_response as Record<string, unknown>)
+                : {};
+        if (status === 'success' && gw.payment_type === 'billing_cycle' && gw.billing_cycle_id) {
+            const db = createAdminClient();
+            const billingCycleId = String(gw.billing_cycle_id);
+            const { data: cycle } = await (db as any)
+                .from('billing_cycles')
+                .select('id, sticky_notice_id')
+                .eq('id', billingCycleId)
+                .maybeSingle();
+
+            await (db as any)
+                .from('billing_cycles')
+                .update({
+                    status: 'paid',
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', billingCycleId)
+                .neq('status', 'paid');
+
+            if (cycle?.sticky_notice_id) {
+                await (db as any)
+                    .from('billing_notices')
+                    .update({
+                        is_resolved: true,
+                        resolved_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', cycle.sticky_notice_id);
+            }
         }
 
         // 5. Generate Receipt

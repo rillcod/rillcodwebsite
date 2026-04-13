@@ -651,13 +651,16 @@ export type Database = {
           due_date: string
           id: string
           invoice_id: string | null
+          items: Json
           owner_school_id: string | null
           owner_type: string
           owner_user_id: string | null
           reminder_week6_sent_at: string | null
           reminder_week7_sent_at: string | null
           reminder_week8_sent_at: string | null
+          rillcod_retain_amount: number | null
           school_id: string | null
+          school_settlement_amount: number | null
           status: string
           sticky_notice_id: string | null
           subscription_id: string | null
@@ -672,13 +675,16 @@ export type Database = {
           due_date: string
           id?: string
           invoice_id?: string | null
+          items?: Json
           owner_school_id?: string | null
           owner_type: string
           owner_user_id?: string | null
           reminder_week6_sent_at?: string | null
           reminder_week7_sent_at?: string | null
           reminder_week8_sent_at?: string | null
+          rillcod_retain_amount?: number | null
           school_id?: string | null
+          school_settlement_amount?: number | null
           status?: string
           sticky_notice_id?: string | null
           subscription_id?: string | null
@@ -693,13 +699,16 @@ export type Database = {
           due_date?: string
           id?: string
           invoice_id?: string | null
+          items?: Json
           owner_school_id?: string | null
           owner_type?: string
           owner_user_id?: string | null
           reminder_week6_sent_at?: string | null
           reminder_week7_sent_at?: string | null
           reminder_week8_sent_at?: string | null
+          rillcod_retain_amount?: number | null
           school_id?: string | null
+          school_settlement_amount?: number | null
           status?: string
           sticky_notice_id?: string | null
           subscription_id?: string | null
@@ -862,6 +871,83 @@ export type Database = {
             columns: ["billing_cycle_id"]
             isOneToOne: false
             referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_settlements: {
+        Row: {
+          amount: number
+          billing_cycle_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          reference: string | null
+          school_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          billing_cycle_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          reference?: string | null
+          school_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          billing_cycle_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          reference?: string | null
+          school_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_settlements_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_settlements_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "school_settlements_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "school_settlements_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -4338,10 +4424,12 @@ export type Database = {
       programs: {
         Row: {
           created_at: string | null
+          default_currency: string
           description: string | null
           difficulty_level: string | null
           duration_weeks: number | null
           id: string
+          instalments_enabled: boolean
           is_active: boolean | null
           max_students: number | null
           name: string
@@ -4351,10 +4439,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          default_currency?: string
           description?: string | null
           difficulty_level?: string | null
           duration_weeks?: number | null
           id?: string
+          instalments_enabled?: boolean
           is_active?: boolean | null
           max_students?: number | null
           name: string
@@ -4364,10 +4454,12 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          default_currency?: string
           description?: string | null
           difficulty_level?: string | null
           duration_weeks?: number | null
           id?: string
+          instalments_enabled?: boolean
           is_active?: boolean | null
           max_students?: number | null
           name?: string
@@ -4862,6 +4954,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          commission_rate: number
           contact_person: string | null
           created_at: string | null
           email: string | null
@@ -4883,6 +4976,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          commission_rate?: number
           contact_person?: string | null
           created_at?: string | null
           email?: string | null
@@ -4904,6 +4998,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          commission_rate?: number
           contact_person?: string | null
           created_at?: string | null
           email?: string | null
@@ -5272,6 +5367,7 @@ export type Database = {
           parent_name: string | null
           parent_phone: string | null
           parent_relationship: string | null
+          payment_plan: string
           phone: string | null
           preferred_schedule: string | null
           previous_programming_experience: string | null
@@ -5320,6 +5416,7 @@ export type Database = {
           parent_name?: string | null
           parent_phone?: string | null
           parent_relationship?: string | null
+          payment_plan?: string
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
@@ -5368,6 +5465,7 @@ export type Database = {
           parent_name?: string | null
           parent_phone?: string | null
           parent_relationship?: string | null
+          payment_plan?: string
           phone?: string | null
           preferred_schedule?: string | null
           previous_programming_experience?: string | null
