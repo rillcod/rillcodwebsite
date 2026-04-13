@@ -18,6 +18,11 @@ export interface SMSPayload {
     body: string;
 }
 
+export interface WhatsAppPayload {
+    to: string;
+    body: string;
+}
+
 export class NotificationsService {
     private sendPulseToken: string | null = null;
     private tokenExpiresAt: number = 0;
@@ -287,6 +292,34 @@ export class NotificationsService {
                 }
             }
         }
+    }
+
+    async sendExternalWhatsApp(payload: WhatsAppPayload) {
+        if (!env.WHATSAPP_API_URL || !env.WHATSAPP_API_TOKEN) {
+            // Fallback for environments without a provider configured.
+            return {
+                queued: true,
+                fallback_url: `https://wa.me/${String(payload.to).replace(/\D+/g, '')}?text=${encodeURIComponent(payload.body)}`,
+            };
+        }
+
+        const res = await fetch(env.WHATSAPP_API_URL, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${env.WHATSAPP_API_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to: payload.to,
+                message: payload.body,
+            }),
+        });
+
+        if (!res.ok) {
+            const text = await res.text().catch(() => 'unknown');
+            throw new AppError(`WhatsApp delivery failed: ${text}`, 500);
+        }
+        return res.json().catch(() => ({ sent: true }));
     }
 }
 

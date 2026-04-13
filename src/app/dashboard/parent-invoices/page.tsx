@@ -10,6 +10,7 @@ import {
   PrinterIcon, ArrowUpTrayIcon, DocumentCheckIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 
 interface Child { id: string; full_name: string; user_id: string | null }
 interface Invoice {
@@ -358,6 +359,8 @@ function ParentInvoicesContent() {
 
   return (
     <div className="space-y-6">
+      <BillingStickyNotices />
+
       {/* Payment success banner */}
       {showPaidBanner && (
         <div className="flex items-start justify-between gap-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-none">

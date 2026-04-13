@@ -14,6 +14,7 @@ import {
   PaperClipIcon, EyeIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
+import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 
 type PaymentAccount = {
   id: string;
@@ -1476,6 +1477,8 @@ export default function PaymentsPage() {
             <button onClick={() => setError(null)}><XMarkIcon className="w-4 h-4" /></button>
           </div>
         )}
+
+        <BillingStickyNotices />
 
         {view === 'accounts' ? (
           <>
