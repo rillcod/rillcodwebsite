@@ -585,6 +585,287 @@ export type Database = {
           },
         ]
       }
+      billing_contacts: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          representative_email: string | null
+          representative_name: string | null
+          representative_whatsapp: string | null
+          school_id: string
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          representative_email?: string | null
+          representative_name?: string | null
+          representative_whatsapp?: string | null
+          school_id: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          representative_email?: string | null
+          representative_name?: string | null
+          representative_whatsapp?: string | null
+          school_id?: string
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_contacts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: true
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_contacts_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_contacts_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      billing_cycles: {
+        Row: {
+          amount_due: number
+          created_at: string
+          currency: string
+          due_date: string
+          id: string
+          invoice_id: string | null
+          owner_school_id: string | null
+          owner_type: string
+          owner_user_id: string | null
+          reminder_week6_sent_at: string | null
+          reminder_week7_sent_at: string | null
+          reminder_week8_sent_at: string | null
+          school_id: string | null
+          status: string
+          sticky_notice_id: string | null
+          subscription_id: string | null
+          term_label: string
+          term_start_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number
+          created_at?: string
+          currency?: string
+          due_date: string
+          id?: string
+          invoice_id?: string | null
+          owner_school_id?: string | null
+          owner_type: string
+          owner_user_id?: string | null
+          reminder_week6_sent_at?: string | null
+          reminder_week7_sent_at?: string | null
+          reminder_week8_sent_at?: string | null
+          school_id?: string | null
+          status?: string
+          sticky_notice_id?: string | null
+          subscription_id?: string | null
+          term_label: string
+          term_start_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          created_at?: string
+          currency?: string
+          due_date?: string
+          id?: string
+          invoice_id?: string | null
+          owner_school_id?: string | null
+          owner_type?: string
+          owner_user_id?: string | null
+          reminder_week6_sent_at?: string | null
+          reminder_week7_sent_at?: string | null
+          reminder_week8_sent_at?: string | null
+          school_id?: string | null
+          status?: string
+          sticky_notice_id?: string | null
+          subscription_id?: string | null
+          term_label?: string
+          term_start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_cycles_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_owner_school_id_fkey"
+            columns: ["owner_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_notices: {
+        Row: {
+          created_at: string
+          due_date: string | null
+          id: string
+          is_resolved: boolean
+          is_sticky: boolean
+          message: string
+          metadata: Json | null
+          owner_school_id: string | null
+          owner_type: string
+          owner_user_id: string | null
+          resolved_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_resolved?: boolean
+          is_sticky?: boolean
+          message: string
+          metadata?: Json | null
+          owner_school_id?: string | null
+          owner_type: string
+          owner_user_id?: string | null
+          resolved_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_resolved?: boolean
+          is_sticky?: boolean
+          message?: string
+          metadata?: Json | null
+          owner_school_id?: string | null
+          owner_type?: string
+          owner_user_id?: string | null
+          resolved_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_notices_owner_school_id_fkey"
+            columns: ["owner_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_notices_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_notices_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      billing_reminder_logs: {
+        Row: {
+          billing_cycle_id: string
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          target: string | null
+          week_number: number
+        }
+        Insert: {
+          billing_cycle_id: string
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          target?: string | null
+          week_number: number
+        }
+        Update: {
+          billing_cycle_id?: string
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          target?: string | null
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_reminder_logs_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       card_audit_logs: {
         Row: {
           action: string
@@ -5158,6 +5439,8 @@ export type Database = {
       subscriptions: {
         Row: {
           amount: number
+          auto_rollover: boolean
+          billing_channel: string | null
           billing_cycle: string | null
           course_id: string | null
           created_at: string | null
@@ -5165,14 +5448,21 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           external_subscription_id: string | null
+          fixed_amount: number | null
           id: string
+          owner_type: string
           portal_user_id: string | null
+          price_per_student: number | null
+          pricing_model: string
+          school_id: string | null
           status: string | null
           subscription_plan: string | null
           updated_at: string | null
         }
         Insert: {
           amount: number
+          auto_rollover?: boolean
+          billing_channel?: string | null
           billing_cycle?: string | null
           course_id?: string | null
           created_at?: string | null
@@ -5180,14 +5470,21 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           external_subscription_id?: string | null
+          fixed_amount?: number | null
           id?: string
+          owner_type?: string
           portal_user_id?: string | null
+          price_per_student?: number | null
+          pricing_model?: string
+          school_id?: string | null
           status?: string | null
           subscription_plan?: string | null
           updated_at?: string | null
         }
         Update: {
           amount?: number
+          auto_rollover?: boolean
+          billing_channel?: string | null
           billing_cycle?: string | null
           course_id?: string | null
           created_at?: string | null
@@ -5195,8 +5492,13 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           external_subscription_id?: string | null
+          fixed_amount?: number | null
           id?: string
+          owner_type?: string
           portal_user_id?: string | null
+          price_per_student?: number | null
+          pricing_model?: string
+          school_id?: string | null
           status?: string | null
           subscription_plan?: string | null
           updated_at?: string | null
@@ -5222,6 +5524,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5897,7 +6206,7 @@ export type Database = {
       is_parent: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       unlink_parent_from_student: {
-        Args: { p_student_id: string }
+        Args: { target_student_id: string }
         Returns: undefined
       }
     }
