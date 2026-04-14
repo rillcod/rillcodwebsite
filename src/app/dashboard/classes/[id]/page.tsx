@@ -108,7 +108,7 @@ export default function ClassDetailPage() {
 
       const subQueries: any[] = [];
       if (assignmentIds.length > 0) {
-        subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, grade, status').in('assignment_id', assignmentIds));
+        subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status').in('assignment_id', assignmentIds));
       }
       if (cbtIds.length > 0) {
         subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
@@ -968,7 +968,7 @@ export default function ClassDetailPage() {
                               </div>
                             </td>
                             {items.assignments.map(a => {
-                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.id);
+                              const sub = items.submissions.find(s => s.assignment_id === a.id && (s.portal_user_id === enr.id || s.user_id === enr.id));
                               const score = sub?.grade;
                               const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
                               return (

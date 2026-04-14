@@ -179,22 +179,45 @@ function ResultsPageInner() {
         const db = createClient();
 
         if (!isStaff) {
-            // Student: load own latest published report
-            Promise.all([
-                db.from('student_progress_reports')
-                    .select('*')
-                    .eq('student_id', profile.id)
-                    .eq('is_published', true)
-                    .order('updated_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle(),
-                db.from('report_settings').select('*').limit(1).maybeSingle(),
-            ]).then(([rep, org]) => {
+            // Student: load own latest published report.
+            // Primary: match by student_id (portal_user UUID).
+            // Fallback: some reports were created before the student had a portal account
+            // and have student_id = null — match by student_name in that case.
+            (async () => {
+                const [repRes, orgRes] = await Promise.all([
+                    db.from('student_progress_reports')
+                        .select('*')
+                        .eq('student_id', profile.id)
+                        .eq('is_published', true)
+                        .order('updated_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle(),
+                    db.from('report_settings').select('*').limit(1).maybeSingle(),
+                ]);
                 if (aborted) return;
-                setSelectedReport(rep.data as StudentReport | null);
-                setOrgSettings(org.data);
-                setLoading(false);
-            });
+
+                let report = repRes.data as StudentReport | null;
+
+                // Fallback: pre-portal report created before portal account existed
+                if (!report && profile.full_name) {
+                    const { data: fallback } = await db
+                        .from('student_progress_reports')
+                        .select('*')
+                        .is('student_id', null)
+                        .eq('student_name', profile.full_name)
+                        .eq('is_published', true)
+                        .order('updated_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    if (!aborted) report = fallback as StudentReport | null;
+                }
+
+                if (!aborted) {
+                    setSelectedReport(report);
+                    setOrgSettings(orgRes.data);
+                    setLoading(false);
+                }
+            })();
             return () => { aborted = true; };
         }
 
