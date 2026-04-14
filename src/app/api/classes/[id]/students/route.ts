@@ -54,16 +54,17 @@ export async function GET(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Fallback: also include students enrolled in the class's program who haven't been
-    // assigned to any class yet (class_id IS NULL). This covers students enrolled via the
-    // enrollments table before class_id assignment was in use.
+    // Fallback: include ALL students enrolled in the class's program via the enrollments
+    // table. The previous .is('class_id', null) filter caused bulk-enrolled students to
+    // disappear if their class_id was wiped, pointed to a deleted class, or was set by a
+    // different code path. We now include everyone enrolled in the program and deduplicate.
     let programStudents: any[] = [];
     if (cls.program_id) {
       const { data: enrolledRows } = await admin
         .from('enrollments')
         .select('user_id')
         .eq('program_id', cls.program_id)
-        .eq('status', 'active');
+        .in('status', ['active', 'enrolled', 'approved']);  // cover all common status values
 
       const directIds = new Set((directStudents ?? []).map((s: any) => s.id));
       const candidateIds = (enrolledRows ?? [])
@@ -75,26 +76,28 @@ export async function GET(
           .from('portal_users')
           .select('id, full_name, email, school_id, section_class, class_id')
           .in('id', candidateIds)
-          .is('class_id', null)
+          // Removed .is('class_id', null) — students whose class_id was wiped or pointed
+          // to a stale class after bulk-enroll/rebuild must still appear here.
           .eq('role', 'student')
           .order('full_name');
         programStudents = ps ?? [];
       }
     }
 
-    // Auto-heal: assign fallback students to this class so they stop floating
+    // Auto-heal: re-assign ALL fallback students to this class so future primary lookups
+    // find them instantly (also corrects stale class_id values from old/deleted classes).
     if (programStudents.length > 0) {
       const fallbackIds = programStudents.map((s: any) => s.id);
       await admin
         .from('portal_users')
-        .update({ class_id: classId })
+        .update({ class_id: classId, section_class: cls.name })
         .in('id', fallbackIds)
         .eq('role', 'student');
 
-      // Reflect the class_id assignment in the returned data so the UI is consistent
-      programStudents = programStudents.map((s: any) => ({ ...s, class_id: classId }));
+      // Reflect the fix in the returned data so the UI is immediately consistent
+      programStudents = programStudents.map((s: any) => ({ ...s, class_id: classId, section_class: cls.name }));
 
-      console.log(`[students API] class="${cls.name}" (${classId}) auto-assigned ${fallbackIds.length} fallback student(s) to class_id`);
+      console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${fallbackIds.length} program-enrolled student(s)`);
     }
 
     // Third fallback: students at the same school whose section_class text matches the
@@ -112,7 +115,6 @@ export async function GET(
         .select('id, full_name, email, school_id, section_class, class_id')
         .eq('school_id', cls.school_id)
         .eq('section_class', cls.name)
-        .is('class_id', null)
         .eq('role', 'student')
         .order('full_name');
 
