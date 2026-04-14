@@ -235,52 +235,60 @@ export default function StudentDashboard() {
       {/* Hero: XP + Streak + Level */}
       <div className="relative overflow-hidden bg-gradient-to-br from-card to-background border border-border p-6 sm:p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[80px] -mr-32 -mt-32 pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          {/* Avatar + Level */}
-          <div className="relative shrink-0">
-            <div className={`w-16 h-16 border-2 ${levelConf.border} bg-card flex items-center justify-center text-3xl shadow-xl`}>
-              {levelConf.emoji}
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          {/* Avatar + Level + Score — row on mobile, stacked on sm+ */}
+          <div className="flex items-center gap-4 sm:contents">
+            <div className="relative shrink-0">
+              <div className={`w-14 h-14 sm:w-16 sm:h-16 border-2 ${levelConf.border} bg-card flex items-center justify-center text-3xl shadow-xl`}>
+                {levelConf.emoji}
+              </div>
+              <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${levelConf.text} bg-background border ${levelConf.border}`}>
+                {levelConf.label}
+              </div>
             </div>
-            <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${levelConf.text} bg-background border ${levelConf.border}`}>
-              {levelConf.label}
+
+            {/* Score — inline on mobile next to avatar, pushed right on sm */}
+            <div className="sm:hidden ml-auto shrink-0 text-right">
+              <p className="text-2xl font-black text-foreground tabular-nums">{data.avgScore}%</p>
+              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Avg Score</p>
             </div>
           </div>
 
           {/* Greeting + Stats */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-tight">
               Welcome back, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
             </h1>
             <p className="text-xs text-muted-foreground font-medium mt-1">Ready to level up today?</p>
 
-            <div className="flex flex-wrap gap-4 mt-4">
-              <div className="flex items-center gap-2">
-                <FireIcon className="w-4 h-4 text-orange-500" />
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 mt-3">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <FireIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 shrink-0" />
                 <span className="text-sm font-black text-foreground">{data.streak}</span>
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Day Streak</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Streak</span>
               </div>
-              <div className="flex items-center gap-2">
-                <TrophyIcon className="w-4 h-4 text-amber-500" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <TrophyIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
                 <span className="text-sm font-black text-foreground">{data.xp.toLocaleString()}</span>
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">XP</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">XP</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckBadgeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                 <span className="text-sm font-black text-foreground">{data.lessonsDone}</span>
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</span>
+                <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Done</span>
               </div>
               {data.leaderboardRank && (
-                <div className="flex items-center gap-2">
-                  <StarIcon className="w-4 h-4 text-cyan-400" />
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <StarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
                   <span className="text-sm font-black text-foreground">#{data.leaderboardRank}</span>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Rank</span>
+                  <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Rank</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Score */}
-          <div className="w-full sm:w-auto shrink-0 text-center p-4 bg-card border border-border shadow-sm sm:min-w-[80px]">
+          {/* Score — hidden on mobile (shown inline with avatar above), visible on sm+ */}
+          <div className="hidden sm:block shrink-0 text-center p-4 bg-card border border-border shadow-sm sm:min-w-[80px]">
             <p className="text-3xl font-black text-foreground tabular-nums">{data.avgScore}%</p>
             <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg Score</p>
           </div>
