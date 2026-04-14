@@ -16,7 +16,7 @@ import {
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
-  CreditCardIcon, ChatBubbleLeftEllipsisIcon, BoltIcon,
+  CreditCardIcon, ChatBubbleLeftEllipsisIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -136,11 +136,7 @@ export default function DashboardNavigation() {
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
           { divider: true, label: 'Finance' },
-          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
-          { name: 'Transactions', href: '/dashboard/transactions', icon: CreditCardIcon },
-          { name: 'Subscriptions', href: '/dashboard/subscriptions', icon: CreditCardIcon },
-          { name: 'Billing Contacts', href: '/dashboard/billing', icon: BanknotesIcon },
-          { name: 'Billing Automation', href: '/dashboard/billing-automation', icon: BoltIcon },
+          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { divider: true, label: 'System' },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
@@ -184,7 +180,7 @@ export default function DashboardNavigation() {
           { name: 'Protocol', href: '/dashboard/protocol', icon: CommandLineIcon },
           { divider: true, label: 'More' },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
-          { name: 'Billing Contacts', href: '/dashboard/billing', icon: BanknotesIcon },
+          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -243,9 +239,7 @@ export default function DashboardNavigation() {
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
           { divider: true, label: 'Finance' },
-          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
-          { name: 'Transactions', href: '/dashboard/transactions', icon: CreditCardIcon },
-          { name: 'Billing Contacts', href: '/dashboard/billing', icon: BanknotesIcon },
+          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -289,7 +283,7 @@ export default function DashboardNavigation() {
         ? ['Dashboard', 'Learning Center', 'My Payments', 'My Report Card', 'Messages']
         : ['Dashboard', 'Learning Center', 'My Report Card', 'Messages']
       : profile?.role === 'school'
-        ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
+        ? ['Dashboard', 'My Students', 'Smart Finance', 'Student Reports', 'Messages']
         : profile?.role === 'admin'
           ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
           : profile?.role === 'teacher'
