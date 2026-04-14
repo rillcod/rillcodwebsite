@@ -11,7 +11,7 @@ import {
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
   SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
   ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  AcademicCapIcon,
+  AcademicCapIcon, ClipboardDocumentListIcon,
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -214,6 +214,19 @@ export default function LessonsPage() {
 
   return (
     <div className="space-y-8 pb-20">
+
+      {/* Lessons Hub Tab Bar */}
+      {isStaff && (
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <BookOpenIcon className="w-4 h-4" /> Lessons
+          </span>
+          <Link href="/dashboard/lesson-plans"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
+          </Link>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -105,6 +105,17 @@ export default function CBTPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+        {/* ── EXAM HUB TAB BAR ── */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <AcademicCapIcon className="w-4 h-4" /> CBT Exams
+          </span>
+          <Link href="/dashboard/exams"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <DocumentCheckIcon className="w-4 h-4" /> Written Exams
+          </Link>
+        </div>
+
         {/* ── HERO HEADER ── */}
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
           {/* Ambient glow */}

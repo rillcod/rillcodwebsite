@@ -97,7 +97,41 @@ export async function GET(
       console.log(`[students API] class="${cls.name}" (${classId}) auto-assigned ${fallbackIds.length} fallback student(s) to class_id`);
     }
 
-    const students = [...(directStudents ?? []), ...programStudents];
+    // Third fallback: students at the same school whose section_class text matches the
+    // class name but whose class_id was never set (registered with class name text, no UUID).
+    // This is the most common cause of "students not appearing" after bulk registration.
+    let sectionStudents: any[] = [];
+    if (cls.school_id && cls.name) {
+      const knownIds = new Set([
+        ...(directStudents ?? []).map((s: any) => s.id),
+        ...programStudents.map((s: any) => s.id),
+      ]);
+
+      const { data: bySection } = await admin
+        .from('portal_users')
+        .select('id, full_name, email, school_id, section_class, class_id')
+        .eq('school_id', cls.school_id)
+        .eq('section_class', cls.name)
+        .is('class_id', null)
+        .eq('role', 'student')
+        .order('full_name');
+
+      sectionStudents = (bySection ?? []).filter((s: any) => !knownIds.has(s.id));
+
+      // Auto-heal: assign class_id so future queries find them in the primary lookup
+      if (sectionStudents.length > 0) {
+        const sectionIds = sectionStudents.map((s: any) => s.id);
+        await admin
+          .from('portal_users')
+          .update({ class_id: classId })
+          .in('id', sectionIds)
+          .eq('role', 'student');
+        sectionStudents = sectionStudents.map((s: any) => ({ ...s, class_id: classId }));
+        console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${sectionIds.length} section_class-matched student(s)`);
+      }
+    }
+
+    const students = [...(directStudents ?? []), ...programStudents, ...sectionStudents];
 
     // Sync current_students count to actual total after heal
     const actualCount = students.length;

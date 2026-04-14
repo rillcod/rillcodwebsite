@@ -20,6 +20,8 @@ export interface UserProfile {
     phone?: string;
     bio?: string;
     profile_image_url?: string;
+    grade_level?: string | null;
+    enrollment_type?: string | null;
 }
 
 export interface AuthContextType {

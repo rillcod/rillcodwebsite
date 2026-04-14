@@ -1584,7 +1584,7 @@ export default function StudentsPage() {
                     <div key={`${s._source}-${s.id}`}>
                       {/* ── Row ─── */}
                       <div
-                        className="flex items-start gap-4 p-5 hover:bg-card shadow-sm transition-colors cursor-pointer group"
+                        className="flex items-start gap-2 sm:gap-4 p-3 sm:p-5 hover:bg-card shadow-sm transition-colors cursor-pointer group"
                         onClick={() => setExpanded(isExpanded ? null : s.id)}>
 
                         {/* Checkbox (enrolled students only — Admin only) */}
@@ -1597,14 +1597,14 @@ export default function StudentsPage() {
                         )}
 
                         {/* Avatar */}
-                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-orange-600 to-orange-400 to-teal-600' : 'from-orange-600 to-orange-400 to-orange-600'} flex items-center justify-center text-sm font-black text-foreground flex-shrink-0 mt-0.5`}>
+                        <div className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-orange-600 to-orange-400 to-teal-600' : 'from-orange-600 to-orange-400 to-orange-600'} flex items-center justify-center text-xs sm:text-sm font-black text-foreground flex-shrink-0 mt-0.5`}>
                           {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           {/* Name + badges */}
-                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <span className="font-bold text-foreground">{s.full_name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[140px] sm:max-w-none">{s.full_name}</span>
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>
@@ -1652,33 +1652,33 @@ export default function StudentsPage() {
                         </div>
 
                         {/* Right side: actions + expand */}
-                        <div className="flex items-center gap-2 flex-shrink-0 print:hidden ml-auto">
-                          <div className="hidden sm:flex items-center gap-2">
-                            {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
-                              <>
-                                <button
-                                  onClick={e => { e.stopPropagation(); approve(s.id); }}
-                                  disabled={acting === s.id}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
-                                  <CheckCircleIcon className="w-3.5 h-3.5" />
-                                  {acting === s.id ? '…' : 'Approve'}
-                                </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); reject(s.id); }}
-                                  disabled={acting === s.id}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
-                                  <XCircleIcon className="w-3.5 h-3.5" />
-                                  {acting === s.id ? '…' : 'Reject'}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0 print:hidden ml-auto self-start pt-0.5" onClick={e => e.stopPropagation()}>
+                          {/* Approve/Reject — hidden on mobile, shown sm+ */}
+                          {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                            <div className="hidden sm:flex items-center gap-1.5">
+                              <button
+                                onClick={e => { e.stopPropagation(); approve(s.id); }}
+                                disabled={acting === s.id}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
+                                <CheckCircleIcon className="w-3 h-3" />
+                                {acting === s.id ? '…' : 'OK'}
+                              </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); reject(s.id); }}
+                                disabled={acting === s.id}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
+                                <XCircleIcon className="w-3 h-3" />
+                                {acting === s.id ? '…' : 'No'}
+                              </button>
+                            </div>
+                          )}
+                          {/* Icon row — always visible */}
+                          <div className="flex items-center gap-1">
                             {!isEnrolled && (
                               <button
                                 onClick={e => { e.stopPropagation(); startEdit(s); }}
-                                className="p-2 rounded-none bg-card shadow-sm border border-border hover:border-orange-500/30 text-muted-foreground hover:text-foreground transition-all">
-                                <PencilSquareIcon className="w-4 h-4" />
+                                className="p-1.5 rounded-none bg-card shadow-sm border border-border hover:border-orange-500/30 text-muted-foreground hover:text-foreground transition-all">
+                                <PencilSquareIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {/* Pre-portal student delete */}
@@ -1686,37 +1686,50 @@ export default function StudentsPage() {
                               <button
                                 onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
                                 disabled={deleting === s.id}
-                                className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
-                                <XMarkIcon className="w-4 h-4" />
+                                className="p-1.5 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                <XMarkIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {/* Enrolled student: reset password */}
                             {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <button
                                 onClick={e => { e.stopPropagation(); setResetPwTarget({ id: s.id, name: s.full_name ?? 'Student' }); setResetPwValue(''); setResetPwMsg(null); }}
-                                title="Reset student password"
-                                className="p-2 rounded-none bg-blue-500/5 border border-blue-500/20 hover:border-blue-500/40 text-blue-400/60 hover:text-blue-400 transition-all">
-                                <KeyIcon className="w-4 h-4" />
+                                title="Reset password"
+                                className="p-1.5 rounded-none bg-blue-500/5 border border-blue-500/20 hover:border-blue-500/40 text-blue-400/60 hover:text-blue-400 transition-all">
+                                <KeyIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {/* Enrolled student delete — teacher (own school) or admin */}
+                            {/* Enrolled student delete */}
                             {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <button
                                 onClick={e => { e.stopPropagation(); handleDeleteEnrolledStudent(s.id, s.full_name ?? 'this student'); }}
                                 disabled={deleting === s.id}
-                                title="Remove student account"
-                                className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                title="Remove student"
+                                className="p-1.5 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
                                 {deleting === s.id
-                                  ? <div className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
-                                  : <XMarkIcon className="w-4 h-4" />}
+                                  ? <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                  : <XMarkIcon className="w-3.5 h-3.5" />}
                               </button>
                             )}
-                            <div className="p-2 rounded-none bg-card shadow-sm border border-border text-muted-foreground">
+                            <div className="p-1.5 rounded-none bg-card shadow-sm border border-border text-muted-foreground" onClick={() => setExpanded(isExpanded ? null : s.id)}>
                               {isExpanded
-                                ? <ChevronUpIcon className="w-4 h-4" />
-                                : <ChevronDownIcon className="w-4 h-4" />}
+                                ? <ChevronUpIcon className="w-3.5 h-3.5" />
+                                : <ChevronDownIcon className="w-3.5 h-3.5" />}
                             </div>
                           </div>
+                          {/* Approve/Reject on mobile — compact icon only */}
+                          {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                            <div className="sm:hidden flex items-center gap-1">
+                              <button onClick={e => { e.stopPropagation(); approve(s.id); }} disabled={acting === s.id}
+                                className="p-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 rounded-none transition-all disabled:opacity-50">
+                                <CheckCircleIcon className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); reject(s.id); }} disabled={acting === s.id}
+                                className="p-1.5 bg-rose-600/20 border border-rose-500/30 text-rose-400 rounded-none transition-all disabled:opacity-50">
+                                <XCircleIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 

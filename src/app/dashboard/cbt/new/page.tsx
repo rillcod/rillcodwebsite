@@ -238,17 +238,89 @@ export default function NewExamPage() {
 
     const optLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-    // Convert markdown code fences to styled <pre><code> blocks for print
+    // Full markdown → HTML converter for print output
     function formatQuestionText(text: string): string {
-      // Escape HTML entities first (but not inside code blocks)
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      // Replace ```lang\n...\n``` fences with styled pre blocks
-      return text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_match, lang, code) => {
+
+      // Extract fenced code blocks first (protect them from inline processing)
+      const codeBlocks: string[] = [];
+      let t = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
         const langLabel = lang ? `<span style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;display:block">${escHtml(lang)}</span>` : '';
-        return `<div style="margin:5px 0;background:#1e1e2e;border-radius:5px;padding:8px 10px;border-left:3px solid #7c3aed">${langLabel}<pre style="margin:0;font-family:'Courier New',monospace;font-size:10.5px;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${escHtml(code.trimEnd())}</pre></div>`;
-      })
-      // Inline backtick code
-      .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:10px;background:#f0f0f8;color:#4c1d95;padding:1px 4px;border-radius:3px;border:1px solid #ddd6fe">$1</code>');
+        codeBlocks.push(`<div style="margin:5px 0;background:#1e1e2e;border-radius:5px;padding:8px 10px;border-left:3px solid #7c3aed">${langLabel}<pre style="margin:0;font-family:'Courier New',monospace;font-size:10.5px;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${escHtml(code.trimEnd())}</pre></div>`);
+        return `\x00CODE${codeBlocks.length - 1}\x00`;
+      });
+
+      // Process line by line for block elements
+      const lines = t.split('\n');
+      const out: string[] = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+
+        // Headings
+        if (/^### /.test(line)) { out.push(`<div style="font-size:11px;font-weight:900;color:#4c1d95;margin:7px 0 3px;text-transform:uppercase;letter-spacing:0.5px">${inlineMd(line.slice(4))}</div>`); i++; continue; }
+        if (/^## /.test(line))  { out.push(`<div style="font-size:12px;font-weight:900;color:#4c1d95;margin:8px 0 4px;border-bottom:1px solid #ddd6fe;padding-bottom:2px">${inlineMd(line.slice(3))}</div>`); i++; continue; }
+        if (/^# /.test(line))   { out.push(`<div style="font-size:13px;font-weight:900;color:#4c1d95;margin:9px 0 5px">${inlineMd(line.slice(2))}</div>`); i++; continue; }
+
+        // Blockquote
+        if (/^> /.test(line)) {
+          const quotes: string[] = [];
+          while (i < lines.length && /^> /.test(lines[i])) { quotes.push(lines[i].slice(2)); i++; }
+          out.push(`<div style="border-left:3px solid #7c3aed;background:#f5f3ff;padding:5px 10px;margin:5px 0;font-size:10.5px;color:#374151;font-style:italic">${inlineMd(quotes.join(' '))}</div>`);
+          continue;
+        }
+
+        // Horizontal rule
+        if (/^---+$/.test(line.trim())) { out.push(`<hr style="border:none;border-top:1px solid #d1d5db;margin:7px 0"/>`); i++; continue; }
+
+        // Bullet list
+        if (/^[-*] /.test(line)) {
+          const items: string[] = [];
+          while (i < lines.length && /^[-*] /.test(lines[i])) { items.push(lines[i].slice(2)); i++; }
+          out.push(`<ul style="margin:5px 0 5px 14px;padding:0;list-style:disc">${items.map(it => `<li style="font-size:10.5px;color:#1f2937;margin-bottom:2px;line-height:1.5">${inlineMd(it)}</li>`).join('')}</ul>`);
+          continue;
+        }
+
+        // Numbered list
+        if (/^\d+\. /.test(line)) {
+          const items: string[] = [];
+          while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++; }
+          out.push(`<ol style="margin:5px 0 5px 14px;padding:0;list-style:decimal">${items.map(it => `<li style="font-size:10.5px;color:#1f2937;margin-bottom:2px;line-height:1.5">${inlineMd(it)}</li>`).join('')}</ol>`);
+          continue;
+        }
+
+        // Placeholder for extracted code block
+        if (/^\x00CODE\d+\x00$/.test(line.trim())) {
+          const idx = parseInt(line.trim().replace(/\x00CODE(\d+)\x00/, '$1'), 10);
+          out.push(codeBlocks[idx] ?? '');
+          i++; continue;
+        }
+
+        // Empty line
+        if (!line.trim()) { out.push('<br/>'); i++; continue; }
+
+        // Paragraph
+        const paraLines: string[] = [];
+        while (i < lines.length && lines[i].trim() && !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) && !/^\d+\. /.test(lines[i]) && !/^> /.test(lines[i]) && !/^---+$/.test(lines[i].trim()) && !/^\x00CODE/.test(lines[i])) {
+          paraLines.push(lines[i]); i++;
+        }
+        if (paraLines.length) out.push(`<span style="font-size:11.5px;color:#1f2937;line-height:1.5">${inlineMd(paraLines.join(' '))}</span>`);
+      }
+      return out.join('');
+
+      function inlineMd(s: string): string {
+        // Restore code block placeholders inside inline context (shouldn't happen but be safe)
+        s = s.replace(/\x00CODE(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx, 10)] ?? '');
+        return s
+          .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:10px;background:#f0f0f8;color:#4c1d95;padding:1px 4px;border-radius:3px;border:1px solid #ddd6fe">$1</code>')
+          .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:800;color:#111827">$1</strong>')
+          .replace(/__(.+?)__/g, '<strong style="font-weight:800;color:#111827">$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em style="font-style:italic">$1</em>')
+          .replace(/_(.+?)_/g, '<em style="font-style:italic">$1</em>')
+          .replace(/~~(.+?)~~/g, '<s style="opacity:0.5">$1</s>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:#7c3aed;text-decoration:underline">$1</a>');
+      }
     }
 
     const questionRows = toPrint.map((q, i) => {

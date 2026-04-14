@@ -260,28 +260,36 @@ Return ONLY this JSON (nothing else):
 }`;
       }
 
-      return `Write clear, engaging study notes for a Rillcod Technologies student.
+      return `Write clear, well-structured study notes for a Rillcod Technologies student.
 Topic: "${req.topic}"
 Grade: ${grade}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 ${notesContextLine ? `Context: ${notesContextLine}` : ''}
 
-RULES:
-- Use ## and ### markdown headers to structure the notes clearly
-- Keep paragraphs short (3-4 sentences max)
-- Include real-world examples relevant to African/Nigerian students
-- For coding topics: include ONE short code example with comments
-- Use bullet points for lists and key concepts
-${req.courseName ? `- Frame every example and analogy within the context of "${req.courseName}" so the student can connect this topic to their course` : ''}
-${req.programName ? `- Mention how this topic fits the broader "${req.programName}" programme once, naturally, in the introduction` : ''}
-- Tone: encouraging, clear, British English
-- Length: 800-1200 words (not more — quality over quantity)
-- End with a "## Quick Recap 📌" section with 5 bullet points
+MANDATORY STRUCTURE — follow this exact section order:
+1. ## Introduction — 2-3 paragraphs introducing the topic with a real-world hook
+2. ## What is [Topic]? — clear definition + key concept explanation
+3. ## How it Works — step-by-step explanation with bullet points
+4. ## Real-World Examples — 2-3 Nigerian/African examples (phones, tech, everyday life)
+${req.courseName ? `5. ## In Your Course — how "${req.topic}" connects to "${req.courseName}"` : '5. ## Why It Matters — practical applications'}
+6. ## Key Points — bullet list of 6-8 most important facts
+7. ## Quick Recap 📌 — exactly 5 bullet point summary statements
 
-Return ONLY this JSON (nothing else):
+STRICT RULES:
+- ALWAYS use ## for main sections, ### for sub-sections — this is non-negotiable
+- Keep paragraphs to 3-4 sentences maximum
+- Use bullet points (- item) for ALL lists
+- For coding topics: include ONE code block using \`\`\`language fences
+- Tone: encouraging, clear, British English
+- Total length: 900-1200 words
+- DO NOT use bold (**) for headings — headings must use ## only
+${req.courseName ? `- Frame every example within the context of "${req.courseName}"` : ''}
+${req.programName ? `- Naturally mention the "${req.programName}" programme once in the introduction` : ''}
+
+Return ONLY this JSON (nothing else — no preamble, no explanation):
 {
-  "lesson_notes": "your complete markdown study notes here"
+  "lesson_notes": "## Introduction\\n\\n[content here...]\\n\\n## What is ${req.topic}?\\n\\n[content...]"
 }`; }
 
     case 'lesson': {

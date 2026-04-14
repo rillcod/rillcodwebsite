@@ -16,6 +16,17 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp', 'Innovate today'];
+const KID_GREETINGS = ['Hey there!', 'Ready to learn?', 'Let\'s have fun!', 'Time to code!', 'Let\'s go!'];
+
+/** Detect learner tier from grade_level */
+function getLearnerTier(gradeLevel?: string | null, enrollmentType?: string | null): 'kids' | 'secondary' | 'adult' {
+  const g = (gradeLevel || enrollmentType || '').toLowerCase();
+  if (!g) return 'secondary'; // default
+  if (g.includes('kg') || g.includes('basic') || g.includes('primary') || g.includes('kid') || g.includes('grade')) return 'kids';
+  if (g.includes('jss') || g.includes('ss') || g.includes('secondary') || g.includes('junior') || g.includes('senior')) return 'secondary';
+  if (g.includes('adult') || g.includes('professional') || g.includes('university') || g.includes('tertiary') || g.includes('ndp') || g.includes('hnd')) return 'adult';
+  return 'secondary';
+}
 
 export default function StudentLearningPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -33,7 +44,13 @@ export default function StudentLearningPage() {
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [nextLesson, setNextLesson] = useState<any>(null);
   
-  const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
+  const [greetingSeed] = useState(() => Math.random());
+  const tier = getLearnerTier(profile?.grade_level, profile?.enrollment_type);
+  const isKids = tier === 'kids';
+  const isAdult = tier === 'adult';
+  const greeting = isKids
+    ? KID_GREETINGS[Math.floor(greetingSeed * KID_GREETINGS.length)]
+    : GREETINGS[Math.floor(greetingSeed * GREETINGS.length)];
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [badges, setBadges] = useState<any[]>([]);
   const [coursesByProgram, setCoursesByProgram] = useState<Record<string, { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string; lessons: { id: string }[]; assignments: { id: string }[] }[]>>({});
@@ -301,20 +318,32 @@ export default function StudentLearningPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* Unified Hero Section */}
-        <div className="relative overflow-hidden bg-card border border-border p-8 sm:p-14 group">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-orange-600/5 blur-[150px] -mr-64 -mt-64 pointer-events-none group-hover:bg-orange-600/8 transition-all duration-1000" />
+        <div className={`relative overflow-hidden border p-6 sm:p-10 lg:p-14 group ${isKids ? 'bg-gradient-to-br from-violet-600/10 via-card to-orange-500/10 border-violet-500/30' : 'bg-card border-border'}`}>
+          <div className={`absolute top-0 right-0 w-[600px] h-[600px] blur-[150px] -mr-64 -mt-64 pointer-events-none transition-all duration-1000 ${isKids ? 'bg-violet-600/10 group-hover:bg-violet-600/15' : 'bg-orange-600/5 group-hover:bg-orange-600/8'}`} />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] -ml-48 -mb-48 pointer-events-none" />
-          
-          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-12">
-            <div className="space-y-6 text-center lg:text-left flex-1">
-              <h1 className="text-4xl sm:text-7xl font-black tracking-tighter leading-[0.9] italic">
+
+          {/* Learner tier badge */}
+          {profile?.grade_level && (
+            <div className={`relative z-10 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border ${isKids ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-blue-500/20 border-blue-500/40 text-blue-400'}`}>
+              {isKids ? '🎒' : isAdult ? '🎓' : '📚'} {profile.grade_level}
+            </div>
+          )}
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12">
+            <div className="space-y-4 sm:space-y-6 text-center lg:text-left flex-1">
+              <h1 className={`font-black tracking-tighter leading-[0.9] italic ${isKids ? 'text-3xl sm:text-5xl' : 'text-4xl sm:text-7xl'}`}>
                 {greeting},<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500">
+                <span className={`text-transparent bg-clip-text ${isKids ? 'bg-gradient-to-r from-violet-500 via-pink-500 to-orange-500' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500'}`}>
                   {profile?.full_name?.split(' ')[0]}!
                 </span>
+                {isKids && <span className="ml-2 not-italic">🚀</span>}
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground max-w-xl font-medium leading-relaxed">
-                Everything you need for your courses, lessons, and assignments — all in one place.
+                {isKids
+                  ? 'Your learning adventure is waiting! Complete lessons, earn XP, and have fun! 🌟'
+                  : isAdult
+                  ? 'Professional learning at your pace — lessons, assessments, and certifications in one place.'
+                  : 'Everything you need for your courses, lessons, and assignments — all in one place.'}
               </p>
               
               <div className="flex flex-wrap gap-4 pt-4 justify-center lg:justify-start">
@@ -367,10 +396,14 @@ export default function StudentLearningPage() {
             <div className="flex-1 space-y-4 text-center md:text-left">
                <div className="flex flex-col gap-1">
                  <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em]">AI Feedback</p>
-                 <h3 className="text-2xl font-black tracking-tight text-foreground uppercase italic">Performance Feedback</h3>
+                 <h3 className="text-2xl font-black tracking-tight text-foreground uppercase italic">
+                   {isKids ? 'My AI Tutor 🤖' : 'Performance Feedback'}
+                 </h3>
                </div>
                <p className="text-sm text-muted-foreground font-medium max-w-2xl leading-relaxed">
-                 Our AI will review your recent activity and suggest what to focus on next.
+                 {isKids
+                   ? 'Ask our AI to see how you\'re doing and get tips on what to learn next! 🌟'
+                   : 'Our AI will review your recent activity and suggest what to focus on next.'}
                </p>
                <div className="flex flex-wrap items-center gap-4 justify-center md:justify-start pt-2">
                   <button 
@@ -433,7 +466,10 @@ export default function StudentLearningPage() {
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-black uppercase italic flex items-center gap-3">Today's Tasks <span className="text-emerald-500 text-lg">🎯</span></h2>
+              <h2 className="text-2xl font-black uppercase italic flex items-center gap-3">
+            {isKids ? '⭐ Today\'s Missions' : 'Today\'s Tasks'}
+            <span className="text-emerald-500 text-lg">{isKids ? '🎮' : '🎯'}</span>
+          </h2>
             </div>
             <div className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden sm:block">
               Complete all 3 to earn points
@@ -516,7 +552,9 @@ export default function StudentLearningPage() {
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">My Lessons</h2>
+              <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">
+                {isKids ? '🗺️ My Learning Journey' : 'My Lessons'}
+              </h2>
             </div>
             <div className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden sm:block">
               Progress: <span className="text-orange-500">{stats.lessonsDone} lessons completed</span>
@@ -580,8 +618,8 @@ export default function StudentLearningPage() {
                     );
                   })
                 ) : (
-                  <div className="flex-1 text-center py-16 opacity-20 text-[10px] uppercase font-black tracking-widest min-w-[300px]">
-                    No lessons available yet. Enroll in a program to begin.
+                  <div className="flex-1 text-center py-16 opacity-30 text-[10px] uppercase font-black tracking-widest min-w-[300px]">
+                    {isKids ? '🎒 No lessons yet! Ask your teacher to set up your classes.' : 'No lessons available yet. Enroll in a program to begin.'}
                   </div>
                 )}
               </div>
@@ -620,15 +658,19 @@ export default function StudentLearningPage() {
               {/* My Programs + Courses */}
               <section className="space-y-8">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-black">My Programs</h2>
+                  <h2 className="text-2xl font-black">{isKids ? '🎒 My Learning Programmes' : isAdult ? 'My Courses & Programmes' : 'My Programs'}</h2>
                   <span className="text-xs text-muted-foreground">{programs.length} enrolled</span>
                 </div>
 
                 {programs.length === 0 ? (
                   <div className="py-16 bg-muted/20 border border-dashed border-border text-center">
                     <AcademicCapIcon className="w-10 h-10 mx-auto text-muted-foreground/40 mb-4" />
-                    <p className="text-muted-foreground text-sm font-bold">Not enrolled in any program yet</p>
-                    <Link href="/dashboard/library" className="mt-4 inline-block text-blue-500 hover:text-foreground text-xs font-bold transition-colors">Browse courses →</Link>
+                    <p className="text-muted-foreground text-sm font-bold">
+                      {isKids ? 'No classes yet! Ask your teacher to enrol you 🎉' : 'Not enrolled in any program yet'}
+                    </p>
+                    <Link href="/dashboard/library" className="mt-4 inline-block text-blue-500 hover:text-foreground text-xs font-bold transition-colors">
+                      {isKids ? 'Explore courses 🚀' : 'Browse courses →'}
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-8">
@@ -654,7 +696,7 @@ export default function StudentLearningPage() {
                                 <div>
                                   <h3 className="text-base font-black text-foreground">{prog.name}</h3>
                                   <p className="text-xs text-muted-foreground mt-0.5">
-                                    {prog.difficulty_level || 'General'} · {prog.duration_weeks || 12} weeks · {courses.length} course{courses.length !== 1 ? 's' : ''}
+                                    {prog.difficulty_level || 'General'} · {prog.duration_weeks || 12} weeks · {courses.filter(c => (c.lessons?.length ?? 0) > 0).length} active course{courses.filter(c => (c.lessons?.length ?? 0) > 0).length !== 1 ? 's' : ''}
                                   </p>
                                 </div>
                               </div>
@@ -675,12 +717,16 @@ export default function StudentLearningPage() {
                             </div>
                           </div>
 
-                          {/* Courses grid */}
-                          {courses.length > 0 ? (
+                          {/* Courses grid — only show courses that have at least 1 lesson */}
+                          {courses.length > 0 ? (() => {
+                            const activeCourses = courses.filter(c => (c.lessons?.length ?? 0) > 0);
+                            return activeCourses.length > 0 ? (
                             <div className="px-6 pb-6">
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Courses in this program</p>
+                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">
+                                {activeCourses.length} active course{activeCourses.length !== 1 ? 's' : ''} in this program
+                              </p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {courses.map((c, ci) => {
+                                {activeCourses.map((c, ci) => {
                                   const totalLessons = c.lessons?.length ?? 0;
                                   const doneLessons = (c.lessons ?? []).filter(l => completedLessonIds.has(l.id)).length;
                                   const totalAssignments = c.assignments?.length ?? 0;
@@ -735,9 +781,18 @@ export default function StudentLearningPage() {
                                 })}
                               </div>
                             </div>
-                          ) : (
+                            ) : (
                             <div className="px-6 pb-6">
-                              <p className="text-xs text-muted-foreground italic">No courses added to this program yet.</p>
+                              <p className="text-xs text-muted-foreground italic">
+                                {isKids ? 'Your teacher hasn\'t added lessons yet — check back soon! 🎒' : 'No lessons added to any course in this program yet.'}
+                              </p>
+                            </div>
+                            );
+                          })() : (
+                            <div className="px-6 pb-6">
+                              <p className="text-xs text-muted-foreground italic">
+                                {isKids ? 'No classes yet! 🎒' : 'No courses added to this program yet.'}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -752,7 +807,7 @@ export default function StudentLearningPage() {
                  <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-1">
                       <h2 className="text-2xl font-black uppercase italic">
-                        Recent Lessons
+                        {isKids ? '📖 Latest Lessons' : isAdult ? 'Recent Content' : 'Recent Lessons'}
                       </h2>
                     </div>
                     <Link href="/dashboard/lessons" className="text-[9px] font-black text-orange-500 hover:text-foreground uppercase tracking-[0.2em] transition-colors">
@@ -804,7 +859,12 @@ export default function StudentLearningPage() {
                     </div>
                  </div>
                  <h3 className="text-lg font-black text-foreground">{profile?.full_name}</h3>
-                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1"> {profile?.school_name || 'Rillcod'}</p>
+                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">{profile?.school_name || 'Rillcod'}</p>
+                 {profile?.grade_level && (
+                   <span className={`inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${isKids ? 'bg-violet-500/20 border-violet-500/30 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-blue-500/20 border-blue-500/30 text-blue-400'}`}>
+                     {isKids ? '🎒' : isAdult ? '🎓' : '📚'} {profile.grade_level}
+                   </span>
+                 )}
 
                  <div className="grid grid-cols-2 gap-3 mt-8">
                     <div className="p-4 bg-muted/30 border border-border">
@@ -854,10 +914,18 @@ export default function StudentLearningPage() {
               <div className="relative group bg-gradient-to-br from-[#7a0606] to-[#af0a0a] p-8 text-center overflow-hidden hover:scale-[1.01] transition-transform">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-muted/20 blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
                  <BoltIcon className="w-10 h-10 text-foreground mx-auto mb-4 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]" />
-                 <h4 className="text-xl font-black text-foreground mb-2 tracking-tight uppercase italic">Coding Playground</h4>
-                 <p className="text-xs text-foreground/60 mb-6 leading-relaxed font-medium">Try out code, experiment with ideas, and build small projects in the playground.</p>
+                 <h4 className="text-xl font-black text-foreground mb-2 tracking-tight uppercase italic">
+                   {isKids ? '🎮 Code Playground' : 'Coding Playground'}
+                 </h4>
+                 <p className="text-xs text-foreground/60 mb-6 leading-relaxed font-medium">
+                   {isKids
+                     ? 'Build cool stuff, try code, and show your teacher what you made! 🚀'
+                     : isAdult
+                     ? 'Practice real-world coding, experiment with concepts, and build portfolio projects.'
+                     : 'Try out code, experiment with ideas, and build small projects in the playground.'}
+                 </p>
                  <Link href="/dashboard/playground" className="block w-full py-3 bg-white text-[#7a0606] font-black text-[9px] uppercase tracking-widest shadow-xl transition-all active:scale-95 hover:bg-orange-50">
-                    Open Playground
+                    {isKids ? '🚀 Open Playground' : 'Open Playground'}
                  </Link>
               </div>
            </div>
