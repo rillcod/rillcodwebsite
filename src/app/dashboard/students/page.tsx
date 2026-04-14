@@ -1450,6 +1450,31 @@ export default function StudentsPage() {
           </div>
 
 
+          {/* ── Management Hub ─────────────────────────────── */}
+          <div className="bg-card border border-border p-5 print:hidden">
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-4">Student Management</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: 'Register Students', sub: 'Bulk-add new students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+                { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
+                { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20' },
+                { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-orange-400 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+                { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true },
+              ].map(({ label, sub, href, icon: Icon, color, danger }) => (
+                <Link key={label} href={href}
+                  className={`group flex flex-col gap-2 p-4 border rounded-none transition-all ${color}`}
+                  title={danger ? '⚠️ This permanently deletes student data' : label}
+                >
+                  <Icon className="w-5 h-5" />
+                  <div>
+                    <p className={`text-[10px] font-black uppercase tracking-widest leading-tight ${danger ? 'text-rose-400' : 'text-foreground'}`}>{label}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
           {/* ── Error ──────────────────────────────────────── */}
           {error && (
             <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 rounded-none p-5 shadow-2xl animate-shake">
