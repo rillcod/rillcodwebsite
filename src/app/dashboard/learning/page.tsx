@@ -18,18 +18,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp', 'Innovate today'];
 const KID_GREETINGS = ['Hey there!', 'Ready to learn?', 'Let\'s have fun!', 'Time to code!', 'Let\'s go!'];
 
-/** Detect learner tier from grade_level */
+/** Detect learner tier from grade_level / enrollment_type.
+ *  Nigerian school system:
+ *    Kids      = Nursery/KG, Basic 1-6 (Primary), Grade 1-6
+ *    Secondary = JSS 1-3, SS 1-3, Junior/Senior Secondary
+ *    Adult     = HND, OND, University, Professional, NCE, PGDE, Adult Ed
+ */
 function getLearnerTier(gradeLevel?: string | null, enrollmentType?: string | null): 'kids' | 'secondary' | 'adult' {
-  const g = (gradeLevel || enrollmentType || '').toLowerCase();
-  if (!g) return 'secondary'; // default
-  if (g.includes('kg') || g.includes('basic') || g.includes('primary') || g.includes('kid') || g.includes('grade')) return 'kids';
-  if (g.includes('jss') || g.includes('ss') || g.includes('secondary') || g.includes('junior') || g.includes('senior')) return 'secondary';
-  if (g.includes('adult') || g.includes('professional') || g.includes('university') || g.includes('tertiary') || g.includes('ndp') || g.includes('hnd')) return 'adult';
+  const g = (gradeLevel || enrollmentType || '').toLowerCase().trim();
+  if (!g) return 'secondary'; // default for unknown
+
+  // Kids: nursery, kindergarten, primary, basic 1-6
+  if (/\b(nursery|kg|kindergarten|pre-?school|basic\s*[1-6]|primary|grade\s*[1-6]|year\s*[1-6]|class\s*[1-6]|kid|p[1-6]\b)/i.test(g)) return 'kids';
+  // Secondary: JSS, SS, junior, senior secondary
+  if (/\b(jss|ss\s*[1-3]|junior\s*sec|senior\s*sec|secondary|form\s*[1-6]|year\s*[7-9]|year\s*1[0-3])/i.test(g)) return 'secondary';
+  // Adult/tertiary
+  if (/\b(adult|hnd|ond|nce|pgde|university|uni|tertiary|professional|degree|postgrad|masters|phd|ndp|diploma|college)/i.test(g)) return 'adult';
+
+  // Loose fallbacks
+  if (g.includes('basic') || g.includes('primary') || g.includes('kid') || g.includes('grade')) return 'kids';
+  if (g.includes('jss') || g.includes('ss') || g.includes('junior') || g.includes('senior')) return 'secondary';
+  if (g.includes('adult') || g.includes('professional') || g.includes('university')) return 'adult';
+
   return 'secondary';
 }
 
 export default function StudentLearningPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const [lessons, setLessons] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -56,6 +71,7 @@ export default function StudentLearningPage() {
   const [coursesByProgram, setCoursesByProgram] = useState<Record<string, { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string; lessons: { id: string }[]; assignments: { id: string }[] }[]>>({});
   const [pendingAssignments, setPendingAssignments] = useState(0);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function loadData() {
     if (!profile) return;
@@ -200,39 +216,47 @@ export default function StudentLearningPage() {
 
     } catch (err) {
       console.error('Error loading learning data:', err);
+      setLoadError('Failed to load your dashboard data. Please refresh the page.');
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!authLoading && profile) {
-      loadData();
+    // Wait until both auth AND profile loading are done before acting
+    if (authLoading || profileLoading) return;
 
-      // Enable Realtime Synchronization
-      const db = createClient();
-      const channel = db.channel(`user-stats-${profile.id}`)
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'user_points',
-          filter: `portal_user_id=eq.${profile.id}`
-        }, (payload: any) => {
-          if (payload.new) {
-            setStats(prev => ({
-              ...prev,
-              xp: payload.new.total_points,
-              streak: payload.new.current_streak
-            }));
-          }
-        })
-        .subscribe();
-      
-      return () => {
-        db.removeChannel(channel);
-      };
+    if (!profile) {
+      // Auth resolved but no profile (e.g. fetch failed) — stop spinner, don't hang
+      setLoading(false);
+      return;
     }
-  }, [profile?.id, authLoading]);
+
+    loadData();
+
+    // Enable Realtime Synchronization
+    const db = createClient();
+    const channel = db.channel(`user-stats-${profile.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_points',
+        filter: `portal_user_id=eq.${profile.id}`
+      }, (payload: any) => {
+        if (payload.new) {
+          setStats(prev => ({
+            ...prev,
+            xp: payload.new.total_points,
+            streak: payload.new.current_streak
+          }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      db.removeChannel(channel);
+    };
+  }, [profile?.id, authLoading, profileLoading]);
 
   useEffect(() => {
     if (loading) return;
@@ -292,11 +316,23 @@ export default function StudentLearningPage() {
     setDailyMissions(missions);
   }, [loading, nextLesson, pendingAssignments, stats.streak, completedLessonIds]);
 
-  if (authLoading || loading) return (
+  if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
         <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent animate-spin" />
-        <p className="text-muted-foreground text-[10px] font-black tracking-[0.4em] uppercase">Loading your dashboard...</p>
+        <p className="text-muted-foreground text-[10px] font-black tracking-[0.4em] uppercase">
+          {profileLoading ? 'Authenticating...' : 'Loading your dashboard...'}
+        </p>
+      </div>
+    </div>
+  );
+
+  // Auth resolved but profile missing — direct to login
+  if (!profile) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <p className="text-muted-foreground text-sm font-bold">Session expired. Please sign in again.</p>
+        <a href="/login" className="inline-block px-6 py-3 bg-orange-600 text-white text-xs font-black uppercase tracking-widest hover:bg-orange-500 transition-colors">Sign In</a>
       </div>
     </div>
   );
@@ -315,19 +351,52 @@ export default function StudentLearningPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-orange-600/30">
+
+      {/* Activity Hub — quick nav to all 4 activity types */}
+      <div className="bg-card border-b border-border px-4 sm:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
+          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0 mr-1">Activity Hub:</span>
+          {[
+            { label: 'Written Exams',    href: '/dashboard/exams',        color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20', icon: '📝' },
+            { label: 'CBT / Evaluation', href: '/dashboard/cbt',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20', icon: '🎯' },
+            { label: 'Assignments',      href: '/dashboard/assignments',   color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', icon: '📋' },
+            { label: 'Projects',         href: '/dashboard/projects',      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20', icon: '🚀' },
+            { label: 'Lessons',          href: '/dashboard/lessons',       color: 'text-amber-400 bg-amber-500/15 border-amber-500/30', icon: '📖', active: true },
+          ].map(({ label, href, color, icon, active }) =>
+            active
+              ? <span key={label} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 ${color}`}>
+                  {icon} {label} <span className="text-[8px] opacity-60">(here)</span>
+                </span>
+              : <Link key={label} href={href} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 transition-all ${color}`}>
+                  {icon} {label}
+                </Link>
+          )}
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
+
+        {/* Error banner */}
+        {loadError && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-center justify-between gap-4">
+            <p className="text-destructive text-xs font-bold">{loadError}</p>
+            <button onClick={() => { setLoadError(null); loadData(); }}
+              className="text-[10px] font-black text-destructive uppercase tracking-widest border border-destructive/40 px-3 py-1 hover:bg-destructive/10 transition-colors flex-shrink-0">
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Unified Hero Section */}
         <div className={`relative overflow-hidden border p-6 sm:p-10 lg:p-14 group ${isKids ? 'bg-gradient-to-br from-violet-600/10 via-card to-orange-500/10 border-violet-500/30' : 'bg-card border-border'}`}>
           <div className={`absolute top-0 right-0 w-[600px] h-[600px] blur-[150px] -mr-64 -mt-64 pointer-events-none transition-all duration-1000 ${isKids ? 'bg-violet-600/10 group-hover:bg-violet-600/15' : 'bg-orange-600/5 group-hover:bg-orange-600/8'}`} />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] -ml-48 -mb-48 pointer-events-none" />
 
-          {/* Learner tier badge */}
-          {profile?.grade_level && (
-            <div className={`relative z-10 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border ${isKids ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-blue-500/20 border-blue-500/40 text-blue-400'}`}>
-              {isKids ? '🎒' : isAdult ? '🎓' : '📚'} {profile.grade_level}
-            </div>
-          )}
+          {/* Learner tier badge — always visible */}
+          <div className={`relative z-10 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border ${isKids ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-blue-500/20 border-blue-500/40 text-blue-400'}`}>
+            {isKids ? '🎒' : isAdult ? '🎓' : '📚'}
+            {profile.grade_level || (isKids ? 'Primary School' : isAdult ? 'Professional Learner' : 'Secondary School')}
+          </div>
 
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12">
             <div className="space-y-4 sm:space-y-6 text-center lg:text-left flex-1">
@@ -365,19 +434,23 @@ export default function StudentLearningPage() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
-               <div className="bg-background border border-border p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-blue-500/30 transition-all">
-                  <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4 transition-transform group-hover/card:scale-110">
-                     <ChartBarIcon className="w-7 h-7" />
+               <div className={`p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-blue-500/30 transition-all border ${isKids ? 'bg-blue-500/10 border-blue-500/30' : 'bg-background border-border'}`}>
+                  <div className={`w-12 h-12 flex items-center justify-center mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-3xl' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+                     {isKids ? '⭐' : <ChartBarIcon className="w-7 h-7" />}
                   </div>
                   <p className="text-4xl font-black tabular-nums">{stats.avgScore}%</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">Avg Score</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">
+                    {isKids ? 'My Score' : isAdult ? 'Assessment Avg' : 'Avg Score'}
+                  </p>
                </div>
-               <div className="bg-background border border-border p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-emerald-500/30 transition-all">
-                  <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 transition-transform group-hover/card:scale-110">
-                     <CheckBadgeIcon className="w-7 h-7" />
+               <div className={`p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-emerald-500/30 transition-all border ${isKids ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-background border-border'}`}>
+                  <div className={`w-12 h-12 flex items-center justify-center mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-3xl' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+                     {isKids ? '🏅' : <CheckBadgeIcon className="w-7 h-7" />}
                   </div>
                   <p className="text-4xl font-black tabular-nums">{stats.lessonsDone}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">Lessons Done</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">
+                    {isKids ? 'Lessons Done! 🎉' : isAdult ? 'Modules Completed' : 'Lessons Done'}
+                  </p>
                </div>
             </div>
           </div>
@@ -860,11 +933,10 @@ export default function StudentLearningPage() {
                  </div>
                  <h3 className="text-lg font-black text-foreground">{profile?.full_name}</h3>
                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">{profile?.school_name || 'Rillcod'}</p>
-                 {profile?.grade_level && (
-                   <span className={`inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${isKids ? 'bg-violet-500/20 border-violet-500/30 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-blue-500/20 border-blue-500/30 text-blue-400'}`}>
-                     {isKids ? '🎒' : isAdult ? '🎓' : '📚'} {profile.grade_level}
-                   </span>
-                 )}
+                 <span className={`inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${isKids ? 'bg-violet-500/20 border-violet-500/30 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-blue-500/20 border-blue-500/30 text-blue-400'}`}>
+                   {isKids ? '🎒' : isAdult ? '🎓' : '📚'}
+                   {profile.grade_level || (isKids ? 'Primary' : isAdult ? 'Professional' : 'Secondary')}
+                 </span>
 
                  <div className="grid grid-cols-2 gap-3 mt-8">
                     <div className="p-4 bg-muted/30 border border-border">

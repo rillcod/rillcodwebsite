@@ -9,6 +9,7 @@ import {
   XCircleIcon, PencilSquareIcon, ArrowPathIcon, LinkIcon, HeartIcon,
   ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, EyeIcon, EyeSlashIcon,
   ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon, TrashIcon,
+  ChatBubbleLeftEllipsisIcon, ClipboardDocumentListIcon,
 } from '@/lib/icons';
 
 import {
@@ -985,6 +986,27 @@ export default function ParentsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Parents Hub Tab Bar */}
+      <div className="bg-card border border-border">
+        <div className="flex items-center gap-0 overflow-x-auto">
+          <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-orange-500 text-orange-500 text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+            <UserGroupIcon className="w-4 h-4" /> Parents
+          </div>
+          <Link href="/dashboard/parent-feedback"
+            className="px-5 sm:px-6 py-4 border-r border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+            <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Feedback
+          </Link>
+          <Link href="/dashboard/parent-results"
+            className="px-5 sm:px-6 py-4 border-r border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+            <ClipboardDocumentListIcon className="w-4 h-4" /> Results
+          </Link>
+          <Link href="/dashboard/parent-grades"
+            className="px-5 sm:px-6 py-4 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+            <CheckCircleIcon className="w-4 h-4" /> Grades
+          </Link>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

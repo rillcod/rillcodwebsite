@@ -4,9 +4,11 @@ import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
 import {
   ChatBubbleLeftEllipsisIcon, CheckCircleIcon, StarIcon,
   UserIcon, BuildingOfficeIcon, ClockIcon, AcademicCapIcon,
+  UserGroupIcon, ClipboardDocumentListIcon,
 } from '@/lib/icons';
 
 interface FeedbackRow {
@@ -451,6 +453,29 @@ function ParentFeedbackContent() {
 
   return (
     <div className="space-y-6">
+      {/* Parents Hub Tab Bar — only visible to staff */}
+      {isStaff && (
+        <div className="bg-card border border-border">
+          <div className="flex items-center gap-0 overflow-x-auto">
+            <Link href="/dashboard/parents"
+              className="px-5 sm:px-6 py-4 border-r border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+              <UserGroupIcon className="w-4 h-4" /> Parents
+            </Link>
+            <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-orange-500 text-orange-500 text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+              <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Feedback
+            </div>
+            <Link href="/dashboard/parent-results"
+              className="px-5 sm:px-6 py-4 border-r border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+              <ClipboardDocumentListIcon className="w-4 h-4" /> Results
+            </Link>
+            <Link href="/dashboard/parent-grades"
+              className="px-5 sm:px-6 py-4 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
+              <CheckCircleIcon className="w-4 h-4" /> Grades
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">
           {isParent ? 'Share Feedback' : 'Parent Feedback'}
