@@ -161,15 +161,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profileFetchStartedRef.current = true;
       setProfileLoading(true);
       fetchProfile(fastPathUserId).then(p => {
-        // Only apply if the currently signed-in user is still the same one
-        // (guards against race where SIGNED_IN for a different account fires first)
+        // Apply immediately — onAuthStateChange INITIAL_SESSION will fire shortly
+        // after and will clear the profile if the user has changed. Avoid the nested
+        // supabase.auth.getUser() call here because it can hang indefinitely and
+        // prevent setProfileLoading(false) from ever being called.
         if (mountedRef.current) {
-          supabase.auth.getUser().then(({ data }) => {
-            if (data?.user?.id === fastPathUserId) {
-              setProfile(p);
-            }
-            setProfileLoading(false);
-          });
+          setProfile(p);
+          setProfileLoading(false);
         }
       }).catch(() => {
         if (mountedRef.current) setProfileLoading(false);
