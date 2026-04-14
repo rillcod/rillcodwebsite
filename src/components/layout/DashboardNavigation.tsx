@@ -149,8 +149,6 @@ export default function DashboardNavigation() {
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Written Exams', href: '/dashboard/exams', icon: DocumentTextIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Students' },
