@@ -259,17 +259,17 @@ export default function StudentDashboard() {
               Welcome back, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
             </h1>
             <p className="text-xs text-muted-foreground font-medium mt-1">Ready to level up today?</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+            <div className="grid grid-cols-2 gap-2 mt-3">
               {[
-                { icon: FireIcon, val: data.streak, label: 'Streak', color: 'text-orange-500' },
-                { icon: TrophyIcon, val: data.xp.toLocaleString(), label: 'XP', color: 'text-amber-500' },
+                { icon: FireIcon, val: data.streak, label: 'Day Streak', color: 'text-orange-500' },
+                { icon: TrophyIcon, val: data.xp.toLocaleString(), label: 'XP Earned', color: 'text-amber-500' },
                 { icon: CheckBadgeIcon, val: data.lessonsDone, label: 'Lessons', color: 'text-emerald-500' },
-                ...(data.leaderboardRank ? [{ icon: StarIcon, val: `#${data.leaderboardRank}`, label: 'Rank', color: 'text-cyan-400' }] : []),
+                { icon: StarIcon, val: data.leaderboardRank ? `#${data.leaderboardRank}` : '—', label: 'Global Rank', color: 'text-cyan-400' },
               ].map(({ icon: Icon, val, label, color }) => (
-                <div key={label} className="flex items-center gap-1.5">
+                <div key={label} className="flex items-center gap-1.5 min-w-0">
                   <Icon className={`w-3.5 h-3.5 ${color} shrink-0`} />
-                  <span className="text-sm font-black text-foreground">{val}</span>
-                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{label}</span>
+                  <span className="text-sm font-black text-foreground tabular-nums">{val}</span>
+                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate">{label}</span>
                 </div>
               ))}
             </div>

@@ -25,6 +25,39 @@ async function requireStaff(): Promise<{ role: string; id: string; school_id: st
   return caller;
 }
 
+/**
+ * Returns true if the calling staff member is allowed to manage students in the given class.
+ * - admin: always allowed
+ * - school role: class must belong to their school
+ * - teacher: class must belong to one of their assigned schools
+ */
+async function callerHasClassAccess(
+  caller: { role: string; id: string; school_id: string | null },
+  classSchoolId: string | null,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (!classSchoolId) return true; // no school restriction on the class
+
+  if (caller.role === 'school') {
+    return caller.school_id === classSchoolId;
+  }
+
+  if (caller.role === 'teacher') {
+    // Primary school match
+    if (caller.school_id === classSchoolId) return true;
+    // Check teacher_schools table for multi-school assignments
+    const { data: ts } = await adminClient()
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', classSchoolId)
+      .maybeSingle();
+    return !!ts;
+  }
+
+  return false;
+}
+
 // GET /api/classes/[id]/enroll
 // Returns students not yet assigned to this class, scoped to caller's school(s)
 export async function GET(
@@ -150,6 +183,17 @@ export async function POST(
 
   if (clsErr || !cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
+  // Teacher school guard — teacher must be assigned to this class's school
+  if (caller.role === 'teacher') {
+    const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+        { status: 403 },
+      );
+    }
+  }
+
   // School boundary check — non-admins cannot enroll a student from a different school
   if (caller.role !== 'admin' && cls.school_id) {
     // Fetch the class's school name for legacy school_name-only student matching
@@ -247,6 +291,17 @@ export async function PUT(
   const admin = adminClient();
   const { data: cls } = await admin.from('classes').select('id, name, program_id, current_students, school_id').eq('id', classId).single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+  // Teacher school guard — teacher must be assigned to this class's school
+  if (caller.role === 'teacher') {
+    const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+        { status: 403 },
+      );
+    }
+  }
 
   // School boundary check — silently exclude students from a different school
   let allowedIds = studentIds;
@@ -346,8 +401,22 @@ export async function DELETE(
     return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
   }
 
+  const caller = staffResult;
   const { id: classId } = await params;
   const body = await request.json();
+
+  // Teacher school guard — teacher must be assigned to this class's school
+  const admin2 = adminClient();
+  if (caller.role === 'teacher') {
+    const { data: clsForGuard } = await admin2.from('classes').select('school_id').eq('id', classId).single();
+    const hasAccess = await callerHasClassAccess(caller, clsForGuard?.school_id ?? null);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+        { status: 403 },
+      );
+    }
+  }
 
   // Normalise single or bulk into an array
   let ids: string[] = [];
