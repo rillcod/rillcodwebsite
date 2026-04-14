@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { assertPaystackSupportedCurrency, paystackInitializeMinorUnits } from './paystack-amounts';
 
 describe('assertPaystackSupportedCurrency', () => {

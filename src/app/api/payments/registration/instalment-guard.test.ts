@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 
 describe('assertRegistrationInstalmentAllowed', () => {
