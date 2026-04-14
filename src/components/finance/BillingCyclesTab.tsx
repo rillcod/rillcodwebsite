@@ -9,6 +9,7 @@ import {
   CalendarDaysIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  TrashIcon,
 } from '@/lib/icons';
 
 export type BillingCycleRow = {
@@ -61,6 +62,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [patching, setPatching] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [contactUsers, setContactUsers] = useState<{ id: string; full_name: string | null; email: string | null; role: string | null }[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [savingForm, setSavingForm] = useState(false);
@@ -113,6 +115,27 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function deleteCycle(id: string) {
+    if (!isAdmin) return;
+    if (!confirm('Delete this billing cycle? Only cancelled or rolled-over cycles can be deleted. This cannot be undone.')) return;
+    setDeleting(id);
+    try {
+      const res = await fetch('/api/finance/billing-cycles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Delete failed');
+      toast.success('Billing cycle deleted');
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Delete failed');
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function patchStatus(id: string, status: string) {
     setPatching(id);
@@ -351,6 +374,17 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         >
                           Edit
                         </button>
+                        {['cancelled', 'rolled_over'].includes(row.status) && (
+                          <button
+                            type="button"
+                            disabled={deleting === row.id}
+                            onClick={() => void deleteCycle(row.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-none"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            {deleting === row.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        )}
                       </div>
                     )}
                     {isAdmin && row.status !== 'rolled_over' && (

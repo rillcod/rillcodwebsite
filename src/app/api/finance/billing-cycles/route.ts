@@ -213,3 +213,34 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data }, { status: 201 });
 }
+
+/**
+ * DELETE /api/finance/billing-cycles — delete a cancelled/rolled_over cycle (admin only).
+ * Body: { id }
+ */
+export async function DELETE(request: Request) {
+  const caller = await getCaller();
+  if (!caller || caller.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const { id } = body as { id?: string };
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const db = createAdminClient();
+  const { data: existing } = await db.from('billing_cycles').select('status').eq('id', id).single();
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Safety: only allow deleting cancelled or rolled_over cycles
+  if (!['cancelled', 'rolled_over'].includes(existing.status)) {
+    return NextResponse.json(
+      { error: 'Only cancelled or rolled-over cycles can be deleted. Cancel it first.' },
+      { status: 400 },
+    );
+  }
+
+  const { error } = await db.from('billing_cycles').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
