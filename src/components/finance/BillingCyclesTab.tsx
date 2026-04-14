@@ -31,6 +31,7 @@ export type BillingCycleRow = {
   reminder_week8_sent_at?: string | null;
   invoices?: { id: string; invoice_number: string; status: string; amount: number } | null;
   schools?: { name: string } | null;
+  owner_schools?: { name: string } | null;
 };
 
 function fmt(currency: string, amount: number) {
@@ -182,8 +183,8 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         <CalendarDaysIcon className="w-3.5 h-3.5 shrink-0" />
                         Due {relDate(row.due_date)} · starts {relDate(row.term_start_date)}
                       </span>
-                      {row.schools?.name && (
-                        <span className="text-foreground/80">· {row.schools.name}</span>
+                      {(row.schools?.name || row.owner_schools?.name) && (
+                        <span className="text-foreground/80">· {row.schools?.name ?? row.owner_schools?.name}</span>
                       )}
                     </p>
                   </div>

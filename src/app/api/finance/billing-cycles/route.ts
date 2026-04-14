@@ -45,7 +45,7 @@ export async function GET(request: Request) {
   const db = createAdminClient();
 
   let q = db.from('billing_cycles')
-    .select('*, invoices(id, invoice_number, status, amount), schools(name, rillcod_quota_percent)')
+    .select('*, invoices(id, invoice_number, status, amount), schools:schools!billing_cycles_school_id_fkey(name, rillcod_quota_percent), owner_schools:schools!billing_cycles_owner_school_id_fkey(name, rillcod_quota_percent)')
     .order('due_date', { ascending: false })
     .limit(200);
 
