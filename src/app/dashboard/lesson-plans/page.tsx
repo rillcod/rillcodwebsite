@@ -39,7 +39,7 @@ interface Lesson {
 }
 
 export default function LessonPlansPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +81,7 @@ export default function LessonPlansPage() {
     }
   }, []);
 
-  useEffect(() => { if (!authLoading && profile) load(); }, [authLoading, profile, load]);
+  useEffect(() => { if (!authLoading && !profileLoading && profile) load(); }, [authLoading, profileLoading, profile, load]);
 
   async function generateWithAI() {
     const selectedLesson = lessons.find(l => l.id === form.lesson_id) ?? (editPlan ? editPlan.lessons : null);
@@ -183,7 +183,7 @@ Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
     setShowForm(true);
   }
 
-  if (authLoading || !profile) {
+  if (authLoading || profileLoading || !profile) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
   }
 

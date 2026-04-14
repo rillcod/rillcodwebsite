@@ -39,7 +39,7 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 export default function ExamsPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,12 +68,12 @@ export default function ExamsPage() {
   }, [courseFilter]);
 
   useEffect(() => {
-    if (!authLoading && profile) {
+    if (!authLoading && !profileLoading && profile) {
       load();
       // Load courses for filter
       fetch('/api/courses').then(r => r.json()).then(j => setCourses(j.data ?? []));
     }
-  }, [authLoading, profile, load]);
+  }, [authLoading, profileLoading, profile, load]);
 
   async function toggleActive(exam: Exam) {
     await fetch(`/api/exams/${exam.id}`, {
@@ -92,7 +92,7 @@ export default function ExamsPage() {
     else toast.error('Failed to delete');
   }
 
-  if (authLoading || !profile) {
+  if (authLoading || profileLoading || !profile) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
   }
 

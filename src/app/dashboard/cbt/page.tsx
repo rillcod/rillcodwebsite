@@ -12,7 +12,7 @@ import {
 } from '@/lib/icons';
 
 export default function CBTPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const [exams, setExams] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function CBTPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || profileLoading || !profile) return;
     setLoading(true);
     if (isStaff) {
       fetch('/api/cbt/exams', { cache: 'no-store' })
@@ -40,7 +40,7 @@ export default function CBTPage() {
         setLoading(false);
       }).catch(() => setLoading(false));
     }
-  }, [profile?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id, authLoading, profileLoading]); // eslint-disable-line
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete exam "${title}"? All sessions and questions will also be deleted.`)) return;
@@ -63,7 +63,7 @@ export default function CBTPage() {
   const getStudentSession = (examId: string) => sessions.find(s => s.exam_id === examId);
 
   // ── LOADING ──────────────────────────────────────────────────
-  if (authLoading || loading) return (
+  if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Hero skeleton */}
