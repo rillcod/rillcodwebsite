@@ -90,7 +90,7 @@ type ActFilter = 'all' | 'active' | 'pending_review' | 'overdue' | 'draft';
 
 // ── page ─────────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
-    const { profile, loading: authLoading } = useAuth();
+    const { profile, loading: authLoading, profileLoading } = useAuth();
     const role      = profile?.role;
     const isStaff   = role === 'admin' || role === 'teacher' || role === 'school';
     const isStudent = role === 'student';
@@ -147,7 +147,7 @@ export default function ProjectsPage() {
 
     // ── Load work data ────────────────────────────────────────────────────────
     useEffect(() => {
-        if (authLoading || !profile) return;
+        if (authLoading || profileLoading || !profile) return;
         const db = createClient();
         async function load() {
             setLoading(true);
@@ -181,11 +181,11 @@ export default function ProjectsPage() {
             } finally { setLoading(false); }
         }
         load();
-    }, [authLoading, profile?.id]); // eslint-disable-line
+    }, [authLoading, profileLoading, profile?.id]); // eslint-disable-line
 
     // ── Load activities (lazy on tab switch) ──────────────────────────────────
     useEffect(() => {
-        if (tab !== 'activities' || !profile || authLoading) return;
+        if (tab !== 'activities' || !profile || authLoading || profileLoading) return;
         async function loadActs() {
             setActLoading(true);
             try {
@@ -197,13 +197,13 @@ export default function ProjectsPage() {
             } finally { setActLoading(false); }
         }
         loadActs();
-    }, [tab, profile?.id, authLoading]); // eslint-disable-line
+    }, [tab, profile?.id, authLoading, profileLoading]); // eslint-disable-line
 
     // ── Load groups (lazy on tab switch) ─────────────────────────────────────
     useEffect(() => {
-        if (tab !== 'groups' || !profile || authLoading) return;
+        if (tab !== 'groups' || !profile || authLoading || profileLoading) return;
         loadGroups();
-    }, [tab, profile?.id, authLoading]); // eslint-disable-line
+    }, [tab, profile?.id, authLoading, profileLoading]); // eslint-disable-line
 
     async function loadGroups() {
         setGroupsLoading(true); setGroupsError(null);
@@ -347,7 +347,7 @@ export default function ProjectsPage() {
         return msg;
     }
 
-    if (authLoading || (!isStudent && !isStaff)) {
+    if (authLoading || profileLoading || (!isStudent && !isStaff)) {
         return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
     }
 

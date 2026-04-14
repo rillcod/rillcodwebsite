@@ -1680,7 +1680,7 @@ function SetupTab({ profile }: { profile: any }) {
 // Main Finance Page
 // ══════════════════════════════════════════════════════════════════════════════
 export default function FinancePage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1696,8 +1696,8 @@ export default function FinancePage() {
   }
 
   useEffect(() => {
-    if (!authLoading && !profile) router.replace('/login');
-  }, [authLoading, profile, router]);
+    if (!authLoading && !profileLoading && !profile) router.replace('/login');
+  }, [authLoading, profileLoading, profile, router]);
 
   useEffect(() => {
     if (!profile) return;
@@ -1705,7 +1705,7 @@ export default function FinancePage() {
     setTab(pickTab(tabParam, profile.role, isAdminUser));
   }, [tabParam, profile?.id, profile?.role]);
 
-  if (authLoading || !profile) {
+  if (authLoading || profileLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
