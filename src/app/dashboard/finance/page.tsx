@@ -267,7 +267,6 @@ type TabKey =
   | 'billing_cycles'
   | 'operations'
   | 'subscriptions'
-  | 'transactions'
   | 'settlements'
   | 'automation'
   | 'setup';
@@ -286,9 +285,8 @@ type TabDef = {
 const ALL_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
   { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'operations', label: 'Payments ops', icon: ReceiptPercentIcon, roles: ['admin', 'school', 'teacher'] },
+  { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school', 'teacher'] },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin', 'school'] },
-  { key: 'transactions', label: 'Transactions', icon: BanknotesIcon, roles: ['admin', 'school'] },
   { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
   { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin', 'school'] },
@@ -304,7 +302,7 @@ function pickTab(urlTab: string | null, role: PortalRole, isAdmin: boolean): Tab
   const visible = ALL_TABS.filter(x => tabVisible(x, role, isAdmin));
   const keys = visible.map(x => x.key);
   if (keys.length === 0) return 'overview'; // unused; page shows no-access state instead
-  const normalized = urlTab === 'invoices' ? 'operations' : urlTab;
+  const normalized = urlTab === 'invoices' || urlTab === 'transactions' ? 'operations' : urlTab;
   if (normalized && keys.includes(normalized as TabKey)) return normalized as TabKey;
   return keys[0] as TabKey;
 }
@@ -1745,7 +1743,6 @@ export default function FinancePage() {
           {tab === 'billing_cycles' && <BillingCyclesTab profile={profile} />}
           {tab === 'operations' && <PaymentsHub embedded />}
           {tab === 'subscriptions' && <SubscriptionsTab profile={profile} />}
-          {tab === 'transactions' && <TransactionsTab profile={profile} />}
           {tab === 'settlements' && isAdmin && <SettlementsTab profile={profile} />}
           {tab === 'automation' && isAdmin && <AutomationTab />}
           {tab === 'setup' && <SetupTab profile={profile} />}

@@ -786,7 +786,7 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
   const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; email: string; school_id: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingTx, setLoadingTx] = useState(false);
-  const [view, setView] = useState<'accounts' | 'monitoring' | 'billing'>('accounts');
+  const [view, setView] = useState<'accounts' | 'monitoring' | 'billing'>('monitoring');
   const [searchTx, setSearchTx] = useState('');
   const [searchInv, setSearchInv] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -1622,7 +1622,7 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
           </div>
           <div className="flex gap-2">
             <div className="bg-card shadow-sm p-1 rounded-none flex border border-border">
-              {(['accounts', 'monitoring', ...(!isSchool ? ['billing' as const] : [])] as const).map(v => (
+              {(['monitoring', ...(!isSchool ? ['billing' as const] : [])] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -1631,12 +1631,6 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
                 </button>
               ))}
             </div>
-            {canManage && view === 'accounts' && (
-              <button onClick={openNew}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-black font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-primary/20">
-                <PlusIcon className="w-4 h-4" /> Add Account
-              </button>
-            )}
           </div>
         </div>
         )}
@@ -1646,11 +1640,11 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-foreground">Payments &amp; receipts</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Accounts, monitoring, and billing tools (same as the standalone payments page).</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Monitoring and billing tools (same as the standalone payments page).</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 justify-end">
                 <div className="bg-card shadow-sm p-1 rounded-none flex border border-border shrink-0">
-                  {(['accounts', 'monitoring', ...(!isSchool ? ['billing' as const] : [])] as const).map(v => (
+                  {(['monitoring', ...(!isSchool ? ['billing' as const] : [])] as const).map(v => (
                     <button
                       key={v}
                       onClick={() => setView(v)}
@@ -1659,12 +1653,6 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
                     </button>
                   ))}
                 </div>
-                {canManage && view === 'accounts' && (
-                  <button onClick={openNew}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-black font-bold text-sm rounded-none transition-all shadow-lg shadow-primary/20">
-                    <PlusIcon className="w-4 h-4" /> Add Account
-                  </button>
-                )}
               </div>
             </div>
           </div>
