@@ -61,6 +61,21 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [patching, setPatching] = useState<string | null>(null);
+  const [contactUsers, setContactUsers] = useState<{ id: string; full_name: string | null; email: string | null; role: string | null }[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [savingForm, setSavingForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    owner_type: 'school',
+    owner_school_id: '',
+    owner_user_id: '',
+    term_label: '',
+    term_start_date: '',
+    due_date: '',
+    amount_due: '',
+    currency: 'NGN',
+    status: 'due',
+  });
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -68,6 +83,12 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
       const db = createClient();
       const { data } = await db.from('schools').select('id, name').eq('status', 'approved').order('name');
       setSchools((data ?? []) as { id: string; name: string }[]);
+      const { data: users } = await db
+        .from('portal_users')
+        .select('id, full_name, email, role')
+        .in('role', ['student', 'parent'])
+        .order('full_name');
+      setContactUsers((users ?? []) as { id: string; full_name: string | null; email: string | null; role: string | null }[]);
     })();
   }, [isAdmin]);
 
@@ -109,6 +130,88 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
       toast.error(e instanceof Error ? e.message : 'Update failed');
     } finally {
       setPatching(null);
+    }
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({
+      owner_type: 'school',
+      owner_school_id: adminSchoolId || '',
+      owner_user_id: '',
+      term_label: '',
+      term_start_date: '',
+      due_date: '',
+      amount_due: '',
+      currency: 'NGN',
+      status: 'due',
+    });
+  }
+
+  function startCreate() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function startEdit(row: BillingCycleRow) {
+    setEditingId(row.id);
+    setForm({
+      owner_type: row.owner_type === 'individual' ? 'individual' : 'school',
+      owner_school_id: row.owner_school_id ?? row.school_id ?? '',
+      owner_user_id: row.owner_user_id ?? '',
+      term_label: row.term_label ?? '',
+      term_start_date: row.term_start_date ? row.term_start_date.slice(0, 10) : '',
+      due_date: row.due_date ? row.due_date.slice(0, 10) : '',
+      amount_due: String(Number(row.amount_due ?? 0)),
+      currency: row.currency || 'NGN',
+      status: row.status || 'due',
+    });
+    setShowForm(true);
+  }
+
+  async function submitForm() {
+    if (!isAdmin) return;
+    if (!form.term_label || !form.term_start_date || !form.due_date || !form.amount_due) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    if (form.owner_type === 'school' && !form.owner_school_id) {
+      toast.error('Select a school owner');
+      return;
+    }
+    if (form.owner_type === 'individual' && !form.owner_user_id) {
+      toast.error('Select an individual owner');
+      return;
+    }
+
+    setSavingForm(true);
+    try {
+      const payload = {
+        owner_type: form.owner_type,
+        owner_school_id: form.owner_type === 'school' ? form.owner_school_id : null,
+        owner_user_id: form.owner_type === 'individual' ? form.owner_user_id : null,
+        term_label: form.term_label.trim(),
+        term_start_date: form.term_start_date,
+        due_date: form.due_date,
+        amount_due: Number(form.amount_due),
+        currency: form.currency,
+        status: form.status,
+      };
+      const res = await fetch('/api/finance/billing-cycles', {
+        method: editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to save cycle');
+      toast.success(editingId ? 'Cycle updated' : 'Cycle created');
+      setShowForm(false);
+      resetForm();
+      await load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save cycle');
+    } finally {
+      setSavingForm(false);
     }
   }
 
@@ -156,6 +259,15 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
         >
           <ArrowPathIcon className="w-4 h-4" /> Refresh
         </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={startCreate}
+            className="inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-primary text-primary-foreground hover:opacity-90 border border-primary rounded-none text-sm font-bold"
+          >
+            Add cycle
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -230,6 +342,17 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         </ul>
                       </div>
                     )}
+                    {isAdmin && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(row)}
+                          className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-none"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                     {isAdmin && row.status !== 'rolled_over' && (
                       <div className="flex flex-wrap gap-2 pt-1">
                         {(['paid', 'cancelled', 'due', 'past_due'] as const).map(st => (
@@ -256,6 +379,69 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {isAdmin && showForm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl border border-border bg-background rounded-none p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="font-black text-foreground">{editingId ? 'Edit billing cycle' : 'Add billing cycle'}</p>
+              <button type="button" onClick={() => setShowForm(false)} className="text-xs border border-border px-2 py-1 rounded-none">Close</button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs text-muted-foreground">Owner type
+                <select value={form.owner_type} onChange={e => setForm(prev => ({ ...prev, owner_type: e.target.value, owner_school_id: '', owner_user_id: '' }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                  <option value="school">School</option>
+                  <option value="individual">Individual</option>
+                </select>
+              </label>
+              {form.owner_type === 'school' ? (
+                <label className="text-xs text-muted-foreground">School
+                  <select value={form.owner_school_id} onChange={e => setForm(prev => ({ ...prev, owner_school_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                    <option value="">Select school</option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <label className="text-xs text-muted-foreground">Individual
+                  <select value={form.owner_user_id} onChange={e => setForm(prev => ({ ...prev, owner_user_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                    <option value="">Select student/parent</option>
+                    {contactUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email || u.id} {u.role ? `(${u.role})` : ''}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="text-xs text-muted-foreground">Term label
+                <input value={form.term_label} onChange={e => setForm(prev => ({ ...prev, term_label: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+              </label>
+              <label className="text-xs text-muted-foreground">Term start date
+                <input type="date" value={form.term_start_date} onChange={e => setForm(prev => ({ ...prev, term_start_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+              </label>
+              <label className="text-xs text-muted-foreground">Due date
+                <input type="date" value={form.due_date} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+              </label>
+              <label className="text-xs text-muted-foreground">Amount due
+                <input type="number" min="0" value={form.amount_due} onChange={e => setForm(prev => ({ ...prev, amount_due: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+              </label>
+              <label className="text-xs text-muted-foreground">Currency
+                <select value={form.currency} onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                  <option value="NGN">NGN</option>
+                  <option value="USD">USD</option>
+                </select>
+              </label>
+              <label className="text-xs text-muted-foreground">Status
+                <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 border border-border rounded-none text-sm font-bold">Cancel</button>
+              <button type="button" disabled={savingForm} onClick={() => void submitForm()} className="px-3 py-2 border border-primary bg-primary text-primary-foreground rounded-none text-sm font-bold disabled:opacity-60">
+                {savingForm ? 'Saving...' : editingId ? 'Save changes' : 'Create cycle'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
