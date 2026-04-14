@@ -62,10 +62,10 @@ export async function GET() {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
 
-      return NextResponse.json({ profile: created });
+      return NextResponse.json({ profile: { ...created, grade_level: created.section_class ?? null } });
     }
 
-    return NextResponse.json({ profile: data });
+    return NextResponse.json({ profile: { ...data, grade_level: data.section_class ?? null } });
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? 'Unexpected error' }, { status: 500 });
   }
