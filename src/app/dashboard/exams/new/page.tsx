@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  AcademicCapIcon, ArrowLeftIcon, CheckCircleIcon, InformationCircleIcon,
+  AcademicCapIcon, ArrowLeftIcon, CheckCircleIcon, InformationCircleIcon, SparklesIcon, ArrowPathIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -33,6 +33,37 @@ export default function NewExamPage() {
   }, []);
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
+  const [genDesc, setGenDesc] = useState(false);
+
+  async function generateDescription() {
+    if (!form.title) { toast.error('Enter an exam title first'); return; }
+    const course = courses.find(c => c.id === form.course_id);
+    setGenDesc(true);
+    try {
+      const prompt = `You are an expert Nigerian secondary school exam designer.
+Write concise student-facing exam instructions for the following written exam:
+
+Exam Title: "${form.title}"${course ? `\nSubject/Course: "${course.title}"` : ''}
+Duration: ${form.duration_minutes} minutes | Total Points: ${form.total_points} | Pass Mark: ${form.passing_score}%
+
+Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to answer questions, any material restrictions, and a brief encouragement. No JSON, no headings.`;
+
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'custom', prompt }),
+      });
+      const j = await res.json();
+      const text = (j.content ?? j.text ?? j.result ?? '').trim();
+      if (!text) { toast.error('AI returned empty — try again'); return; }
+      setForm(f => ({ ...f, description: text }));
+      toast.success('AI instructions generated');
+    } catch (e: any) {
+      toast.error(e.message ?? 'AI generation failed');
+    } finally {
+      setGenDesc(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,7 +146,13 @@ export default function NewExamPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Instructions for Students</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-bold text-card-foreground/50 uppercase tracking-wider">Instructions for Students</label>
+            <button type="button" onClick={generateDescription} disabled={genDesc || !form.title}
+              className="flex items-center gap-1.5 px-3 py-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-[10px] font-black rounded-lg transition-all">
+              {genDesc ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Generating…</> : <><SparklesIcon className="w-3 h-3" /> AI Draft</>}
+            </button>
+          </div>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
             placeholder="Topics covered, time allocation, permitted materials…"
             className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50 resize-none" />

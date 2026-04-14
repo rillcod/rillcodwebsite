@@ -12,6 +12,21 @@ import {
   CheckIcon, XMarkIcon,
 } from '@/lib/icons';
 
+// Inline markdown renderer for UI display of question/option text
+function MarkdownText({ text, className }: { text: string; className?: string }) {
+  const html = (text ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // code spans first (protect from bold/italic)
+    .replace(/`([^`\n]+)`/g, '<code class="font-mono text-[0.8em] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/20">$1</code>')
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-black text-foreground">$1</strong>')
+    .replace(/__(.+?)__/g, '<strong class="font-black text-foreground">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/~~(.+?)~~/g, '<s class="opacity-50">$1</s>');
+  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
   const searchParams = useSearchParams();
@@ -125,6 +140,68 @@ export default function ExamDetailPage() {
     // Lines per question type
     const lineCount = (q: any) => q.question_type === 'essay' ? 12 : q.question_type === 'fill_blank' ? 4 : 8;
 
+    // Full markdown → HTML for print output
+    function mdToHtml(text: string): string {
+      const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const codeBlocks: string[] = [];
+      let t = (text ?? '').replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
+        const lbl = lang ? `<span style="font-size:7.5pt;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:2pt">${esc(lang)}</span>` : '';
+        codeBlocks.push(`<div style="margin:4pt 0;background:#1e1e2e;padding:7pt 9pt;border-left:3pt solid #7c3aed">${lbl}<pre style="margin:0;font-family:'Courier New',monospace;font-size:8.5pt;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${esc(code.trimEnd())}</pre></div>`);
+        return `\x00C${codeBlocks.length - 1}\x00`;
+      });
+      const lines = t.split('\n');
+      const out: string[] = [];
+      let i = 0;
+      while (i < lines.length) {
+        const ln = lines[i];
+        if (/^### /.test(ln)) { out.push(`<div style="font-size:9pt;font-weight:900;color:#4c1d95;margin:6pt 0 2pt;text-transform:uppercase;letter-spacing:0.5px">${inl(ln.slice(4))}</div>`); i++; continue; }
+        if (/^## /.test(ln))  { out.push(`<div style="font-size:10pt;font-weight:900;color:#4c1d95;margin:7pt 0 3pt;border-bottom:0.5pt solid #ddd6fe;padding-bottom:2pt">${inl(ln.slice(3))}</div>`); i++; continue; }
+        if (/^# /.test(ln))   { out.push(`<div style="font-size:11pt;font-weight:900;color:#4c1d95;margin:8pt 0 4pt">${inl(ln.slice(2))}</div>`); i++; continue; }
+        if (/^> /.test(ln)) {
+          const qs: string[] = [];
+          while (i < lines.length && /^> /.test(lines[i])) { qs.push(lines[i].slice(2)); i++; }
+          out.push(`<div style="border-left:2.5pt solid #7c3aed;background:#f5f3ff;padding:4pt 8pt;margin:4pt 0;font-size:9pt;color:#374151;font-style:italic">${inl(qs.join(' '))}</div>`);
+          continue;
+        }
+        if (/^---+$/.test(ln.trim())) { out.push(`<hr style="border:none;border-top:0.5pt solid #d1d5db;margin:5pt 0"/>`); i++; continue; }
+        if (/^[-*] /.test(ln)) {
+          const its: string[] = [];
+          while (i < lines.length && /^[-*] /.test(lines[i])) { its.push(lines[i].slice(2)); i++; }
+          out.push(`<ul style="margin:3pt 0 3pt 14pt;padding:0;list-style:disc">${its.map(it => `<li style="font-size:9.5pt;line-height:1.5;margin-bottom:1.5pt">${inl(it)}</li>`).join('')}</ul>`);
+          continue;
+        }
+        if (/^\d+\. /.test(ln)) {
+          const its: string[] = [];
+          while (i < lines.length && /^\d+\. /.test(lines[i])) { its.push(lines[i].replace(/^\d+\. /, '')); i++; }
+          out.push(`<ol style="margin:3pt 0 3pt 14pt;padding:0;list-style:decimal">${its.map(it => `<li style="font-size:9.5pt;line-height:1.5;margin-bottom:1.5pt">${inl(it)}</li>`).join('')}</ol>`);
+          continue;
+        }
+        if (/^\x00C\d+\x00$/.test(ln.trim())) {
+          const idx = parseInt(ln.trim().replace(/\x00C(\d+)\x00/, '$1'), 10);
+          out.push(codeBlocks[idx] ?? ''); i++; continue;
+        }
+        if (!ln.trim()) { out.push('<br/>'); i++; continue; }
+        const para: string[] = [];
+        while (i < lines.length && lines[i].trim() && !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) && !/^\d+\. /.test(lines[i]) && !/^> /.test(lines[i]) && !/^---+$/.test(lines[i].trim()) && !/^\x00C/.test(lines[i])) {
+          para.push(lines[i]); i++;
+        }
+        if (para.length) out.push(`<span style="font-size:10.5pt;line-height:1.6">${inl(para.join(' '))}</span>`);
+      }
+      return out.join('');
+      function inl(s: string): string {
+        return s
+          .replace(/\x00C(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx, 10)] ?? '')
+          .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:8.5pt;background:#f0f0f8;color:#4c1d95;padding:0.5pt 3pt;border:0.5pt solid #ddd6fe">$1</code>')
+          .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/__(.+?)__/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/_(.+?)_/g, '<em>$1</em>')
+          .replace(/~~(.+?)~~/g, '<s>$1</s>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+      }
+    }
+
     const renderQuestion = (q: any, globalNum: number) => {
       const isMCQ    = q.options && Array.isArray(q.options) && q.options.length > 0;
       const isCorrect = (opt: string) => mode === 'staff' && opt === q.correct_answer;
@@ -132,7 +209,7 @@ export default function ExamDetailPage() {
       <div class="q-block">
         <div class="q-header">
           <span class="q-num">${globalNum}.</span>
-          <div class="q-text">${q.question_text ?? ''}</div>
+          <div class="q-text">${mdToHtml(q.question_text)}</div>
           <span class="q-pts">${q.points ?? 1} mark${(q.points ?? 1) !== 1 ? 's' : ''}</span>
         </div>
         ${isMCQ ? `
@@ -140,7 +217,7 @@ export default function ExamDetailPage() {
           ${(q.options as string[]).map((opt: string, oi: number) => `
           <div class="opt ${isCorrect(opt) ? 'correct' : ''}">
             <span class="bubble">${String.fromCharCode(65 + oi)}</span>
-            <span class="opt-text">${opt}</span>
+            <span class="opt-text">${mdToHtml(opt)}</span>
             ${isCorrect(opt) ? '<span class="tick">✓</span>' : ''}
           </div>`).join('')}
         </div>` : `
@@ -376,9 +453,9 @@ ${mode === 'staff' ? `
   <div class="ak-open-title">Section B — Theory Model Answers</div>
   ${openQuestions.map((q: any, i: number) => `
   <div class="ak-item">
-    <div class="ak-q">${mcqQuestions.length + i + 1}. ${q.question_text}</div>
+    <div class="ak-q">${mcqQuestions.length + i + 1}. ${mdToHtml(q.question_text)}</div>
     <div class="ak-a-label">Expected Answer / Marking Guide:</div>
-    <div class="ak-a">${q.correct_answer ? q.correct_answer : '<em style="color:#aaa">No model answer provided</em>'}</div>
+    <div class="ak-a">${q.correct_answer ? mdToHtml(q.correct_answer) : '<em style="color:#aaa">No model answer provided</em>'}</div>
   </div>`).join('')}` : ''}
 
   <table class="score-tbl">
@@ -682,7 +759,7 @@ ${mode === 'staff' ? `
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-0.5 flex-shrink-0">
                             Q{i + 1}
                           </span>
-                          <p className="text-sm text-foreground leading-relaxed">{q.question_text}</p>
+                          <MarkdownText text={q.question_text} className="text-sm text-foreground leading-relaxed" />
                         </div>
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                           <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border rounded-none ${badgeCls}`}>
@@ -822,12 +899,12 @@ ${mode === 'staff' ? `
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-6 flex-shrink-0 pt-0.5">{i + 1}.</span>
                     <div className="flex-1">
-                      <p className="text-sm text-foreground">{q.question_text}</p>
+                      <MarkdownText text={q.question_text} className="text-sm text-foreground" />
                       {q.options && Array.isArray(q.options) && (
                         <div className="mt-2 space-y-1">
                           {q.options.map((opt: string, oi: number) => (
                             <p key={oi} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? 'bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground'}`}>
-                              {String.fromCharCode(65 + oi)}. {opt}
+                              {String.fromCharCode(65 + oi)}. <MarkdownText text={opt} />
                             </p>
                           ))}
                         </div>

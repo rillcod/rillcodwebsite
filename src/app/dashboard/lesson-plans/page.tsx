@@ -2,11 +2,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
-  LightBulbIcon, AcademicCapIcon,
+  LightBulbIcon, AcademicCapIcon, SparklesIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -60,6 +61,7 @@ export default function LessonPlansPage() {
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const canManage = isAdmin || isTeacher;
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,6 +82,65 @@ export default function LessonPlansPage() {
   }, []);
 
   useEffect(() => { if (!authLoading && profile) load(); }, [authLoading, profile, load]);
+
+  async function generateWithAI() {
+    const selectedLesson = lessons.find(l => l.id === form.lesson_id) ?? (editPlan ? editPlan.lessons : null);
+    const lessonTitle = selectedLesson?.title ?? '';
+    const courseTitle = (selectedLesson as any)?.courses?.title ?? '';
+    if (!lessonTitle) { toast.error('Select a lesson first so AI knows what to generate'); return; }
+    setGenerating(true);
+    try {
+      const prompt = `You are an expert Nigerian secondary school curriculum designer.
+Generate a detailed, practical lesson plan for the following lesson:
+
+Lesson Title: "${lessonTitle}"${courseTitle ? `\nCourse/Subject: "${courseTitle}"` : ''}
+
+Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
+{
+  "objectives": "3-5 specific, measurable learning objectives using action verbs (Bloom's taxonomy). Numbered list.",
+  "activities": "Step-by-step teaching activities including: starter activity (5 min hook), main instruction, guided practice, group/pair work, and closing reflection. Include estimated time for each.",
+  "assessment_methods": "2-3 assessment strategies to check understanding: formative (during lesson) and summative (end of lesson). Include quick quiz ideas, exit ticket, or class discussion prompts.",
+  "staff_notes": "Key preparation notes: materials needed, common misconceptions to address, differentiation tips for weaker and stronger students, cross-curricular links.",
+  "summary_notes": "One-paragraph lesson summary suitable for student handout or parent communication."
+}`;
+
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'custom', prompt }),
+      });
+      const j = await res.json();
+      const raw: string = j.content ?? j.text ?? j.result ?? '';
+      // Strip possible markdown fences
+      const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+      let parsed: Record<string, string> = {};
+      try { parsed = JSON.parse(cleaned); } catch {
+        // Fallback: try to extract each field with a regex
+        const extract = (key: string) => {
+          const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?:"\\s*[,}]|"\\s*$)`, 'm'));
+          return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : '';
+        };
+        ['objectives', 'activities', 'assessment_methods', 'staff_notes', 'summary_notes'].forEach(k => {
+          const v = extract(k);
+          if (v) parsed[k] = v;
+        });
+      }
+      if (!Object.keys(parsed).length) { toast.error('AI returned an unexpected format — try again'); return; }
+      setForm(prev => ({
+        ...prev,
+        objectives: parsed.objectives ?? prev.objectives,
+        activities: parsed.activities ?? prev.activities,
+        assessment_methods: parsed.assessment_methods ?? prev.assessment_methods,
+        staff_notes: parsed.staff_notes ?? prev.staff_notes,
+        summary_notes: parsed.summary_notes ?? prev.summary_notes,
+      }));
+      toast.success('AI lesson plan generated — review and edit before saving');
+    } catch (e: any) {
+      toast.error(e.message ?? 'AI generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function save() {
     if (!form.lesson_id) { toast.error('Please select a lesson'); return; }
@@ -147,6 +208,16 @@ export default function LessonPlansPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+      {/* Lessons Hub Tab Bar */}
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
+        <Link href="/dashboard/lessons"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <BookOpenIcon className="w-4 h-4" /> Lessons
+        </Link>
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+          <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
+        </span>
+      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -271,6 +342,21 @@ export default function LessonPlansPage() {
                   </select>
                 </div>
               )}
+              {/* AI Generate */}
+              <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
+                <p className="text-xs text-card-foreground/40">Let AI draft the full plan — then edit to your style</p>
+                <button
+                  type="button"
+                  onClick={generateWithAI}
+                  disabled={generating || (!form.lesson_id && !editPlan)}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-violet-500/20"
+                >
+                  {generating
+                    ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                    : <><SparklesIcon className="w-3.5 h-3.5" /> AI Generate Plan</>}
+                </button>
+              </div>
+
               {[
                 { key: 'objectives', label: 'Learning Objectives', placeholder: 'What should students know/be able to do after this lesson?', rows: 3 },
                 { key: 'activities', label: 'Teaching Activities', placeholder: 'Activities, exercises, and teaching methods to use…', rows: 3 },

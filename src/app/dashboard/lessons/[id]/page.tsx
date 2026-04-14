@@ -2152,8 +2152,12 @@ export default function LessonDetailPage() {
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
-      const notes = payload.data?.lesson_notes;
+      let notes: string | undefined = payload.data?.lesson_notes;
       if (notes) {
+        // Sanitize: if AI returned escaped \n sequences instead of real newlines, fix them
+        if (typeof notes === 'string' && !notes.includes('\n') && notes.includes('\\n')) {
+          notes = notes.replace(/\\n/g, '\n');
+        }
         // Save to DB
         const db = createClient();
         await db.from('lessons').update({ lesson_notes: notes }).eq('id', id);

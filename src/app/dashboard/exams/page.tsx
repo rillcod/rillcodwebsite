@@ -8,7 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon,
   ClockIcon, CheckCircleIcon, MagnifyingGlassIcon, ArrowPathIcon,
   DocumentTextIcon, ChartBarIcon, UserGroupIcon, LockClosedIcon,
-  LockOpenIcon, PlayIcon, InformationCircleIcon,
+  LockOpenIcon, PlayIcon, InformationCircleIcon, DocumentCheckIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -100,6 +100,16 @@ export default function ExamsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+      {/* Exam Hub Tab Bar */}
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
+        <Link href="/dashboard/cbt"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <AcademicCapIcon className="w-4 h-4" /> CBT Exams
+        </Link>
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-black">
+          <DocumentCheckIcon className="w-4 h-4" /> Written Exams
+        </span>
+      </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
