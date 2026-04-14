@@ -14,6 +14,7 @@ import {
   BoltIcon, BellIcon, EnvelopeIcon, InformationCircleIcon, CheckBadgeIcon,
   ExclamationTriangleIcon, CalendarDaysIcon, ChevronDownIcon, ChevronUpIcon,
   EyeIcon, ArrowTrendingUpIcon, ArrowRightIcon, ReceiptPercentIcon,
+  DocumentArrowDownIcon,
 } from '@/lib/icons';
 import { PaymentsHub } from '@/components/finance/PaymentsHub';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
@@ -314,25 +315,89 @@ function OverviewTab({ profile }: { profile: any }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showManualPayment, setShowManualPayment] = useState(false);
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [manualForm, setManualForm] = useState({
+    school_id: '', amount: '', currency: 'NGN',
+    payment_method: 'cash', reference: '', notes: '',
+  });
+  const [savingManual, setSavingManual] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const db = createClient();
-      const isSchool = profile?.role === 'school';
+  const isAdmin = profile?.role === 'admin';
+  const canRecordManual = isAdmin || profile?.role === 'school';
 
-      let invQ = db.from('invoices').select('id, amount, currency, status, due_date, created_at');
-      if (isSchool && profile?.school_id) invQ = invQ.eq('school_id', profile.school_id);
-      const { data: invData } = await invQ.limit(200);
-      setInvoices((invData ?? []) as Invoice[]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    const db = createClient();
+    const isSchool = profile?.role === 'school';
 
-      try {
-        const res = await fetch('/api/payments/analytics', { cache: 'no-store' });
-        if (res.ok) setAnalytics(await res.json());
-      } catch { /* ignore */ }
-      setLoading(false);
-    })();
-  }, [profile?.id]); // eslint-disable-line
+    let invQ = db.from('invoices').select('id, amount, currency, status, due_date, created_at, invoice_number, school_id, portal_user_id');
+    if (isSchool && profile?.school_id) invQ = invQ.eq('school_id', profile.school_id);
+    const { data: invData } = await invQ.order('created_at', { ascending: false }).limit(200);
+    setInvoices((invData ?? []) as Invoice[]);
+
+    if (isAdmin) {
+      const { data: sc } = await db.from('schools').select('id, name').eq('status', 'approved');
+      setSchools(sc ?? []);
+    }
+
+    try {
+      const res = await fetch('/api/payments/analytics', { cache: 'no-store' });
+      if (res.ok) setAnalytics(await res.json());
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [profile?.id, isAdmin]); // eslint-disable-line
+
+  useEffect(() => { load(); }, [load]);
+
+  async function recordManualPayment() {
+    if (!manualForm.amount || Number(manualForm.amount) <= 0) { toast.error('Enter a valid amount'); return; }
+    if (isAdmin && !manualForm.school_id) { toast.error('Select a school'); return; }
+    setSavingManual(true);
+    try {
+      const res = await fetch('/api/payments/manual', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: manualForm.school_id || profile?.school_id,
+          amount: Number(manualForm.amount),
+          currency: manualForm.currency,
+          payment_method: manualForm.payment_method,
+          reference: manualForm.reference || undefined,
+          notes: manualForm.notes || undefined,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error);
+      toast.success('Manual payment recorded');
+      setShowManualPayment(false);
+      setManualForm({ school_id: '', amount: '', currency: 'NGN', payment_method: 'cash', reference: '', notes: '' });
+      load();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed');
+    } finally { setSavingManual(false); }
+  }
+
+  async function markInvoicePaid(invId: string) {
+    if (!confirm('Mark this invoice as paid?')) return;
+    const db = createClient();
+    const { error } = await db.from('invoices').update({ status: 'paid' }).eq('id', invId);
+    if (error) toast.error(error.message);
+    else { toast.success('Invoice marked paid'); load(); }
+  }
+
+  function exportInvoicesCsv() {
+    if (!invoices.length) { toast.error('No invoices to export'); return; }
+    const header = 'Invoice #,Amount,Currency,Status,Due Date,Created';
+    const rows = invoices.map(i =>
+      [(i as any).invoice_number ?? i.id, i.amount, i.currency, i.status, i.due_date, i.created_at].join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
 
   const totalRevenue = analytics?.totalRevenue ?? 0;
   const outstanding = invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((s, i) => s + i.amount, 0);
@@ -347,6 +412,7 @@ function OverviewTab({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-6">
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Total Revenue" value={fmt('NGN', totalRevenue)} sub="All completed payments" color="bg-emerald-500" />
         <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${invoices.filter(i => ['sent','overdue'].includes(i.status)).length} open invoices`} color="bg-amber-500" />
@@ -354,43 +420,146 @@ function OverviewTab({ profile }: { profile: any }) {
         <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-violet-500" />
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Invoices &amp; receipts</h3>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-            Full invoice list, reminders, school invoice builder, proof review, and receipt builder are in <strong className="text-foreground">Payments ops</strong> (same as <code className="text-xs">/dashboard/payments</code>).
-          </p>
-        </div>
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-3">
         <Link
           href="/dashboard/finance?tab=operations"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shrink-0 shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
-          Open Payments ops
-          <ArrowRightIcon className="w-4 h-4" />
+          <EyeIcon className="w-4 h-4" /> Payments ops
         </Link>
+        {canRecordManual && (
+          <button
+            onClick={() => setShowManualPayment(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors"
+          >
+            <BanknotesIcon className="w-4 h-4" /> Record Manual Payment
+          </button>
+        )}
+        <button
+          onClick={exportInvoicesCsv}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground font-bold text-sm rounded-xl transition-colors"
+        >
+          <DocumentArrowDownIcon className="w-4 h-4" /> Export CSV
+        </button>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <h3 className="font-black text-foreground text-sm mb-4 uppercase tracking-widest">Recent Invoice Activity</h3>
+      {/* Recent Invoice Activity */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Recent Invoice Activity</h3>
+          <Link href="/dashboard/finance?tab=operations" className="text-xs text-primary font-bold hover:underline">
+            View all <ArrowRightIcon className="w-3 h-3 inline" />
+          </Link>
+        </div>
         {invoices.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No invoices found</p>
         ) : (
-          <div className="space-y-2">
-            {invoices.slice(0, 8).map(inv => {
+          <div className="divide-y divide-border">
+            {invoices.slice(0, 10).map(inv => {
               const s = INV_STATUS[inv.status] ?? INV_STATUS.draft;
+              const canMarkPaid = canRecordManual && ['sent', 'overdue'].includes(inv.status);
               return (
-                <div key={inv.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
+                <div key={inv.id} className="flex items-center justify-between px-5 py-3 gap-3">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
                     <p className="text-[11px] text-muted-foreground">Due {relDate(inv.due_date)}</p>
                   </div>
-                  <Badge cls={s.cls} label={s.label} />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge cls={s.cls} label={s.label} />
+                    {canMarkPaid && (
+                      <button
+                        onClick={() => markInvoicePaid(inv.id)}
+                        className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
+                      >
+                        <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Record Manual Payment Modal */}
+      {showManualPayment && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h3 className="font-black text-foreground">Record Manual Payment</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Cash, POS, bank transfer, cheque</p>
+              </div>
+              <button onClick={() => setShowManualPayment(false)} className="p-1.5 hover:bg-muted rounded-lg">
+                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {isAdmin && (
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
+                  <select value={manualForm.school_id} onChange={e => setManualForm(f => ({ ...f, school_id: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                    <option value="">Select school…</option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
+                  <input type="number" min="0" value={manualForm.amount}
+                    onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
+                  <select value={manualForm.currency} onChange={e => setManualForm(f => ({ ...f, currency: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                    <option>NGN</option><option>USD</option><option>GBP</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Method *</label>
+                <select value={manualForm.payment_method} onChange={e => setManualForm(f => ({ ...f, payment_method: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                  <option value="cash">Cash</option>
+                  <option value="pos">POS Terminal</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="mobile_money">Mobile Money</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Reference / Receipt No.</label>
+                <input value={manualForm.reference} onChange={e => setManualForm(f => ({ ...f, reference: e.target.value }))}
+                  placeholder="e.g. RCP-001 or teller number"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
+                <textarea value={manualForm.notes} onChange={e => setManualForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                  placeholder="Payer name, what it covers, etc."
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 resize-none" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={recordManualPayment} disabled={savingManual}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  {savingManual ? 'Recording…' : 'Record Payment'}
+                </button>
+                <button onClick={() => setShowManualPayment(false)}
+                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -787,201 +956,6 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TransactionsTab
-// ══════════════════════════════════════════════════════════════════════════════
-function TransactionsTab({ profile }: { profile: any }) {
-  const [txs, setTxs] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const isAdmin = profile?.role === 'admin';
-  const canManageTx = profile?.role === 'admin' || profile?.role === 'school';
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const db = createClient();
-    let q = db.from('payment_transactions')
-      .select('*, payment_gateway_response, portal_users(full_name, email), schools(name), courses(title), receipts(receipt_number, pdf_url)')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (!isAdmin && profile?.school_id) q = q.eq('school_id', profile.school_id);
-    const { data } = await q;
-    setTxs((data ?? []) as Transaction[]);
-    setLoading(false);
-  }, [profile?.id, profile?.school_id, isAdmin]); // eslint-disable-line
-
-  useEffect(() => { load(); }, [load]);
-
-  async function deleteTx(id: string) {
-    if (!canManageTx) return;
-    if (!confirm('Remove this transaction? Use for abandoned registration attempts or duplicate Paystack opens. This cannot be undone.')) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/payments/transactions/${id}`, { method: 'DELETE' });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((j as { error?: string }).error || 'Delete failed');
-      toast.success('Transaction removed');
-      await load();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Delete failed');
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  const filtered = useMemo(() => {
-    let list = txs;
-    if (statusFilter !== 'all') list = list.filter(t => t.payment_status === statusFilter);
-    if (search) {
-      const s = search.toLowerCase();
-      list = list.filter(t => {
-        const g = txGatewayMeta(t);
-        const regName = String(g?.student_name ?? '').toLowerCase();
-        const parentEmail = String(g?.parent_email ?? '').toLowerCase();
-        return (
-          t.transaction_reference?.toLowerCase().includes(s) ||
-          t.portal_users?.email?.toLowerCase().includes(s) ||
-          t.portal_users?.full_name?.toLowerCase().includes(s) ||
-          t.schools?.name?.toLowerCase().includes(s) ||
-          regName.includes(s) ||
-          parentEmail.includes(s)
-        );
-      });
-    }
-    return list;
-  }, [txs, statusFilter, search]);
-
-  return (
-    <div className="space-y-4">
-      {canManageTx && (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-500/25 bg-rose-500/5 px-3 py-2.5 text-xs text-muted-foreground">
-          <TrashIcon className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-          <span>
-            <strong className="text-foreground">Delete</strong> appears on each non-paid row so you can remove abandoned registration Paystack attempts.
-            {isAdmin ? ' Admins may clear any school.' : ' Schools only see their own transactions.'}
-          </span>
-        </div>
-      )}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search transactions…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500" />
-        </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none">
-          <option value="all">All</option>
-          {Object.entries(TX_STATUS).filter(([k]) => !['success'].includes(k)).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
-        <button onClick={load} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors">
-          <ArrowPathIcon className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">No transactions found</div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map(tx => {
-            const s = TX_STATUS[tx.payment_status] ?? TX_STATUS.pending;
-            const open = expanded === tx.id;
-            const gw = txGatewayMeta(tx);
-            const regLabel = gw?.payment_type === 'registration'
-              ? `Registration · ${String(gw.student_name || 'student')}`
-              : null;
-            const canDelete = canManageTx && !isTerminalPaymentStatus(tx.payment_status);
-            return (
-              <div key={tx.id} className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="flex items-stretch">
-                  <button type="button" onClick={() => setExpanded(open ? null : tx.id)}
-                    className="flex-1 flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left min-w-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <CreditCardIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground text-sm">{fmt(tx.currency, tx.amount)}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {tx.transaction_reference} · {relDate(tx.created_at)}
-                        </p>
-                        {regLabel && (
-                          <p className="text-[10px] text-orange-500 font-bold uppercase tracking-wide mt-0.5 truncate">{regLabel}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <Badge cls={s.cls} label={s.label} />
-                      {open ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
-                    </div>
-                  </button>
-                  {canDelete && (
-                    <div className="flex items-center px-2 sm:pr-3 border-l border-border bg-rose-500/[0.03]">
-                      <button
-                        type="button"
-                        onClick={() => void deleteTx(tx.id)}
-                        disabled={deletingId === tx.id}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 border border-rose-500/45 rounded-lg hover:bg-rose-500/15 disabled:opacity-50 whitespace-nowrap min-h-[44px]"
-                      >
-                        <TrashIcon className="w-4 h-4 shrink-0" />
-                        {deletingId === tx.id ? '…' : 'Delete'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {open && (
-                  <div className="border-t border-border p-4 bg-muted/10 space-y-2 text-sm">
-                    {tx.schools?.name && <p className="text-muted-foreground"><span className="font-bold text-foreground">School:</span> {tx.schools.name}</p>}
-                    {tx.portal_users?.full_name && <p className="text-muted-foreground"><span className="font-bold text-foreground">Payer:</span> {tx.portal_users.full_name}</p>}
-                    {gw?.payment_type === 'registration' && (
-                      <p className="text-muted-foreground">
-                        <span className="font-bold text-foreground">Registration:</span>{' '}
-                        {String(gw.student_name || '—')}
-                        {gw.parent_email ? ` · ${String(gw.parent_email)}` : ''}
-                      </p>
-                    )}
-                    {tx.courses?.title && <p className="text-muted-foreground"><span className="font-bold text-foreground">Course:</span> {tx.courses.title}</p>}
-                    {tx.payment_method && <p className="text-muted-foreground"><span className="font-bold text-foreground">Method:</span> {tx.payment_method}</p>}
-                    {tx.paystack_fees != null && Number(tx.paystack_fees) > 0 && (
-                      <p className="text-muted-foreground"><span className="font-bold text-foreground">Fees:</span> {fmt(tx.currency, tx.paystack_fees)}</p>
-                    )}
-                    {tx.receipts?.[0] && (
-                      <a href={tx.receipts[0].pdf_url} target="_blank" rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-400 hover:text-violet-300">
-                        <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Receipt #{tx.receipts[0].receipt_number}
-                      </a>
-                    )}
-                    {canDelete && (
-                      <div className="pt-3 border-t border-border mt-2">
-                        <button
-                          type="button"
-                          onClick={() => void deleteTx(tx.id)}
-                          disabled={deletingId === tx.id}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-rose-500/40 bg-rose-500/10 text-sm font-black uppercase tracking-wide text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-50"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                          {deletingId === tx.id ? 'Removing…' : 'Delete this transaction'}
-                        </button>
-                        <p className="text-[11px] text-muted-foreground mt-2">
-                          Same action as Payments ops → Monitoring. Paid or refunded rows cannot be deleted.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // SettlementsTab (admin only)
 // ══════════════════════════════════════════════════════════════════════════════
 function SettlementsTab({ profile }: { profile: any }) {
@@ -989,7 +963,9 @@ function SettlementsTab({ profile }: { profile: any }) {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState({ school_id: '', amount: '', currency: 'NGN', reference: '', notes: '' });
 
   const load = useCallback(async () => {
@@ -1008,19 +984,43 @@ function SettlementsTab({ profile }: { profile: any }) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function create() {
-    if (!form.school_id || !form.amount) { toast.error('School and amount required'); return; }
+  function openNew() {
+    setEditId(null);
+    setForm({ school_id: '', amount: '', currency: 'NGN', reference: '', notes: '' });
+    setShowForm(true);
+  }
+
+  function openEdit(s: Settlement) {
+    setEditId(s.id);
+    setForm({ school_id: s.school_id, amount: String(s.amount), currency: s.currency, reference: s.reference ?? '', notes: s.notes ?? '' });
+    setShowForm(true);
+  }
+
+  async function save() {
+    if (!editId && !form.school_id) { toast.error('School required'); return; }
+    if (!form.amount) { toast.error('Amount required'); return; }
     setSaving(true);
     try {
-      const res = await fetch('/api/billing/settlements', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ school_id: form.school_id, amount: Number(form.amount), currency: form.currency, reference: form.reference, notes: form.notes }),
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error);
-      toast.success('Settlement created');
+      if (editId) {
+        const res = await fetch('/api/billing/settlements', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editId, amount: Number(form.amount), currency: form.currency, reference: form.reference, notes: form.notes }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error);
+        toast.success('Settlement updated');
+      } else {
+        const res = await fetch('/api/billing/settlements', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ school_id: form.school_id, amount: Number(form.amount), currency: form.currency, reference: form.reference, notes: form.notes }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error);
+        toast.success('Settlement created');
+      }
       setShowForm(false);
       setForm({ school_id: '', amount: '', currency: 'NGN', reference: '', notes: '' });
+      setEditId(null);
       load();
     } catch (err: any) {
       toast.error(err.message ?? 'Failed');
@@ -1037,6 +1037,23 @@ function SettlementsTab({ profile }: { profile: any }) {
     else toast.error('Failed');
   }
 
+  async function deleteSettlement(id: string) {
+    if (!confirm('Delete this settlement? Only non-paid settlements can be deleted.')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch('/api/billing/settlements', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error);
+      toast.success('Settlement deleted');
+      load();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed');
+    } finally { setDeletingId(null); }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1045,7 +1062,7 @@ function SettlementsTab({ profile }: { profile: any }) {
           <button onClick={load} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors">
             <ArrowPathIcon className="w-4 h-4 text-muted-foreground" />
           </button>
-          <button onClick={() => setShowForm(true)}
+          <button onClick={openNew}
             className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition-colors">
             <PlusIcon className="w-4 h-4" /> New Settlement
           </button>
@@ -1074,18 +1091,33 @@ function SettlementsTab({ profile }: { profile: any }) {
                     {s.notes && <p className="text-xs text-muted-foreground italic mt-1">{s.notes}</p>}
                     <p className="text-[10px] text-muted-foreground mt-2">Created {relDate(s.created_at)}{s.paid_at ? ` · Paid ${relDate(s.paid_at)}` : ''}</p>
                   </div>
-                  {s.status === 'pending' && (
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <button onClick={() => markStatus(s.id, 'paid')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-colors">
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
+                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                    {s.status === 'pending' && (
+                      <>
+                        <button onClick={() => markStatus(s.id, 'paid')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-colors">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
+                        </button>
+                        <button onClick={() => openEdit(s)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-xs font-bold rounded-lg border border-violet-500/20 transition-colors">
+                          <PencilIcon className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button onClick={() => markStatus(s.id, 'void')}
+                          className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-colors">
+                          Void
+                        </button>
+                      </>
+                    )}
+                    {s.status !== 'paid' && (
+                      <button
+                        disabled={deletingId === s.id}
+                        onClick={() => deleteSettlement(s.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors disabled:opacity-50">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                        {deletingId === s.id ? '…' : 'Delete'}
                       </button>
-                      <button onClick={() => markStatus(s.id, 'void')}
-                        className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-lg border border-rose-500/20 transition-colors">
-                        Void
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -1093,25 +1125,27 @@ function SettlementsTab({ profile }: { profile: any }) {
         </div>
       )}
 
-      {/* New Settlement Modal */}
+      {/* Create / Edit Settlement Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h3 className="font-black text-foreground">New Settlement</h3>
+              <h3 className="font-black text-foreground">{editId ? 'Edit Settlement' : 'New Settlement'}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-muted rounded-lg">
                 <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
-                <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
-                  <option value="">Select school…</option>
-                  {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
+              {!editId && (
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
+                  <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    <option value="">Select school…</option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
@@ -1137,9 +1171,9 @@ function SettlementsTab({ profile }: { profile: any }) {
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500 resize-none" />
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={create} disabled={saving}
+                <button onClick={save} disabled={saving}
                   className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
-                  {saving ? 'Creating…' : 'Create Settlement'}
+                  {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Settlement'}
                 </button>
                 <button onClick={() => setShowForm(false)}
                   className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">

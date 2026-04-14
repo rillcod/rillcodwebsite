@@ -1,8 +1,6 @@
-// @refresh reset
-'use client';
-
-import { PaymentsHub } from '@/components/finance/PaymentsHub';
-
+// Payments is consolidated into Smart Finance → Operations tab.
+// This redirect keeps any bookmarks/links working.
+import { redirect } from 'next/navigation';
 export default function PaymentsPage() {
-  return <PaymentsHub />;
+  redirect('/dashboard/finance?tab=operations');
 }
