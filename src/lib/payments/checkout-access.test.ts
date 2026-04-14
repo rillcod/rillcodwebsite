@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { canRoleInitiateCheckout, CHECKOUT_ALLOWED_ROLES } from './checkout-access';
 
 describe('canRoleInitiateCheckout', () => {

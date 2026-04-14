@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { isRoleAllowed } from './api-wrapper';
 
 describe('isRoleAllowed', () => {

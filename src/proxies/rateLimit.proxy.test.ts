@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getClientIp } from './rateLimit.proxy';
 
