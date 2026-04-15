@@ -1383,9 +1383,9 @@ export default function StudentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-10">
 
           {/* ── Header ─────────────────────────────────────── */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 print:hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 print:hidden">
             <div>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                   <UserGroupIcon className="w-5 h-5 text-blue-400" />
                 </div>
@@ -1393,59 +1393,53 @@ export default function StudentsPage() {
                   Registry · {profile?.role}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground leading-none">Students</h1>
-              <p className="text-muted-foreground text-sm sm:text-lg mt-3 font-medium max-w-2xl">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground leading-none">Students</h1>
+              <p className="text-muted-foreground text-sm mt-2 font-medium max-w-2xl">
                 Manage registrations, parent info, approvals and student records
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Action buttons — row wraps gracefully, school sees fewer options */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
                 <PlusIcon className="w-4 h-4" /> Register Student
               </button>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
-                  className="p-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-all">
-                  <ArrowPathIcon className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-2 flex-1 sm:flex-none">
-                  <Link
-                    href="/dashboard/card-studio?mode=issuance&type=student"
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-none border border-orange-500/30 transition-all print:hidden"
-                    title="Open Card Studio"
-                  >
-                    <ClipboardIcon className="w-4 h-4" /> Card Studio
-                  </Link>
+              <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
+                className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-all">
+                <ArrowPathIcon className="w-4 h-4" />
+              </button>
+              <Link
+                href="/dashboard/card-studio?mode=issuance&type=student"
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-none border border-orange-500/30 transition-all print:hidden"
+              >
+                <ClipboardIcon className="w-4 h-4" /> Card Studio
+              </Link>
+              {/* Admin + Teacher only */}
+              {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                <>
                   <button onClick={handlePrintRegistry}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
-                    <PrinterIcon className="w-4 h-4" /> Print Registry
+                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
+                    <PrinterIcon className="w-4 h-4" /> Print
                   </button>
                   <button onClick={handlePrintAllLoginSlips}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
                     <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
                   <button onClick={exportCSV}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
+                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
                     <ArrowDownTrayIcon className="w-4 h-4" /> Export
                   </button>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 w-full lg:w-auto">
-                {(profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20'
-                      : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                   >
                     {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
-                    {syncing ? 'Syncing' : gapCount ? `Sync ${gapCount}` : 'Sync'}
+                    {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount})` : 'Sync'}
                   </button>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1454,13 +1448,17 @@ export default function StudentsPage() {
           <div className="bg-card border border-border p-5 print:hidden">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-4">Student Management</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {[
+              {([
                 { label: 'Register Students', sub: 'Bulk-add new students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
-                { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' },
-                { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20' },
+                { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20', adminTeacherOnly: true },
+                { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', adminTeacherOnly: true },
                 { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-orange-400 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
-                { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true },
-              ].map(({ label, sub, href, icon: Icon, color, danger }) => (
+                { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true, adminOnly: true },
+              ] as const).filter(item => {
+                if ((item as any).adminOnly && profile?.role !== 'admin') return false;
+                if ((item as any).adminTeacherOnly && !['admin', 'teacher'].includes(profile?.role ?? '')) return false;
+                return true;
+              }).map(({ label, sub, href, icon: Icon, color, danger }) => (
                 <Link key={label} href={href}
                   className={`group flex flex-col gap-2 p-4 border rounded-none transition-all ${color}`}
                   title={danger ? '⚠️ This permanently deletes student data' : label}
