@@ -515,9 +515,9 @@ const QUICK_ACTIONS = {
   ],
   school: [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
-    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View assigned staff' },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
     { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
-    { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track student progress' },
+    { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon, desc: 'Billing and payments' },
   ],
 };
 
