@@ -287,7 +287,7 @@ const ALL_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
   { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school', 'teacher'] },
   { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin', 'school'] },
+  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin'] },
   { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
   { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin', 'school'] },
@@ -445,43 +445,62 @@ function OverviewTab({ profile }: { profile: any }) {
       </div>
 
       {/* Recent Invoice Activity */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Recent Invoice Activity</h3>
-          <Link href="/dashboard/finance?tab=operations" className="text-xs text-primary font-bold hover:underline">
-            View all <ArrowRightIcon className="w-3 h-3 inline" />
-          </Link>
-        </div>
-        {invoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No invoices found</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {invoices.slice(0, 10).map(inv => {
-              const s = INV_STATUS[inv.status] ?? INV_STATUS.draft;
-              const canMarkPaid = canRecordManual && ['sent', 'overdue'].includes(inv.status);
-              return (
-                <div key={inv.id} className="flex items-center justify-between px-5 py-3 gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
-                    <p className="text-[11px] text-muted-foreground">Due {relDate(inv.due_date)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge cls={s.cls} label={s.label} />
-                    {canMarkPaid && (
-                      <button
-                        onClick={() => markInvoicePaid(inv.id)}
-                        className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
-                      >
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+      {(() => {
+        const isSchoolView = profile?.role === 'school';
+        // School: only show outstanding (sent/overdue) — paid/cleared invoices are removed
+        const displayInvoices = isSchoolView
+          ? invoices.filter(i => ['sent', 'overdue'].includes(i.status))
+          : invoices;
+        return (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
+                {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
+              </h3>
+              <Link href="/dashboard/finance?tab=operations" className="text-xs text-primary font-bold hover:underline">
+                View all <ArrowRightIcon className="w-3 h-3 inline" />
+              </Link>
+            </div>
+            {displayInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                {isSchoolView ? 'No outstanding invoices' : 'No invoices found'}
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {displayInvoices.slice(0, 10).map(inv => {
+                  const baseStatus = INV_STATUS[inv.status] ?? INV_STATUS.draft;
+                  // School view: 'sent' → 'Outstanding', 'overdue' → 'Overdue (Action Required)'
+                  const displayStatus = isSchoolView && inv.status === 'sent'
+                    ? { label: 'Outstanding', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' }
+                    : isSchoolView && inv.status === 'overdue'
+                    ? { label: 'Overdue — Action Required', cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
+                    : baseStatus;
+                  const canMarkPaid = canRecordManual && !isSchoolView && ['sent', 'overdue'].includes(inv.status);
+                  return (
+                    <div key={inv.id} className="flex items-center justify-between px-5 py-3 gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
+                        <p className="text-[11px] text-muted-foreground">Due {relDate(inv.due_date)}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge cls={displayStatus.cls} label={displayStatus.label} />
+                        {canMarkPaid && (
+                          <button
+                            onClick={() => markInvoicePaid(inv.id)}
+                            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
+                          >
+                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Record Manual Payment Modal */}
       {showManualPayment && (
@@ -1369,6 +1388,7 @@ function SetupTab({ profile }: { profile: any }) {
   const [saving, setSaving] = useState(false);
   const [showAcctForm, setShowAcctForm] = useState(false);
   const [editAcct, setEditAcct] = useState<PaymentAccount | null>(null);
+  const [editingContact, setEditingContact] = useState(false);
   const [acctForm, setAcctForm] = useState({
     owner_type: 'school' as 'rillcod' | 'school', school_id: '', label: '', bank_name: '',
     account_number: '', account_name: '', account_type: 'savings' as 'savings' | 'current',
@@ -1378,6 +1398,7 @@ function SetupTab({ profile }: { profile: any }) {
     representative_name: '', representative_email: '', representative_whatsapp: '', notes: '',
   });
   const isAdmin = profile?.role === 'admin';
+  const isSchool = profile?.role === 'school';
   const canManage = ['admin', 'school'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
@@ -1436,7 +1457,11 @@ function SetupTab({ profile }: { profile: any }) {
     setSaving(true);
     try {
       const db = createClient();
-      const payload = { ...acctForm, school_id: acctForm.owner_type === 'rillcod' ? null : (acctForm.school_id || null) };
+      // School role always saves their own school account
+      const resolvedSchoolId = isSchool
+        ? (profile?.school_id ?? null)
+        : (acctForm.owner_type === 'rillcod' ? null : (acctForm.school_id || null));
+      const payload = { ...acctForm, owner_type: isSchool ? 'school' : acctForm.owner_type, school_id: resolvedSchoolId };
       let error;
       if (editAcct) {
         ({ error } = await db.from('payment_accounts').update(payload).eq('id', editAcct.id));
@@ -1477,12 +1502,25 @@ function SetupTab({ profile }: { profile: any }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h3 className="font-black text-foreground">Payment Accounts</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Bank accounts for receiving payments</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isSchool ? 'Company and school bank accounts visible to parents' : 'Bank accounts for receiving payments'}
+            </p>
           </div>
-          {isAdmin && (
-            <button onClick={() => { setEditAcct(null); setAcctForm({ owner_type: 'school', school_id: '', label: '', bank_name: '', account_number: '', account_name: '', account_type: 'savings', payment_note: '', is_active: true }); setShowAcctForm(true); }}
+          {/* Admin can add any account; school can only add their own school account */}
+          {(isAdmin || isSchool) && (
+            <button
+              onClick={() => {
+                setEditAcct(null);
+                setAcctForm({
+                  owner_type: 'school',
+                  school_id: isSchool ? (profile?.school_id ?? '') : '',
+                  label: '', bank_name: '', account_number: '', account_name: '',
+                  account_type: 'savings', payment_note: '', is_active: true,
+                });
+                setShowAcctForm(true);
+              }}
               className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl transition-colors">
-              <PlusIcon className="w-3.5 h-3.5" /> Add Account
+              <PlusIcon className="w-3.5 h-3.5" /> {isSchool ? 'Add School Account' : 'Add Account'}
             </button>
           )}
         </div>
@@ -1491,59 +1529,80 @@ function SetupTab({ profile }: { profile: any }) {
             <p className="text-sm text-muted-foreground text-center py-8">No payment accounts configured</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
-              {accounts.map(a => (
-                <div key={a.id} className={`border rounded-xl p-4 space-y-3 ${a.owner_type === 'rillcod' ? 'border-violet-500/30 bg-violet-500/5' : 'border-border'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {a.owner_type === 'rillcod'
-                        ? <ShieldCheckIcon className="w-4 h-4 text-violet-400" />
-                        : <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground" />}
-                      <div>
-                        <p className="font-black text-foreground text-sm">{a.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{a.owner_type === 'rillcod' ? 'Rillcod Technologies' : (a.schools?.name ?? 'School')}</p>
+              {accounts.map(a => {
+                // School role: only show their own school accounts + rillcod accounts (view-only for rillcod)
+                if (isSchool && a.owner_type === 'school' && a.school_id !== profile?.school_id) return null;
+                // School can only edit their own school accounts, never rillcod accounts
+                const canEdit = isAdmin || (isSchool && a.owner_type === 'school' && a.school_id === profile?.school_id);
+                return (
+                  <div key={a.id} className={`border rounded-xl p-4 space-y-3 ${a.owner_type === 'rillcod' ? 'border-violet-500/30 bg-violet-500/5' : 'border-border'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {a.owner_type === 'rillcod'
+                          ? <ShieldCheckIcon className="w-4 h-4 text-violet-400" />
+                          : <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground" />}
+                        <div>
+                          <p className="font-black text-foreground text-sm">{a.label}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {a.owner_type === 'rillcod' ? 'Rillcod Technologies (Company Account)' : (a.schools?.name ?? 'School Account')}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    {!a.is_active && <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">Inactive</span>}
-                    {canManage && (
-                      <div className="flex gap-1">
-                        <button onClick={() => editAccount(a)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
-                          <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
+                      <div className="flex items-center gap-1">
+                        {!a.is_active && <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">Inactive</span>}
+                        {canEdit && (
+                          <button onClick={() => editAccount(a)} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                            <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                        )}
                         {isAdmin && (
                           <button onClick={() => deleteAccount(a.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-colors">
                             <TrashIcon className="w-3.5 h-3.5 text-rose-400/60 hover:text-rose-400" />
                           </button>
                         )}
                       </div>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-0.5">{a.bank_name}</p>
+                        <p className="font-black text-foreground tracking-wider">{a.account_number}</p>
+                        <p className="text-xs text-muted-foreground">{a.account_name}</p>
+                      </div>
+                      <button onClick={() => navigator.clipboard?.writeText(a.account_number)}
+                        className="text-[10px] font-bold text-violet-400 hover:text-violet-300 px-2 py-1 bg-violet-500/10 rounded-lg transition-colors">
+                        Copy
+                      </button>
+                    </div>
+                    {a.payment_note && <p className="text-xs text-muted-foreground italic">{a.payment_note}</p>}
+                    {isSchool && a.owner_type === 'school' && (
+                      <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckBadgeIcon className="w-3.5 h-3.5" /> Visible to parents
+                      </p>
                     )}
                   </div>
-                  <div className="bg-muted/30 rounded-lg px-3 py-2 flex items-center justify-between">
-                    <div>
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-widest mb-0.5">{a.bank_name}</p>
-                      <p className="font-black text-foreground tracking-wider">{a.account_number}</p>
-                      <p className="text-xs text-muted-foreground">{a.account_name}</p>
-                    </div>
-                    <button onClick={() => navigator.clipboard?.writeText(a.account_number)}
-                      className="text-[10px] font-bold text-violet-400 hover:text-violet-300 px-2 py-1 bg-violet-500/10 rounded-lg transition-colors">
-                      Copy
-                    </button>
-                  </div>
-                  {a.payment_note && <p className="text-xs text-muted-foreground italic">{a.payment_note}</p>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* Billing Contact */}
+      {/* Admin / Payment Contact */}
       {canManage && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div>
-              <h3 className="font-black text-foreground">Billing Contact</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Primary finance contact for invoice reminders</p>
+              <h3 className="font-black text-foreground">Admin / Payment Contact</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Primary finance contact for billing and invoice reminders</p>
             </div>
+            {/* School: if contact already set, show Change button */}
+            {isSchool && contact && !editingContact && (
+              <button
+                onClick={() => setEditingContact(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground text-xs font-bold rounded-xl transition-colors">
+                <PencilIcon className="w-3 h-3" /> Change
+              </button>
+            )}
           </div>
           <div className="p-5 space-y-4">
             {isAdmin && schools.length > 0 && (
@@ -1556,33 +1615,85 @@ function SetupTab({ profile }: { profile: any }) {
                 </select>
               </div>
             )}
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Representative Name</label>
-                <input value={contactForm.representative_name ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_name: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+
+            {/* School view: if contact already set and not editing, show read-only display */}
+            {isSchool && contact && !editingContact ? (
+              <div className="space-y-3">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {contact.representative_name && (
+                    <div className="bg-muted/30 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Contact Name</p>
+                      <p className="text-sm font-bold text-foreground">{contact.representative_name}</p>
+                    </div>
+                  )}
+                  {contact.representative_email && (
+                    <div className="bg-muted/30 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Email</p>
+                      <p className="text-sm font-bold text-foreground">{contact.representative_email}</p>
+                    </div>
+                  )}
+                  {contact.representative_whatsapp && (
+                    <div className="bg-muted/30 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">WhatsApp</p>
+                      <p className="text-sm font-bold text-foreground">{contact.representative_whatsapp}</p>
+                    </div>
+                  )}
+                  {contact.notes && (
+                    <div className="bg-muted/30 rounded-xl px-4 py-3 sm:col-span-2">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Notes</p>
+                      <p className="text-sm text-foreground">{contact.notes}</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <CheckBadgeIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  Contact saved. Click "Change" above to update.
+                </p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Email</label>
-                <input type="email" value={contactForm.representative_email ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_email: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">WhatsApp</label>
-                <input value={contactForm.representative_whatsapp ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_whatsapp: e.target.value }))} placeholder="+2348..."
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
-                <input value={contactForm.notes ?? ''} onChange={e => setContactForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
-              </div>
-            </div>
-            <button onClick={saveContact} disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
-              {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
-              Save Contact
-            </button>
+            ) : (
+              /* Form: shown for admin always, for school if not yet set OR editing */
+              <>
+                {isSchool && !contact && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-400 font-bold">
+                    Enter your billing contact once. This is used for payment reminders and invoices.
+                  </div>
+                )}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Representative Name</label>
+                    <input value={contactForm.representative_name ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Email</label>
+                    <input type="email" value={contactForm.representative_email ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_email: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">WhatsApp</label>
+                    <input value={contactForm.representative_whatsapp ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_whatsapp: e.target.value }))} placeholder="+2348..."
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
+                    <input value={contactForm.notes ?? ''} onChange={e => setContactForm(f => ({ ...f, notes: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={async () => { await saveContact(); setEditingContact(false); }} disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    Save Contact
+                  </button>
+                  {isSchool && editingContact && (
+                    <button onClick={() => setEditingContact(false)} className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground text-sm rounded-xl transition-colors">
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1598,22 +1709,31 @@ function SetupTab({ profile }: { profile: any }) {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
-                <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
-                  <option value="rillcod">Rillcod Technologies</option>
-                  <option value="school">School</option>
-                </select>
-              </div>
-              {acctForm.owner_type === 'school' && (
-                <div>
-                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
-                  <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
-                    <option value="">Select school…</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+              {/* Admin can pick owner type; school role is locked to their own school */}
+              {isAdmin ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
+                    <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                      <option value="rillcod">Rillcod Technologies</option>
+                      <option value="school">School</option>
+                    </select>
+                  </div>
+                  {acctForm.owner_type === 'school' && (
+                    <div>
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
+                      <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                        <option value="">Select school…</option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-muted/30 rounded-xl px-4 py-3 text-xs text-muted-foreground">
+                  <span className="font-bold text-foreground">School Account</span> — will be visible to parents alongside the company account.
                 </div>
               )}
               <div>

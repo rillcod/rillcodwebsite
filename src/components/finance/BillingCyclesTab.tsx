@@ -55,6 +55,7 @@ const STATUS_OPTIONS = ['due', 'past_due', 'paid', 'cancelled', 'rolled_over'] a
 
 export function BillingCyclesTab({ profile }: { profile: any }) {
   const isAdmin = profile?.role === 'admin';
+  const isSchool = profile?.role === 'school';
   const [rows, setRows] = useState<BillingCycleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -63,6 +64,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [patching, setPatching] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [payingRow, setPayingRow] = useState<string | null>(null); // id of row showing payment options
   const [contactUsers, setContactUsers] = useState<{ id: string; full_name: string | null; email: string | null; role: string | null }[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [savingForm, setSavingForm] = useState(false);
@@ -245,12 +247,23 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
-        <p className="font-bold text-foreground">Term billing cycles</p>
-        <p className="mt-1 text-xs">
-          Each row is a subscription term window with a due date, rollup amount, and optional linked invoice. Reminder weeks 6–8 are driven by the billing-reminders cron.
-        </p>
-      </div>
+      {/* Show admin-only note; school sees a cleaner header */}
+      {isAdmin && (
+        <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+          <p className="font-bold text-foreground">Term billing cycles</p>
+          <p className="mt-1 text-xs">
+            Each row is a subscription term window with a due date, rollup amount, and optional linked invoice. Reminder weeks 6–8 are driven by the billing-reminders cron.
+          </p>
+        </div>
+      )}
+      {isSchool && (
+        <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+          <p className="font-bold text-foreground">Your Billing Schedule</p>
+          <p className="mt-1 text-xs">
+            View your current and upcoming billing cycles. Click <strong>Pay Now</strong> on any due cycle to complete payment via bank transfer or Paystack.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isAdmin && (
@@ -304,6 +317,8 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           {rows.map(row => {
             const open = expanded === row.id;
             const items = Array.isArray(row.items) ? row.items as Record<string, unknown>[] : [];
+            const isDue = ['due', 'past_due'].includes(row.status);
+            const showingPayment = payingRow === row.id;
             return (
               <div key={row.id} className="border border-border bg-card rounded-none overflow-hidden">
                 <button
@@ -318,7 +333,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         <CalendarDaysIcon className="w-3.5 h-3.5 shrink-0" />
                         Due {relDate(row.due_date)} · starts {relDate(row.term_start_date)}
                       </span>
-                      {(row.schools?.name || row.owner_schools?.name) && (
+                      {(row.schools?.name || row.owner_schools?.name) && !isSchool && (
                         <span className="text-foreground/80">· {row.schools?.name ?? row.owner_schools?.name}</span>
                       )}
                     </p>
@@ -327,34 +342,99 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     <span className="font-black text-foreground text-sm tabular-nums">
                       {fmt(row.currency, Number(row.amount_due ?? 0))}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border border-border px-2 py-0.5 rounded-none">
-                      {row.status.replace(/_/g, ' ')}
+                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-none ${
+                      row.status === 'paid' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                      row.status === 'past_due' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
+                      row.status === 'due' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                      'text-muted-foreground border-border'
+                    }`}>
+                      {row.status === 'past_due' ? 'Overdue' : row.status.replace(/_/g, ' ')}
                     </span>
                     {open ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
                   </div>
                 </button>
+
+                {/* School: Pay Now button strip for due/past_due cycles */}
+                {isSchool && isDue && (
+                  <div className="border-t border-border px-4 py-3 bg-amber-500/5 flex items-center justify-between gap-3">
+                    <p className="text-xs text-amber-400 font-bold">
+                      {row.status === 'past_due' ? 'This cycle is overdue — please pay immediately.' : 'Payment due for this billing cycle.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setPayingRow(showingPayment ? null : row.id); }}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
+                    >
+                      {showingPayment ? 'Hide' : 'Pay Now'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Payment options for school */}
+                {isSchool && showingPayment && (
+                  <div className="border-t border-border px-4 py-4 bg-muted/20 space-y-3">
+                    <p className="text-xs font-black text-foreground uppercase tracking-widest">Payment Options</p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {/* Bank Transfer */}
+                      <div className="border border-border rounded-xl p-3 space-y-1.5">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Bank Transfer</p>
+                        <p className="text-xs text-foreground font-bold">Transfer to Rillcod Technologies</p>
+                        <p className="text-[11px] text-muted-foreground">Use your invoice reference as the transfer narration, then contact support to confirm.</p>
+                        <Link
+                          href="/dashboard/finance?tab=setup"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          View account details →
+                        </Link>
+                      </div>
+                      {/* Paystack */}
+                      <div className="border border-border rounded-xl p-3 space-y-1.5">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Paystack (Card / Bank)</p>
+                        <p className="text-xs text-foreground font-bold">Pay online instantly</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Amount: <span className="font-black text-foreground">{fmt(row.currency, Number(row.amount_due ?? 0))}</span>
+                        </p>
+                        <Link
+                          href={`/dashboard/my-payments?ref=billing_cycle_${row.id}&amount=${row.amount_due}&currency=${row.currency}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:underline"
+                        >
+                          Pay via Paystack →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {open && (
                   <div className="border-t border-border px-4 py-3 bg-muted/20 space-y-3 text-xs">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <p><span className="text-muted-foreground">Owner type:</span> <span className="font-bold text-foreground">{row.owner_type}</span></p>
-                      <p><span className="text-muted-foreground">Reminders:</span>{' '}
-                        <span className="text-foreground">
-                          W6 {row.reminder_week6_sent_at ? '✓' : '—'} · W7 {row.reminder_week7_sent_at ? '✓' : '—'} · W8 {row.reminder_week8_sent_at ? '✓' : '—'}
-                        </span>
-                      </p>
-                      {row.invoices?.id && (
-                        <p className="sm:col-span-2">
-                          <span className="text-muted-foreground">Linked invoice:</span>{' '}
-                          <Link href="/dashboard/payments" className="font-bold text-primary underline">
-                            {row.invoices.invoice_number}
-                          </Link>
-                          <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
+                    {isAdmin && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <p><span className="text-muted-foreground">Owner type:</span> <span className="font-bold text-foreground">{row.owner_type}</span></p>
+                        <p><span className="text-muted-foreground">Reminders:</span>{' '}
+                          <span className="text-foreground">
+                            W6 {row.reminder_week6_sent_at ? '✓' : '—'} · W7 {row.reminder_week7_sent_at ? '✓' : '—'} · W8 {row.reminder_week8_sent_at ? '✓' : '—'}
+                          </span>
                         </p>
-                      )}
-                    </div>
+                        {row.invoices?.id && (
+                          <p className="sm:col-span-2">
+                            <span className="text-muted-foreground">Linked invoice:</span>{' '}
+                            <Link href="/dashboard/payments" className="font-bold text-primary underline">
+                              {row.invoices.invoice_number}
+                            </Link>
+                            <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {!isAdmin && row.invoices?.id && (
+                      <p><span className="text-muted-foreground">Invoice:</span>{' '}
+                        <span className="font-bold text-foreground">{row.invoices.invoice_number}</span>
+                        <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
+                      </p>
+                    )}
                     {items.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Rolled-up line items ({items.length})</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Line items ({items.length})</p>
                         <ul className="space-y-1 max-h-40 overflow-y-auto border border-border bg-background p-2 rounded-none">
                           {items.map((it, i) => (
                             <li key={i} className="text-[11px] text-foreground flex justify-between gap-2">
