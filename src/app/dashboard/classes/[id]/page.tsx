@@ -1105,7 +1105,7 @@ export default function ClassDetailPage() {
             <div className="bg-card shadow-sm border border-border overflow-hidden">
               <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  {isStaff && enrollments.length > 0 && (
+                  {canView && enrollments.length > 0 && (
                     <input
                       type="checkbox"
                       title="Select all"
@@ -1121,7 +1121,7 @@ export default function ClassDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {isStaff && checkedEnrollIds.size > 0 && (
+                  {canView && checkedEnrollIds.size > 0 && (
                     <button
                       disabled={bulkRemoving}
                       onClick={async () => {
@@ -1129,7 +1129,7 @@ export default function ClassDetailPage() {
                           .filter((e: any) => checkedEnrollIds.has(e.id))
                           .map((e: any) => e.full_name)
                           .join(', ');
-                        if (!confirm(`Remove ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}\n\nThis cannot be undone.`)) return;
+                        if (!confirm(`Unenrol ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}`)) return;
                         setBulkRemoving(true);
                         try {
                           const res = await fetch(`/api/classes/${id}/enroll`, {
@@ -1137,7 +1137,7 @@ export default function ClassDetailPage() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ studentIds: [...checkedEnrollIds] }),
                           });
-                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Remove failed'); return; }
+                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Unenrol failed'); return; }
                           setEnrollments(prev => prev.filter((e: any) => !checkedEnrollIds.has(e.id)));
                           setCheckedEnrollIds(new Set());
                         } finally {
@@ -1147,7 +1147,7 @@ export default function ClassDetailPage() {
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
                     >
                       {bulkRemoving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
-                      Remove {checkedEnrollIds.size}
+                      Unenrol {checkedEnrollIds.size}
                     </button>
                   )}
                   {isStaff && (
@@ -1185,7 +1185,7 @@ export default function ClassDetailPage() {
                         key={enr.id}
                         className={`px-4 py-3 flex items-center gap-3 transition-colors group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-muted/50'}`}
                       >
-                        {isStaff && (
+                        {canView && (
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -1206,10 +1206,10 @@ export default function ClassDetailPage() {
                           <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
                           <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
                         </div>
-                        {isStaff && (
+                        {canView && (
                           <button
                             onClick={async () => {
-                              if (!confirm(`Remove ${enr.full_name} from this class?`)) return;
+                              if (!confirm(`Unenrol ${enr.full_name} from this class?`)) return;
                               const res = await fetch(`/api/classes/${id}/enroll`, {
                                 method: 'DELETE',
                                 headers: { 'Content-Type': 'application/json' },
@@ -1219,7 +1219,7 @@ export default function ClassDetailPage() {
                               setEnrollments(prev => prev.filter((e: any) => e.id !== enr.id));
                               setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
                             }}
-                            title="Remove from class"
+                            title="Unenrol from class"
                             className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />

@@ -202,6 +202,10 @@ export default function StudentsPage() {
   // Bulk enrol
   const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
   const [showBulkEnrolModal, setShowBulkEnrolModal] = useState(false);
+
+  // Bulk unenrol
+  const [selectedForUnenrol, setSelectedForUnenrol] = useState<Set<string>>(new Set());
+  const [bulkUnenrolling, setBulkUnenrolling] = useState(false);
   const [classList, setClassList] = useState<any[]>([]);
   const [bulkEnrolClassId, setBulkEnrolClassId] = useState('');
   const [bulkEnrolling, setBulkEnrolling] = useState(false);
@@ -368,6 +372,41 @@ export default function StudentsPage() {
       alert(e.message ?? 'Failed to enrol students');
     } finally {
       setBulkEnrolling(false);
+    }
+  };
+
+  // ── Bulk unenrol ─────────────────────────────────────────────
+  const executeBulkUnenrol = async () => {
+    if (selectedForUnenrol.size === 0) return;
+    const names = portalStudents.filter(s => selectedForUnenrol.has(s.id)).map(s => s.full_name).join(', ');
+    if (!confirm(`Unenrol ${selectedForUnenrol.size} student${selectedForUnenrol.size !== 1 ? 's' : ''} from their classes?\n\n${names}`)) return;
+    setBulkUnenrolling(true);
+    try {
+      // Group selected students by class_id so we can call DELETE per class
+      const byClass = new Map<string, string[]>();
+      for (const s of portalStudents) {
+        if (selectedForUnenrol.has(s.id) && s.class_id) {
+          if (!byClass.has(s.class_id)) byClass.set(s.class_id, []);
+          byClass.get(s.class_id)!.push(s.id);
+        }
+      }
+      const results = await Promise.allSettled(
+        [...byClass.entries()].map(([classId, ids]) =>
+          fetch(`/api/classes/${classId}/enroll`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentIds: ids }),
+          }).then(async r => { if (!r.ok) { const j = await r.json(); throw new Error(j.error ?? 'Failed'); } })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      setSelectedForUnenrol(new Set());
+      await loadPortalStudents();
+      if (failed > 0) alert(`${results.length - failed} class(es) unenrolled. ${failed} failed.`);
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to unenrol students');
+    } finally {
+      setBulkUnenrolling(false);
     }
   };
 
@@ -1610,12 +1649,21 @@ export default function StudentsPage() {
                         className="flex items-start gap-2 sm:gap-4 p-3 sm:p-5 hover:bg-card shadow-sm transition-colors cursor-pointer group"
                         onClick={() => setExpanded(isExpanded ? null : s.id)}>
 
-                        {/* Checkbox (enrolled students only — Admin only) */}
+                        {/* Enrol checkbox (enrolled students only — Admin/Teacher only) */}
                         {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                           <div
                             onClick={e => { e.stopPropagation(); setSelectedForEnrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
                             className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-orange-600 border-orange-400' : 'border-border hover:border-orange-400'}`}>
                             {selectedForEnrol.has(s.id) && <CheckCircleIcon className="w-3 h-3 text-foreground" />}
+                          </div>
+                        )}
+                        {/* Unenrol checkbox — enrolled students with a class, all staff roles */}
+                        {isEnrolled && s.class_id && (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
+                          <div
+                            onClick={e => { e.stopPropagation(); setSelectedForUnenrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
+                            title="Select for bulk unenrol"
+                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForUnenrol.has(s.id) ? 'bg-rose-600 border-rose-400' : 'border-border hover:border-rose-400'}`}>
+                            {selectedForUnenrol.has(s.id) && <XMarkIcon className="w-3 h-3 text-foreground" />}
                           </div>
                         )}
 
@@ -1711,6 +1759,26 @@ export default function StudentsPage() {
                                 disabled={deleting === s.id}
                                 className="p-1.5 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
                                 <XMarkIcon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {/* Enrolled student: unenrol from class */}
+                            {isEnrolled && s.class_id && (
+                              <button
+                                onClick={async e => {
+                                  e.stopPropagation();
+                                  const className = classMap[s.class_id] ?? 'their class';
+                                  if (!confirm(`Unenrol ${s.full_name} from ${className}?`)) return;
+                                  const res = await fetch(`/api/classes/${s.class_id}/enroll`, {
+                                    method: 'DELETE',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ studentId: s.id }),
+                                  });
+                                  if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed to unenrol'); return; }
+                                  setPortalStudents(prev => prev.map(p => p.id === s.id ? { ...p, class_id: null, section_class: null } : p));
+                                }}
+                                title="Unenrol from class"
+                                className="p-1.5 rounded-none bg-amber-500/5 border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all">
+                                <ArrowPathIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {/* Enrolled student: reset password */}
