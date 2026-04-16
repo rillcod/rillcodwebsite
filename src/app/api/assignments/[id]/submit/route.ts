@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +79,7 @@ export async function POST(
     // Fetch assignment to validate access
     const { data: assignment } = await admin
       .from('assignments')
-      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight')
+      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -144,6 +145,12 @@ export async function POST(
         // Auto-grading failed — submission saved, teacher can grade manually
         console.error('[auto-grade] failed:', autoErr);
       }
+    }
+
+    if (!isStaff && assignment.created_by) {
+      queueService.queueNotification(assignment.created_by, 'whatsapp', {
+          body: `📚 A new submission was just received for your assignment "${assignment.title || 'Assignment'}". Log into the Rillcod dashboard to review and grade it.`
+      }).catch(console.error);
     }
 
     return NextResponse.json({ data }, { status: 201 });
