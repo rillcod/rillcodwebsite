@@ -60,6 +60,11 @@ export default function ClassDetailPage() {
   const [sessionForm, setSessionForm] = useState({ topic: '', session_date: '', start_time: '', end_time: '', notes: '' });
   const [savingSession, setSavingSession] = useState(false);
 
+  // Broadcast State
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState({ text: '', mediaUrl: '' });
+  const [broadcasting, setBroadcasting] = useState(false);
+
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isSchool = profile?.role === 'school';
   const canView = isStaff || isSchool;
@@ -318,6 +323,27 @@ export default function ClassDetailPage() {
     }
   };
 
+  const handleBroadcast = async () => {
+    if (!broadcastForm.text.trim()) return;
+    setBroadcasting(true);
+    try {
+        const res = await fetch(`/api/classes/${id}/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(broadcastForm)
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to broadcast');
+        alert(`WhatsApp Broadcast sent successfully to ${json.queued} students in the background!`);
+        setShowBroadcastModal(false);
+        setBroadcastForm({ text: '', mediaUrl: '' });
+    } catch (err: any) {
+        alert(err.message);
+    } finally {
+        setBroadcasting(false);
+    }
+  };
+
   const handleExportLogins = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -573,7 +599,12 @@ export default function ClassDetailPage() {
             {cls.programs?.name && <p className="text-sm text-muted-foreground">{cls.programs.name}</p>}
           </div>
           {isStaff && (
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+              <button 
+                onClick={() => setShowBroadcastModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm rounded-none transition-colors shadow-lg">
+                Broadcast (WhatsApp)
+              </button>
               <Link href={`/dashboard/classes/${id}/edit`}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-colors hover:border-orange-500/50">
                 <PencilIcon className="w-4 h-4 text-orange-400" /> Edit Class
@@ -1615,6 +1646,50 @@ export default function ClassDetailPage() {
               >
                 {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                 {editingSession.id === 'new' ? 'Save Session' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Broadcast Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !broadcasting && setShowBroadcastModal(false)} />
+          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-none shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-[#25D366]/20 bg-[#25D366]/5">
+              <h3 className="text-base font-bold text-[#25D366] flex items-center gap-2">
+                WhatsApp Class Broadcast
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Send a 1-to-1 WhatsApp message to all {enrollments.length} enrolled students.
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Message Content</label>
+                <textarea 
+                  value={broadcastForm.text}
+                  onChange={(e) => setBroadcastForm({ ...broadcastForm, text: e.target.value })}
+                  rows={5}
+                  className="w-full bg-background border border-border rounded-none px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#25D366] transition-colors resize-none"
+                  placeholder="e.g. Hello class! Remember to submit your biology assignments by 5 PM tomorrow..."
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-border flex gap-3">
+              <button 
+                onClick={() => setShowBroadcastModal(false)} 
+                disabled={broadcasting}
+                className="flex-1 py-2.5 bg-card hover:bg-muted text-muted-foreground font-bold text-sm rounded-none border border-border">
+                Cancel
+              </button>
+              <button
+                onClick={handleBroadcast}
+                disabled={broadcasting || !broadcastForm.text.trim()}
+                className="flex-[2] py-2.5 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-bold text-sm rounded-none shadow-lg flex items-center justify-center gap-2"
+              >
+                {broadcasting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <span>Send to {enrollments.length} Students</span>}
               </button>
             </div>
           </div>
