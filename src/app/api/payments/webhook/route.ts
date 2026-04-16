@@ -253,6 +253,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
     // 4. Generate Receipt automatically (Task 23.1)
     const { paymentsService } = await import('@/services/payments.service');
     const { notificationsService } = await import('@/services/notifications.service');
+    const { queueService } = await import('@/services/queue.service');
     
     try {
         const receiptUrl = await paymentsService.generateReceipt(transaction.id);
@@ -335,6 +336,11 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     subject: 'Payment Receipt: Rillcod Academy',
                     html: portalHtml,
                 });
+                
+                // Fire Instant WhatsApp Receipt
+                queueService.queueNotification(portalUsers.id, 'whatsapp', {
+                    body: `Hi ${greet}! Your payment of ${amtLine} (Ref: ${String(transaction.transaction_reference)}) was successful. Your official receipt has been emailed and is available in your Rillcod dashboard.`
+                }).catch(console.error);
             }
         }
     } catch (err) {
