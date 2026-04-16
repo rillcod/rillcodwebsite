@@ -15,6 +15,7 @@ interface Conversation {
 
 interface Message {
   id: string;
+  conversation_id: string;
   direction: 'inbound' | 'outbound';
   body: string;
   created_at: string;
