@@ -238,6 +238,34 @@ export class NotificationsService {
         }
     }
 
+    async sendWhatsApp(userId: string, payload: Partial<WhatsAppPayload> & { body: string }) {
+        if (!(await this.checkPreferences(userId, 'sms'))) {
+            console.log(`User ${userId} has disabled SMS/WhatsApp notifications. Skipping.`);
+            return false;
+        }
+
+        let phone = payload.to;
+        if (!phone) {
+            const supabase = await createClient();
+            const { data: userProfile } = await supabase.from('portal_users').select('phone').eq('id', userId).single();
+            if (userProfile?.phone) {
+                phone = userProfile.phone;
+            } else {
+                console.log(`User ${userId} has no phone number on file. Cannot send WhatsApp.`);
+                return false;
+            }
+        }
+
+        try {
+            const result = await this.sendExternalWhatsApp({ to: phone, body: payload.body });
+            await this.logNotification(userId, 'WhatsApp Notification Sent', payload.body, 'info');
+            return result;
+        } catch (error: any) {
+            await this.logNotification(userId, 'WhatsApp Delivery Failed', payload.body, 'error');
+            throw new AppError(`WhatsApp delivery failed: ${error.message}`, 500);
+        }
+    }
+
     // Task 29.2: Trigger assignment due date reminders (24 hours before)
     async checkUpcomingAssignments() {
         const supabase = await createClient();

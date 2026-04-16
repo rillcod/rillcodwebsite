@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,10 +123,17 @@ export async function POST(
         .from('assignment_submissions')
         .update(updatePayload)
         .eq('id', submission_id)
-        .select('id, grade, status, weighted_score')
+        .select('id, grade, status, weighted_score, portal_user_id')
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      
+      if (updatePayload.graded_by && data?.portal_user_id) {
+          queueService.queueNotification(data.portal_user_id, 'whatsapp', {
+              body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
+          }).catch(console.error);
+      }
+      
       return NextResponse.json({ data });
     }
 
@@ -145,10 +153,17 @@ export async function POST(
           updated_at:      new Date().toISOString(),
           weighted_score:  computeWeightedScore(grade),
         }, { onConflict: 'assignment_id,portal_user_id' })
-        .select('id, grade, status, weighted_score')
+        .select('id, grade, status, weighted_score, portal_user_id')
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      if (data?.portal_user_id) {
+          queueService.queueNotification(data.portal_user_id, 'whatsapp', {
+              body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
+          }).catch(console.error);
+      }
+
       return NextResponse.json({ data });
     }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { paymentsService } from '@/services/payments.service';
+import { queueService } from '@/services/queue.service';
 
 export async function POST(req: Request) {
     try {
@@ -105,6 +106,13 @@ export async function POST(req: Request) {
         if (status === 'success') {
             try {
                 await paymentsService.generateReceipt(transactionId);
+                
+                // WhatsApp Alert
+                if (transaction.user_id) {
+                    await queueService.queueNotification(transaction.user_id, 'whatsapp', {
+                        body: `Hi there! We've received your payment of ${transaction.amount} ${transaction.currency}. Your receipt has been successfully generated inside your Rillcod dashboard. Thank you!`
+                    });
+                }
             } catch (err) {
                 console.error('Manual approval receipt failed:', err);
             }

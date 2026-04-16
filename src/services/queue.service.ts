@@ -4,7 +4,7 @@ import { env } from '@/config/env';
 export interface NotificationJob {
     id: string;
     userId: string;
-    type: 'email' | 'sms';
+    type: 'email' | 'sms' | 'whatsapp';
     payload: any;
     attempts: number;
     timestamp: number;
@@ -20,7 +20,7 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
 const QUEUE_KEY = 'notification_queue';
 
 export class QueueService {
-    async queueNotification(userId: string, type: 'email' | 'sms', payload: any) {
+    async queueNotification(userId: string, type: 'email' | 'sms' | 'whatsapp', payload: any) {
         if (!redis) {
             console.warn('Redis not configured, processing notification synchronously');
             // In a real dev env, we might want to still process it or log it

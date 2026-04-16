@@ -25,6 +25,8 @@ export async function GET(req: Request) {
                 await notificationsService.sendEmail(job.userId, job.payload);
             } else if (job.type === 'sms') {
                 await notificationsService.sendSMS(job.userId, job.payload);
+            } else if (job.type === 'whatsapp') {
+                await notificationsService.sendWhatsApp(job.userId, job.payload);
             }
             processed++;
         } catch (err) {
