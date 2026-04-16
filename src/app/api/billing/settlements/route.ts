@@ -7,15 +7,15 @@ async function requireAdmin(): Promise<
   | { db: ReturnType<typeof createAdminClient> }
 > {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  const db = createAdminClient();
+  // Use adminClient to bypass RLS — supabase user client may not have read access
+  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
-  return { db: createAdminClient() };
+  return { db };
 }
 
 /** GET /api/billing/settlements — list recent school settlements (admin). */

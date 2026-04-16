@@ -9,7 +9,9 @@ function adminClient() {
   );
 }
 
-async function getCaller() {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -19,27 +21,42 @@ async function getCaller() {
     .eq('id', user.id)
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
-  return caller;
+  return caller as Caller;
 }
 
-async function requireWriteStaff() {
-  const caller = await getCaller();
-  if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
-  return caller;
-}
-
-async function requireOwnerOrAdmin(classId: string, caller: { role: string; id: string }) {
+/**
+ * Returns true when the caller can manage (write/delete) the given class.
+ * - admin:  always
+ * - teacher: assigned to the class's school via teacher_schools OR primary school_id
+ * - school:  class belongs to their school
+ */
+async function callerCanManageClass(caller: Caller, classSchoolId: string | null): Promise<boolean> {
   if (caller.role === 'admin') return true;
-  const { data } = await adminClient()
-    .from('classes')
-    .select('teacher_id')
-    .eq('id', classId)
-    .maybeSingle();
-  return data?.teacher_id === caller.id;
+  if (!classSchoolId) {
+    // Class has no school — only admin can manage it
+    return caller.role === 'admin';
+  }
+  if (caller.role === 'school') {
+    return caller.school_id === classSchoolId;
+  }
+  if (caller.role === 'teacher') {
+    if (caller.school_id === classSchoolId) return true;
+    const { data: ts } = await adminClient()
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', classSchoolId)
+      .maybeSingle();
+    return !!ts;
+  }
+  return false;
 }
 
-// GET /api/classes/[id] — fetch single class with related data (bypasses RLS)
-// admin/teacher: any class; school: only classes belonging to their school
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/classes/[id]
+// Fetch a single class with related data.
+// Access: admin (any), teacher (any in their school(s)), school (own school only)
+// ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -48,7 +65,10 @@ export async function GET(
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
-  const { data, error } = await adminClient()
+  const admin = adminClient();
+
+  // Fetch the class first so we can do a pre-query school check
+  const { data, error } = await admin
     .from('classes')
     .select('*, programs(id, name, difficulty_level), portal_users!classes_teacher_id_fkey(id, full_name), schools(id, name)')
     .eq('id', id)
@@ -57,64 +77,137 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-  // School role: can only view classes that belong to their school
-  if (caller.role === 'school' && (data as any).school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  // ── Access guard ──────────────────────────────────────────────────────────
+  if (caller.role !== 'admin') {
+    const classSchoolId = (data as any).school_id ?? null;
+    const canAccess = await callerCanManageClass(caller, classSchoolId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Access denied: class is outside your school scope' }, { status: 403 });
+    }
   }
 
   return NextResponse.json({ data });
 }
 
-// PATCH /api/classes/[id] — update class fields (bypasses RLS)
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/classes/[id]
+// Update class fields. Caller must have school access to the class.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireWriteStaff();
+  const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
+  // school role cannot mutate classes directly (read-only for them)
+  if (caller.role === 'school') {
+    return NextResponse.json({ error: 'School accounts cannot edit class records directly' }, { status: 403 });
+  }
+
   const { id } = await params;
-  if (!await requireOwnerOrAdmin(id, caller)) {
-    return NextResponse.json({ error: 'You can only edit classes you teach' }, { status: 403 });
+  const admin = adminClient();
+
+  // Fetch the class to check school access
+  const { data: cls } = await admin
+    .from('classes')
+    .select('school_id, name')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+  const canManage = await callerCanManageClass(caller, cls.school_id ?? null);
+  if (!canManage) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to' },
+      { status: 403 },
+    );
   }
 
   const body = await request.json();
 
-  // Whitelist allowed update fields
+  // ── Field whitelist — current_students excluded (managed by enroll route only) ──
   const allowed: Record<string, unknown> = {};
-  const allowedFields = ['name', 'description', 'program_id', 'teacher_id', 'school_id',
-    'max_students', 'current_students', 'status', 'schedule', 'start_date', 'end_date'];
+  const allowedFields = [
+    'name', 'description', 'program_id', 'teacher_id',
+    'max_students', 'status', 'schedule', 'start_date', 'end_date',
+  ];
+
+  // school_id: only admin can reassign a class to a different school
+  if (caller.role === 'admin' && 'school_id' in body) {
+    allowed.school_id = body.school_id ?? null;
+  }
+
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
   }
   allowed.updated_at = new Date().toISOString();
 
-  const { error } = await adminClient()
+  // If the class name changed, update section_class on all enrolled students
+  const newName: string | null = typeof body.name === 'string' ? body.name : null;
+  const nameChanged = newName && newName !== cls.name;
+
+  const { error } = await admin
     .from('classes')
     .update(allowed)
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Keep section_class in sync if name was renamed
+  if (nameChanged) {
+    await admin
+      .from('portal_users')
+      .update({ section_class: newName })
+      .eq('class_id', id)
+      .eq('role', 'student');
+  }
+
   return NextResponse.json({ success: true });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/classes/[id]
+// Caller must be admin or a teacher/school assigned to the class's school.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireWriteStaff();
+  const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
-  if (!await requireOwnerOrAdmin(id, caller)) {
-    return NextResponse.json({ error: 'You can only delete classes you teach' }, { status: 403 });
+  // school role cannot delete classes
+  if (caller.role === 'school') {
+    return NextResponse.json({ error: 'School accounts cannot delete class records' }, { status: 403 });
   }
 
+  const { id } = await params;
   const admin = adminClient();
 
-  // Nullify class_id on students assigned to this class before deleting
-  await admin.from('portal_users').update({ class_id: null } as any).eq('class_id', id);
+  const { data: cls } = await admin
+    .from('classes')
+    .select('school_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+  const canManage = await callerCanManageClass(caller, cls.school_id ?? null);
+  if (!canManage) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to' },
+      { status: 403 },
+    );
+  }
+
+  // Clear class_id and section_class on all students in this class before deleting
+  await admin
+    .from('portal_users')
+    .update({ class_id: null, section_class: null } as any)
+    .eq('class_id', id)
+    .eq('role', 'student');
 
   const { error } = await admin.from('classes').delete().eq('id', id);
 

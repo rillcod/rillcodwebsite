@@ -206,6 +206,7 @@ export default function StudentsPage() {
   // Bulk unenrol
   const [selectedForUnenrol, setSelectedForUnenrol] = useState<Set<string>>(new Set());
   const [bulkUnenrolling, setBulkUnenrolling] = useState(false);
+  const [showUnenrolModal, setShowUnenrolModal] = useState(false);
   const [classList, setClassList] = useState<any[]>([]);
   const [bulkEnrolClassId, setBulkEnrolClassId] = useState('');
   const [bulkEnrolling, setBulkEnrolling] = useState(false);
@@ -367,7 +368,11 @@ export default function StudentsPage() {
       setSelectedForEnrol(new Set());
       setBulkEnrolClassId('');
       await loadPortalStudents();
-      alert(`Enrolled ${json.enrolled ?? selectedForEnrol.size} student${(json.enrolled ?? selectedForEnrol.size) !== 1 ? 's' : ''}${json.skipped ? ` (${json.skipped} skipped — school boundary)` : ''}.`);
+      const parts: string[] = [`Enrolled ${json.enrolled ?? 0} student${(json.enrolled ?? 0) !== 1 ? 's' : ''}.`];
+      if (json.rejectedSchoolBoundary?.length > 0) {
+        parts.push(`⚠️ ${json.rejectedSchoolBoundary.length} skipped (wrong school): ${json.rejectedSchoolBoundary.join(', ')}.`);
+      }
+      alert(parts.join('\n'));
     } catch (e: any) {
       alert(e.message ?? 'Failed to enrol students');
     } finally {
@@ -378,9 +383,8 @@ export default function StudentsPage() {
   // ── Bulk unenrol ─────────────────────────────────────────────
   const executeBulkUnenrol = async () => {
     if (selectedForUnenrol.size === 0) return;
-    const names = portalStudents.filter(s => selectedForUnenrol.has(s.id)).map(s => s.full_name).join(', ');
-    if (!confirm(`Unenrol ${selectedForUnenrol.size} student${selectedForUnenrol.size !== 1 ? 's' : ''} from their classes?\n\n${names}`)) return;
     setBulkUnenrolling(true);
+    setShowUnenrolModal(false);
     try {
       // Group selected students by class_id so we can call DELETE per class
       const byClass = new Map<string, string[]>();
@@ -389,6 +393,12 @@ export default function StudentsPage() {
           if (!byClass.has(s.class_id)) byClass.set(s.class_id, []);
           byClass.get(s.class_id)!.push(s.id);
         }
+      }
+      if (byClass.size === 0) {
+        // All selected students have no class — nothing to do
+        alert('None of the selected students are currently assigned to a class.');
+        setSelectedForUnenrol(new Set());
+        return;
       }
       const results = await Promise.allSettled(
         [...byClass.entries()].map(([classId, ids]) =>
@@ -400,9 +410,10 @@ export default function StudentsPage() {
         )
       );
       const failed = results.filter(r => r.status === 'rejected').length;
+      const succeeded = results.length - failed;
       setSelectedForUnenrol(new Set());
       await loadPortalStudents();
-      if (failed > 0) alert(`${results.length - failed} class(es) unenrolled. ${failed} failed.`);
+      if (failed > 0) alert(`${succeeded} class group(s) unenrolled successfully. ${failed} failed — check network or permissions.`);
     } catch (e: any) {
       alert(e.message ?? 'Failed to unenrol students');
     } finally {
@@ -1101,26 +1112,35 @@ export default function StudentsPage() {
                           <div key={schoolName}>
                             <p className="text-[10px] font-black text-blue-400/60 uppercase tracking-widest mb-2 px-1">{schoolName}</p>
                             <div className="space-y-1.5">
-                              {classes.map((c: any) => (
-                                <div
-                                  key={c.id}
-                                  onClick={() => setBulkEnrolClassId(c.id)}
-                                  className={`flex items-center gap-3 p-3.5 border rounded-none cursor-pointer transition-all ${bulkEnrolClassId === c.id ? 'bg-orange-600/15 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
-                                >
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
-                                    {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                              {classes.map((c: any) => {
+                                const isFull = c.max_students > 0 && (c.current_students ?? 0) >= c.max_students;
+                                const nearFull = !isFull && c.max_students > 0 && (c.current_students ?? 0) / c.max_students >= 0.9;
+                                return (
+                                  <div
+                                    key={c.id}
+                                    onClick={() => !isFull && setBulkEnrolClassId(c.id)}
+                                    className={`flex items-center gap-3 p-3.5 border rounded-none transition-all ${isFull ? 'opacity-50 cursor-not-allowed bg-rose-500/5 border-rose-500/20' : bulkEnrolClassId === c.id ? 'cursor-pointer bg-orange-600/15 border-orange-500/40' : 'cursor-pointer bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
+                                  >
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
+                                      {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
+                                      {c.programs?.name && (
+                                        <p className="text-[9px] text-muted-foreground mt-0.5">{c.programs.name}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      {isFull && (
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30">FULL</span>
+                                      )}
+                                      <span className={`text-[10px] font-bold tabular-nums ${isFull ? 'text-rose-400' : nearFull ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                                        {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">students</span>
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
-                                    {c.programs?.name && (
-                                      <p className="text-[9px] text-muted-foreground mt-0.5">{c.programs.name}</p>
-                                    )}
-                                  </div>
-                                  <span className="text-[10px] font-bold text-muted-foreground flex-shrink-0 tabular-nums">
-                                    {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">students</span>
-                                  </span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
@@ -1767,7 +1787,7 @@ export default function StudentsPage() {
                                 onClick={async e => {
                                   e.stopPropagation();
                                   const className = classMap[s.class_id] ?? 'their class';
-                                  if (!confirm(`Unenrol ${s.full_name} from ${className}?`)) return;
+                                  if (!confirm(`Remove ${s.full_name} from ${className}?\n\nTheir portal account will remain active.`)) return;
                                   const res = await fetch(`/api/classes/${s.class_id}/enroll`, {
                                     method: 'DELETE',
                                     headers: { 'Content-Type': 'application/json' },
@@ -1776,9 +1796,9 @@ export default function StudentsPage() {
                                   if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed to unenrol'); return; }
                                   setPortalStudents(prev => prev.map(p => p.id === s.id ? { ...p, class_id: null, section_class: null } : p));
                                 }}
-                                title="Unenrol from class"
-                                className="p-1.5 rounded-none bg-amber-500/5 border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all">
-                                <ArrowPathIcon className="w-3.5 h-3.5" />
+                                title="Remove from class"
+                                className="p-1.5 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all">
+                                <XMarkIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {/* Enrolled student: reset password */}
@@ -2020,8 +2040,82 @@ export default function StudentsPage() {
         />
       )}
 
+      {/* ── Unenrol Confirmation Modal ───────────────────── */}
+      {showUnenrolModal && (() => {
+        const selectedStudents = portalStudents.filter(s => selectedForUnenrol.has(s.id));
+        const withClass = selectedStudents.filter(s => s.class_id);
+        const noClass = selectedStudents.filter(s => !s.class_id);
+        return (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-background border border-rose-500/30 rounded-none w-full max-w-md shadow-2xl shadow-rose-500/10">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                    <XCircleIcon className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <div>
+                    <h2 className="font-black text-foreground text-sm uppercase tracking-widest">Confirm Unenrol</h2>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {withClass.length} student{withClass.length !== 1 ? 's' : ''} will be removed from their class
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setShowUnenrolModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {withClass.length > 0 && (
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    <p className="text-[10px] font-black text-rose-400/70 uppercase tracking-widest mb-2">Will be unenrolled from their class:</p>
+                    {withClass.map(s => (
+                      <div key={s.id} className="flex items-center justify-between px-3 py-2 bg-rose-500/5 border border-rose-500/20 rounded-none">
+                        <span className="text-sm font-semibold text-foreground">{s.full_name}</span>
+                        <span className="text-[10px] text-rose-400 font-bold">{classMap[s.class_id] ?? s.section_class ?? s.class_id.slice(0, 8)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {noClass.length > 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3">
+                    <p className="text-xs text-amber-300 font-bold">
+                      <ExclamationTriangleIcon className="w-3.5 h-3.5 inline mr-1.5" />
+                      {noClass.length} student{noClass.length !== 1 ? 's' : ''} ({noClass.map(s => s.full_name.split(' ')[0]).join(', ')}) {noClass.length !== 1 ? 'have' : 'has'} no class — they will be skipped.
+                    </p>
+                  </div>
+                )}
+                {withClass.length === 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-4 text-center">
+                    <p className="text-sm text-amber-300 font-bold">None of the selected students are in a class.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Nothing to unenrol.</p>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Their portal accounts and progress will remain intact — only the class assignment is removed.</p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowUnenrolModal(false)}
+                    className="flex-1 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-none transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={executeBulkUnenrol}
+                    disabled={withClass.length === 0 || bulkUnenrolling}
+                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-foreground text-xs font-black uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-2"
+                  >
+                    {bulkUnenrolling
+                      ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Removing…</>
+                      : `Remove ${withClass.length} Student${withClass.length !== 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
-      {selectedForEnrol.size > 0 && profile?.role === 'admin' && (
+      {selectedForEnrol.size > 0 && (profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
           <div className="flex items-center gap-3 bg-background border border-orange-500/40 rounded-none px-5 py-3 shadow-2xl shadow-orange-500/20">
             <span className="text-sm font-bold text-foreground">{selectedForEnrol.size} selected</span>
@@ -2033,6 +2127,30 @@ export default function StudentsPage() {
             </button>
             <button
               onClick={() => setSelectedForEnrol(new Set())}
+              className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-all"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating Bulk Unenrol Bar ─────────────────────── */}
+      {selectedForUnenrol.size > 0 && (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden" style={{ marginBottom: selectedForEnrol.size > 0 ? '64px' : '0' }}>
+          <div className="flex items-center gap-3 bg-background border border-rose-500/40 rounded-none px-5 py-3 shadow-2xl shadow-rose-500/20">
+            <span className="text-sm font-bold text-foreground">{selectedForUnenrol.size} selected</span>
+            <button
+              onClick={() => setShowUnenrolModal(true)}
+              disabled={bulkUnenrolling}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-foreground text-sm font-bold rounded-none transition-all flex items-center gap-2"
+            >
+              {bulkUnenrolling
+                ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Removing…</>
+                : <><XMarkIcon className="w-4 h-4" /> Remove from Class</>}
+            </button>
+            <button
+              onClick={() => setSelectedForUnenrol(new Set())}
               className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-all"
             >
               <XMarkIcon className="w-4 h-4" />

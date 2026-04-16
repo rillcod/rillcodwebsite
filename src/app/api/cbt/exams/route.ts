@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,7 +11,9 @@ function adminClient() {
   );
 }
 
-async function getCaller() {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -18,10 +22,30 @@ async function getCaller() {
     .select('role, id, school_id')
     .eq('id', user.id)
     .single();
-  return caller ?? null;
+  return (caller as Caller) ?? null;
 }
 
-// GET /api/cbt/exams — list exams visible to current user (bypasses RLS)
+/** All school IDs a teacher is assigned to (primary + teacher_schools). */
+async function teacherSchoolIds(caller: Caller): Promise<string[]> {
+  const ids: string[] = [];
+  if (caller.school_id) ids.push(caller.school_id);
+  const { data: ts } = await adminClient()
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', caller.id);
+  (ts ?? []).forEach((r: any) => {
+    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
+  });
+  return ids;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/cbt/exams — list exams visible to current user
+//   admin:   all exams
+//   teacher: exams they created OR scoped to their assigned school(s)
+//   school:  exams scoped to their school
+//   student: active exams scoped to their enrolled programs (no correct_answer)
+// ─────────────────────────────────────────────────────────────────────────────
 export async function GET(_request: NextRequest) {
   try {
     const caller = await getCaller();
@@ -36,52 +60,63 @@ export async function GET(_request: NextRequest) {
         .select('*, programs(name), courses(title), cbt_sessions(id, score, status)')
         .order('created_at', { ascending: false });
 
-      if (caller.role === 'teacher') {
-        // Scope to exams created by this teacher (created_by) OR linked to their school
-        const orFilter = caller.school_id
-          ? `created_by.eq.${caller.id},school_id.eq.${caller.school_id}`
-          : `created_by.eq.${caller.id}`;
-        query = query.or(orFilter) as any;
+      if (caller.role === 'admin') {
+        // No filter — admins see all
+      } else if (caller.role === 'school') {
+        if (!caller.school_id) return NextResponse.json({ data: [] });
+        query = query.eq('school_id', caller.school_id) as any;
+      } else if (caller.role === 'teacher') {
+        const schoolIds = await teacherSchoolIds(caller);
+        // Exams they created OR scoped to any of their assigned schools
+        const orParts = [`created_by.eq.${caller.id}`];
+        if (schoolIds.length > 0) orParts.push(`school_id.in.(${schoolIds.join(',')})`);
+        query = query.or(orParts.join(',')) as any;
       }
 
       const { data, error } = await query;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ data: data ?? [] });
-    } else {
-      // Student: active exams scoped to their enrolled programs
-      // 1. Get student's enrolled program IDs
-      const { data: enrollments } = await admin
-        .from('enrollments')
-        .select('program_id')
-        .eq('user_id', caller.id);
-      const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
-
-      let examQuery = admin
-        .from('cbt_exams')
-        .select('*, programs(name), courses(title)')
-        .eq('is_active', true)
-        .order('start_date');
-
-      // If student has enrolled programs, scope to those; otherwise return empty
-      if (programIds.length > 0) {
-        examQuery = examQuery.or(
-          `program_id.in.(${programIds.join(',')}),program_id.is.null`
-        ) as any;
-      } else {
-        // No enrollments — only show exams not tied to any specific program
-        examQuery = examQuery.is('program_id', null) as any;
-      }
-
-      const { data, error } = await examQuery;
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ data: data ?? [] });
     }
+
+    // ── Student: active exams within date window, scoped to their programs ──
+    const { data: enrollments } = await admin
+      .from('enrollments')
+      .select('program_id')
+      .eq('user_id', caller.id)
+      .in('status', ['active', 'enrolled', 'approved']);
+    const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[];
+
+    const now = new Date().toISOString();
+    let examQuery = admin
+      .from('cbt_exams')
+      .select('id, title, description, duration_minutes, passing_score, total_questions, start_date, end_date, program_id, course_id, programs(name), courses(title)')
+      .eq('is_active', true)
+      .or(`start_date.is.null,start_date.lte.${now}`)
+      .or(`end_date.is.null,end_date.gte.${now}`)
+      .order('start_date');
+
+    if (programIds.length > 0) {
+      // Exams linked to their programs OR global exams (no program restriction)
+      examQuery = examQuery.or(
+        `program_id.in.(${programIds.join(',')}),program_id.is.null`,
+      ) as any;
+    } else {
+      // No enrollments — only global exams
+      examQuery = examQuery.is('program_id', null) as any;
+    }
+
+    const { data, error } = await examQuery;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
 }
 
-// POST /api/cbt/exams — create exam + questions atomically (bypasses RLS)
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/cbt/exams — create exam + questions atomically
+// admin: full control; teacher: school_id validated against their assignments
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const caller = await getCaller();
@@ -96,11 +131,38 @@ export async function POST(request: NextRequest) {
       created_by: caller.id,
       created_at: new Date().toISOString(),
     };
-    const allowedExamFields = ['title', 'description', 'program_id', 'course_id',
+
+    const allowedExamFields = [
+      'title', 'description', 'program_id', 'course_id',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
-      'start_date', 'end_date', 'school_id', 'metadata'];
+      'start_date', 'end_date', 'metadata',
+    ];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
+    }
+
+    // school_id: validate teacher is assigned to the school
+    const requestedSchoolId: string | null = typeof examFields.school_id === 'string' ? examFields.school_id : null;
+    if (caller.role === 'teacher') {
+      if (requestedSchoolId) {
+        const scopedIds = await teacherSchoolIds(caller);
+        if (!scopedIds.includes(requestedSchoolId)) {
+          return NextResponse.json(
+            { error: 'You are not assigned to the school you selected for this exam.' },
+            { status: 403 },
+          );
+        }
+        examPayload.school_id = requestedSchoolId;
+      } else if (caller.school_id) {
+        examPayload.school_id = caller.school_id;
+      }
+    } else {
+      // admin: trust the provided school_id as-is
+      if ('school_id' in examFields) examPayload.school_id = examFields.school_id ?? null;
+    }
+
+    if (!examPayload.title) {
+      return NextResponse.json({ error: 'Exam title is required' }, { status: 400 });
     }
 
     const admin = adminClient();
@@ -125,8 +187,7 @@ export async function POST(request: NextRequest) {
       }));
       const { error: qErr } = await admin.from('cbt_questions').insert(qPayloads);
       if (qErr) {
-        // Roll back exam
-        await admin.from('cbt_exams').delete().eq('id', exam.id);
+        await admin.from('cbt_exams').delete().eq('id', exam.id); // roll back
         return NextResponse.json({ error: qErr.message }, { status: 500 });
       }
     }

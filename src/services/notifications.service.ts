@@ -303,6 +303,14 @@ export class NotificationsService {
             };
         }
 
+        // Clean user's phone number (remove spaces, hashes, pluses)
+        let phone = String(payload.to).replace(/\D+/g, '');
+        // Meta requires international format without the '+'
+        // If a Nigerian number starts with '0', replace '0' with '234'
+        if (phone.startsWith('0')) {
+            phone = '234' + phone.substring(1);
+        }
+
         const res = await fetch(env.WHATSAPP_API_URL, {
             method: 'POST',
             headers: {
@@ -310,8 +318,14 @@ export class NotificationsService {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                to: payload.to,
-                message: payload.body,
+                messaging_product: 'whatsapp',
+                recipient_type: 'individual',
+                to: phone,
+                type: 'text',
+                text: {
+                    preview_url: true, // Allows URLs in messages to show link previews
+                    body: payload.body,
+                }
             }),
         });
 

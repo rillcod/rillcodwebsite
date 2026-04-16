@@ -13,7 +13,7 @@ async function requireStaff() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: profile } = await supabase
+  const { data: profile } = await adminClient()
     .from('portal_users')
     .select('id, role, school_id')
     .eq('id', user.id)

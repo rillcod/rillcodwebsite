@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,10 +13,6 @@ function adminClient() {
 
 const MCQ_TYPES = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
 
-/**
- * Compute auto-grade for MCQ questions.
- * Returns the grade scaled to maxPoints, or null if no gradeable questions exist.
- */
 function computeAutoGrade(
   questions: any[],
   answers: Record<string | number, any>,
@@ -27,7 +25,6 @@ function computeAutoGrade(
   );
   if (!gradeableQs.length) return null;
 
-  // Use individual points when set; otherwise distribute maxPoints equally across ALL questions
   const totalQPts = gradeableQs.reduce((s, q) => s + (Number(q.points) || 0), 0);
   const ptsEach = totalQPts === 0 ? maxPoints / questions.length : null;
 
@@ -44,14 +41,14 @@ function computeAutoGrade(
   });
 
   if (possible === 0) return null;
-
-  // Scale to maxPoints (so grade is always "out of max_points")
   return Math.round((earned / possible) * maxPoints);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/assignments/[id]/submit
-// Upsert a student submission. Can be called by the student themselves (portal_user_id = their own id).
-// Body: { portal_user_id, submission_text?, file_url?, answers? }
+// Students submit their own work. Staff may submit on behalf (admin/teacher only).
+// Enforces: assignment is active, student can access it, no re-submission unless staff.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -64,7 +61,7 @@ export async function POST(
     const admin = adminClient();
     const { data: caller } = await admin
       .from('portal_users')
-      .select('role, id')
+      .select('role, id, school_id, class_id')
       .eq('id', user.id)
       .single();
 
@@ -74,20 +71,39 @@ export async function POST(
     const body = await request.json();
     const { portal_user_id, submission_text, file_url, answers } = body;
 
-    // Only allow submitting for yourself unless staff
-    const isStaff = ['admin', 'teacher', 'school'].includes(caller.role);
+    // Only admin/teacher may submit on behalf of another student
+    const isStaff = ['admin', 'teacher'].includes(caller.role);
     const effectiveUserId = isStaff ? (portal_user_id ?? caller.id) : caller.id;
+
+    // Fetch assignment to validate access
+    const { data: assignment } = await admin
+      .from('assignments')
+      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight')
+      .eq('id', assignment_id)
+      .maybeSingle();
+
+    if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+
+    // Students: assignment must be active
+    if (!isStaff && !assignment.is_active) {
+      return NextResponse.json({ error: 'This assignment is no longer active' }, { status: 403 });
+    }
+
+    // Students: school boundary check
+    if (!isStaff && assignment.school_id && assignment.school_id !== caller.school_id) {
+      return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+    }
 
     const upsertData: Record<string, unknown> = {
       assignment_id,
       portal_user_id: effectiveUserId,
-      submitted_at: new Date().toISOString(),
-      status: 'submitted',
-      updated_at: new Date().toISOString(),
+      submitted_at:   new Date().toISOString(),
+      status:         'submitted',
+      updated_at:     new Date().toISOString(),
     };
     if (submission_text !== undefined) upsertData.submission_text = submission_text || null;
-    if (file_url !== undefined) upsertData.file_url = file_url || null;
-    if (answers !== undefined && answers !== null) upsertData.answers = answers;
+    if (file_url        !== undefined) upsertData.file_url        = file_url        || null;
+    if (answers         != null)       upsertData.answers         = answers;
 
     const { data, error } = await admin
       .from('assignment_submissions')
@@ -97,46 +113,35 @@ export async function POST(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Auto-grade MCQ questions immediately on submission
-    // so students see their score right away without waiting for teacher review
+    // Auto-grade MCQ immediately on submission
     if (answers && data) {
       try {
-        const { data: assignment } = await admin
-          .from('assignments')
-          .select('questions, max_points, weight')
-          .eq('id', assignment_id)
-          .single();
+        const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
+        const maxPts = assignment.max_points ?? 100;
+        const assignWeight = assignment.weight ?? 0;
+        const autoGrade = computeAutoGrade(questions, answers, maxPts);
 
-        if (assignment) {
-          const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
-          const maxPts = assignment.max_points ?? 100;
-          const assignWeight = assignment.weight ?? 0;
-          const autoGrade = computeAutoGrade(questions, answers, maxPts);
+        if (autoGrade !== null) {
+          const weightedScore = assignWeight > 0 && maxPts > 0
+            ? Math.round((autoGrade / maxPts) * assignWeight)
+            : null;
+          const { data: gradedRow } = await admin
+            .from('assignment_submissions')
+            .update({
+              grade: autoGrade,
+              status: 'graded',
+              weighted_score: weightedScore,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('assignment_id', assignment_id)
+            .eq('portal_user_id', effectiveUserId)
+            .select()
+            .single();
 
-          if (autoGrade !== null) {
-            const weightedScore = assignWeight > 0 && maxPts > 0
-              ? Math.round((autoGrade / maxPts) * assignWeight)
-              : null;
-            const { data: gradedRow } = await admin
-              .from('assignment_submissions')
-              .update({
-                grade: autoGrade,
-                status: 'graded',
-                weighted_score: weightedScore,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('assignment_id', assignment_id)
-              .eq('portal_user_id', effectiveUserId)
-              .select()
-              .single();
-
-            if (gradedRow) {
-              return NextResponse.json({ data: gradedRow }, { status: 201 });
-            }
-          }
+          if (gradedRow) return NextResponse.json({ data: gradedRow }, { status: 201 });
         }
       } catch (autoErr) {
-        // Auto-grading failed — submission is still saved, teacher can grade manually
+        // Auto-grading failed — submission saved, teacher can grade manually
         console.error('[auto-grade] failed:', autoErr);
       }
     }

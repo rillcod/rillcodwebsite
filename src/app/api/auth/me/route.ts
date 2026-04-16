@@ -21,7 +21,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await adminClient()
+    const admin = adminClient();
+    const { data, error } = await admin
       .from('portal_users')
       .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, school_name, section_class, current_module, date_of_birth, enrollment_type, created_at, updated_at')
       .eq('id', user.id)
@@ -34,7 +35,6 @@ export async function GET() {
     if (!data) {
       // portal_users row missing for a valid auth user — auto-create it (self-heal).
       // This covers: trigger didn't fire, manual auth creation, migration gap, etc.
-      const admin = adminClient();
       const meta = user.user_metadata ?? {};
       const safeRole = getSafeAutoProfileRole(meta.role);
       const { error: upsertErr } = await admin.from('portal_users').upsert({
