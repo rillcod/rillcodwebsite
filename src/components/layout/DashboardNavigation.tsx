@@ -16,7 +16,7 @@ import {
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
-  CreditCardIcon, ChatBubbleLeftEllipsisIcon,
+  CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -135,6 +135,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'System' },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -173,6 +174,7 @@ export default function DashboardNavigation() {
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
@@ -233,6 +235,7 @@ export default function DashboardNavigation() {
           { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
