@@ -108,8 +108,8 @@ export async function POST(req: Request) {
                 await paymentsService.generateReceipt(transactionId);
                 
                 // WhatsApp Alert
-                if (transaction.user_id) {
-                    await queueService.queueNotification(transaction.user_id, 'whatsapp', {
+                if (transaction.portal_user_id) {
+                    await queueService.queueNotification(transaction.portal_user_id, 'whatsapp', {
                         body: `Hi there! We've received your payment of ${transaction.amount} ${transaction.currency}. Your receipt has been successfully generated inside your Rillcod dashboard. Thank you!`
                     });
                 }
