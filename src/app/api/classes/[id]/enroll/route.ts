@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -267,6 +268,11 @@ export async function POST(
     }
   }
 
+  // WhatsApp Alert
+  queueService.queueNotification(studentId, 'whatsapp', {
+    body: `Welcome! You have been successfully enrolled in "${cls.name}". Log in to your Rillcod dashboard to access your learning materials.`
+  }).catch(console.error);
+
   return NextResponse.json({ success: true });
 }
 
@@ -438,6 +444,13 @@ export async function PUT(
         });
       }
     }
+  }
+
+  // WhatsApp Alert for Batch Enrollment
+  for (const sid of allowedIds) {
+    queueService.queueNotification(sid, 'whatsapp', {
+      body: `Welcome! You have been successfully enrolled in "${cls.name}". Log in to your Rillcod dashboard to access your learning materials.`
+    }).catch(console.error);
   }
 
   return NextResponse.json({

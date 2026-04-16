@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
 
 function adminClient() {
   return createClient(
@@ -81,10 +82,18 @@ export async function PATCH(
     .from('student_progress_reports')
     .update(allowed)
     .eq('id', id)
-    .select('id')
+    .select('id, student_id, course_name, overall_score, is_published')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // WhatsApp Alert if published
+  if (body.is_published && data?.student_id) {
+    queueService.queueNotification(data.student_id, 'whatsapp', {
+       body: `Great news! Your Progress Report for ${data.course_name || 'your course'} has just been published by your instructor. Your overall score is ${data.overall_score !== null ? data.overall_score + '%' : 'available now'}. Check your dashboard for full details!`
+    }).catch(console.error);
+  }
+
   return NextResponse.json({ data });
 }
 
