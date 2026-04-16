@@ -6,7 +6,8 @@ async function getCaller() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+  const admin = createAdminClient();
+  const { data } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
   return data as { id: string; role: string; school_id: string | null } | null;
 }
 

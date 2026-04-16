@@ -4,9 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 async function getCaller() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  // Use adminClient to bypass RLS on portal_users
+  const db = createAdminClient();
+  const { data } = await db
     .from('portal_users')
     .select('id, role, school_id')
     .eq('id', user.id)
@@ -27,7 +29,10 @@ export async function GET() {
     .order('created_at', { ascending: false });
 
   if (caller.role !== 'admin') {
-    query = query.or(`owner_user_id.eq.${caller.id},owner_school_id.eq.${caller.school_id ?? ''}`);
+    // Always filter by the caller's own user ID; add school filter only if school_id is set
+    const orParts = [`owner_user_id.eq.${caller.id}`];
+    if (caller.school_id) orParts.push(`owner_school_id.eq.${caller.school_id}`);
+    query = query.or(orParts.join(',')) as any;
   }
 
   const { data, error } = await query;

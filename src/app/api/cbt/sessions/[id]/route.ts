@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,41 +11,88 @@ function adminClient() {
   );
 }
 
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function getCaller(): Promise<Caller | null> {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await adminClient()
+    .from('portal_users')
+    .select('role, id, school_id')
+    .eq('id', user.id)
+    .single();
+  return (caller as Caller) ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/cbt/sessions/[id]
-// Used by teachers/admins to save grades on a CBT session
+// Used by teachers/admins to save grades on a CBT session.
+// Teacher must be assigned to the school of the exam the session belongs to.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const supabase = await createServerClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: caller } = await adminClient()
-      .from('portal_users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
+    const caller = await getCaller();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
     const { id } = await params;
+    const admin = adminClient();
+
+    // Fetch session + its exam's school to enforce boundary
+    const { data: session } = await admin
+      .from('cbt_sessions')
+      .select('id, exam_id, cbt_exams(school_id, created_by)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    // School boundary: only admin or teacher assigned to the exam's school can grade
+    if (caller.role === 'teacher') {
+      const exam = (session as any).cbt_exams;
+      const examSchoolId: string | null = exam?.school_id ?? null;
+      const examCreatedBy: string | null = exam?.created_by ?? null;
+
+      const canGrade =
+        examCreatedBy === caller.id ||
+        (examSchoolId && caller.school_id === examSchoolId) ||
+        await (async () => {
+          if (!examSchoolId) return false;
+          const { data: ts } = await admin
+            .from('teacher_schools')
+            .select('school_id')
+            .eq('teacher_id', caller.id)
+            .eq('school_id', examSchoolId)
+            .maybeSingle();
+          return !!ts;
+        })();
+
+      if (!canGrade) {
+        return NextResponse.json(
+          { error: 'Access denied: this session belongs to an exam outside your school scope' },
+          { status: 403 },
+        );
+      }
+    }
+
     const body = await request.json();
 
-    // Whitelist updatable fields for grading
+    // Whitelist updatable fields for grading — students can never call this endpoint
     const allowed: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
-    if ('score'         in body) allowed.score          = body.score;
-    if ('status'        in body) allowed.status         = body.status;
-    if ('manual_scores' in body) allowed.manual_scores  = body.manual_scores;
-    if ('grading_notes' in body) allowed.grading_notes  = body.grading_notes;
-    if ('needs_grading' in body) allowed.needs_grading  = body.needs_grading;
+    if ('score'         in body) allowed.score         = body.score;
+    if ('status'        in body) allowed.status        = body.status;
+    if ('manual_scores' in body) allowed.manual_scores = body.manual_scores;
+    if ('grading_notes' in body) allowed.grading_notes = body.grading_notes;
+    if ('needs_grading' in body) allowed.needs_grading = body.needs_grading;
 
-    const { data, error } = await adminClient()
+    const { data, error } = await admin
       .from('cbt_sessions')
       .update(allowed)
       .eq('id', id)

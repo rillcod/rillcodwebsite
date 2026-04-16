@@ -6,12 +6,13 @@ import { paymentsService } from '@/services/payments.service';
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
+        const admin = createAdminClient();
         
         // 1. Check Auth & Admin Role
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        const { data: profile } = await supabase
+        const { data: profile } = await admin
             .from('portal_users')
             .select('role')
             .eq('id', user.id)
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
         if (!transactionId) return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 });
 
         // 2. Get the transaction
-        const { data: transaction, error: txError } = await supabase
+        const { data: transaction, error: txError } = await admin
             .from('payment_transactions')
             .select('*')
             .eq('id', transactionId)
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
         }
 
         // 3. Update Transaction
-        const { error: updError } = await supabase
+        const { error: updError } = await admin
             .from('payment_transactions')
             .update({
                 payment_status: status === 'success' ? 'completed' : status,
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 
         // 4. Update Invoice if linked
         if ((transaction as any).invoice_id && status === 'success') {
-            await (supabase as any)
+            await (admin as any)
                 .from('invoices')
                 .update({ 
                     status: 'paid',

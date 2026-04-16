@@ -14,13 +14,14 @@ async function requireStaff() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: caller } = await supabase
+  // Use adminClient to bypass RLS on portal_users
+  const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('role, id')
+    .select('role, id, school_id')
     .eq('id', user.id)
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
-  return caller;
+  return caller as { role: string; id: string; school_id: string | null };
 }
 
 // POST /api/approvals/students
@@ -37,15 +38,23 @@ export async function POST(request: Request) {
 
   const admin = adminClient();
 
-  // Fetch the student row
+  // Fetch only needed fields — avoid select('*') for security hygiene
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('*')
+    .select('id, full_name, student_email, parent_email, school_id, school_name, date_of_birth, status')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (fetchErr || !student) {
     return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+  }
+
+  // School boundary: non-admin may only approve students from their own school
+  if (caller.role !== 'admin' && student.school_id && student.school_id !== caller.school_id) {
+    return NextResponse.json(
+      { error: 'Access denied: this student belongs to a different school' },
+      { status: 403 },
+    );
   }
 
   if (action === 'rejected') {

@@ -875,6 +875,39 @@ export type Database = {
           },
         ]
       }
+      invoice_automation_logs: {
+        Row: {
+          id: string
+          triggered_by: string
+          invoices_scanned: number
+          reminders_sent: number
+          overdue_marked: number
+          errors: number
+          details: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          triggered_by: string
+          invoices_scanned?: number
+          reminders_sent?: number
+          overdue_marked?: number
+          errors?: number
+          details?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          triggered_by?: string
+          invoices_scanned?: number
+          reminders_sent?: number
+          overdue_marked?: number
+          errors?: number
+          details?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
       school_settlements: {
         Row: {
           amount: number
@@ -6181,6 +6214,94 @@ export type Database = {
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
           },
+        ]
+      }
+      whatsapp_conversations: {
+        Row: {
+          id: string
+          phone_number: string
+          contact_name: string | null
+          portal_user_id: string | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          unread_count: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          phone_number: string
+          contact_name?: string | null
+          portal_user_id?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          unread_count?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          phone_number?: string
+          contact_name?: string | null
+          portal_user_id?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          unread_count?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          direction: string
+          meta_message_id: string | null
+          message_type: string | null
+          body: string | null
+          media_url: string | null
+          status: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          direction: string
+          meta_message_id?: string | null
+          message_type?: string | null
+          body?: string | null
+          media_url?: string | null
+          status?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          direction?: string
+          meta_message_id?: string | null
+          message_type?: string | null
+          body?: string | null
+          media_url?: string | null
+          status?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          }
         ]
       }
       whatsapp_groups: {

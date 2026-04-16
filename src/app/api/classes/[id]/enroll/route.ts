@@ -11,7 +11,9 @@ function adminClient() {
   );
 }
 
-async function requireStaff(): Promise<{ role: string; id: string; school_id: string | null } | { _err: string } | null> {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function requireStaff(): Promise<Caller | { _err: string } | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { _err: `auth:${error?.message ?? 'no user'}` };
@@ -22,30 +24,25 @@ async function requireStaff(): Promise<{ role: string; id: string; school_id: st
     .single();
   if (!caller) return { _err: `profile:${dbErr?.message ?? 'not found'} uid=${user.id}` };
   if (!['admin', 'teacher', 'school'].includes(caller.role)) return { _err: `role:${caller.role}` };
-  return caller;
+  return caller as Caller;
 }
 
 /**
  * Returns true if the calling staff member is allowed to manage students in the given class.
- * - admin: always allowed
- * - school role: class must belong to their school
+ * - admin:  always allowed
+ * - school: class must belong to their school
  * - teacher: class must belong to one of their assigned schools
  */
-async function callerHasClassAccess(
-  caller: { role: string; id: string; school_id: string | null },
-  classSchoolId: string | null,
-): Promise<boolean> {
+async function callerHasClassAccess(caller: Caller, classSchoolId: string | null): Promise<boolean> {
   if (caller.role === 'admin') return true;
-  if (!classSchoolId) return true; // no school restriction on the class
+  if (!classSchoolId) return true; // class has no school restriction
 
   if (caller.role === 'school') {
     return caller.school_id === classSchoolId;
   }
 
   if (caller.role === 'teacher') {
-    // Primary school match
     if (caller.school_id === classSchoolId) return true;
-    // Check teacher_schools table for multi-school assignments
     const { data: ts } = await adminClient()
       .from('teacher_schools')
       .select('school_id')
@@ -58,53 +55,39 @@ async function callerHasClassAccess(
   return false;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/classes/[id]/enroll
-// Returns students not yet assigned to this class, scoped to caller's school(s)
+// Returns students eligible for this class (scoped to its school), sorted so
+// unassigned students come first.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
-    return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
+    return NextResponse.json(
+      { error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' },
+      { status: 403 },
+    );
   }
-  const caller = staffResult;
-
+  const caller = staffResult as Caller;
   const { id: classId } = await params;
   const admin = adminClient();
 
-  // Get the class to determine its school — use class's school_id as the primary filter.
-  // This ensures teachers can always see students at the class's school even if the
-  // teacher's own school_id changed (e.g. Hilltop students becoming inaccessible after
-  // teacher reassignment).
+  // Fetch the class to determine its school
   const { data: cls } = await admin
     .from('classes')
     .select('school_id')
     .eq('id', classId)
     .single();
 
-  // Build school ID filter — class school takes priority over caller's school
-  let schoolIds: string[] = [];
-
-  if (cls?.school_id) {
-    // Always include the class's own school
-    schoolIds = [cls.school_id];
-  }
-
-  if (caller.role === 'admin') {
-    schoolIds = []; // Admin sees all — no school filter
-  } else if (caller.role === 'school' && caller.school_id) {
-    if (!schoolIds.includes(caller.school_id)) schoolIds.push(caller.school_id);
-  } else if (caller.role === 'teacher') {
-    // Also include teacher's own schools so they can pull in students from other schools
-    const ids: string[] = [...schoolIds];
-    if (caller.school_id && !ids.includes(caller.school_id)) ids.push(caller.school_id);
-    const { data: ts } = await admin
-      .from('teacher_schools')
-      .select('school_id')
-      .eq('teacher_id', caller.id);
-    (ts ?? []).forEach((r: any) => { if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id); });
-    schoolIds = ids;
+  // Non-admin: verify they have access to this class's school
+  if (caller.role !== 'admin') {
+    const hasAccess = await callerHasClassAccess(caller, cls?.school_id ?? null);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied to this class' }, { status: 403 });
+    }
   }
 
   let query = admin
@@ -114,38 +97,32 @@ export async function GET(
     .or('is_active.eq.true,is_active.is.null');
 
   if (caller.role === 'admin') {
-    // Admin sees every student — no school filter applied
-  } else if (schoolIds.length === 0) {
-    // Non-admin with no school assignments — return nothing to prevent exposing all students
-    return NextResponse.json({ students: [] }, { headers: { 'Cache-Control': 'no-store' } });
-  } else {
-    // Fetch the names of the schools in scope to also match legacy school_name records
-    const { data: schoolRows } = await admin
-      .from('schools')
-      .select('name')
-      .in('id', schoolIds);
-    const schoolNames = (schoolRows ?? []).map((s: any) => s.name as string).filter(Boolean);
+    // Admin sees every student — no school filter
+  } else if (cls?.school_id) {
+    // Scope strictly to this class's school only.
+    // This is the key guard: teachers/school users can only see students from the
+    // class's school, NOT from all their assigned schools. This prevents accidental
+    // cross-school enrolment via the picker.
+    const { data: schoolRow } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
+    const schoolName = schoolRow?.name ?? null;
 
-    // Include ONLY students from this teacher's/school's jurisdiction:
-    // 1. school_id matches one of the scoped schools (properly linked)
-    // 2. school_id=null but school_name matches (legacy record — registered mentioning this school)
-    // Exclude: students with school_id=null + school_name=null (unclaimed, no jurisdiction)
-    //          and students with school_id=null + a DIFFERENT school_name (another school's students)
-    const idPart = `school_id.in.(${schoolIds.join(',')})`;
-    const namePart = schoolNames.length > 0
-      ? schoolNames.map(n => `and(school_id.is.null,school_name.eq.${JSON.stringify(n)})`).join(',')
+    const idPart = `school_id.eq.${cls.school_id}`;
+    const namePart = schoolName
+      ? `and(school_id.is.null,school_name.eq.${JSON.stringify(schoolName)})`
       : '';
     const orClause = [idPart, namePart].filter(Boolean).join(',');
-    if (!orClause) {
+    query = query.or(orClause) as any;
+  } else {
+    // Class has no school — non-admins see nothing (no unconstrained exposure)
+    if (caller.role !== 'admin') {
       return NextResponse.json({ students: [] }, { headers: { 'Cache-Control': 'no-store' } });
     }
-    query = query.or(orClause) as any;
   }
 
   const { data: allData, error } = await query.order('full_name');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Exclude students already in THIS class; unassigned students sort first
+  // Exclude students already IN this class; unassigned students sort first
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
     .sort((a: any, b: any) => {
@@ -157,64 +134,88 @@ export async function GET(
   return NextResponse.json({ students }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/classes/[id]/enroll
-// Body: { studentId: string }
+// Body: { studentId: string } — enrol a single student
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
-    return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
+    return NextResponse.json(
+      { error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' },
+      { status: 403 },
+    );
   }
-  const caller = staffResult;
+  const caller = staffResult as Caller;
 
   const { id: classId } = await params;
-  const { studentId } = await request.json();
+  const body = await request.json();
+  const studentId: string | undefined = body.studentId;
   if (!studentId) return NextResponse.json({ error: 'studentId required' }, { status: 400 });
 
   const admin = adminClient();
 
+  // Fetch class — include max_students for the capacity guard
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, program_id, current_students, school_id')
+    .select('id, name, program_id, max_students, school_id')
     .eq('id', classId)
     .single();
 
   if (clsErr || !cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-  // Teacher school guard — teacher must be assigned to this class's school
-  if (caller.role === 'teacher') {
-    const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
-        { status: 403 },
-      );
-    }
+  // ── Caller school/class access guard ─────────────────────────────────────
+  const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+      { status: 403 },
+    );
   }
 
-  // School boundary check — non-admins cannot enroll a student from a different school
+  // ── School boundary guard (hard reject) ──────────────────────────────────
   if (caller.role !== 'admin' && cls.school_id) {
-    // Fetch the class's school name for legacy school_name-only student matching
     const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
     const { data: student } = await admin
       .from('portal_users')
-      .select('school_id, school_name')
+      .select('school_id, school_name, full_name')
       .eq('id', studentId)
       .single();
 
-    const sameById = student?.school_id === cls.school_id;
+    const sameById   = student?.school_id === cls.school_id;
     const sameByName = clsSchool?.name && student?.school_name === clsSchool.name;
     if (!sameById && !sameByName) {
       return NextResponse.json(
-        { error: 'School boundary violation: this student belongs to a different school and cannot be enrolled in this class.' },
+        {
+          error: `School boundary violation: "${student?.full_name ?? studentId}" belongs to a different school and cannot be enrolled in this class.`,
+        },
         { status: 403 },
       );
     }
   }
 
-  // Capture student's current class before moving (to resync old class count)
+  // ── Capacity guard ────────────────────────────────────────────────────────
+  if (cls.max_students != null && cls.max_students > 0) {
+    const { count: liveCount } = await admin
+      .from('portal_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', classId)
+      .eq('role', 'student');
+    const occupied = liveCount ?? 0;
+    if (occupied >= cls.max_students) {
+      return NextResponse.json(
+        {
+          error: `Class "${cls.name}" is full (${occupied}/${cls.max_students} students). Increase the capacity or remove a student first.`,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Capture previous class for count resync
   const { data: studentBefore } = await admin
     .from('portal_users')
     .select('class_id')
@@ -222,7 +223,7 @@ export async function POST(
     .single();
   const prevClassId = studentBefore?.class_id ?? null;
 
-  // Assign student to this class via class_id FK; also sync section_class to class name
+  // Assign student → class; keep section_class in sync
   const { error: updateErr } = await admin
     .from('portal_users')
     .update({ class_id: classId, section_class: cls.name })
@@ -230,7 +231,7 @@ export async function POST(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Sync current_students count for this class (exact — never drift)
+  // Resync new class count (exact — never drift)
   const { count: newCount } = await admin
     .from('portal_users')
     .select('id', { count: 'exact', head: true })
@@ -238,7 +239,7 @@ export async function POST(
     .eq('role', 'student');
   await admin.from('classes').update({ current_students: newCount ?? 0 }).eq('id', classId);
 
-  // Also resync the old class count if student was moved from elsewhere
+  // Resync old class count if student was moved from elsewhere
   if (prevClassId && prevClassId !== classId) {
     const { count: oldCount } = await admin
       .from('portal_users')
@@ -248,7 +249,7 @@ export async function POST(
     await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevClassId);
   }
 
-  // Ensure program enrollment exists
+  // Ensure program enrollment record exists
   if (cls.program_id) {
     const { data: existing } = await admin
       .from('enrollments')
@@ -256,7 +257,6 @@ export async function POST(
       .eq('user_id', studentId)
       .eq('program_id', cls.program_id)
       .maybeSingle();
-
     if (!existing) {
       await admin.from('enrollments').insert({
         user_id: studentId,
@@ -270,76 +270,130 @@ export async function POST(
   return NextResponse.json({ success: true });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // PUT /api/classes/[id]/enroll
-// Body: { studentIds: string[] } — batch-enroll multiple students at once
+// Body: { studentIds: string[] } — batch-enrol multiple students at once
+// ─────────────────────────────────────────────────────────────────────────────
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
-    return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
+    return NextResponse.json(
+      { error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' },
+      { status: 403 },
+    );
   }
-  const caller = staffResult;
+  const caller = staffResult as Caller;
 
   const { id: classId } = await params;
-  const { studentIds } = await request.json();
+  const body = await request.json();
+  const studentIds: string[] | undefined = body.studentIds;
   if (!Array.isArray(studentIds) || studentIds.length === 0) {
     return NextResponse.json({ error: 'studentIds array required' }, { status: 400 });
   }
 
   const admin = adminClient();
-  const { data: cls } = await admin.from('classes').select('id, name, program_id, current_students, school_id').eq('id', classId).single();
+
+  // Fetch class — include max_students for the capacity guard
+  const { data: cls } = await admin
+    .from('classes')
+    .select('id, name, program_id, max_students, school_id')
+    .eq('id', classId)
+    .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-  // Teacher school guard — teacher must be assigned to this class's school
-  if (caller.role === 'teacher') {
-    const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
-        { status: 403 },
-      );
-    }
+  // ── Caller school/class access guard ─────────────────────────────────────
+  const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+      { status: 403 },
+    );
   }
 
-  // School boundary check — silently exclude students from a different school
-  let allowedIds = studentIds;
+  // ── School boundary guard — filter out cross-school students ─────────────
+  let allowedIds: string[] = studentIds;
+  let rejectedNames: string[] = [];
+
   if (caller.role !== 'admin' && cls.school_id) {
-    // Fetch class school name for legacy school_name-only student matching
     const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
     const clsSchoolName = clsSchool?.name ?? null;
 
     const { data: studentRows } = await admin
       .from('portal_users')
-      .select('id, school_id, school_name')
+      .select('id, full_name, school_id, school_name')
       .in('id', studentIds)
       .eq('role', 'student');
 
-    allowedIds = (studentRows ?? [])
-      .filter((s: any) => {
-        const sameById = s.school_id === cls.school_id;
-        const sameByName = clsSchoolName && s.school_name === clsSchoolName;
-        return sameById || sameByName;
-      })
-      .map((s: any) => s.id);
+    const eligible = (studentRows ?? []).filter((s: any) => {
+      const sameById   = s.school_id === cls.school_id;
+      const sameByName = clsSchoolName && s.school_name === clsSchoolName;
+      return sameById || sameByName;
+    });
+    const rejected = (studentRows ?? []).filter((s: any) => !eligible.some((e: any) => e.id === s.id));
+
+    rejectedNames = rejected.map((s: any) => s.full_name ?? s.id);
+    allowedIds = eligible.map((s: any) => s.id);
 
     if (allowedIds.length === 0) {
-      return NextResponse.json({ error: 'No eligible students: all selected students belong to a different school.' }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: `School boundary violation: none of the selected students belong to this class's school.`,
+          rejected: rejectedNames,
+        },
+        { status: 403 },
+      );
     }
   }
 
-  // Capture students' previous classes before moving (to resync old class counts)
+  // ── Capacity guard ────────────────────────────────────────────────────────
+  if (cls.max_students != null && cls.max_students > 0) {
+    // Students already IN this class being re-assigned don't consume extra seats
+    const { data: alreadyIn } = await admin
+      .from('portal_users')
+      .select('id')
+      .in('id', allowedIds)
+      .eq('class_id', classId)
+      .eq('role', 'student');
+    const netNew = allowedIds.length - (alreadyIn ?? []).length;
+
+    const { count: liveCount } = await admin
+      .from('portal_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', classId)
+      .eq('role', 'student');
+    const occupied = liveCount ?? 0;
+    const seatsLeft = cls.max_students - occupied;
+
+    if (netNew > seatsLeft) {
+      return NextResponse.json(
+        {
+          error: `Not enough seats: "${cls.name}" has ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} available but you're trying to add ${netNew} new student${netNew !== 1 ? 's' : ''}. Reduce your selection or increase the class capacity.`,
+          seatsAvailable: seatsLeft,
+          netNewRequested: netNew,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Capture previous classes for count resync
   const { data: studentsBefore } = await admin
     .from('portal_users')
     .select('id, class_id')
     .in('id', allowedIds)
     .eq('role', 'student');
-  const prevClassIds = [...new Set(
-    (studentsBefore ?? []).map((s: any) => s.class_id).filter((cid: any) => cid && cid !== classId)
-  )];
+  const prevClassIds = [
+    ...new Set(
+      (studentsBefore ?? [])
+        .map((s: any) => s.class_id)
+        .filter((cid: any) => cid && cid !== classId),
+    ),
+  ];
 
-  // Batch-assign class_id and sync section_class to class name
+  // Batch-assign class_id and keep section_class in sync
   const { error: updateErr } = await admin
     .from('portal_users')
     .update({ class_id: classId, section_class: cls.name })
@@ -348,7 +402,7 @@ export async function PUT(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Sync current_students count for this class (exact — never drift)
+  // Resync new class count (exact — never drift)
   const { count } = await admin
     .from('portal_users')
     .select('id', { count: 'exact', head: true })
@@ -356,7 +410,7 @@ export async function PUT(
     .eq('role', 'student');
   await admin.from('classes').update({ current_students: count ?? 0 }).eq('id', classId);
 
-  // Resync counts on all old classes students were moved from
+  // Resync counts on all classes students were moved FROM
   for (const prevCid of prevClassIds) {
     const { count: oldCount } = await admin
       .from('portal_users')
@@ -366,7 +420,7 @@ export async function PUT(
     await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevCid);
   }
 
-  // Ensure program enrollments exist
+  // Ensure program enrollment records exist
   if (cls.program_id) {
     for (const sid of allowedIds) {
       const { data: existing } = await admin
@@ -386,39 +440,48 @@ export async function PUT(
     }
   }
 
-  return NextResponse.json({ enrolled: allowedIds.length, skipped: studentIds.length - allowedIds.length, total: count ?? 0 });
+  return NextResponse.json({
+    enrolled: allowedIds.length,
+    skipped: studentIds.length - allowedIds.length,
+    rejectedSchoolBoundary: rejectedNames,
+    total: count ?? 0,
+  });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/classes/[id]/enroll
-// Body: { studentId: string }          — single remove
-//    OR { studentIds: string[] }        — bulk remove
+// Body: { studentId: string }    — single remove
+//    OR { studentIds: string[] } — bulk remove
+// ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
-    return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
+    return NextResponse.json(
+      { error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' },
+      { status: 403 },
+    );
   }
-
-  const caller = staffResult;
+  const caller = staffResult as Caller;
   const { id: classId } = await params;
-  const body = await request.json();
+  const admin = adminClient();
 
-  // Teacher school guard — teacher must be assigned to this class's school
-  const admin2 = adminClient();
-  if (caller.role === 'teacher') {
-    const { data: clsForGuard } = await admin2.from('classes').select('school_id').eq('id', classId).single();
-    const hasAccess = await callerHasClassAccess(caller, clsForGuard?.school_id ?? null);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: 'Access denied: you are not assigned to the school this class belongs to.' },
-        { status: 403 },
-      );
-    }
+  // Fetch class school for the access guard
+  const { data: cls } = await admin.from('classes').select('school_id').eq('id', classId).single();
+
+  // ── Caller school/class access guard ─────────────────────────────────────
+  const hasAccess = await callerHasClassAccess(caller, cls?.school_id ?? null);
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+      { status: 403 },
+    );
   }
 
   // Normalise single or bulk into an array
+  const body = await request.json();
   let ids: string[] = [];
   if (Array.isArray(body.studentIds) && body.studentIds.length > 0) {
     ids = body.studentIds;
@@ -427,17 +490,15 @@ export async function DELETE(
   }
   if (ids.length === 0) return NextResponse.json({ error: 'studentId or studentIds required' }, { status: 400 });
 
-  const admin = adminClient();
-
   const { error } = await admin
     .from('portal_users')
-    .update({ class_id: null })
+    .update({ class_id: null, section_class: null })
     .in('id', ids)
     .eq('class_id', classId); // safety: only remove students actually in this class
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Sync current_students count (exact — never drift)
+  // Resync class count (exact — never drift)
   const { count: afterCount } = await admin
     .from('portal_users')
     .select('id', { count: 'exact', head: true })

@@ -14,7 +14,8 @@ async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: caller } = await supabase
+  // Use adminClient to bypass RLS on portal_users
+  const { data: caller } = await adminClient()
     .from('portal_users')
     .select('role, id')
     .eq('id', user.id)
@@ -38,12 +39,12 @@ export async function POST(request: Request) {
 
   const admin = adminClient();
 
-  // Fetch the school row
+  // Fetch only the fields we need — avoid select('*') for security hygiene
   const { data: school, error: fetchErr } = await admin
     .from('schools')
-    .select('*')
+    .select('id, name, email, contact_person, status')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (fetchErr || !school) {
     return NextResponse.json({ error: 'School not found' }, { status: 404 });
@@ -67,7 +68,8 @@ export async function POST(request: Request) {
     });
   }
 
-  const password = (suppliedPassword && suppliedPassword.length >= 6)
+  // Consistent 8-char minimum across the platform
+  const password = (suppliedPassword && suppliedPassword.length >= 8)
     ? suppliedPassword
     : crypto.randomBytes(8).toString('base64url').slice(0, 10);
 
@@ -99,8 +101,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Failed to link portal account: ${updateErr.message}` }, { status: 500 });
     }
 
-    // If the caller provided a password, update the auth account password too
-    if (suppliedPassword && suppliedPassword.length >= 6) {
+    // Only update password if supplied and meets minimum length
+    if (suppliedPassword && suppliedPassword.length >= 8) {
       await admin.auth.admin.updateUserById(existingPortal.id, {
         password: suppliedPassword,
         user_metadata: { full_name: school.contact_person || school.name, role: 'school' },

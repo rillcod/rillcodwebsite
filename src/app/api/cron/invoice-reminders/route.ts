@@ -101,7 +101,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
   const result = { invoices_scanned: 0, reminders_sent: 0, overdue_marked: 0, errors: 0, skipped: 0, details: [] as any[] };
 
   if (!config.invoice_reminders_enabled && !config.auto_overdue_enabled) {
-    await db.from('invoice_automation_logs' as any).insert({
+    await db.from('invoice_automation_logs').insert({
       triggered_by: triggeredBy,
       invoices_scanned: 0,
       reminders_sent: 0,
@@ -234,7 +234,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
   // Log the run
   try {
-    await (db as any).from('invoice_automation_logs').insert({
+    await db.from('invoice_automation_logs').insert({
       triggered_by: triggeredBy,
       invoices_scanned: result.invoices_scanned,
       reminders_sent: result.reminders_sent,

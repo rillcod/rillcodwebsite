@@ -9,29 +9,50 @@ function adminClient() {
   );
 }
 
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function getCaller(): Promise<Caller | null> {
+  const supabase = await createServerClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return null;
+  const admin = adminClient();
+  const { data: caller } = await admin
+    .from('portal_users')
+    .select('role, id, school_id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller as Caller;
+}
+
+/** Returns all school IDs a teacher is assigned to (primary + teacher_schools). */
+async function teacherSchoolIds(caller: Caller): Promise<string[]> {
+  const ids: string[] = [];
+  if (caller.school_id) ids.push(caller.school_id);
+  const { data: ts } = await adminClient()
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', caller.id);
+  (ts ?? []).forEach((r: any) => {
+    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
+  });
+  return ids;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/classes
-// Returns classes visible to the current user, with live student counts.
-// - admin: all classes
-// - teacher: classes where teacher_id = me OR school_id IN teacher_schools
-// - school: classes where school_id = caller.school_id
-export async function GET(_request: NextRequest) {
+// Returns classes visible to the current user with accurate student counts.
+//   admin:   all classes (optionally filtered by ?school_id=)
+//   teacher: classes in their assigned school(s) (optionally filtered by ?school_id= if in scope)
+//   school:  only classes belonging to their own school
+// ─────────────────────────────────────────────────────────────────────────────
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getCaller();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
     const admin = adminClient();
-    const { data: caller } = await admin
-      .from('portal_users')
-      .select('role, id, school_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(_request.url);
+    const { searchParams } = new URL(request.url);
     const schoolFilter = searchParams.get('school_id');
 
     let query = admin
@@ -45,103 +66,59 @@ export async function GET(_request: NextRequest) {
       `)
       .order('created_at', { ascending: false });
 
-    if (caller.role === 'teacher') {
-      const schoolIds: string[] = [];
-      if (caller.school_id) schoolIds.push(caller.school_id);
-      const { data: ts } = await admin
-        .from('teacher_schools')
-        .select('school_id')
-        .eq('teacher_id', caller.id);
-      (ts ?? []).forEach((r: any) => {
-        if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id);
-      });
+    if (caller.role === 'admin') {
+      // Admin may optionally filter by school
+      if (schoolFilter) query = query.eq('school_id', schoolFilter) as any;
+    } else if (caller.role === 'school') {
+      // School role: strictly limited to their own school only — ignore any schoolFilter param
+      if (!caller.school_id) return NextResponse.json({ data: [] });
+      query = query.eq('school_id', caller.school_id) as any;
+    } else if (caller.role === 'teacher') {
+      const scopedIds = await teacherSchoolIds(caller);
 
       if (schoolFilter) {
-        // Browsing a specific school — only allow if teacher has scope to it.
-        if (schoolIds.length > 0 && !schoolIds.includes(schoolFilter)) {
-          return NextResponse.json({ data: [] });
+        // Teacher requesting a specific school — must be in their scope
+        if (!scopedIds.includes(schoolFilter)) {
+          return NextResponse.json({ data: [] }); // out of scope, return empty not 403
         }
         query = query.eq('school_id', schoolFilter) as any;
+      } else if (scopedIds.length > 0) {
+        // Default: all classes in their assigned schools + any they personally teach
+        query = query.or(
+          `teacher_id.eq.${caller.id},school_id.in.(${scopedIds.join(',')})`,
+        ) as any;
       } else {
-        // Default: classes they teach OR classes in their assigned schools.
-        if (schoolIds.length > 0) {
-          query = query.or(`teacher_id.eq.${caller.id},school_id.in.(${schoolIds.join(',')})`) as any;
-        } else {
-          query = query.eq('teacher_id', caller.id) as any;
-        }
+        // Teacher with no school assignments — only classes they personally teach
+        query = query.eq('teacher_id', caller.id) as any;
       }
-    } else if (schoolFilter) {
-      query = query.eq('school_id', schoolFilter) as any;
     }
-
-    if (caller.role === 'school') {
-      const sid = caller.school_id;
-      if (sid) query = query.eq('school_id', sid) as any;
-    }
-    // admin: no filter → all classes
 
     const { data: classes, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const classData = classes ?? [];
+    if (classData.length === 0) return NextResponse.json({ data: [] });
 
-    // Get live enrolled student counts — run direct + enrollment queries in parallel
-    const classIds = classData.map((c: any) => c.id).filter(Boolean);
-    const programIds = [...new Set(classData.map((c: any) => c.program_id).filter(Boolean))] as string[];
-
+    // ── Live student count: count direct class_id assignments only ────────────
+    // The program-enrollment fallback (class_id = null) would inflate counts when
+    // multiple classes share a program, so we count strictly by class_id FK.
+    const classIds = classData.map((c: any) => c.id).filter(Boolean) as string[];
     const countMap: Record<string, number> = {};
-    classIds.forEach((cid: string) => { countMap[cid] = 0; });
+    classIds.forEach((cid) => { countMap[cid] = 0; });
 
-    if (classIds.length > 0) {
-      // Run both count queries in parallel
-      const [{ data: directStudents }, { data: enrolledRows }] = await Promise.all([
-        // Direct: students with class_id assigned
-        admin
-          .from('portal_users')
-          .select('class_id')
-          .eq('role', 'student')
-          .in('class_id', classIds),
-        // Fallback: program-enrolled students (class_id may be null)
-        programIds.length > 0
-          ? admin
-              .from('enrollments')
-              .select('user_id, program_id')
-              .in('program_id', programIds)
-              .eq('status', 'active')
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+    const { data: directStudents } = await admin
+      .from('portal_users')
+      .select('class_id')
+      .eq('role', 'student')
+      .in('class_id', classIds);
 
-      (directStudents ?? []).forEach((s: any) => {
-        if (s.class_id) countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
-      });
-
-      if (enrolledRows && enrolledRows.length > 0) {
-        const candidateIds = [...new Set(enrolledRows.map((e: any) => e.user_id).filter(Boolean))] as string[];
-        const { data: unassigned } = await admin
-          .from('portal_users')
-          .select('id')
-          .in('id', candidateIds)
-          .is('class_id', null)
-          .eq('role', 'student');
-
-        const unassignedIds = new Set((unassigned ?? []).map((u: any) => u.id));
-        const programFallbackCount: Record<string, number> = {};
-        enrolledRows.forEach((e: any) => {
-          if (e.user_id && unassignedIds.has(e.user_id)) {
-            programFallbackCount[e.program_id] = (programFallbackCount[e.program_id] ?? 0) + 1;
-          }
-        });
-        classData.forEach((c: any) => {
-          if (c.program_id && programFallbackCount[c.program_id]) {
-            countMap[c.id] = (countMap[c.id] ?? 0) + programFallbackCount[c.program_id];
-          }
-        });
-      }
-    }
+    (directStudents ?? []).forEach((s: any) => {
+      if (s.class_id) countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
+    });
 
     const enriched = classData.map((c: any) => ({
       ...c,
-      current_students: countMap[c.id] ?? 0,
+      current_students: countMap[c.id] ?? c.current_students ?? 0,
     }));
 
     return NextResponse.json({ data: enriched });
@@ -150,32 +127,67 @@ export async function GET(_request: NextRequest) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/classes — create a new class
+// admin: full control; teacher: must be assigned to the chosen school
+// school role: cannot create classes via API
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getCaller();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const admin = adminClient();
-    const { data: caller } = await admin
-      .from('portal_users')
-      .select('role, id')
-      .eq('id', user.id)
-      .single();
-
-    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (!['admin', 'teacher'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Only admins and teachers can create classes' }, { status: 403 });
     }
 
     const body = await request.json();
-    // Teachers can only create classes assigned to themselves
-    if (caller.role === 'teacher') {
-      body.teacher_id = caller.id;
+
+    // ── Field whitelist — never trust raw body ────────────────────────────────
+    const insertRow: Record<string, unknown> = {};
+    const allowedFields = ['name', 'description', 'program_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date'];
+    for (const f of allowedFields) {
+      if (f in body && body[f] != null) insertRow[f] = body[f];
     }
+
+    if (!insertRow.name) {
+      return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
+    }
+
+    const admin = adminClient();
+
+    if (caller.role === 'teacher') {
+      // Force teacher_id to the caller — they cannot assign to another teacher
+      insertRow.teacher_id = caller.id;
+
+      // Validate school_id is one the teacher is actually assigned to
+      const requestedSchoolId: string | null = typeof body.school_id === 'string' ? body.school_id : null;
+      if (requestedSchoolId) {
+        const scopedIds = await teacherSchoolIds(caller);
+        if (!scopedIds.includes(requestedSchoolId)) {
+          return NextResponse.json(
+            { error: 'You are not assigned to the school you selected for this class.' },
+            { status: 403 },
+          );
+        }
+        insertRow.school_id = requestedSchoolId;
+      } else if (caller.school_id) {
+        // Default to teacher's primary school if none specified
+        insertRow.school_id = caller.school_id;
+      }
+    } else {
+      // Admin: allow any school_id and teacher_id
+      if ('school_id' in body) insertRow.school_id = body.school_id ?? null;
+      if ('teacher_id' in body) insertRow.teacher_id = body.teacher_id ?? null;
+    }
+
+    insertRow.created_at = new Date().toISOString();
+    // current_students starts at 0 — set by enroll routes, never by client
+    insertRow.current_students = 0;
+
     const { data, error } = await admin
       .from('classes')
-      .insert({ ...body, created_at: new Date().toISOString() })
+      .insert(insertRow)
       .select()
       .single();
 
