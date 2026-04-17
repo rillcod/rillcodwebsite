@@ -120,12 +120,20 @@ export default function WhatsAppInbox() {
   };
 
   const WA_BACKGROUND = "bg-[#efeae2]"; // Official WhatsApp Web background color
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  // Auto-hide sidebar on mobile when conversation is selected
+  useEffect(() => {
+    if (activeConv && window.innerWidth < 768) {
+      setShowSidebar(false);
+    }
+  }, [activeConv]);
 
   return (
-    <div className="flex h-[calc(100vh-100px)] overflow-hidden rounded-2xl border border-gray-200 shadow-xl bg-white max-w-7xl mx-auto my-6">
+    <div className="flex h-[calc(100vh-100px)] overflow-hidden rounded-none md:rounded-2xl border-0 md:border border-gray-200 shadow-none md:shadow-xl bg-white max-w-7xl mx-auto my-0 md:my-6">
       
       {/* Sidebar - Conversation List */}
-      <div className="w-[380px] border-r border-gray-200 flex flex-col bg-white shrink-0">
+      <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[380px] border-r border-gray-200 flex-col bg-white shrink-0`}>
         <div className="h-16 px-4 bg-gray-50 flex items-center justify-between border-b border-gray-200 shrink-0">
           <h2 className="text-xl font-bold text-gray-800 tracking-tight">Inbox</h2>
           <div className="flex gap-3 text-gray-500">
@@ -182,7 +190,7 @@ export default function WhatsAppInbox() {
       </div>
 
       {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col ${WA_BACKGROUND} relative`}>
+      <div className={`${showSidebar ? 'hidden' : 'flex'} md:flex flex-1 flex-col ${WA_BACKGROUND} relative`}>
         {/* Chat Background Pattern (Subtle) */}
         <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'url("https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png")', backgroundSize: '400px' }}></div>
 
@@ -190,23 +198,35 @@ export default function WhatsAppInbox() {
           <>
             {/* Chat Header */}
             <div className="h-16 px-4 bg-gray-50 flex items-center justify-between border-b border-gray-200 shrink-0 z-10 shadow-sm">
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold shadow-sm mr-3">
+              {/* Back button for mobile */}
+              <button 
+                onClick={() => {
+                  setShowSidebar(true);
+                  setActiveConv(null);
+                }}
+                className="md:hidden mr-3 text-gray-600 hover:text-gray-900"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div className="flex items-center min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold shadow-sm mr-3 shrink-0">
                   {(activeConv.contact_name || 'U')[0].toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-[15px]">{activeConv.contact_name || activeConv.phone_number}</h3>
-                  <p className="text-xs text-gray-500">{activeConv.phone_number}</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-900 text-[15px] truncate">{activeConv.contact_name || activeConv.phone_number}</h3>
+                  <p className="text-xs text-gray-500 truncate">{activeConv.phone_number}</p>
                 </div>
               </div>
-              <div className="flex gap-4 text-gray-500">
+              <div className="flex gap-3 md:gap-4 text-gray-500 shrink-0">
                 <Search className="w-5 h-5 cursor-pointer hover:text-gray-700" />
                 <Phone className="w-5 h-5 cursor-pointer hover:text-gray-700" />
               </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 z-10 custom-scrollbar flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 z-10 custom-scrollbar flex flex-col gap-2">
               {messages.map((msg, idx) => {
                 const isOutbound = msg.direction === 'outbound';
                 const showTail = idx === 0 || messages[idx - 1].direction !== msg.direction;
@@ -214,7 +234,7 @@ export default function WhatsAppInbox() {
                 return (
                   <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} w-full relative`}>
                      <div 
-                      className={`max-w-[70%] px-3 pt-2 pb-2 rounded-lg text-[14.5px] shadow-sm relative ${
+                      className={`max-w-[85%] md:max-w-[70%] px-3 pt-2 pb-2 rounded-lg text-[14.5px] shadow-sm relative ${
                         isOutbound 
                           ? 'bg-[#d9fdd3] text-gray-900 rounded-tr-none' 
                           : 'bg-white text-gray-900 rounded-tl-none border border-gray-100'
@@ -249,7 +269,7 @@ export default function WhatsAppInbox() {
             </div>
 
             {/* Message Input Footer */}
-            <div className="p-3 bg-[#f0f2f5] z-10 shrink-0">
+            <div className="p-2 md:p-3 bg-[#f0f2f5] z-10 shrink-0">
               <form onSubmit={handleSend} className="flex items-end gap-2 max-w-4xl mx-auto">
                 <textarea 
                   value={newMessage}
@@ -257,16 +277,16 @@ export default function WhatsAppInbox() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); }
                   }}
-                  placeholder="Type a message to the student..." 
-                  className="flex-1 max-h-32 min-h-[44px] bg-white rounded-xl px-4 py-3 outline-none resize-none shadow-sm text-[15px] custom-scrollbar focus:ring-1 focus:ring-emerald-500 border-none"
+                  placeholder="Type a message..." 
+                  className="flex-1 max-h-32 min-h-[44px] bg-white rounded-xl px-3 md:px-4 py-2 md:py-3 outline-none resize-none shadow-sm text-sm md:text-[15px] custom-scrollbar focus:ring-1 focus:ring-emerald-500 border-none"
                   rows={1}
                 />
                 <button 
                   type="submit" 
                   disabled={!newMessage.trim() || isSending}
-                  className="w-12 h-[44px] bg-emerald-500 text-white flex items-center justify-center rounded-full hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:hover:bg-emerald-500 shrink-0 shadow-md"
+                  className="w-11 h-11 md:w-12 md:h-[44px] bg-emerald-500 text-white flex items-center justify-center rounded-full hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:hover:bg-emerald-500 shrink-0 shadow-md"
                 >
-                  {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
+                  {isSending ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Send className="w-4 h-4 md:w-5 md:h-5 ml-0.5 md:ml-1" />}
                 </button>
               </form>
             </div>
