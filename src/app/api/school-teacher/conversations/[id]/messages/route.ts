@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .select('*')
       .eq('id', id);
 
-    if (profile.role === 'school') {
+    if (profile.role === 'school' && profile.school_id) {
       convQuery = convQuery.eq('school_id', profile.school_id);
     } else if (profile.role === 'teacher') {
       convQuery = convQuery.eq('teacher_id', profile.id);
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .select('*')
       .eq('id', id);
 
-    if (profile.role === 'school') {
+    if (profile.role === 'school' && profile.school_id) {
       convQuery = convQuery.eq('school_id', profile.school_id);
     } else if (profile.role === 'teacher') {
       convQuery = convQuery.eq('teacher_id', profile.id);
