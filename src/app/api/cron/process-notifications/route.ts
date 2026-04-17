@@ -34,8 +34,7 @@ export async function GET(req: Request) {
             failed++;
             // Simple retry: push back to end of queue if attempts < 3
             if (job.attempts < 3) {
-                job.attempts++;
-                await queueService.queueNotification(job.userId, 'email', job.payload);
+                await queueService.queueNotification(job.userId, 'email', job.payload, job.attempts + 1);
             }
         }
     }

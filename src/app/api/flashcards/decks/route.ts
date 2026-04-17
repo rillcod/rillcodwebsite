@@ -35,14 +35,14 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!['teacher', 'admin', 'school'].includes(profile?.role ?? '')) {
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Only teachers can create flashcard decks' }, { status: 403 });
   }
 
   const { title, lesson_id, course_id } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required', field: 'title' }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('flashcard_decks')
     .insert({ title: title.trim(), lesson_id: lesson_id || null, course_id: course_id || null, created_by: user.id, school_id: profile.school_id })
     .select()

@@ -3,6 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+    NEXT_PUBLIC_APP_URL: z.string().url().optional().default('https://rillcod.com'),
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 
     // Upstash
@@ -36,6 +37,12 @@ const envSchema = z.object({
     ZOOM_ACCOUNT_ID: z.string().optional(),
     ZOOM_CLIENT_ID: z.string().optional(),
     ZOOM_CLIENT_SECRET: z.string().optional(),
+
+    // Storage (Cloudflare R2)
+    R2_ENDPOINT: z.string().url().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET_NAME: z.string().optional(),
 
     // Features
     ENABLE_PAYMENTS: z.string().optional().default('false'),

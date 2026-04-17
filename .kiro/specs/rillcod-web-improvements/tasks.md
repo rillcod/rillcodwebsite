@@ -58,7 +58,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Write `supabase/migrations/20260501000012_course_curricula.sql`: CREATE TABLE with UNIQUE (course_id, school_id); RLS scoped to school_admin of matching school
   - _Requirements: NF-16.2_
 
-- [ ] 13. Create `term_schedules` table migration
+- [x] 13. Create `term_schedules` table migration
   - Write `supabase/migrations/20260501000013_term_schedules.sql`: CREATE TABLE with index idx_ts_active WHERE is_active = TRUE; RLS
   - _Requirements: NF-21.1_
 
@@ -276,7 +276,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Create `src/app/dashboard/homework-helper/page.tsx`: chat thread with SSE streaming display; enrolled-courses-only gate; inline retry button on stream failure without clearing history; session-only React state (no DB persistence)
   - _Requirements: NF-1.1, NF-1.2, NF-1.3, NF-1.4, NF-1.5, NF-1.6_
 
-- [ ] 55. Implement auto-completion certificates (NF-2)
+- [x] 55. Implement auto-completion certificates (NF-2)
   - Create Supabase database function/trigger that fires when a student completes all lessons AND achieves passing score on associated CBT exam; check UNIQUE (portal_user_id, course_id) on certificates table before generating; generate PDF and store in Cloudflare R2
   - Update certificate notification to send report_published-category email via notificationsService.sendEmail() to student and linked parent including R2 download link
   - Add certificates list with "Download" button (R2 signed URL) to student dashboard
@@ -421,14 +421,14 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 7: Property-Based Tests
 
-- [ ] 80. Set up fast-check testing framework
+- [x] 80. Set up fast-check testing framework
   - Install fast-check: `npm install --save-dev fast-check`
   - Configure Vitest (or Jest) to run `__tests__/**/*.pbt.ts` files with numRuns: 100 in fast-check global config
   - Add `// Feature: rillcod-web-improvements` comment header to each PBT file
   - _Requirements: Design testing strategy_
 
-- [ ] 81. Implement property tests for gamification service
-  - [ ]* 81.1 Write property test for gamification idempotency (P1)
+- [x] 81. Implement property tests for gamification service
+  - [x]* 81.1 Write property test for gamification idempotency (P1)
     - **Property 1: Gamification Idempotency — Unique Transactions Sum Equals Total Points**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
     - File: `__tests__/gamification.service.pbt.ts`; arbitraries: fc.array(fc.record({ activityType: fc.string(), referenceId: fc.string(), points: fc.integer({min:1,max:1000}) }))

@@ -150,13 +150,13 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight">Transactions</h1>
-          <p className="text-sm text-muted-foreground mt-1">All payment records and transaction history</p>
+          <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">Transactions</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">All payment records and transaction history</p>
         </div>
         <button onClick={load} disabled={loading}
-          className="flex items-center gap-2 px-4 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs sm:text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 min-h-[44px] sm:min-h-0">
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
@@ -169,25 +169,25 @@ export default function TransactionsPage() {
           { label: 'Completed', value: stats.completed, color: 'text-emerald-400' },
           { label: 'Pending', value: stats.pending, color: 'text-amber-400' },
         ].map(s => (
-          <div key={s.label} className="bg-card border border-border p-4">
-            <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">{s.label}</p>
+          <div key={s.label} className="bg-card border border-border p-3 sm:p-4">
+            <p className={`text-lg sm:text-xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-full sm:max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, email, or reference…"
-            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            className="w-full pl-10 pr-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0"
           />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
+          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0">
           <option value="all">All Statuses</option>
           <option value="completed">Completed</option>
           <option value="pending">Pending</option>
@@ -196,7 +196,7 @@ export default function TransactionsPage() {
           <option value="refunded">Refunded</option>
         </select>
         <select value={methodFilter} onChange={e => setMethodFilter(e.target.value)}
-          className="px-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
+          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0">
           <option value="all">All Methods</option>
           {Object.entries(METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>

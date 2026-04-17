@@ -49,7 +49,8 @@ export default function ParentDashboard({ profile, children, dataLoading, onRefr
   useEffect(() => {
     if (!profile?.id || children.length === 0) return;
     const supabase = createClient();
-    const childUserIds = children.map(c => (c as any).user_id).filter(Boolean);
+    // Map children to their user IDs - children have 'id' field which is their user_id
+    const childUserIds = children.map(c => c.id).filter(Boolean);
 
     Promise.all([
       // Outstanding + overdue invoices for all children

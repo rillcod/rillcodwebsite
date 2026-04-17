@@ -137,7 +137,7 @@ export default function SchoolOverviewPage() {
 
     if (schoolId) {
       if (schoolName) {
-        studAppsQuery = studAppsQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+        studAppsQuery = studAppsQuery.or(`school_id.eq.${schoolId},school_name.eq.${JSON.stringify(schoolName)}`);
       } else {
         studAppsQuery = studAppsQuery.eq('school_id', schoolId);
       }
@@ -160,7 +160,7 @@ export default function SchoolOverviewPage() {
 
     if (schoolId) {
       if (schoolName) {
-        portalQuery = portalQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+        portalQuery = portalQuery.or(`school_id.eq.${schoolId},school_name.eq.${JSON.stringify(schoolName)}`);
       } else {
         portalQuery = portalQuery.eq('school_id', schoolId);
       }

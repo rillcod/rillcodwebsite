@@ -400,7 +400,7 @@ export default function StudentLearningPage() {
 
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12">
             <div className="space-y-4 sm:space-y-6 text-center lg:text-left flex-1">
-              <h1 className={`font-black tracking-tighter leading-[0.9] italic ${isKids ? 'text-3xl sm:text-5xl' : 'text-4xl sm:text-7xl'}`}>
+              <h1 className={`font-black tracking-tighter leading-[0.9] italic ${isKids ? 'text-3xl sm:text-5xl' : 'text-3xl sm:text-5xl lg:text-7xl'}`}>
                 {greeting},<br />
                 <span className={`text-transparent bg-clip-text ${isKids ? 'bg-gradient-to-r from-violet-500 via-pink-500 to-orange-500' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500'}`}>
                   {profile?.full_name?.split(' ')[0]}!
@@ -415,16 +415,24 @@ export default function StudentLearningPage() {
                   : 'Everything you need for your courses, lessons, and assignments — all in one place.'}
               </p>
               
-              <div className="flex flex-wrap gap-4 pt-4 justify-center lg:justify-start">
-                <div className="flex items-center gap-4 px-6 py-4 bg-muted/30 border border-border backdrop-blur-md">
-                   <FireIcon className="w-6 h-6 text-orange-600" />
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-4 justify-center lg:justify-start w-full sm:w-auto">
+                <div 
+                  className="flex items-center gap-4 px-6 py-4 bg-muted/30 border border-border backdrop-blur-md min-h-[60px] group relative"
+                  title="Complete lessons daily to maintain your streak. Streak resets if no activity for 24 hours."
+                >
+                   <FireIcon className="w-6 h-6 text-orange-600 flex-shrink-0" />
                    <div>
                       <p className="text-2xl font-black tabular-nums leading-none">{stats.streak} DAYS</p>
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Day Streak</p>
                    </div>
+                   {/* Tooltip */}
+                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-background border border-border text-[10px] text-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                     Complete lessons daily to keep your streak
+                     <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-border" />
+                   </div>
                 </div>
-                <div className="flex items-center gap-4 px-6 py-4 bg-muted/30 border border-border backdrop-blur-md">
-                   <TrophyIcon className="w-6 h-6 text-amber-500" />
+                <div className="flex items-center gap-4 px-6 py-4 bg-muted/30 border border-border backdrop-blur-md min-h-[60px]">
+                   <TrophyIcon className="w-6 h-6 text-amber-500 flex-shrink-0" />
                    <div>
                       <p className="text-2xl font-black tabular-nums leading-none">{stats.xp.toLocaleString()}</p>
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Points</p>
@@ -433,22 +441,22 @@ export default function StudentLearningPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
-               <div className={`p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-blue-500/30 transition-all border ${isKids ? 'bg-blue-500/10 border-blue-500/30' : 'bg-background border-border'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-3xl' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
-                     {isKids ? '⭐' : <ChartBarIcon className="w-7 h-7" />}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto">
+               <div className={`p-4 sm:p-8 text-center flex flex-col items-center justify-center min-w-0 sm:min-w-[200px] group/card hover:border-blue-500/30 transition-all border ${isKids ? 'bg-blue-500/10 border-blue-500/30' : 'bg-background border-border'}`}>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-2 sm:mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-2xl sm:text-3xl' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
+                     {isKids ? '⭐' : <ChartBarIcon className="w-5 h-5 sm:w-7 sm:h-7" />}
                   </div>
-                  <p className="text-4xl font-black tabular-nums">{stats.avgScore}%</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">
+                  <p className="text-2xl sm:text-4xl font-black tabular-nums">{stats.avgScore}%</p>
+                  <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.25em] text-muted-foreground mt-1 sm:mt-2">
                     {isKids ? 'My Score' : isAdult ? 'Assessment Avg' : 'Avg Score'}
                   </p>
                </div>
-               <div className={`p-8 text-center flex flex-col items-center justify-center min-w-[200px] group/card hover:border-emerald-500/30 transition-all border ${isKids ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-background border-border'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-3xl' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
-                     {isKids ? '🏅' : <CheckBadgeIcon className="w-7 h-7" />}
+               <div className={`p-4 sm:p-8 text-center flex flex-col items-center justify-center min-w-0 sm:min-w-[200px] group/card hover:border-emerald-500/30 transition-all border ${isKids ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-background border-border'}`}>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-2 sm:mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-2xl sm:text-3xl' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+                     {isKids ? '🏅' : <CheckBadgeIcon className="w-5 h-5 sm:w-7 sm:h-7" />}
                   </div>
-                  <p className="text-4xl font-black tabular-nums">{stats.lessonsDone}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mt-2">
+                  <p className="text-2xl sm:text-4xl font-black tabular-nums">{stats.lessonsDone}</p>
+                  <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.25em] text-muted-foreground mt-1 sm:mt-2">
                     {isKids ? 'Lessons Done! 🎉' : isAdult ? 'Modules Completed' : 'Lessons Done'}
                   </p>
                </div>
@@ -478,7 +486,7 @@ export default function StudentLearningPage() {
                    ? 'Ask our AI to see how you\'re doing and get tips on what to learn next! 🌟'
                    : 'Our AI will review your recent activity and suggest what to focus on next.'}
                </p>
-               <div className="flex flex-wrap items-center gap-4 justify-center md:justify-start pt-2">
+               <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 justify-center md:justify-start pt-2">
                   <button 
                     disabled={generatingInsight}
                     onClick={async () => {
@@ -506,7 +514,7 @@ export default function StudentLearningPage() {
                         setGeneratingInsight(false);
                       }
                     }}
-                    className="px-8 py-4 bg-indigo-600 disabled:bg-indigo-900/50 hover:bg-indigo-500 text-foreground font-black uppercase text-[10px] tracking-[0.2em] transition-all"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-indigo-600 disabled:bg-indigo-900/50 hover:bg-indigo-500 text-foreground font-black uppercase text-[10px] tracking-[0.2em] transition-all min-h-[48px] sm:min-h-0"
                   >
                     {generatingInsight ? 'Generating feedback...' : 'Get my feedback'}
                   </button>
@@ -548,7 +556,7 @@ export default function StudentLearningPage() {
               Complete all 3 to earn points
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {dailyMissions.map((mission, idx) => (
               <motion.a
                 key={mission.id}
@@ -698,8 +706,8 @@ export default function StudentLearningPage() {
               </div>
             </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-border">
-              <div className="flex items-center gap-6">
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:gap-6 pt-6 border-t border-border">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 justify-center sm:justify-start">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-orange-600" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Completed</span>
@@ -715,7 +723,7 @@ export default function StudentLearningPage() {
               </div>
               <a
                 href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
-                className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[9px] font-black uppercase tracking-[0.25em] transition-all shadow-lg shadow-orange-600/20"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[9px] font-black uppercase tracking-[0.25em] transition-all shadow-lg shadow-orange-600/20 text-center min-h-[48px] flex items-center justify-center"
               >
                 {nextLesson ? `Continue: ${nextLesson.title.slice(0, 25)}${nextLesson.title.length > 25 ? '...' : ''}` : 'Browse Lessons'}
               </a>
@@ -779,7 +787,7 @@ export default function StudentLearningPage() {
                                   <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Progress</p>
                                 </div>
                                 <Link href={`/dashboard/lessons?program=${prog.id}`}
-                                  className={`px-4 py-2 ${accent.bg} hover:opacity-90 text-white text-xs font-black uppercase tracking-widest transition-all`}>
+                                  className={`px-4 py-2 ${accent.bg} hover:opacity-90 text-white text-xs font-black uppercase tracking-widest transition-all min-h-[44px] flex items-center justify-center`}>
                                   Continue
                                 </Link>
                               </div>

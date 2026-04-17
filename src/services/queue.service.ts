@@ -20,10 +20,9 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
 const QUEUE_KEY = 'notification_queue';
 
 export class QueueService {
-    async queueNotification(userId: string, type: 'email', payload: any) {
+    async queueNotification(userId: string, type: 'email', payload: any, attempts: number = 0) {
         if (!redis) {
-            console.warn('Redis not configured, processing notification synchronously');
-            // In a real dev env, we might want to still process it or log it
+            console.warn('Redis not configured, skipping queue');
             return null;
         }
 
@@ -32,7 +31,7 @@ export class QueueService {
             userId,
             type,
             payload,
-            attempts: 0,
+            attempts,
             timestamp: Date.now()
         };
 

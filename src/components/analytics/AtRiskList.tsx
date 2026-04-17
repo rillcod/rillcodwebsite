@@ -22,7 +22,7 @@ const SIGNAL_CONFIG: Record<AtRiskSignal, { label: string; className: string }> 
 };
 
 interface Props {
-  schoolId: string;
+  schoolId?: string;
   classId?: string;
 }
 
@@ -33,7 +33,8 @@ export function AtRiskList({ schoolId, classId }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const params = new URLSearchParams({ school_id: schoolId });
+        const params = new URLSearchParams();
+        if (schoolId) params.set('school_id', schoolId);
         if (classId) params.set('class_id', classId);
         const res = await fetch(`/api/analytics/at-risk?${params}`);
         if (!res.ok) throw new Error('Failed to load');

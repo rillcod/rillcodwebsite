@@ -35,7 +35,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-
 .vercel
 
 # typescript
@@ -43,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 /rillcod_flutter_mobile
 scripts/setup-admins.mjs
+
+# Audit/Report summaries
+/*.md

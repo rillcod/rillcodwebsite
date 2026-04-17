@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendToUser } from '@/lib/push';
+import { sendPushNotification } from '@/lib/push';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,13 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = adminClient();
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD in WAT
+  
+  // Use WAT timezone (UTC+1) for consistent date comparison
+  const now = new Date();
+  const watOffset = 1 * 60; // WAT is UTC+1
+  const watTime = new Date(now.getTime() + watOffset * 60 * 1000);
+  const today = watTime.toISOString().slice(0, 10); // YYYY-MM-DD in WAT
+  const todayStart = `${today}T00:00:00`; // Start of day in WAT
 
   // Get students with streak_reminder enabled
   const { data: prefs } = await supabase
@@ -34,26 +40,27 @@ export async function POST(req: NextRequest) {
 
   for (const pref of studentPrefs) {
     const userId = pref.portal_user_id;
-    const firstName = (pref.portal_users?.full_name ?? '').split(' ')[0] || 'there';
+    const portalUser = pref.portal_users as any;
+    const firstName = (portalUser?.full_name ?? '').split(' ')[0] || 'there';
 
-    // Check if student has any activity today
+    // Check if student has any activity today (completed, not just scheduled)
     const [lessons, reviews, cbt] = await Promise.all([
       supabase.from('lesson_progress').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).gte('last_accessed', today),
+        .eq('user_id', userId).gte('last_accessed', todayStart),
       supabase.from('flashcard_reviews').select('id', { count: 'exact', head: true })
-        .eq('student_id', userId).gte('next_review_at', today),
+        .eq('student_id', userId).gte('reviewed_at', todayStart).not('reviewed_at', 'is', null),
       supabase.from('cbt_sessions').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).gte('start_time', today),
+        .eq('user_id', userId).gte('start_time', todayStart),
     ]);
 
     const hasActivity = (lessons.count ?? 0) > 0 || (reviews.count ?? 0) > 0 || (cbt.count ?? 0) > 0;
     if (hasActivity) { skipped++; continue; }
 
-    await sendToUser(userId, {
+    await sendPushNotification(userId, {
       title: '🔥 Keep your streak going!',
       body: `Hey ${firstName}, you haven't done any learning today. Don't break your streak!`,
       url: '/dashboard/learning',
-    });
+    }, 'streak_reminder');
     sent++;
   }
 

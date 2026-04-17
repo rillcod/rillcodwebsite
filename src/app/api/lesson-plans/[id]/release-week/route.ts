@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!week_number) return NextResponse.json({ error: 'week_number is required', field: 'week_number' }, { status: 400 });
 
   // Release lessons
-  const { count: lessonsReleased } = await supabase
+  const { count: lessonsReleased } = await (supabase as any)
     .from('lessons')
     .update({ status: 'published', published_at: new Date().toISOString() })
     .eq('lesson_plan_id', id)
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq('status', 'draft');
 
   // Release assignments
-  const { count: assignmentsReleased } = await supabase
+  const { count: assignmentsReleased } = await (supabase as any)
     .from('assignments')
     .update({ is_active: true, updated_at: new Date().toISOString() })
     .contains('metadata', { lesson_plan_id: id, week_number });

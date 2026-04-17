@@ -21,10 +21,13 @@ export class SearchService {
 
     async searchCourses(query: string, tenantId?: string) {
         const supabase = await createClient();
+        // Sanitize query to prevent SQL injection in ILIKE
+        const sanitizedQuery = query.replace(/[%_]/g, '\\$&');
+        
         let q = supabase
             .from('courses')
             .select('*, programs(name)')
-            .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+            .or(`title.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`)
             .limit(10);
 
         if (tenantId) {
@@ -37,10 +40,13 @@ export class SearchService {
 
     async searchPrograms(query: string, tenantId?: string) {
         const supabase = await createClient();
+        // Sanitize query to prevent SQL injection in ILIKE
+        const sanitizedQuery = query.replace(/[%_]/g, '\\$&');
+        
         const q = supabase
             .from('programs')
             .select('*')
-            .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+            .or(`name.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%`)
             .limit(10);
 
         // Programs might not have tenantId directly, depending on schema
@@ -50,11 +56,14 @@ export class SearchService {
 
     async searchTeachers(query: string, tenantId?: string) {
         const supabase = await createClient();
+        // Sanitize query to prevent SQL injection in ILIKE
+        const sanitizedQuery = query.replace(/[%_]/g, '\\$&');
+        
         const q = supabase
             .from('portal_users')
             .select('id, full_name, profile_image_url')
             .eq('role', 'teacher')
-            .ilike('full_name', `%${query}%`)
+            .ilike('full_name', `%${sanitizedQuery}%`)
             .limit(5);
 
         // tenantId filter commented out pending schema confirmation:

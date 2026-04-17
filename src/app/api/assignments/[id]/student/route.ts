@@ -42,6 +42,23 @@ export async function GET(
     }
 
     const { id } = await params;
+    const searchParams = _request.nextUrl.searchParams;
+    const studentIdParam = searchParams.get('studentId');
+
+    // Who are we fetching for?
+    const targetStudentId = (caller.role === 'parent' && studentIdParam) ? studentIdParam : user.id;
+
+    // If parent is asking for a student, verify link
+    if (caller.role === 'parent' && studentIdParam) {
+      const { data: link } = await admin
+        .from('parent_student_links')
+        .select('id')
+        .eq('parent_id', user.id)
+        .eq('student_id', studentIdParam)
+        .maybeSingle();
+
+      if (!link) return NextResponse.json({ error: 'Student not linked to this parent' }, { status: 403 });
+    }
 
     const [asgnRes, subRes] = await Promise.all([
       admin
@@ -53,7 +70,7 @@ export async function GET(
         .from('assignment_submissions')
         .select('id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers')
         .eq('assignment_id', id)
-        .eq('portal_user_id', user.id)
+        .eq('portal_user_id', targetStudentId)
         .maybeSingle(),
     ]);
 

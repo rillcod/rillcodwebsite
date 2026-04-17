@@ -104,20 +104,20 @@ export default function AddClassPage() {
             const unassigned = 'and(school_id.is.null,school_name.is.null)';
             poolQuery = poolQuery.or(
               sName
-                ? `school_id.eq.${form.school_id},school_name.eq.${sName},${unassigned}`
+                ? `school_id.eq.${form.school_id},school_name.eq.${JSON.stringify(sName)},${unassigned}`
                 : `school_id.eq.${form.school_id},${unassigned}`
             );
           }
         } else {
           if (form.school_id) {
             poolQuery = sName
-              ? poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName}`)
+              ? poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${JSON.stringify(sName)}`)
               : (poolQuery as any).in('school_id', [form.school_id]);
           } else if (assignedSchoolIds.length > 0) {
             const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
             const nameParts = schools
               .filter(s => assignedSchoolIds.includes(s.id))
-              .map(s => `school_name.eq.${s.name}`)
+              .map(s => `school_name.eq.${JSON.stringify(s.name)}`)
               .filter(Boolean);
             poolQuery = (poolQuery as any).or(nameParts.length ? `${idPart},${nameParts.join(',')}` : idPart);
           }
@@ -132,7 +132,7 @@ export default function AddClassPage() {
         let pendingQuery = db.from('students').select('id').is('user_id', null);
         if (form.school_id) {
           pendingQuery = sName
-            ? pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName},created_by.eq.${profile?.id || ''}`)
+            ? pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq.${JSON.stringify(sName)},created_by.eq.${profile?.id || ''}`)
             : pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile?.id || ''}`);
         } else if (profile?.role === 'teacher') {
           pendingQuery = assignedSchoolIds.length > 0

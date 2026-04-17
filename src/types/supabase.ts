@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7448,6 +7448,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_course_completion: {
+        Args: { p_course_id: string; p_user_id: string }
+        Returns: boolean
+      }
       check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
       create_parent_and_link: {
         Args: {

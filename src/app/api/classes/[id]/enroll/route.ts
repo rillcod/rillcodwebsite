@@ -228,7 +228,8 @@ export async function POST(
   const { error: updateErr } = await admin
     .from('portal_users')
     .update({ class_id: classId, section_class: cls.name })
-    .eq('id', studentId);
+    .eq('id', studentId)
+    .eq('role', 'student');
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
@@ -509,7 +510,8 @@ export async function DELETE(
     .from('portal_users')
     .update({ class_id: null, section_class: null })
     .in('id', ids)
-    .eq('class_id', classId); // safety: only remove students actually in this class
+    .eq('class_id', classId)
+    .eq('role', 'student'); // safety: only remove students actually in this class
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

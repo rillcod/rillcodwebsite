@@ -18,11 +18,12 @@ async function requireStaff() {
     .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) return null;
+  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
   return profile;
 }
 
-async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
+async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null, role: string) {
+  if (role === 'school' && fallbackSchoolId) return [fallbackSchoolId];
   const ids = new Set<string>();
   if (fallbackSchoolId) ids.add(fallbackSchoolId);
   const { data } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
@@ -62,19 +63,19 @@ export async function POST(request: NextRequest) {
   payload.updated_at = new Date().toISOString();
 
   const admin = adminClient();
-  const teacherSchoolIds =
-    caller.role === 'teacher'
-      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
+  const allowedSchoolIds =
+    caller.role !== 'admin'
+      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null, caller.role)
       : [];
 
-  if (payload.student_id && caller.role === 'teacher') {
+  if (payload.student_id && caller.role !== 'admin') {
     const { data: student } = await admin
       .from('portal_users')
       .select('school_id')
       .eq('id', String(payload.student_id))
       .maybeSingle();
     const studentSchoolId = (student as any)?.school_id as string | null;
-    if (!studentSchoolId || !teacherSchoolIds.includes(studentSchoolId)) {
+    if (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId)) {
       return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
     }
   }

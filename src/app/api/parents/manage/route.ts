@@ -353,7 +353,8 @@ export async function GET(req: Request) {
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
+        const sanitizedSearch = search.replace(/[%_]/g, '\\$&');
+        query = query.or(`email.ilike.%${sanitizedSearch}%,full_name.ilike.%${sanitizedSearch}%`);
       }
       if (allowedEmails && allowedEmails.length > 0) {
         query = query.in('email', allowedEmails);

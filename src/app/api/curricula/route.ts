@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!['admin', 'school'].includes(profile?.role ?? '')) {
+  if (!profile || !['admin', 'school'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Only school admins can create curricula' }, { status: 403 });
   }
 
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Check existing curriculum
-  const { data: existing } = await supabase
+  const { data: existing } = await (supabase as any)
     .from('course_curricula')
     .select('id, version')
     .eq('course_id', course_id)
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('course_curricula')
     .insert({ course_id, school_id: profile.school_id, content: aiContent, version: 1, created_by: user.id })
     .select()

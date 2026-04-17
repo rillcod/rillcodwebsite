@@ -3,9 +3,9 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const supabase = await createServerClient();
@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // Fetch lesson plan
-    const { data: plan, error: planErr } = await supabase
+    const { data: plan, error: planErr } = await (supabase as any)
       .from('lesson_plans')
       .select('*, courses(title), classes(name)')
       .eq('id', id)

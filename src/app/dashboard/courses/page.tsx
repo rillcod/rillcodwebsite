@@ -218,10 +218,15 @@ export default function CoursesPage() {
           setPrograms(progList);
           // Hydrate courses: if the Supabase join didn't populate `programs`
           // (e.g. due to RLS on programs table), fill it from the API-fetched list
+          // ALSO handle uncategorized courses (null program_id) for students
           const hydrated = (data as any[]).map(c => {
             if (c.program_id && !c.programs) {
               const match = progList.find((p: any) => p.id === c.program_id);
               return match ? { ...c, programs: match } : c;
+            }
+            // For uncategorized courses (null program_id), create a placeholder program
+            if (!c.program_id && !isStaff) {
+              return { ...c, programs: { name: 'General Courses', id: null } };
             }
             return c;
           });

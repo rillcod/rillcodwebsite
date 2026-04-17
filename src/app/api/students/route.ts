@@ -15,20 +15,20 @@ export async function POST(request: Request) {
     const body = await request.json();
     const primaryEmail = body.student_email || body.parent_email || body.studentEmail || body.parentEmail;
 
-    // Check if student already exists
-    const { data: existingStudent, error: checkError } = await supabase
+    // Check if student already exists - use safe parameterized query
+    const { data: byStudentEmail } = await supabase
       .from('students')
       .select('id, status')
-      .or(`student_email.eq."${primaryEmail}",parent_email.eq."${primaryEmail}"`)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('Error checking existing student:', checkError);
-      return NextResponse.json(
-        { error: 'Failed to check student registration' },
-        { status: 500 }
-      );
-    }
+      .eq('student_email', primaryEmail)
+      .maybeSingle();
+    
+    const { data: byParentEmail } = await supabase
+      .from('students')
+      .select('id, status')
+      .eq('parent_email', primaryEmail)
+      .maybeSingle();
+    
+    const existingStudent = byStudentEmail || byParentEmail;
 
     if (existingStudent) {
       return NextResponse.json(

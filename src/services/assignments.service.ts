@@ -216,9 +216,42 @@ export class AssignmentsService {
             throw new AppError('Failed to grade assignment submission', 400);
         }
 
-        // TODO: Send notification to the user about grade publish
-        // Example via hypothetical notifications service
-        // await notificationsService.send(data.user_id, 'grade_published', { assignmentId, grade });
+        // Send notification to the user about grade publish
+        try {
+            if (!data.portal_user_id) {
+                console.warn('No portal_user_id found for submission');
+                return data;
+            }
+
+            const { data: user } = await supabase.from('portal_users').select('id, email, full_name').eq('id', data.portal_user_id).single();
+            const { data: assignment } = await supabase.from('assignments').select('title').eq('id', assignmentId).single();
+            
+            if (user && assignment) {
+                const { notificationsService } = await import('./notifications.service');
+                const title = 'Assignment Graded';
+                const message = `Your submission for "${assignment.title}" has been graded. Score: ${grade}`;
+                
+                await notificationsService.logNotification(user.id, title, message, 'success');
+                
+                if (user.email) {
+                    await notificationsService.sendEmail(user.id, {
+                        to: user.email,
+                        subject: `Graded: ${assignment.title}`,
+                        html: `
+                            <h2>Assignment Graded</h2>
+                            <p>Hello ${user.full_name},</p>
+                            <p>Your submission for <strong>${assignment.title}</strong> has been graded.</p>
+                            <p><strong>Grade:</strong> ${grade}</p>
+                            ${feedback ? `<p><strong>Feedback:</strong> ${feedback}</p>` : ''}
+                            <p>Login to your dashboard to view more details.</p>
+                        `
+                    });
+                }
+            }
+        } catch (notifErr) {
+            console.error('Failed to send grade notification:', notifErr);
+            // Don't fail the whole grading process if notification fails
+        }
 
         return data;
     }

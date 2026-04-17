@@ -30,8 +30,7 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       '@supabase/supabase-js',
     ],
-    // Enable server instrumentation hook (src/instrumentation.ts)
-    clientInstrumentationHook: true,
+    // instrumentation.ts is enabled by default in Next.js 15
   },
 
   // ── Image optimisation ─────────────────────────────────────────

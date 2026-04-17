@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Invalid action. Use accept_ai or override' }, { status: 400 });
   }
 
-  const { error } = await supabase.from('assignment_submissions').update(updateData).eq('id', id);
+  const { error } = await supabase.from('assignment_submissions').update(updateData as any).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Write audit log

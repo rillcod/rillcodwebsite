@@ -57,7 +57,7 @@ export class CertificateService {
                 issued_date: new Date().toISOString().split('T')[0],
                 created_at: new Date().toISOString(),
                 metadata: {
-                    is_published: false,
+                    is_published: true,
                     status: 'issued',
                     pdf_status: 'pending',
                     issued_by: issuerId,
@@ -69,10 +69,28 @@ export class CertificateService {
 
         if (error) throw new AppError(error.message, 500);
 
-        // 4. Generate PDF asynchronously
-        this.generateAndStorePDF(cert.id, studentId, courseId);
-
+        // 4. PDF will be picked up by cron or triggered separately
         return cert;
+    }
+
+    async processPendingCertificates() {
+        const admin = adminClient();
+        const { data: pending } = await admin
+            .from('certificates')
+            .select('*')
+            .is('pdf_url', null)
+            .limit(10);
+
+        if (!pending || pending.length === 0) return { processed: 0 };
+
+        const results = await Promise.allSettled(
+            pending.map(cert => this.generateAndStorePDF(cert.id, cert.portal_user_id!, cert.course_id!))
+        );
+
+        return {
+            processed: results.filter(r => r.status === 'fulfilled').length,
+            failed: results.filter(r => r.status === 'rejected').length
+        };
     }
 
     async bulkIssue(classId: string, courseId: string, issuerId?: string, schoolId?: string) {
@@ -116,7 +134,7 @@ export class CertificateService {
     private async generateAndStorePDF(certId: string, studentId: string, courseId: string) {
         try {
             const admin = adminClient();
-            const { data: user } = await admin.from('portal_users').select('full_name').eq('id', studentId).single();
+            const { data: user } = await admin.from('portal_users').select('full_name, email, school_id').eq('id', studentId).single();
             const { data: course } = await admin.from('courses').select('title').eq('id', courseId).single();
             const { data: cert } = await admin.from('certificates').select('*').eq('id', certId).single();
 
@@ -124,13 +142,44 @@ export class CertificateService {
 
             // Upload to storage
             const file = new File([new Uint8Array(pdfBuffer)], `certificate_${certId}.pdf`, { type: 'application/pdf' });
-            const uploadedFile = await filesService.uploadFile(file, studentId);
+            const uploadedFile = await filesService.uploadFile(file, studentId, user?.school_id ?? undefined);
 
             // Update certificate with PDF URL
             await adminClient().from('certificates').update({
                 pdf_url: uploadedFile.storage_path,
                 metadata: { ...(cert?.metadata as Record<string, unknown> ?? {}), pdf_status: 'generated' },
             }).eq('id', certId);
+
+            // 5. Notifications
+            const { notificationsService } = await import('./notifications.service');
+            if (user?.email) {
+                await notificationsService.sendCategorisedEmail({
+                    userId: studentId,
+                    to: user.email,
+                    subject: `Congratulations! Your certificate for ${course?.title || 'the course'} is ready`,
+                    html: `<p>Hi ${user.full_name},</p><p>You have successfully completed <b>${course?.title || 'the course'}</b>. Your certificate is now available and can be downloaded from your dashboard.</p><p><a href="/dashboard/certificates">View Certificates</a></p>`,
+                    category: 'report_published',
+                    eventType: 'certificate_generated',
+                    referenceId: certId,
+                });
+            }
+
+            // Also notify linked parents
+            const { data: links } = await admin.from('parent_student_links').select('parent_id, portal_users!parent_id(email, full_name)').eq('student_id', studentId);
+            for (const link of links ?? []) {
+                const parent = (link.portal_users as any);
+                if (parent?.email) {
+                    await notificationsService.sendCategorisedEmail({
+                        userId: link.parent_id!,
+                        to: parent.email,
+                        subject: `${user?.full_name}'s Course Certificate is Ready`,
+                        html: `<p>Hi ${parent.full_name},</p><p>We are pleased to inform you that <b>${user?.full_name}</b> has completed the course <b>${course?.title || 'the course'}</b> and received a certificate.</p><p><a href="/dashboard/certificates">View Certificates</a></p>`,
+                        category: 'report_published',
+                        eventType: 'certificate_generated_parent',
+                        referenceId: certId,
+                    });
+                }
+            }
 
         } catch (error) {
             console.error('Failed to generate/store certificate PDF:', error);
