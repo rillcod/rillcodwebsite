@@ -1,32 +1,5 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/billing-reminders",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/invoice-reminders",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/live-session-reminders",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/process-notifications",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/streak-reminder",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/cron/term-scheduler",
-      "schedule": "0 5 * * 1"
-    },
-    {
-      "path": "/api/cron/weekly-summary",
-      "schedule": "0 17 * * 5"
-    }
-  ]
+  "github": {
+    "silent": true
+  }
 }
