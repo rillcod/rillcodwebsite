@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!['teacher', 'admin', 'school'].includes(profile?.role ?? '')) {
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('consent_forms')
     .insert({
       title: title.trim(),

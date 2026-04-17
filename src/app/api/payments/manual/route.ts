@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       .from('invoices')
       .update({ status: 'paid', updated_at: now })
       .eq('id', invoice_id)
-      .eq('status', 'sent'); // only auto-pay if it was 'sent', not if already paid/cancelled
+      .in('status', ['sent', 'overdue', 'partially_paid']); // allow paying sent or overdue invoices
   }
 
   return NextResponse.json({ data }, { status: 201 });

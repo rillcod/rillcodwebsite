@@ -56,7 +56,15 @@ const SUB_ACCENT: Record<string, string> = {
 };
 
 function isOverdue(due?: string | null) {
-  return due ? new Date(due) < new Date() : false;
+  if (!due) return false;
+  // Use UTC comparison to avoid timezone issues
+  // Compare ISO strings directly for consistent server-side behavior
+  const dueDate = new Date(due);
+  const now = new Date();
+  // Normalize both to UTC midnight for fair comparison
+  const dueDateUTC = Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate());
+  const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return dueDateUTC < nowUTC;
 }
 
 // ─── Skeleton loader ─────────────────────────────────────────

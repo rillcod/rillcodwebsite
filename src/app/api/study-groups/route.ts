@@ -37,12 +37,14 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (profile?.role !== 'student') return NextResponse.json({ error: 'Only students can create study groups' }, { status: 403 });
+  if (!profile || profile.role !== 'student') {
+    return NextResponse.json({ error: 'Only students can create study groups' }, { status: 403 });
+  }
 
   const { name, course_id } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required', field: 'name' }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('study_groups')
     .insert({ name: name.trim(), course_id: course_id || null, created_by: user.id, school_id: profile.school_id, status: 'active' })
     .select()

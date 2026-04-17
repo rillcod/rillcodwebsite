@@ -242,8 +242,8 @@ export async function POST(request: Request) {
   }
 
   const db = createAdminClient();
-  const mobileUrl = env.MOBILE_APP_URL || 'C:\\rillcod';
-  const webUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const mobileUrl = env.MOBILE_APP_URL || 'rillcod://';
+  const webUrl = env.NEXT_PUBLIC_APP_URL;
 
   await maybeRollOverPaidCycles(db);
 

@@ -168,11 +168,26 @@ export default function LessonsPage() {
         if (profile!.role === 'student') {
           const supabase = createClient();
           const { data: enr } = await supabase.from('enrollments').select('program_id').eq('user_id', profile!.id);
-          const programIds = (enr ?? []).map((e: any) => e.program_id);
-          if (!programIds.length) { if (!cancelled) setLessons([]); return; }
+          const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean); // Filter out null values
+          
+          if (!programIds.length) {
+            // No enrollments or all enrollments have null program_id
+            // Show empty state but don't block - they might have direct course access
+            if (!cancelled) setLessons([]);
+            setLoading(false);
+            return;
+          }
+          
           const { data: courseData } = await supabase.from('courses').select('id').in('program_id', programIds);
           const courseIds = (courseData ?? []).map((c: any) => c.id);
-          if (!courseIds.length) { if (!cancelled) setLessons([]); return; }
+          
+          if (!courseIds.length) {
+            // No courses found for enrolled programs
+            if (!cancelled) setLessons([]);
+            setLoading(false);
+            return;
+          }
+          
           const { data, error: err } = await supabase.from('lessons')
             .select('id, title, description, lesson_type, status, duration_minutes, session_date, video_url, created_by, created_at, courses(id, title, programs(name))')
             .in('course_id', courseIds).order('created_at', { ascending: false });

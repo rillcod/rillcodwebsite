@@ -774,7 +774,8 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
+    const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role || '');
+    const isParent = profile?.role === 'parent';
 
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: 'AI service not configured.' }, { status: 503 });
@@ -783,8 +784,8 @@ export async function POST(req: NextRequest) {
     const body: GenerateRequest = await req.json();
     const { type } = body;
 
-    // Security: students can use lesson-hook and daily-missions; staff gets everything
-    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback', 'custom', 'homework' as any];
+    // Security: students/parents can use lesson-hook, missions, and homework; staff gets everything
+    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'code-generation', 'homework' as any];
     if (!isStaff && !STUDENT_ALLOWED.includes(type)) {
       return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
     }

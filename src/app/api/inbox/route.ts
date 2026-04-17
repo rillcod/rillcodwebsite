@@ -37,7 +37,46 @@ export async function GET(req: NextRequest) {
     const caller = await requireStaff(req);
     const admin = adminClient();
 
-    // Fetch conversations with message count and linked user info
+    const { searchParams } = new URL(req.url);
+    const conversationId = searchParams.get('conversation_id');
+
+    // If conversation_id is provided, return messages for that conversation
+    if (conversationId) {
+      const limit = parseInt(searchParams.get('limit') || '100', 10);
+
+      // Verify conversation exists
+      const { data: conversation, error: convErr } = await admin
+        .from('whatsapp_conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .single();
+
+      if (convErr || !conversation) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      }
+
+      // Fetch messages for the conversation
+      const { data: messages, error } = await admin
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+        .limit(Math.min(limit, 500));
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      // Mark conversation as read
+      await admin
+        .from('whatsapp_conversations')
+        .update({ unread_count: 0, updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      return NextResponse.json({ data: messages });
+    }
+
+    // Otherwise, fetch conversations list
     const { data: conversations, error } = await admin
       .from('whatsapp_conversations')
       .select(`
@@ -52,54 +91,6 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ data: conversations });
-  } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Staff access required' ? 403 : 500;
-    return NextResponse.json({ error: err.message }, { status });
-  }
-}
-
-// POST /api/inbox — get messages for a conversation
-export async function POST(req: NextRequest) {
-  try {
-    const caller = await requireStaff(req);
-    const { conversation_id, limit = 100 } = await req.json();
-
-    if (!conversation_id) {
-      return NextResponse.json({ error: 'conversation_id required' }, { status: 400 });
-    }
-
-    const admin = adminClient();
-
-    // Verify conversation exists
-    const { data: conversation, error: convErr } = await admin
-      .from('whatsapp_conversations')
-      .select('id')
-      .eq('id', conversation_id)
-      .single();
-
-    if (convErr || !conversation) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-    }
-
-    // Fetch messages for the conversation
-    const { data: messages, error } = await admin
-      .from('whatsapp_messages')
-      .select('*')
-      .eq('conversation_id', conversation_id)
-      .order('created_at', { ascending: true })
-      .limit(Math.min(limit, 500));
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Mark conversation as read
-    await admin
-      .from('whatsapp_conversations')
-      .update({ unread_count: 0, updated_at: new Date().toISOString() })
-      .eq('id', conversation_id);
-
-    return NextResponse.json({ data: messages });
   } catch (err: any) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Staff access required' ? 403 : 500;
     return NextResponse.json({ error: err.message }, { status });

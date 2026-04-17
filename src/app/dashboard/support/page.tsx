@@ -50,7 +50,7 @@ export default function SupportPage() {
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
-  async function createTicket(e: React.FormEvent) {
+  async function createTicket(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!subject.trim() || !message.trim()) return;
     setSubmitting(true);
@@ -70,10 +70,11 @@ export default function SupportPage() {
     }
   }
 
-  async function submitReply(e: React.FormEvent) {
+  async function submitReply(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected || !reply.trim()) return;
     setSubmitting(true);
+    setError('');
     try {
       const field = isStaff ? 'admin_reply' : 'follow_up';
       const res = await fetch(`/api/support/${selected.id}`, {
@@ -81,12 +82,19 @@ export default function SupportPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: reply }),
       });
-      if (res.ok) {
-        setReply('');
-        await loadTickets();
-        const updated = tickets.find(t => t.id === selected.id);
-        if (updated) setSelected({ ...updated, [field]: reply });
+      
+      if (!res.ok) {
+        const json = await res.json();
+        setError(json.error || 'Failed to send reply');
+        return;
       }
+      
+      setReply('');
+      await loadTickets();
+      const updated = tickets.find(t => t.id === selected.id);
+      if (updated) setSelected({ ...updated, [field]: reply });
+    } catch (err: any) {
+      setError(err.message || 'Network error. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -132,12 +140,13 @@ export default function SupportPage() {
               onChange={e => setReply(e.target.value)}
               placeholder={isStaff ? 'Write a reply…' : 'Add a follow-up…'}
               rows={3}
-              className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
+              className="w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
             />
+            {error && <p className="text-rose-400 text-sm">{error}</p>}
             <button
               type="submit"
               disabled={!reply.trim() || submitting}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40"
+              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0"
             >
               {submitting ? 'Sending…' : 'Send Reply'}
             </button>
@@ -148,26 +157,26 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">Support Tickets</h1>
+    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Support Tickets</h1>
         <button
           onClick={() => setShowForm(v => !v)}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-semibold"
+          className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0"
         >
           {showForm ? 'Cancel' : '+ New Ticket'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={createTicket} className="bg-card border border-border rounded-lg p-5 space-y-4">
+        <form onSubmit={createTicket} className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-4">
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subject</label>
             <input
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="Brief description of your issue"
-              className="mt-1 w-full bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+              className="mt-1 w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0"
             />
           </div>
           <div>
@@ -177,14 +186,14 @@ export default function SupportPage() {
               onChange={e => setMessage(e.target.value)}
               placeholder="Describe your issue in detail…"
               rows={4}
-              className="mt-1 w-full bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
+              className="mt-1 w-full bg-background border border-border rounded px-3 py-3 sm:py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
             />
           </div>
           {error && <p className="text-rose-400 text-sm">{error}</p>}
           <button
             type="submit"
             disabled={!subject.trim() || !message.trim() || submitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40"
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0"
           >
             {submitting ? 'Submitting…' : 'Submit Ticket'}
           </button>

@@ -188,10 +188,10 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
 
     if (opts.schoolId || opts.schoolName) {
         // Always include global platform courses (school_id IS NULL) alongside school-specific ones
-        let filter = 'school_id.is.null';
-        if (opts.schoolId) filter += `,school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `,school_name.eq."${opts.schoolName}"`;
-        q = (q as any).or(filter);
+        const filters = ['school_id.is.null'];
+        if (opts.schoolId) filters.push(`school_id.eq.${opts.schoolId}`);
+        if (opts.schoolName) filters.push(`school_name.eq.${JSON.stringify(opts.schoolName)}`);
+        q = (q as any).or(filters.join(','));
     }
 
     const { data, error } = await q;
@@ -291,13 +291,14 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
         .select('grade, portal_user_id, user_id').eq('status', 'graded').not('grade', 'is', null).limit(500);
 
     if (opts.schoolId || opts.schoolName) {
-        let filter = '';
-        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
-
-        studAppsQ = (studAppsQ as any).or(filter);
-        studentPortalQ = (studentPortalQ as any).or(filter);
-        teacherPortalQ = (teacherPortalQ as any).or(filter);
+        const filters = [];
+        if (opts.schoolId) filters.push(`school_id.eq.${opts.schoolId}`);
+        if (opts.schoolName) filters.push(`school_name.eq.${JSON.stringify(opts.schoolName)}`);
+        
+        const filterStr = filters.join(',');
+        studAppsQ = (studAppsQ as any).or(filterStr);
+        studentPortalQ = (studentPortalQ as any).or(filterStr);
+        teacherPortalQ = (teacherPortalQ as any).or(filterStr);
         // subsQ school filter is applied post-fetch below
     }
 

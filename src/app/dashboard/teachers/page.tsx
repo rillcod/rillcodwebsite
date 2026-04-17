@@ -161,8 +161,15 @@ function TeacherPersonalDashboard() {
         if (!cancelled) {
           setStats({ myClasses: classesRes.status === 'fulfilled' ? (classesRes.value.count ?? 0) : 0, totalStudents, pendingGrades: pendingCnt, avgPerformance: avgPerf });
 
-          // Build upcoming classes from real data
-          setUpcomingClasses(classRows.slice(0, 4).map((c: any, i: number) => ({
+          // Build upcoming classes from real data - sort by schedule time
+          const sortedClasses = [...classRows].sort((a: any, b: any) => {
+            // Parse schedule time (format: "HH:MM" or "HH:MM AM/PM")
+            const timeA = a.schedule ?? '';
+            const timeB = b.schedule ?? '';
+            return timeA.localeCompare(timeB);
+          });
+          
+          setUpcomingClasses(sortedClasses.slice(0, 4).map((c: any, i: number) => ({
             id: c.id,
             name: c.name,
             time: c.schedule ?? '—',

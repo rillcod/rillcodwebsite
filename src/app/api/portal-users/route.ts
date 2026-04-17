@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         if (names.length > 0) {
           // Match by school_id OR school_name (covers legacy registrations)
           // Names must be quoted so PostgREST handles spaces correctly
-          const nameFilters = names.map((n: string) => `school_name.eq."${n}"`).join(',');
+          const nameFilters = names.map((n: string) => `school_name.eq.${JSON.stringify(n)}`).join(',');
           const idFilter = `school_id.in.(${schoolIds.join(',')})`;
           query = query.or(`${idFilter},${nameFilters}`) as any;
         } else {

@@ -6,6 +6,7 @@ import {
     DownloadCloud, Share2, Printer, Copy, CheckCircle2, 
     Sparkles, Palette, Loader2, Award, Linkedin
 } from 'lucide-react';
+import { ShieldCheckIcon } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
 import { CertificateTemplates, TEMPLATES, type TemplateType } from '../certificates/shared/CertificateTemplates';
 
@@ -24,6 +25,7 @@ interface CertificateProps {
             section_class?: string;
             grade_level?: string;
         };
+        pdf_url?: string | null;
     };
 }
 
@@ -348,7 +350,28 @@ export function CertificateCard({ cert }: CertificateProps) {
                     </button>
                 </div>
 
-                <div className="w-full sm:w-auto mt-2 sm:mt-0">
+                <div className="w-full sm:w-auto mt-2 sm:mt-0 flex flex-wrap gap-4 items-center">
+                    {cert.pdf_url && (
+                        <button
+                            onClick={async () => {
+                                try {
+                                    setIsDownloading(true);
+                                    const res = await fetch(`/api/certificates/${cert.id}/download`);
+                                    const data = await res.json();
+                                    if (data.url) window.open(data.url, '_blank');
+                                    else throw new Error('Download URL not found');
+                                } catch (e) {
+                                    showToastMsg('Failed to open PDF link');
+                                } finally {
+                                    setIsDownloading(false);
+                                }
+                            }}
+                            className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                        >
+                            <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
+                            Official PDF
+                        </button>
+                    )}
                     <button
                         onClick={handleDownload}
                         disabled={isDownloading}

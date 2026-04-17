@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
   let sent = 0;
 
   for (const parent of parents ?? []) {
-    const parentEmail = parent.portal_users?.email;
+    const portalUser = parent.portal_users as any;
+    const parentEmail = portalUser?.email;
     if (!parentEmail) continue;
 
     // Idempotency check via Redis would go here in full impl
@@ -49,10 +50,10 @@ export async function POST(req: NextRequest) {
     const studentSummaries = [];
     for (const link of links) {
       const sid = link.student_id;
-      const sName = link.portal_users?.full_name ?? 'Student';
+      const sName = (link.portal_users as any)?.full_name ?? 'Student';
 
       const [lessons, assignments, attendance, points] = await Promise.all([
-        supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('user_id', sid).gte('last_accessed', weekStart),
+        supabase.from('lesson_progress').select('id', { count: 'exact', head: true }).eq('portal_user_id', sid).gte('last_accessed', weekStart),
         supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', sid).gte('submitted_at', weekStart),
         supabase.from('attendance').select('status').eq('student_id', sid).gte('date', weekStartDate),
         supabase.from('point_transactions').select('points').eq('portal_user_id', sid).gte('created_at', weekStart),
@@ -83,14 +84,16 @@ export async function POST(req: NextRequest) {
       XP earned this week: ${s.xp}
     `).join('<hr>');
 
-    const body = hasActivity
+    const htmlBody = hasActivity
       ? `<p>Here's your weekly summary:</p>${summaryText}<p><a href="https://rillcod.com/dashboard">View Dashboard</a></p>`
       : `<p>No activity was recorded for your child(ren) this week. Log in to stay informed: <a href="https://rillcod.com/dashboard">Dashboard</a></p>`;
 
-    await notificationsService.sendEmail({
+    await notificationsService.sendCategorisedEmail({
+      userId: parent.portal_user_id,
       to: parentEmail,
       subject: `Rillcod Weekly Summary — Week of ${weekStartDate}`,
-      body,
+      html: htmlBody,
+      category: 'weekly_summary',
       eventType: 'weekly_summary',
       referenceId: `${parentEmail}:${weekStartDate}`,
     });

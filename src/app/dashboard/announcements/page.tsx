@@ -48,7 +48,7 @@ export default function AnnouncementsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!form.title.trim() || !form.content.trim()) return;
     setSubmitting(true); setError('');
@@ -74,20 +74,24 @@ export default function AnnouncementsPage() {
     }
   }
 
-  const now = new Date();
   const visible = announcements.filter(a => {
     if (a.status === 'draft' || a.status === 'archived') return isStaff;
-    if (a.expires_at && new Date(a.expires_at) < now) return isStaff; // NF-15.6
+    if (a.expires_at) {
+      // Compare in UTC to avoid timezone issues
+      const expiryDate = new Date(a.expires_at);
+      const nowUTC = new Date();
+      if (expiryDate < nowUTC) return isStaff; // NF-15.6
+    }
     return true;
   });
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">Announcements</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Announcements</h1>
         {isStaff && (
           <button onClick={() => setShowForm(v => !v)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold">
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0">
             {showForm ? 'Cancel' : '+ New Announcement'}
           </button>
         )}
@@ -95,31 +99,31 @@ export default function AnnouncementsPage() {
 
       {/* Composer form (NF-15.1, 15.2) */}
       {showForm && isStaff && (
-        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-5 space-y-4">
+        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4">
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Title</label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Announcement title…"
-              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" />
+              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0" />
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Body</label>
             <textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
               rows={4} placeholder="Write your announcement…"
-              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary resize-none" />
+              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary resize-none" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">Audience</label>
               <select value={form.target_audience} onChange={e => setForm(f => ({ ...f, target_audience: e.target.value }))}
-                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary capitalize">
+                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary capitalize min-h-[44px] sm:min-h-0">
                 {AUDIENCES.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase">Status</label>
               <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary">
+                className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0">
                 <option value="published">Publish now</option>
                 <option value="draft">Save as draft</option>
               </select>
@@ -128,11 +132,11 @@ export default function AnnouncementsPage() {
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase">Expires at (optional)</label>
             <input type="datetime-local" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
-              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" />
+              className="mt-1 w-full bg-background border border-border rounded-lg px-3 py-3 sm:py-2 text-sm text-foreground focus:outline-none focus:border-primary min-h-[44px] sm:min-h-0" />
           </div>
           {error && <p className="text-rose-400 text-sm">{error}</p>}
           <button type="submit" disabled={!form.title.trim() || !form.content.trim() || submitting}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-40">
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-40 min-h-[44px] sm:min-h-0">
             {submitting ? 'Saving…' : form.status === 'draft' ? 'Save Draft' : 'Publish'}
           </button>
         </form>
@@ -146,7 +150,9 @@ export default function AnnouncementsPage() {
       ) : (
         <div className="space-y-3">
           {visible.map(a => {
-            const isExpired = a.expires_at && new Date(a.expires_at) < now;
+            const expiryDate = a.expires_at ? new Date(a.expires_at) : null;
+            const nowUTC = new Date();
+            const isExpired = expiryDate && expiryDate < nowUTC;
             const displayStatus = isExpired ? 'archived' : a.status;
             return (
               <div key={a.id} className="bg-card border border-border rounded-xl p-4">

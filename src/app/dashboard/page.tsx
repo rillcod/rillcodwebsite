@@ -399,7 +399,7 @@ async function loadStudentActivity(supabase: ReturnType<typeof createClient>, us
 async function loadSchoolStats(supabase: ReturnType<typeof createClient>, schoolId: string, schoolName?: string | null) {
   let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
   if (schoolName) {
-    studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_name.eq.${schoolName}`);
+    studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_name.eq.${JSON.stringify(schoolName)}`);
   } else {
     studentQuery = studentQuery.eq('school_id', schoolId);
   }

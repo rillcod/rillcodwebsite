@@ -30,12 +30,15 @@ export interface PushPayload {
 /**
  * Sends a push notification to ALL subscriptions for a given user.
  * Stale subscriptions (410 / 404) are deleted from `web_push_subscriptions`.
+ * Respects user notification preferences based on notification type.
  *
+ * @param notificationType - Optional type to check against user preferences
  * @returns { sent, deleted } counts
  */
 export async function sendPushNotification(
   userId: string,
   payload: PushPayload,
+  notificationType?: NotificationType,
 ): Promise<{ sent: number; deleted: number }> {
   if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
     console.warn('[push] VAPID keys not configured, skipping push notification.');
@@ -43,6 +46,23 @@ export async function sendPushNotification(
   }
 
   const db = createAdminClient();
+
+  // Check user notification preferences if type is provided
+  if (notificationType) {
+    const prefColumn = getPreferenceColumn(notificationType);
+    if (prefColumn) {
+      const { data: prefs } = await db
+        .from('notification_preferences')
+        .select(prefColumn)
+        .eq('portal_user_id', userId)
+        .single();
+
+      // If preference exists and is false, skip sending
+      if (prefs && (prefs as any)[prefColumn] === false) {
+        return { sent: 0, deleted: 0 };
+      }
+    }
+  }
 
   // Fetch all subscriptions for this user from the new table (Req 1.7)
   const { data: rows, error } = await db
@@ -93,6 +113,31 @@ export async function sendPushNotification(
   }
 
   return { sent, deleted };
+}
+
+/**
+ * Maps notification type to the corresponding preference column name.
+ * Returns null if no preference check is needed for this type.
+ */
+function getPreferenceColumn(type: NotificationType): string | null {
+  switch (type) {
+    case 'payment_confirmed':
+    case 'instalment_due':
+      return 'payment_updates';
+    case 'report_published':
+      return 'report_published';
+    case 'streak_reminder':
+      return 'streak_reminder';
+    case 'assignment_graded':
+    case 'support_ticket':
+    case 'announcement':
+    case 'consent_form':
+    case 'parent_message':
+      // These don't have specific preference columns yet, always send
+      return null;
+    default:
+      return null;
+  }
 }
 
 // ── Deep-link URL map (Req 21.2) ──────────────────────────────────────────────

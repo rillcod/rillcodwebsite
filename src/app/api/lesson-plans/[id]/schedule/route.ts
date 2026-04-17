@@ -11,14 +11,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!['teacher', 'admin', 'school'].includes(profile?.role ?? '')) {
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { term_start, cadence_days } = await req.json();
   if (!term_start) return NextResponse.json({ error: 'term_start is required', field: 'term_start' }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('term_schedules')
     .upsert({
       lesson_plan_id: id,

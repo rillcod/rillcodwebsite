@@ -68,16 +68,24 @@ export class GamificationService {
         let streak = currentPoints?.current_streak || 0;
         const lastActivity = currentPoints?.last_activity_date;
 
+        // Only update streak if this is a NEW day of activity
         if (lastActivity) {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
+            
             if (lastActivity === yesterdayStr) {
+                // Consecutive day - increment streak
                 streak += 1;
-            } else if (lastActivity !== today) {
+            } else if (lastActivity === today) {
+                // Same day - keep current streak, don't increment
+                // This prevents multiple activities on same day from inflating streak
+            } else {
+                // Gap in activity - reset to 1
                 streak = 1;
             }
         } else {
+            // First activity ever
             streak = 1;
         }
 

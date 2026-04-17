@@ -48,7 +48,7 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -56,11 +56,14 @@ export default function FlashcardsPage() {
               <AcademicCapIcon className="w-5 h-5 text-orange-400" />
               <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Spaced Repetition</span>
             </div>
-            <h1 className="text-3xl font-black">Flashcard Decks</h1>
+            <h1 className="text-2xl sm:text-3xl font-black">Flashcard Decks</h1>
             <p className="text-muted-foreground text-sm mt-1">Study smarter with SM-2 spaced repetition algorithm</p>
           </div>
           {isTeacher && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors">
+            <button 
+              onClick={() => setShowCreate(true)} 
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors"
+            >
               <PlusIcon className="w-4 h-4" /> New Deck
             </button>
           )}
@@ -71,18 +74,32 @@ export default function FlashcardsPage() {
             <div className="bg-[#0d1526] border border-border rounded-none w-full max-w-sm p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-black text-foreground">New Flashcard Deck</h2>
-                <button onClick={() => setShowCreate(false)}><XMarkIcon className="w-5 h-5 text-muted-foreground" /></button>
+                <button 
+                  onClick={() => setShowCreate(false)}
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-muted/50 transition-colors"
+                >
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
               <input
                 value={newTitle}
                 onChange={e => setNewTitle(e.target.value)}
                 placeholder="Deck title, e.g. Python Basics"
-                className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+                className="w-full bg-card border border-border text-foreground px-4 py-3 min-h-[44px] rounded-none focus:outline-none focus:border-orange-500 text-sm"
                 onKeyDown={e => e.key === 'Enter' && createDeck()}
               />
               <div className="flex gap-3">
-                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-card text-muted-foreground font-bold rounded-none hover:bg-muted text-sm transition-colors">Cancel</button>
-                <button onClick={createDeck} disabled={!newTitle.trim() || creating} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
+                <button 
+                  onClick={() => setShowCreate(false)} 
+                  className="flex-1 py-3 min-h-[44px] bg-card text-muted-foreground font-bold rounded-none hover:bg-muted text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={createDeck} 
+                  disabled={!newTitle.trim() || creating} 
+                  className="flex-1 py-3 min-h-[44px] bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors"
+                >
                   {creating ? 'Creating…' : 'Create'}
                 </button>
               </div>
@@ -110,13 +127,13 @@ export default function FlashcardsPage() {
                   <div className="flex gap-2">
                     {profile?.role === 'student' && (
                       <Link href={`/dashboard/flashcards/${deck.id}/review`}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-none transition-colors">
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 min-h-[44px] bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-none transition-colors">
                         <ArrowPathIcon className="w-3.5 h-3.5" /> Start Review
                       </Link>
                     )}
                     {isTeacher && (
                       <Link href={`/dashboard/flashcards/${deck.id}/edit`}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-none transition-colors">
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 min-h-[44px] bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-none transition-colors">
                         Edit Cards
                       </Link>
                     )}
