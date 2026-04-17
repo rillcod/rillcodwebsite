@@ -112,6 +112,8 @@ export function useSessionExpiry(): SessionExpiryState {
 
     const originalFetch = globalThis.fetch;
 
+    let refreshPromise: Promise<void> | null = null;
+
     globalThis.fetch = async function patchedFetch(
       input: RequestInfo | URL,
       init?: RequestInit,
@@ -119,22 +121,31 @@ export function useSessionExpiry(): SessionExpiryState {
       const response = await originalFetch(input, init);
 
       if (response.status === 401 && !refreshingRef.current) {
-        refreshingRef.current = true;
-        try {
-          const { error } = await supabase.auth.refreshSession();
-          if (error) {
-            await handleExpired();
-            return response;
-          }
-          // Retry original request once
-          const retried = await originalFetch(input, init);
-          if (retried.status === 401) {
-            await handleExpired();
-          }
-          return retried;
-        } finally {
-          refreshingRef.current = false;
+        // Use Promise-based lock to prevent race conditions
+        if (!refreshPromise) {
+          refreshingRef.current = true;
+          refreshPromise = (async () => {
+            try {
+              const { error } = await supabase.auth.refreshSession();
+              if (error) {
+                await handleExpired();
+              }
+            } finally {
+              refreshingRef.current = false;
+              refreshPromise = null;
+            }
+          })();
         }
+        
+        // Wait for refresh to complete
+        await refreshPromise;
+        
+        // Retry original request once
+        const retried = await originalFetch(input, init);
+        if (retried.status === 401) {
+          await handleExpired();
+        }
+        return retried;
       }
 
       return response;
