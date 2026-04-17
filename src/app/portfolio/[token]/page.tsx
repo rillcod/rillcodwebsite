@@ -1,8 +1,6 @@
-'use client';
-
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { RocketLaunchIcon, LinkIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { RocketLaunchIcon, LinkIcon, CalendarIcon } from '@/lib/icons';
 
 interface Props { params: Promise<{ token: string }> }
 

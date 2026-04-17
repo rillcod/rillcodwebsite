@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com';
   return NextResponse.json({
-    url: `${baseUrl}/student/${token}`,
+    url: `${baseUrl}/portfolio/${token}`,
     expires_at: expiresAt,
   });
 }
