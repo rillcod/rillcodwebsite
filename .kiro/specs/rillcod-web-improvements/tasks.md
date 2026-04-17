@@ -217,7 +217,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Call useSessionExpiry hook in `src/app/dashboard/layout.tsx`; render SessionExpiryBanner when expiry is near
   - _Requirements: Req 16.1, 16.2, 16.3_
 
-- [x] 45. Integrate file validation + compression into upload flows (Req 17)
+- [-] 45. Integrate file validation + compression into upload flows (Req 17)
   - Wire validateAndCompressFile() into assignment submission file input component before upload
   - Wire validateAndCompressFile() into bank transfer proof upload component before upload
   - Add server-side MIME type + size re-validation to relevant upload API routes with HTTP 400 structured error response
@@ -332,7 +332,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 5: New Features (NF-9 to NF-15)
 
-- [ ] 65. Implement instalment payment plans UI + API (NF-9)
+- [-] 65. Implement instalment payment plans UI + API (NF-9)
   - Create `src/app/api/billing/settlements/route.ts` POST: requireAuth, parent; accept { invoiceId, instalments: { amount, dueDate }[] }; verify SUM(amounts) equals invoice total exactly or return HTTP 422; save instalment schedule
   - Update invoice detail page: "Pay in Instalments" option with 2/3 equal split calculator; display each instalment with amount, due date, status; Paystack per-instalment checkout flow
   - Add 3-day due-date reminder: payment_updates category email via notificationsService; update instalment status to 'paid' on Paystack webhook + confirmation email

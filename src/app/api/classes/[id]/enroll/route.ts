@@ -268,8 +268,9 @@ export async function POST(
     }
   }
 
-  // WhatsApp Alert
-  queueService.queueNotification(studentId, 'whatsapp', {
+  // Enrollment email notification
+  queueService.queueNotification(studentId, 'email', {
+    subject: `Enrolled in ${cls.name}`,
     body: `Welcome! You have been successfully enrolled in "${cls.name}". Log in to your Rillcod dashboard to access your learning materials.`
   }).catch(console.error);
 
@@ -446,9 +447,10 @@ export async function PUT(
     }
   }
 
-  // WhatsApp Alert for Batch Enrollment
+  // Enrollment email notifications for batch
   for (const sid of allowedIds) {
-    queueService.queueNotification(sid, 'whatsapp', {
+    queueService.queueNotification(sid, 'email', {
+      subject: `Enrolled in ${cls.name}`,
       body: `Welcome! You have been successfully enrolled in "${cls.name}". Log in to your Rillcod dashboard to access your learning materials.`
     }).catch(console.error);
   }

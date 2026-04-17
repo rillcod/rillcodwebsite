@@ -6,14 +6,15 @@ export const dynamic = 'force-dynamic';
 // GET /api/billing/outstanding — parent outstanding balance per student
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const db = supabase as any;
+  const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).single();
   if (profile?.role !== 'parent') return NextResponse.json({ error: 'Forbidden — parents only' }, { status: 403 });
 
   // Get linked students
-  const { data: links } = await supabase
+  const { data: links } = await db
     .from('parent_student_links')
     .select('student_id, portal_users!student_id(id, full_name)')
     .eq('parent_id', user.id);
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const studentIds = links.map((l: any) => l.student_id);
 
-  const { data: invoices } = await supabase
+  const { data: invoices } = await db
     .from('invoices')
     .select('portal_user_id, amount, status, due_date')
     .in('portal_user_id', studentIds)
@@ -40,6 +41,6 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const total = perStudent.reduce((sum, s) => sum + s.amount, 0);
+  const total = perStudent.reduce((sum: number, s: any) => sum + s.amount, 0);
   return NextResponse.json({ total, perStudent });
 }
