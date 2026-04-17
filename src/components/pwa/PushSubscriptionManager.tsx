@@ -15,6 +15,22 @@ function urlBase64ToUint8Array(base64String: string) {
 /** POST to /api/push/subscribe with up to 3 retries (exponential backoff 1s/2s/4s) — Req 1.5 */
 async function syncSubscription(subscription: PushSubscription, deviceHint?: string): Promise<void> {
   const delays = [0, 1000, 2000, 4000];
+  
+  // Check if we've failed too many times recently
+  const failureKey = 'push_subscription_failures';
+  const failureData = localStorage.getItem(failureKey);
+  if (failureData) {
+    const { count, lastAttempt } = JSON.parse(failureData);
+    const hoursSinceLastAttempt = (Date.now() - lastAttempt) / (1000 * 60 * 60);
+    
+    // Exponential backoff: wait 1h, 2h, 4h, 8h, 16h, 24h (max)
+    const backoffHours = Math.min(Math.pow(2, count - 1), 24);
+    if (hoursSinceLastAttempt < backoffHours) {
+      console.log(`[push] Skipping subscription attempt (backoff: ${backoffHours}h)`);
+      return;
+    }
+  }
+  
   for (let attempt = 0; attempt < 3; attempt++) {
     if (delays[attempt]) await new Promise(r => setTimeout(r, delays[attempt]));
     try {
@@ -23,10 +39,26 @@ async function syncSubscription(subscription: PushSubscription, deviceHint?: str
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription, deviceHint }),
       });
-      if (res.ok) return;
-      if (attempt === 2) console.error('[push] Failed to sync subscription after 3 attempts');
+      if (res.ok) {
+        // Success - clear failure count
+        localStorage.removeItem(failureKey);
+        return;
+      }
+      if (attempt === 2) {
+        console.error('[push] Failed to sync subscription after 3 attempts');
+        // Track failure for exponential backoff
+        const existing = localStorage.getItem(failureKey);
+        const count = existing ? JSON.parse(existing).count + 1 : 1;
+        localStorage.setItem(failureKey, JSON.stringify({ count, lastAttempt: Date.now() }));
+      }
     } catch (err) {
-      if (attempt === 2) console.error('[push] Network error syncing subscription:', err);
+      if (attempt === 2) {
+        console.error('[push] Network error syncing subscription:', err);
+        // Track failure for exponential backoff
+        const existing = localStorage.getItem(failureKey);
+        const count = existing ? JSON.parse(existing).count + 1 : 1;
+        localStorage.setItem(failureKey, JSON.stringify({ count, lastAttempt: Date.now() }));
+      }
     }
   }
 }

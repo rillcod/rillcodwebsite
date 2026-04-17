@@ -6,6 +6,8 @@ import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
 import type { Json } from '@/types/supabase';
 
+export const dynamic = 'force-dynamic';
+
 type BillingCycle = {
   id: string;
   subscription_id: string | null;
