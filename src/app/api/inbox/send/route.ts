@@ -6,19 +6,38 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
     
-    if (!user) {
+    if (authErr || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify staff role
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Forbidden: Staff access required' }, { status: 403 });
     }
 
     const { conversation_id, message } = await req.json();
 
+    // Validation
     if (!conversation_id || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const admin = createAdminClient();
+    if (typeof message !== 'string' || message.trim().length === 0) {
+      return NextResponse.json({ error: 'Message must be a non-empty string' }, { status: 400 });
+    }
+
+    if (message.length > 4096) {
+      return NextResponse.json({ error: 'Message too long (max 4096 characters)' }, { status: 400 });
+    }
 
     // 1. Get the conversation to find the phone number
     const { data: conversation, error: convError } = await (admin as any)
@@ -32,12 +51,21 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Send the message via Meta API
-    const waResponse = await notificationsService.sendExternalWhatsApp({
-      to: conversation.phone_number,
-      body: message
-    });
+    let waResponse: any = null;
+    let sendError: string | null = null;
+
+    try {
+      waResponse = await notificationsService.sendExternalWhatsApp({
+        to: conversation.phone_number,
+        body: message.trim()
+      });
+    } catch (err: any) {
+      sendError = err.message || 'Failed to send message';
+      console.error('WhatsApp send error:', err);
+    }
 
     const metaMessageId = waResponse?.messages?.[0]?.id || null;
+    const messageStatus = metaMessageId ? 'sent' : 'failed';
 
     // 3. Save the outbound message to the database
     const { data: insertedMsg, error: msgError } = await (admin as any)
@@ -46,9 +74,9 @@ export async function POST(req: NextRequest) {
         conversation_id,
         direction: 'outbound',
         message_type: 'text',
-        body: message,
+        body: messageStatus === 'failed' ? `[FAILED] ${message}` : message,
         meta_message_id: metaMessageId,
-        status: metaMessageId ? 'sent' : 'failed'
+        status: messageStatus
       })
       .select()
       .single();
@@ -62,9 +90,17 @@ export async function POST(req: NextRequest) {
       .from('whatsapp_conversations')
       .update({
         last_message_at: new Date().toISOString(),
-        last_message_preview: `You: ${message.substring(0, 45)}`
+        last_message_preview: `You: ${message.substring(0, 45)}`,
+        updated_at: new Date().toISOString()
       })
       .eq('id', conversation_id);
+
+    if (sendError) {
+      return NextResponse.json({ 
+        error: sendError, 
+        data: insertedMsg 
+      }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, data: insertedMsg });
 

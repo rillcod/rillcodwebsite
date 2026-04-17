@@ -79,7 +79,7 @@ export async function POST(
     // Fetch assignment to validate access
     const { data: assignment } = await admin
       .from('assignments')
-      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title')
+      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title, grading_mode')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -114,14 +114,16 @@ export async function POST(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Auto-grade MCQ immediately on submission
-    if (answers && data) {
-      try {
-        const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
-        const maxPts = assignment.max_points ?? 100;
-        const assignWeight = assignment.weight ?? 0;
-        const autoGrade = computeAutoGrade(questions, answers, maxPts);
+    // Grading mode pipeline
+    const gradingMode = assignment.grading_mode || 'manual';
+    const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
+    const maxPts = assignment.max_points ?? 100;
+    const assignWeight = assignment.weight ?? 0;
 
+    if (gradingMode === 'auto' && answers && data) {
+      // Auto-grade: compute score inline and set status='graded'
+      try {
+        const autoGrade = computeAutoGrade(questions, answers, maxPts);
         if (autoGrade !== null) {
           const weightedScore = assignWeight > 0 && maxPts > 0
             ? Math.round((autoGrade / maxPts) * assignWeight)
@@ -139,16 +141,59 @@ export async function POST(
             .select()
             .single();
 
-          if (gradedRow) return NextResponse.json({ data: gradedRow }, { status: 201 });
+          if (gradedRow) {
+            // Trigger notification to student
+            queueService.queueNotification(effectiveUserId, 'email', {
+              subject: `Your assignment "${assignment.title || 'Assignment'}" has been graded`,
+              body: `Your submission has been automatically graded. Score: ${autoGrade}/${maxPts}. Check your dashboard for details.`
+            }).catch(console.error);
+            return NextResponse.json({ data: gradedRow }, { status: 201 });
+          }
         }
       } catch (autoErr) {
-        // Auto-grading failed — submission saved, teacher can grade manually
         console.error('[auto-grade] failed:', autoErr);
       }
+    } else if (gradingMode === 'ai_assisted' && answers && data) {
+      // AI-assisted: call AI grading endpoint, store suggestions, set status='pending_review'
+      try {
+        const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || '',
+          },
+          body: JSON.stringify({
+            type: 'cbt-grading',
+            questions,
+            studentAnswers: answers,
+          }),
+        });
+
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          if (aiData.success && aiData.data) {
+            const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
+            await admin
+              .from('assignment_submissions')
+              .update({
+                ai_suggested_grade: totalScore,
+                ai_suggested_feedback: aiData.data.feedback || '',
+                status: 'pending_review',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('assignment_id', assignment_id)
+              .eq('portal_user_id', effectiveUserId);
+          }
+        }
+      } catch (aiErr) {
+        console.error('[ai-assisted-grade] failed:', aiErr);
+      }
     }
+    // Manual mode: status remains 'submitted', teacher grades later
 
     if (!isStaff && assignment.created_by) {
-      queueService.queueNotification(assignment.created_by, 'whatsapp', {
+      queueService.queueNotification(assignment.created_by, 'email', {
+          subject: `New submission: ${assignment.title || 'Assignment'}`,
           body: `📚 A new submission was just received for your assignment "${assignment.title || 'Assignment'}". Log into the Rillcod dashboard to review and grade it.`
       }).catch(console.error);
     }

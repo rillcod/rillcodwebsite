@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // Check if it's a WhatsApp webhook payload
     if (body.object !== 'whatsapp_business_account') {
-      return NextResponse.json({ error: 'Ignore' }, { status: 404 });
+      return NextResponse.json({ error: 'Ignore' }, { status: 200 });
     }
 
     const admin = createAdminClient();
@@ -40,7 +40,20 @@ export async function POST(req: NextRequest) {
             const fromNumber = msg.from;
             const messageId = msg.id;
             const messageType = msg.type;
-            const textBody = msg.text?.body || '';
+            const textBody = msg.text?.body || msg.caption || '';
+            const mediaUrl = msg.image?.link || msg.video?.link || msg.document?.link || null;
+
+            // Skip if message already exists (duplicate webhook delivery)
+            const { data: existingMsg } = await (admin as any)
+              .from('whatsapp_messages')
+              .select('id')
+              .eq('meta_message_id', messageId)
+              .maybeSingle();
+
+            if (existingMsg) {
+              console.log(`Duplicate message ${messageId}, skipping`);
+              continue;
+            }
 
             // 1. Find or create the conversation
             let { data: conversation } = await (admin as any).from('whatsapp_conversations')
@@ -49,10 +62,18 @@ export async function POST(req: NextRequest) {
               .maybeSingle();
 
             if (!conversation) {
+              // Try to link to existing user by phone
+              const { data: existingUser } = await (admin as any)
+                .from('portal_users')
+                .select('id')
+                .eq('phone', fromNumber)
+                .maybeSingle();
+
               const { data: newConv } = await (admin as any).from('whatsapp_conversations')
                 .insert({
                   phone_number: fromNumber,
                   contact_name: contactName,
+                  portal_user_id: existingUser?.id || null,
                   last_message_at: new Date().toISOString(),
                   last_message_preview: textBody.substring(0, 50),
                   unread_count: 1
@@ -61,12 +82,14 @@ export async function POST(req: NextRequest) {
                 .single();
               conversation = newConv;
             } else {
+              // Update conversation
               await (admin as any).from('whatsapp_conversations')
                 .update({
                   last_message_at: new Date().toISOString(),
                   last_message_preview: textBody.substring(0, 50),
-                  unread_count: conversation.unread_count + 1
-                  // Optionally update contact_name if it was Unknown previously
+                  unread_count: (conversation.unread_count || 0) + 1,
+                  contact_name: contactName !== 'Unknown' ? contactName : conversation.contact_name,
+                  updated_at: new Date().toISOString()
                 })
                 .eq('id', conversation.id);
             }
@@ -79,20 +102,28 @@ export async function POST(req: NextRequest) {
                 meta_message_id: messageId,
                 message_type: messageType,
                 body: textBody,
+                media_url: mediaUrl,
                 status: 'received'
               });
 
-            // 3. (Optional) Auto-responder or Assignment Bot Logic
-            // You can trigger the NotificationService here if you want to immediately reply
+            // 3. (Optional) Auto-responder or notification to staff
+            // You can trigger notifications here if needed
           }
         }
 
         if (change.value.statuses) {
           // Status updates (delivered, read, failed)
           for (const status of change.value.statuses) {
-             await (admin as any).from('whatsapp_messages')
-               .update({ status: status.status })
-               .eq('meta_message_id', status.id);
+            const updateData: any = { status: status.status };
+            
+            // Add error details if message failed
+            if (status.status === 'failed' && status.errors) {
+              updateData.body = `[FAILED] ${status.errors[0]?.title || 'Unknown error'}`;
+            }
+
+            await (admin as any).from('whatsapp_messages')
+              .update(updateData)
+              .eq('meta_message_id', status.id);
           }
         }
       }
@@ -103,6 +134,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Still return 200 to prevent Meta from retrying
+    return NextResponse.json({ success: false, error: 'Internal error' }, { status: 200 });
   }
 }

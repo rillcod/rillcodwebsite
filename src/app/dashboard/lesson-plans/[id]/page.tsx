@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
-  PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon,
+  PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -64,6 +64,9 @@ export default function LessonPlanDetailPage() {
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
   const [weekDraft, setWeekDraft] = useState<WeekEntry | null>(null);
+  const [activeTab, setActiveTab] = useState<'weeks' | 'content'>('weeks');
+  const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | null>(null);
+  const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,6 +159,46 @@ export default function LessonPlanDetailPage() {
     saveWeeks(updated);
   }
 
+  async function bulkGenerate(type: 'lessons' | 'assignments' | 'projects') {
+    if (!plan || plan.status !== 'published') {
+      toast.error('Only published plans can generate content');
+      return;
+    }
+    setGenerating(type);
+    setGenProgress({ generated: 0, total: weeks.length, status: 'Starting...' });
+
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}/generate-${type}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Generation failed');
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No stream');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+        for (const line of lines) {
+          const data = JSON.parse(line.slice(6));
+          if (data.done) {
+            toast.success(`Generated ${data.generated} ${type}, skipped ${data.skipped}`);
+            setGenProgress(null);
+            setGenerating(null);
+            load();
+            return;
+          }
+          setGenProgress({ generated: data.generated, total: data.total, status: data.status });
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Generation failed');
+      setGenProgress(null);
+      setGenerating(null);
+    }
+  }
+
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -222,8 +265,33 @@ export default function LessonPlanDetailPage() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-white/[0.08] print:hidden">
+        <button
+          onClick={() => setActiveTab('weeks')}
+          className={`px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === 'weeks'
+              ? 'text-violet-400 border-b-2 border-violet-400'
+              : 'text-card-foreground/50 hover:text-card-foreground/70'
+          }`}
+        >
+          Week-by-Week Plan
+        </button>
+        <button
+          onClick={() => setActiveTab('content')}
+          className={`px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === 'content'
+              ? 'text-violet-400 border-b-2 border-violet-400'
+              : 'text-card-foreground/50 hover:text-card-foreground/70'
+          }`}
+        >
+          Content Dashboard
+        </button>
+      </div>
+
       {/* Week Entries */}
-      <div className="space-y-3">
+      {activeTab === 'weeks' && (
+        <div className="space-y-3">
         <div className="flex items-center justify-between print:hidden">
           <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
           <button onClick={addWeek} disabled={saving || editingWeek !== null}
@@ -315,6 +383,80 @@ export default function LessonPlanDetailPage() {
           </div>
         )}
       </div>
+      )}
+
+      {/* Content Dashboard Tab */}
+      {activeTab === 'content' && (
+        <div className="space-y-4">
+          {status === 'published' && (
+            <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
+              <h3 className="text-sm font-black text-card-foreground mb-3">Bulk Content Generation</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => bulkGenerate('lessons')}
+                  disabled={generating !== null}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                >
+                  <SparklesIcon className="w-4 h-4" /> Generate All Lessons
+                </button>
+                <button
+                  onClick={() => bulkGenerate('assignments')}
+                  disabled={generating !== null}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                >
+                  <SparklesIcon className="w-4 h-4" /> Generate All Assignments
+                </button>
+                <button
+                  onClick={() => bulkGenerate('projects')}
+                  disabled={generating !== null}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                >
+                  <SparklesIcon className="w-4 h-4" /> Generate All Projects
+                </button>
+              </div>
+              {genProgress && (
+                <div className="mt-3 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-card-foreground/70">
+                    <span>{genProgress.status}</span>
+                    <span>{genProgress.generated} / {genProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-violet-500 h-full transition-all duration-300"
+                      style={{ width: `${(genProgress.generated / genProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
+            <h3 className="text-sm font-black text-card-foreground mb-3">Content Overview</h3>
+            {weeks.length === 0 ? (
+              <p className="text-card-foreground/40 text-sm">No weeks defined yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {weeks.map(w => (
+                  <div key={w.week} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-black text-violet-400">Week {w.week}</span>
+                        <span className="text-sm text-card-foreground">{w.topic}</span>
+                      </div>
+                      <div className="flex gap-4 text-xs text-card-foreground/50">
+                        <span>Lessons: 0</span>
+                        <span>Assignments: 0</span>
+                        <span>Projects: 0</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

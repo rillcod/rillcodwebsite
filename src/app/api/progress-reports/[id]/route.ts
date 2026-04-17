@@ -87,9 +87,10 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // WhatsApp Alert if published
+  // Email Alert if published
   if (body.is_published && data?.student_id) {
-    queueService.queueNotification(data.student_id, 'whatsapp', {
+    queueService.queueNotification(data.student_id, 'email', {
+       subject: 'Progress Report Published',
        body: `Great news! Your Progress Report for ${data.course_name || 'your course'} has just been published by your instructor. Your overall score is ${data.overall_score !== null ? data.overall_score + '%' : 'available now'}. Check your dashboard for full details!`
     }).catch(console.error);
   }

@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -137,33 +112,42 @@ export type Database = {
       announcements: {
         Row: {
           author_id: string | null
+          class_id: string | null
           content: string
           created_at: string | null
+          expires_at: string | null
           id: string
           is_active: boolean | null
           school_id: string | null
+          status: string
           target_audience: string | null
           title: string
           updated_at: string | null
         }
         Insert: {
           author_id?: string | null
+          class_id?: string | null
           content: string
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           school_id?: string | null
+          status?: string
           target_audience?: string | null
           title: string
           updated_at?: string | null
         }
         Update: {
           author_id?: string | null
+          class_id?: string | null
           content?: string
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           school_id?: string | null
+          status?: string
           target_audience?: string | null
           title?: string
           updated_at?: string | null
@@ -182,6 +166,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "announcements_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "announcements_school_id_fkey"
@@ -3009,6 +3000,102 @@ export type Database = {
           {
             foreignKeyName: "identity_cards_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      instalment_items: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          plan_id: string
+          status: string
+          transaction_ref: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          plan_id: string
+          status?: string
+          transaction_ref?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          plan_id?: string
+          status?: string
+          transaction_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalment_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "instalment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instalment_plans: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          invoice_id: string
+          parent_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id: string
+          parent_id: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_id?: string
+          parent_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalment_plans_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalment_plans_parent_id_fkey"
+            columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
@@ -7554,9 +7641,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
