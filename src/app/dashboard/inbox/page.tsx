@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Search, Send, Phone, MoreVertical, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { Search, Send, Phone, MoreVertical, Check, CheckCheck, Loader2, X } from 'lucide-react';
 
 interface Conversation {
   id: string;
@@ -43,15 +43,25 @@ export default function WhatsAppInbox() {
         { event: '*', schema: 'public', table: 'whatsapp_messages' },
         (payload) => {
           fetchConversations(); // Update side panel
-          if (activeConv && (payload.new as Message).conversation_id === activeConv.id) {
-            setMessages(prev => [...prev, payload.new as Message]);
-          }
+          
+          // Check if this message belongs to the currently active conversation
+          const newMessage = payload.new as Message;
+          setActiveConv(current => {
+            if (current && newMessage.conversation_id === current.id) {
+              setMessages(prev => {
+                // Prevent duplicates from optimistic updates
+                if (prev.some(m => m.id === newMessage.id)) return prev;
+                return [...prev, newMessage];
+              });
+            }
+            return current;
+          });
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [activeConv]);
+  }, []); // Only run once on mount
 
   useEffect(() => {
     if (activeConv) fetchMessages(activeConv.id);
@@ -80,9 +90,12 @@ export default function WhatsAppInbox() {
     
     if (data) setMessages(data as any);
 
-    // Reset unread count locally (and in DB ideally)
-    await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', convId);
-    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c));
+    // Reset unread count if needed
+    const currentConv = conversations.find(c => c.id === convId);
+    if (currentConv && currentConv.unread_count > 0) {
+        await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', convId);
+        setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread_count: 0 } : c));
+    }
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -121,6 +134,20 @@ export default function WhatsAppInbox() {
 
   const WA_BACKGROUND = "bg-[#efeae2]"; // Official WhatsApp Web background color
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showSaveContact, setShowSaveContact] = useState(false);
+  const [contactToSave, setContactToSave] = useState<{ phone: string; name: string } | null>(null);
+  const [savingContact, setSavingContact] = useState(false);
+
+  // Quick response templates
+  const templates = [
+    { label: 'Welcome', text: 'Hello! Welcome to Rillcod Technologies. How can I assist you today?' },
+    { label: 'Assignment Help', text: 'I can help you with your assignment. Which topic are you working on?' },
+    { label: 'Payment Query', text: 'For payment inquiries, please check your invoice in the dashboard or contact our finance team.' },
+    { label: 'Technical Support', text: 'I understand you\'re having technical issues. Can you describe what\'s happening?' },
+    { label: 'Schedule Info', text: 'Our classes run Monday to Friday, 9 AM - 3 PM. Check your timetable in the dashboard for your specific schedule.' },
+    { label: 'Thank You', text: 'Thank you for reaching out! We\'re here to help anytime. Have a great day! 🎉' },
+  ];
 
   // Auto-hide sidebar on mobile when conversation is selected
   useEffect(() => {
@@ -128,6 +155,42 @@ export default function WhatsAppInbox() {
       setShowSidebar(false);
     }
   }, [activeConv]);
+
+  const handleSaveContact = async () => {
+    if (!contactToSave) return;
+    setSavingContact(true);
+    try {
+      // Save to students table as a prospective contact
+      const res = await fetch('/api/contacts/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: contactToSave.phone,
+          name: contactToSave.name,
+          source: 'whatsapp',
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert(`Contact saved: ${contactToSave.name}`);
+      setShowSaveContact(false);
+      setContactToSave(null);
+      fetchConversations(); // Refresh to show updated contact name
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to save contact');
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const openInWhatsApp = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  };
+
+  const useTemplate = (text: string) => {
+    setNewMessage(text);
+    setShowTemplates(false);
+  };
 
   return (
     <div className="flex h-[calc(100vh-100px)] overflow-hidden rounded-none md:rounded-2xl border-0 md:border border-gray-200 shadow-none md:shadow-xl bg-white max-w-7xl mx-auto my-0 md:my-6">
@@ -219,7 +282,32 @@ export default function WhatsAppInbox() {
                   <p className="text-xs text-gray-500 truncate">{activeConv.phone_number}</p>
                 </div>
               </div>
-              <div className="flex gap-3 md:gap-4 text-gray-500 shrink-0">
+              <div className="flex gap-2 md:gap-3 text-gray-500 shrink-0">
+                {/* Open in WhatsApp */}
+                <button
+                  onClick={() => openInWhatsApp(activeConv.phone_number)}
+                  className="p-2 hover:bg-emerald-500/10 rounded-lg transition-colors group"
+                  title="Open in WhatsApp"
+                >
+                  <svg className="w-5 h-5 group-hover:text-emerald-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                </button>
+                {/* Save Contact */}
+                {!activeConv.contact_name && (
+                  <button
+                    onClick={() => {
+                      setContactToSave({ phone: activeConv.phone_number, name: '' });
+                      setShowSaveContact(true);
+                    }}
+                    className="p-2 hover:bg-blue-500/10 rounded-lg transition-colors group"
+                    title="Save Contact"
+                  >
+                    <svg className="w-5 h-5 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                  </button>
+                )}
                 <Search className="w-5 h-5 cursor-pointer hover:text-gray-700" />
                 <Phone className="w-5 h-5 cursor-pointer hover:text-gray-700" />
               </div>
@@ -271,6 +359,18 @@ export default function WhatsAppInbox() {
             {/* Message Input Footer */}
             <div className="p-2 md:p-3 bg-[#f0f2f5] z-10 shrink-0">
               <form onSubmit={handleSend} className="flex items-end gap-2 max-w-4xl mx-auto">
+                {/* Quick Templates Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  className="p-2.5 hover:bg-gray-200 rounded-full transition-colors shrink-0"
+                  title="Quick responses"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </button>
+                
                 <textarea 
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
@@ -289,6 +389,27 @@ export default function WhatsAppInbox() {
                   {isSending ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Send className="w-4 h-4 md:w-5 md:h-5 ml-0.5 md:ml-1" />}
                 </button>
               </form>
+
+              {/* Quick Templates Dropdown */}
+              {showTemplates && (
+                <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-w-4xl mx-auto overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Quick Responses</p>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {templates.map((template, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => useTemplate(template.text)}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                      >
+                        <p className="text-xs font-bold text-emerald-600 mb-1">{template.label}</p>
+                        <p className="text-sm text-gray-700">{template.text}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -305,6 +426,57 @@ export default function WhatsAppInbox() {
           </div>
         )}
       </div>
+
+      {/* Save Contact Modal */}
+      {showSaveContact && contactToSave && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">Save Contact</h2>
+              <button onClick={() => setShowSaveContact(false)} className="text-gray-500 hover:text-gray-900 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block mb-1.5">Phone Number</label>
+                <input
+                  type="text"
+                  value={contactToSave.phone}
+                  disabled
+                  className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 text-sm text-gray-600 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block mb-1.5">Contact Name *</label>
+                <input
+                  type="text"
+                  value={contactToSave.name}
+                  onChange={e => setContactToSave({ ...contactToSave, name: e.target.value })}
+                  placeholder="Enter name..."
+                  className="w-full px-4 py-2.5 bg-white border border-gray-300 text-sm text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowSaveContact(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-[10px] font-black uppercase tracking-widest text-gray-600 hover:text-gray-900 rounded-lg transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveContact}
+                disabled={!contactToSave.name.trim() || savingContact}
+                className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+              >
+                {savingContact ? 'Saving...' : 'Save Contact'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
