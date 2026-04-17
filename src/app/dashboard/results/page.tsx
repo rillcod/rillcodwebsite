@@ -282,7 +282,7 @@ function ResultsPageInner() {
                     if (assignedSchoolIds.length > 0)
                         parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
                     assignedSchoolNames.forEach(n =>
-                        parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`)
+                        parts.push(`school_name.eq.${JSON.stringify(n)}`)
                     );
                     if (teacherClassIds.length > 0)
                         parts.push(`class_id.in.(${teacherClassIds.join(',')})`);

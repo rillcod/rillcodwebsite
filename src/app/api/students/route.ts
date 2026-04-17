@@ -192,7 +192,7 @@ export async function GET(request: Request) {
         const { data: schoolRow } = await supabase.from('schools').select('name').eq('id', caller.school_id).maybeSingle();
         if (schoolRow?.name && !schoolNames.includes(schoolRow.name)) schoolNames.push(schoolRow.name);
         const parts: string[] = [`school_id.eq.${caller.school_id}`];
-        schoolNames.forEach(n => parts.push(`school_name.eq."${n}"`));
+        schoolNames.forEach(n => parts.push(`school_name.eq.${JSON.stringify(n)}`));
         query = query.or(parts.join(',')) as any;
       } else if (caller.school_name) {
         query = query.eq('school_name', caller.school_name) as any;
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
         // Build OR filter: school_id in list OR school_name in list
         const parts: string[] = [`school_id.in.(${schoolIds.join(',')})`];
         if (schoolNames.length > 0) {
-          schoolNames.forEach(n => parts.push(`school_name.eq."${n}"`));
+          schoolNames.forEach(n => parts.push(`school_name.eq.${JSON.stringify(n)}`));
         }
         query = query.or(parts.join(',')) as any;
       } else {

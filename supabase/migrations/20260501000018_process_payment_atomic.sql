@@ -57,7 +57,27 @@ begin
   end if;
 
   -- ----------------------------------------------------------------
-  -- 2. insert payment transaction
+  -- 2. validate payment amount matches invoice
+  -- ----------------------------------------------------------------
+  declare
+    v_invoice_amount numeric;
+  begin
+    select amount into v_invoice_amount
+      from public.invoices
+     where id = p_invoice_id;
+    
+    if not found then
+      raise exception 'Invoice % not found', p_invoice_id;
+    end if;
+    
+    if p_amount < v_invoice_amount then
+      raise exception 'Payment amount (%) is less than invoice amount (%)', 
+        p_amount, v_invoice_amount;
+    end if;
+  end;
+
+  -- ----------------------------------------------------------------
+  -- 3. insert payment transaction
   -- ----------------------------------------------------------------
   insert into public.payment_transactions (
     transaction_reference,
@@ -76,7 +96,7 @@ begin
   returning id into v_transaction_id;
 
   -- ----------------------------------------------------------------
-  -- 3. update invoice status
+  -- 4. update invoice status
   --    if the invoice row does not exist (0 rows updated) raise an
   --    exception so postgres rolls back the insert above
   -- ----------------------------------------------------------------
@@ -95,7 +115,7 @@ begin
   end if;
 
   -- ----------------------------------------------------------------
-  -- 4. success
+  -- 5. success
   -- ----------------------------------------------------------------
   return jsonb_build_object(
     'status',         'processed',
