@@ -173,7 +173,7 @@ export default function WhatsAppInbox() {
           schools (name),
           student_classes (class_id, classes (name))
         `)
-        .eq('status', 'active');
+        .eq('is_active', true);
 
       if (filterSchool) query = query.eq('school_id', filterSchool);
       if (studentSearch) query = query.ilike('full_name', `%${studentSearch}%`);
@@ -642,8 +642,10 @@ export default function WhatsAppInbox() {
                 <p className="text-sm text-gray-400">Filtering student records...</p>
               </div>
             ) : students.length === 0 ? (
-              <div className="text-center p-12">
-                <p className="text-sm text-gray-500">No students found matching filters.</p>
+              <div className="flex flex-col items-center justify-center p-12 gap-3 text-center">
+                <Search className="w-12 h-12 text-gray-300" />
+                <p className="text-sm text-gray-500 font-semibold">No students found</p>
+                <p className="text-xs text-gray-400">Try adjusting your filters or search term</p>
               </div>
             ) : (
               <div className="space-y-1">
