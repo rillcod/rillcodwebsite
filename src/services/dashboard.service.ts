@@ -278,28 +278,57 @@ export async function fetchLessons(opts: { teacherId?: string; portalUserId?: st
 
 // ── ANALYTICS ─────────────────────────────────────────────────
 export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolName?: string } = {}) {
-    // 1. Total Students from registration applications (comprehensive count)
-    let studAppsQ = db().from('students').select('id', { count: 'exact', head: true });
+    const supabase = db();
 
-    // 2. Portal users (active/teachers)
+    // 1. If scoped to a school, use optimized RPC
+    if (opts.schoolId) {
+        const { data, error } = await supabase.rpc('get_school_dashboard_stats', {
+            school_uuid: opts.schoolId,
+            school_name_param: opts.schoolName || ''
+        });
+
+        if (error) throw error;
+        const stats = data as any;
+
+        return {
+            totalStudents: stats.total_students,
+            activeStudents: stats.portal_students,
+            totalTeachers: stats.assigned_teachers,
+            totalPrograms: 0, // Not explicitly in school stats RPC yet
+            avgProgress: stats.avg_performance || 0,
+        };
+    }
+
+    // 2. If global admin, use optimized Materialized View
+    const { data, error } = await supabase
+        .from('admin_dashboard_stats')
+        .select('*')
+        .single();
+
+    if (!error && data) {
+        return {
+            totalStudents: data.total_students || 0,
+            activeStudents: data.total_students || 0,
+            totalTeachers: data.total_teachers || 0,
+            totalPrograms: 0, // Placeholder
+            avgProgress: 0, // Placeholder
+        };
+    }
+
+    // 3. Fallback to original logic if view fails or name-based filter is used without ID
+    let studAppsQ = db().from('students').select('id', { count: 'exact', head: true });
     let studentPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student');
     let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
     let programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
 
-    // 3. Submissions (grades) for average progress — 2-step to avoid FK ambiguity
     const subsQ = db().from('assignment_submissions')
         .select('grade, portal_user_id, user_id').eq('status', 'graded').not('grade', 'is', null).limit(500);
 
-    if (opts.schoolId || opts.schoolName) {
-        const filters = [];
-        if (opts.schoolId) filters.push(`school_id.eq.${opts.schoolId}`);
-        if (opts.schoolName) filters.push(`school_name.eq.${JSON.stringify(opts.schoolName)}`);
-        
-        const filterStr = filters.join(',');
+    if (opts.schoolName && !opts.schoolId) {
+        const filterStr = `school_name.eq.${JSON.stringify(opts.schoolName)}`;
         studAppsQ = (studAppsQ as any).or(filterStr);
         studentPortalQ = (studentPortalQ as any).or(filterStr);
         teacherPortalQ = (teacherPortalQ as any).or(filterStr);
-        // subsQ school filter is applied post-fetch below
     }
 
     const [apps, students, teachers, programs, subs] = await Promise.allSettled([
@@ -316,18 +345,6 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     const programCount = programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0;
 
     let subsData = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
-
-    // Filter by school post-fetch
-    if ((opts.schoolId || opts.schoolName) && subsData.length > 0) {
-        const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-        const { data: users } = await db().from('portal_users').select('id, school_id, school_name').in('id', uids);
-        const umap: Record<string, any> = {};
-        (users ?? []).forEach((u: any) => { umap[u.id] = u; });
-        subsData = subsData.filter((s: any) => {
-            const u = umap[s.portal_user_id ?? s.user_id];
-            return u?.school_id === opts.schoolId || u?.school_name === opts.schoolName;
-        });
-    }
 
     const grades = subsData.map((s: any) => s.grade).filter((g: any) => g != null);
     const avgProgress = grades.length
@@ -376,7 +393,7 @@ export async function fetchTeachers(opts: { schoolId?: string; schoolName?: stri
     if (opts.schoolId || opts.schoolName) {
         let filter = '';
         if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq.${JSON.stringify(opts.schoolName)}`;
         q = (q as any).or(filter);
     }
 
@@ -395,7 +412,7 @@ export async function fetchStudents(opts: { schoolId?: string; schoolName?: stri
     if (opts.schoolId || opts.schoolName) {
         let filter = '';
         if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq.${JSON.stringify(opts.schoolName)}`;
         q = (q as any).or(filter);
     }
 

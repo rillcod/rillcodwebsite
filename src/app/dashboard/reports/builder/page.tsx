@@ -376,7 +376,7 @@ function ReportBuilderInner() {
             const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
             const idPart = schoolIds.length > 0 ? `school_id.in.(${schoolIds.join(',')})` : '';
             const namePart = schoolNames.length > 0
-                ? schoolNames.map(n => `school_name.eq."${n}"`).join(',')
+                ? schoolNames.map(n => `school_name.eq.${JSON.stringify(n)}`).join(',')
                 : '';
             const orParts = [idPart, namePart].filter(Boolean);
 

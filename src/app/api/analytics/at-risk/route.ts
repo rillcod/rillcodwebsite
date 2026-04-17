@@ -36,12 +36,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Use the optimized RPC function
-    // Note: Using type assertion because types haven't been regenerated yet
-    const { data, error } = await (supabase.rpc as any)(
-      'get_at_risk_students_optimized',
+    const { data, error } = await supabase.rpc(
+      'get_at_risk_students',
       {
         p_school_id: schoolId,
-        p_threshold: threshold,
+        p_class_id: classId || null,
       }
     );
 
