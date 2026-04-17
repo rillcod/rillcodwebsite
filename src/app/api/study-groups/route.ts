@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!profile || profile.role !== 'student') {
-    return NextResponse.json({ error: 'Only students can create study groups' }, { status: 403 });
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Only teachers and administrators can create study groups' }, { status: 403 });
   }
 
   const { name, course_id } = await req.json();

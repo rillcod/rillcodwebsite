@@ -205,7 +205,7 @@ export async function DELETE(
   // Clear class_id and section_class on all students in this class before deleting
   await admin
     .from('portal_users')
-    .update({ class_id: null, section_class: null } as any)
+    .update({ class_id: null, section_class: null })
     .eq('class_id', id)
     .eq('role', 'student');
 

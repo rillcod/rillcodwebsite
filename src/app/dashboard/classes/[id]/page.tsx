@@ -64,6 +64,8 @@ export default function ClassDetailPage() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ text: '', mediaUrl: '' });
   const [broadcasting, setBroadcasting] = useState(false);
+  const [reachableStudents, setReachableStudents] = useState<any[]>([]);
+  const [loadingReachable, setLoadingReachable] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isSchool = profile?.role === 'school';
@@ -97,45 +99,57 @@ export default function ClassDetailPage() {
       }
       setEnrollments(studentsRes.students ?? []);
 
-      const [lessonRes, asgnRes, cbtRes] = await Promise.all([
-        supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id!),
-        supabase.from('assignments').select('id, title, assignment_type, due_date, course_id, courses!inner(program_id)').eq('courses.program_id', program_id!),
-        supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id!)
-      ]);
+      // Only fetch program-related data if program_id exists
+      if (program_id) {
+        const [lessonRes, asgnRes, cbtRes] = await Promise.all([
+          supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
+          supabase.from('assignments').select('id, title, assignment_type, due_date, course_id, courses!inner(program_id)').eq('courses.program_id', program_id),
+          supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id)
+        ]);
 
-      const assignments = asgnRes.data ?? [];
-      const assignmentIds = assignments.map(a => a.id);
-      const cbtExams = cbtRes.data ?? [];
-      const cbtIds = cbtExams.map(e => e.id);
+        const assignments = asgnRes.data ?? [];
+        const assignmentIds = assignments.map(a => a.id);
+        const cbtExams = cbtRes.data ?? [];
+        const cbtIds = cbtExams.map(e => e.id);
 
-      let submissions: any[] = [];
-      let cbtSessions: any[] = [];
+        let submissions: any[] = [];
+        let cbtSessions: any[] = [];
 
-      const subQueries: any[] = [];
-      if (assignmentIds.length > 0) {
-        subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status').in('assignment_id', assignmentIds));
+        const subQueries: any[] = [];
+        if (assignmentIds.length > 0) {
+          subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status').in('assignment_id', assignmentIds));
+        }
+        if (cbtIds.length > 0) {
+          subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
+        }
+
+        const subResults = await Promise.all(subQueries);
+        let resIdx = 0;
+        if (assignmentIds.length > 0) {
+          submissions = subResults[resIdx]?.data ?? [];
+          resIdx++;
+        }
+        if (cbtIds.length > 0) {
+          cbtSessions = subResults[resIdx]?.data ?? [];
+        }
+
+        setItems({
+          lessons: lessonRes.data ?? [],
+          assignments: assignments,
+          cbt: cbtExams,
+          submissions,
+          cbtSessions
+        });
+      } else {
+        // No program_id, set empty items
+        setItems({
+          lessons: [],
+          assignments: [],
+          cbt: [],
+          submissions: [],
+          cbtSessions: []
+        });
       }
-      if (cbtIds.length > 0) {
-        subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
-      }
-
-      const subResults = await Promise.all(subQueries);
-      let resIdx = 0;
-      if (assignmentIds.length > 0) {
-        submissions = subResults[resIdx]?.data ?? [];
-        resIdx++;
-      }
-      if (cbtIds.length > 0) {
-        cbtSessions = subResults[resIdx]?.data ?? [];
-      }
-
-      setItems({
-        lessons: lessonRes.data ?? [],
-        assignments: assignments,
-        cbt: cbtExams,
-        submissions,
-        cbtSessions
-      });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -323,6 +337,42 @@ export default function ClassDetailPage() {
     }
   };
 
+  const loadReachableStudents = async () => {
+    if (!id) return;
+    setLoadingReachable(true);
+    try {
+      // Get students with phone number information
+      const supabase = createClient();
+      const { data: students } = await supabase
+        .from('portal_users')
+        .select(`
+          id, 
+          full_name, 
+          email, 
+          phone,
+          student_id,
+          students(parent_phone, parent_name, phone)
+        `)
+        .eq('class_id', id)
+        .eq('role', 'student');
+
+      if (students) {
+        // Filter students who have reachable phone numbers
+        const reachable = students.filter(student => {
+          const studentPhone = student.phone || student.students?.phone;
+          const parentPhone = student.students?.parent_phone;
+          return studentPhone || parentPhone;
+        });
+        setReachableStudents(reachable);
+      }
+    } catch (error) {
+      console.error('Error loading reachable students:', error);
+      setReachableStudents([]);
+    } finally {
+      setLoadingReachable(false);
+    }
+  };
+
   const handleBroadcast = async () => {
     if (!broadcastForm.text.trim()) return;
     setBroadcasting(true);
@@ -334,9 +384,14 @@ export default function ClassDetailPage() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to broadcast');
-        alert(`WhatsApp Broadcast sent successfully to ${json.queued} students in the background!`);
+        
+        // Show detailed success message with actual counts
+        const message = json.message || `WhatsApp broadcast sent to ${json.messages_sent || json.queued} students`;
+        alert(message);
+        
         setShowBroadcastModal(false);
         setBroadcastForm({ text: '', mediaUrl: '' });
+        setReachableStudents([]);
     } catch (err: any) {
         alert(err.message);
     } finally {
@@ -601,7 +656,10 @@ export default function ClassDetailPage() {
           {isStaff && (
             <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
               <button 
-                onClick={() => setShowBroadcastModal(true)}
+                onClick={() => {
+                  setShowBroadcastModal(true);
+                  loadReachableStudents();
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm rounded-none transition-colors shadow-lg">
                 Broadcast (WhatsApp)
               </button>
@@ -1655,15 +1713,40 @@ export default function ClassDetailPage() {
       {/* WhatsApp Broadcast Modal */}
       {showBroadcastModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !broadcasting && setShowBroadcastModal(false)} />
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => {
+            if (!broadcasting) {
+              setShowBroadcastModal(false);
+              setReachableStudents([]);
+              setBroadcastForm({ text: '', mediaUrl: '' });
+            }
+          }} />
           <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-none shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-[#25D366]/20 bg-[#25D366]/5">
               <h3 className="text-base font-bold text-[#25D366] flex items-center gap-2">
                 WhatsApp Class Broadcast
               </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Send a 1-to-1 WhatsApp message to all {enrollments.length} enrolled students.
-              </p>
+              {loadingReachable ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <ArrowPathIcon className="w-3 h-3 animate-spin text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Checking reachable students...</p>
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <p className="text-xs text-muted-foreground">
+                    {reachableStudents.length} of {enrollments.length} students have phone numbers available
+                  </p>
+                  {reachableStudents.length === 0 && (
+                    <p className="text-xs text-rose-400 mt-1">
+                      ⚠️ No students have phone numbers. Add parent/student phone numbers to enable WhatsApp broadcast.
+                    </p>
+                  )}
+                  {reachableStudents.length < enrollments.length && reachableStudents.length > 0 && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      ⚠️ {enrollments.length - reachableStudents.length} students will not receive the message (no phone numbers)
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="p-6 space-y-4">
               <div>
@@ -1676,20 +1759,81 @@ export default function ClassDetailPage() {
                   placeholder="e.g. Hello class! Remember to submit your biology assignments by 5 PM tomorrow..."
                 />
               </div>
+              
+              {!loadingReachable && reachableStudents.length > 0 && (
+                <div className="border border-border rounded-none p-3 bg-muted/30">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                    Reachable Students ({reachableStudents.length})
+                  </p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {reachableStudents.map((student: any) => {
+                      const hasParentPhone = student.students?.parent_phone;
+                      const hasStudentPhone = student.phone || student.students?.phone;
+                      return (
+                        <div key={student.id} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground">{student.full_name}</span>
+                          <span className="text-muted-foreground">
+                            {hasParentPhone ? '📱 Parent' : hasStudentPhone ? '📱 Student' : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {!loadingReachable && enrollments.length > reachableStudents.length && (
+                <div className="border border-amber-500/20 rounded-none p-3 bg-amber-500/5">
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+                    Unreachable Students ({enrollments.length - reachableStudents.length})
+                  </p>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {enrollments
+                      .filter((enr: any) => !reachableStudents.some((r: any) => r.id === enr.id))
+                      .map((student: any) => (
+                        <div key={student.id} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground">{student.full_name}</span>
+                          <span className="text-amber-400">📵 No phone</span>
+                        </div>
+                      ))}
+                  </div>
+                  <p className="text-xs text-amber-400 mt-2">
+                    💡 Add phone numbers in student profiles to include them
+                  </p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-border flex gap-3">
               <button 
-                onClick={() => setShowBroadcastModal(false)} 
+                onClick={() => {
+                  setShowBroadcastModal(false);
+                  setReachableStudents([]);
+                  setBroadcastForm({ text: '', mediaUrl: '' });
+                }} 
                 disabled={broadcasting}
                 className="flex-1 py-2.5 bg-card hover:bg-muted text-muted-foreground font-bold text-sm rounded-none border border-border">
                 Cancel
               </button>
               <button
                 onClick={handleBroadcast}
-                disabled={broadcasting || !broadcastForm.text.trim()}
+                disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0}
                 className="flex-[2] py-2.5 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-bold text-sm rounded-none shadow-lg flex items-center justify-center gap-2"
               >
-                {broadcasting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <span>Send to {enrollments.length} Students</span>}
+                {broadcasting ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : loadingReachable ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : reachableStudents.length === 0 ? (
+                  'No Reachable Students'
+                ) : (
+                  `Send to ${reachableStudents.length} Student${reachableStudents.length !== 1 ? 's' : ''}`
+                )}
               </button>
             </div>
           </div>

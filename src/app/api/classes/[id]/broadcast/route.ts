@@ -71,32 +71,98 @@ export async function POST(
           return NextResponse.json({ error: 'Message text is required' }, { status: 400 });
       }
     
-      // Find all students enrolled in the class
+      // Find all students enrolled in the class with their phone numbers
       const { data: students } = await admin
         .from('portal_users')
-        .select('id')
+        .select(`
+          id, 
+          full_name, 
+          email, 
+          phone,
+          student_id,
+          students(parent_phone, parent_name, phone)
+        `)
         .eq('class_id', classId)
         .eq('role', 'student');
     
       if (!students || students.length === 0) {
           return NextResponse.json({ error: 'No students enrolled in this class' }, { status: 400 });
       }
+
+      // Filter students who have reachable phone numbers (student phone OR parent phone)
+      const reachableStudents = students.filter(student => {
+        const studentPhone = student.phone || student.students?.phone;
+        const parentPhone = student.students?.parent_phone;
+        return studentPhone || parentPhone;
+      });
+
+      if (reachableStudents.length === 0) {
+          return NextResponse.json({ 
+            error: 'No students have phone numbers available for WhatsApp broadcast',
+            total_students: students.length,
+            reachable_students: 0
+          }, { status: 400 });
+      }
     
       const prefixName = caller.full_name ? caller.full_name.split(' ')[0] : 'Teacher';
       const formattedMessage = `*[Rillcod: ${cls.name}]*\n_${prefixName} says:_ \n\n${body.text}`;
     
-      // Queue email broadcast
-      let queuedCount = 0;
-      for (const student of students) {
-          await queueService.queueNotification(student.id, 'email', {
-              subject: `Update: ${cls.name}`,
-              body: formattedMessage,
-              mediaUrl: body.mediaUrl || undefined // Optional attachment support
-          }).catch(console.error);
-          queuedCount++;
+      // Send WhatsApp messages to reachable students
+      let successCount = 0;
+      let failureCount = 0;
+      
+      for (const student of reachableStudents) {
+        try {
+          // Prefer parent phone, fallback to student phone
+          const targetPhone = student.students?.parent_phone || student.phone || student.students?.phone;
+          const recipientName = student.students?.parent_name || student.full_name;
+          
+          if (!targetPhone) continue;
+
+          // Send WhatsApp message
+          const whatsappApiUrl = process.env.WHATSAPP_API_URL;
+          const whatsappToken = process.env.WHATSAPP_API_TOKEN;
+          
+          if (!whatsappApiUrl || !whatsappToken) {
+            console.error('WhatsApp API credentials not configured');
+            failureCount++;
+            continue;
+          }
+
+          const whatsappRes = await fetch(whatsappApiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${whatsappToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: targetPhone.replace(/^\+/, ''), // Remove + prefix if present
+              type: 'text',
+              text: { body: formattedMessage }
+            })
+          });
+
+          if (whatsappRes.ok) {
+            successCount++;
+          } else {
+            failureCount++;
+            console.error(`Failed to send WhatsApp to ${targetPhone}:`, await whatsappRes.text());
+          }
+        } catch (error) {
+          failureCount++;
+          console.error(`Error sending WhatsApp to student ${student.id}:`, error);
+        }
       }
     
-      return NextResponse.json({ success: true, queued: queuedCount });
+      return NextResponse.json({ 
+        success: true, 
+        total_students: students.length,
+        reachable_students: reachableStudents.length,
+        messages_sent: successCount,
+        failures: failureCount,
+        message: `WhatsApp broadcast sent to ${successCount} out of ${reachableStudents.length} reachable students (${students.length} total enrolled)`
+      });
   } catch (err: any) {
       console.error('Broadcast error:', err);
       return NextResponse.json({ error: err.message }, { status: 500 });

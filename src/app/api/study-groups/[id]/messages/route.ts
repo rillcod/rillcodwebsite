@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const cursor = url.searchParams.get('cursor');
   let query = supabase
     .from('study_group_messages')
-    .select('*, portal_users!sender_id(full_name, avatar_url)')
+    .select('*, portal_users!sender_id(full_name, avatar_url, role)')
     .eq('group_id', id)
     .order('created_at', { ascending: false })
     .limit(30);
@@ -33,10 +33,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
-  if (profile?.role === 'teacher' || profile?.role === 'school') {
-    return NextResponse.json({ error: 'Teachers have read-only access to study groups' }, { status: 403 });
-  }
 
   const { content } = await req.json();
   if (!content?.trim()) return NextResponse.json({ error: 'Message content is required', field: 'content' }, { status: 400 });
