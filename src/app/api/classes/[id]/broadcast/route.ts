@@ -120,16 +120,17 @@ export async function POST(
           
           if (!targetPhone) continue;
 
-          // Send WhatsApp message
-          const whatsappApiUrl = process.env.WHATSAPP_API_URL;
+          // Send WhatsApp message using Meta WhatsApp Business API
+          const phoneId = process.env.WHATSAPP_PHONE_ID || '1165370629985726';
           const whatsappToken = process.env.WHATSAPP_API_TOKEN;
           
-          if (!whatsappApiUrl || !whatsappToken) {
-            console.error('WhatsApp API credentials not configured');
+          if (!whatsappToken) {
+            console.error('WhatsApp API token not configured');
             failureCount++;
             continue;
           }
 
+          const whatsappApiUrl = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
           const whatsappRes = await fetch(whatsappApiUrl, {
             method: 'POST',
             headers: {
