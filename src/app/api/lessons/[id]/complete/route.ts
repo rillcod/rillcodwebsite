@@ -27,15 +27,33 @@ export async function POST(
       return NextResponse.json({ error: 'Only students can mark lessons complete' }, { status: 403 });
     }
 
-    // Check if lesson exists
+    // 1. Validate inputs
+    const minutes = Math.max(0, Number(timeSpentMinutes) || 0);
+    const progress = Math.min(100, Math.max(0, Number(progressPercentage) || 0));
+
+    // 2. Check if lesson exists and get course context
     const { data: lesson, error: lessonError } = await supabase
       .from('lessons')
-      .select('id, title, course_id')
+      .select('id, title, course_id, courses!course_id(program_id)')
       .eq('id', lessonId)
       .single();
 
     if (lessonError || !lesson) {
       return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
+
+    const programId = (lesson as any).courses?.program_id;
+
+    // 3. Verify enrollment
+    const { data: enrollment } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('program_id', programId)
+      .maybeSingle();
+
+    if (!enrollment) {
+      return NextResponse.json({ error: 'You are not enrolled in this program' }, { status: 403 });
     }
 
     // Check if already completed
@@ -60,8 +78,8 @@ export async function POST(
         .from('lesson_progress')
         .update({
           completed_at: now,
-          progress_percentage: progressPercentage || 100,
-          time_spent_minutes: timeSpentMinutes || 0,
+          progress_percentage: progress || 100,
+          time_spent_minutes: minutes,
           updated_at: now,
         })
         .eq('id', existing.id);
@@ -74,8 +92,8 @@ export async function POST(
           lesson_id: lessonId,
           course_id: lesson.course_id,
           completed_at: now,
-          progress_percentage: progressPercentage || 100,
-          time_spent_minutes: timeSpentMinutes || 0,
+          progress_percentage: progress || 100,
+          time_spent_minutes: minutes,
         });
       if (insertError) throw insertError;
     }
