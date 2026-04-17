@@ -337,3 +337,275 @@ The platform is multi-tenant — multiple partner schools share the same databas
 ---
 
 *This document is maintained by Rillcod Technologies. Code-level enforcement takes precedence over this document in the event of conflict.*
+
+
+---
+
+## 12. Cron Jobs & Automation Policies
+
+### 12.1 Billing Reminders
+- **Schedule**: Daily at 7:00 AM UTC (8:00 AM WAT)
+- **Trigger**: Weeks 6, 7, 8 of term start date
+- **Channels**: Email, WhatsApp, In-app notification
+- **Recipients**: School billing contact or school email
+- **Auto-rollover**: Paid cycles automatically create next term cycle
+
+### 12.2 Invoice Reminders
+- **Schedule**: Daily at 8:00 AM UTC (9:00 AM WAT)
+- **Three-stage system**:
+  1. Reminder 1: N days after invoice created
+  2. Reminder 2: N days before due date
+  3. Reminder 3: N days after due date (marks as overdue)
+- **Configurable**: Via `system_settings` table (`billing_automation_config`)
+- **Channels**: Email and in-app notification
+
+### 12.3 Live Session Reminders
+- **Schedule**: Every 15 minutes
+- **Purpose**: Reminds students of upcoming live sessions
+- **Service**: Uses `liveSessionService`
+
+### 12.4 Notification Queue Processing
+- **Schedule**: Every 5 minutes
+- **Batch size**: 10 notifications per run
+- **Retry logic**: Max 3 attempts with exponential backoff
+- **Supported**: Email notifications only
+
+### 12.5 Streak Reminders
+- **Schedule**: Daily at 5:00 PM UTC (6:00 PM WAT)
+- **Target**: Students with `streak_reminder` preference enabled
+- **Checks**: No activity today (lessons, flashcards, CBT)
+- **Timezone**: WAT (UTC+1)
+
+### 12.6 Term Scheduler
+- **Schedule**: Mondays at 5:00 AM UTC (6:00 AM WAT)
+- **Purpose**: Auto-releases weekly lessons and assignments
+- **Action**: Publishes draft content, increments `current_week`
+
+### 12.7 Weekly Summary
+- **Schedule**: Fridays at 5:00 PM UTC (6:00 PM WAT)
+- **Target**: Parents with `weekly_summary` preference enabled
+- **Content**: Student activity (lessons, assignments, attendance, XP)
+
+### 12.8 Certificate Processing
+- **Trigger**: Manual POST request
+- **Purpose**: Generates PDFs for newly issued certificates
+- **Service**: Uses `certificateService`
+
+---
+
+## 13. Edge Functions & Webhooks
+
+### 13.1 Paystack Webhook
+- **Endpoint**: `https://[project].supabase.co/functions/v1/paystack-webhook`
+- **Security**: HMAC SHA-512 signature verification
+- **Events**: `charge.success`
+- **Actions**:
+  - Updates `payment_transactions` status to `completed`
+  - Updates `invoices` status to `paid`
+  - Updates student registration status if applicable
+  - Triggers receipt generation callback
+- **Modes**:
+  - Forwarding mode: Forwards to Next.js API route
+  - Inline mode: Processes directly in edge function
+- **Idempotency**: Prevents duplicate processing
+
+---
+
+## 14. Performance & Optimization Policies
+
+### 14.1 Dashboard Performance
+- **Target load time**: < 1.5 seconds
+- **Caching**: 30-second client-side cache
+- **Auto-refresh**: 60 seconds for teachers and admins
+- **Database queries**: 2-3 queries (down from 10+)
+- **Loading states**: Skeleton screens during data fetch
+
+### 14.2 Database Query Optimization
+- **Indexes**: 80+ indexes on foreign keys and common query patterns
+- **RPC functions**: Optimized with CTEs and set-based operations
+- **At-risk detection**: Single query for 1000+ students (was N queries)
+- **Materialized views**: Admin dashboard stats pre-aggregated
+
+### 14.3 API Response Caching
+- **Cache TTL options**:
+  - ONE_MINUTE: 60s
+  - FIVE_MINUTES: 300s
+  - THIRTY_MINUTES: 1800s
+  - ONE_HOUR: 3600s
+- **Implementation**: In-memory cache with automatic cleanup
+- **Usage**: Frequently accessed data (stats, activity feeds)
+
+### 14.4 Pagination
+- **Default page size**: 20 items
+- **Maximum page size**: 100 items
+- **Strategies**:
+  - Offset-based: Traditional page numbers
+  - Cursor-based: Better for large datasets
+- **Enforcement**: All list endpoints must implement pagination
+
+### 14.5 Image Optimization
+- **Max width**: 1200px
+- **Quality**: 75%
+- **Format**: JPEG (auto-converted)
+- **Max file size**: 10MB
+- **Compression**: Automatic before upload
+
+---
+
+## 15. Security Policies
+
+### 15.1 SQL Injection Prevention
+- **Rule**: Never use string interpolation in queries
+- **Enforcement**: All queries use `JSON.stringify()` for escaping
+- **Verified**: 7 SQL injection vulnerabilities fixed
+- **Pattern**: `school_name.eq.${JSON.stringify(name)}`
+
+### 15.2 Authentication & Authorization
+- **Session management**: Supabase JWT tokens
+- **Token expiry**: 3600 seconds (1 hour)
+- **Refresh tokens**: Enabled with 10-second reuse interval
+- **Race condition prevention**: Promise-based lock for concurrent 401s
+
+### 15.3 Cron Job Security
+- **Authentication**: Secret-based (CRON_SECRET, BILLING_CRON_SECRET)
+- **Header validation**: `x-cron-secret` or `Authorization: Bearer`
+- **Secret length**: Minimum 32 characters
+- **Rotation**: Recommended every 90 days
+
+### 15.4 Webhook Security
+- **Paystack**: HMAC SHA-512 signature verification
+- **Timing-safe comparison**: Prevents timing attacks
+- **CORS**: Configured for webhook sources only
+- **Idempotency**: Duplicate event detection
+
+### 15.5 RPC Function Security
+- **SECURITY DEFINER**: All sensitive functions
+- **Permission grants**: Explicit GRANT EXECUTE statements
+- **Service role only**: Payment processing functions
+- **Authenticated users**: Dashboard and analytics functions
+
+---
+
+## 16. Data Retention & Cleanup Policies
+
+### 16.1 Notification Queue
+- **Retention**: Failed jobs kept for 7 days
+- **Cleanup**: Automatic after successful delivery
+- **Max retries**: 3 attempts with exponential backoff
+
+### 16.2 Activity Logs
+- **Retention**: 90 days for standard logs
+- **Archival**: Critical logs retained indefinitely
+- **Cleanup**: Automated monthly cleanup job
+
+### 16.3 Session Data
+- **Retention**: Active sessions only
+- **Cleanup**: Automatic on logout or expiry
+- **Refresh tokens**: Rotated on each use
+
+### 16.4 Billing Cycles
+- **Retention**: All cycles retained indefinitely
+- **Status transitions**: `due` → `paid` → `rolled_over`
+- **Deletion**: Only `cancelled` and `rolled_over` cycles (admin only)
+
+---
+
+## 17. Monitoring & Observability Policies
+
+### 17.1 Error Tracking
+- **Recommended**: Sentry or similar APM tool
+- **Coverage**: All API routes and cron jobs
+- **Alerting**: Critical errors trigger immediate notification
+
+### 17.2 Performance Monitoring
+- **Metrics tracked**:
+  - API response times
+  - Database query performance
+  - Cron job execution time
+  - Webhook processing time
+- **Thresholds**:
+  - API: < 200ms for most endpoints
+  - Dashboard: < 1.5s load time
+  - Webhooks: < 100ms processing
+
+### 17.3 Uptime Monitoring
+- **External monitoring**: Recommended for production
+- **Health checks**: `/api/health` endpoint
+- **Status page**: Public status dashboard
+
+### 17.4 Log Aggregation
+- **Platforms**: CloudWatch, Datadog, or similar
+- **Retention**: 30 days for standard logs
+- **Search**: Full-text search enabled
+
+---
+
+## 18. Compliance & Privacy Policies
+
+### 18.1 Data Privacy
+- **PII handling**: Encrypted at rest and in transit
+- **Access control**: Role-based with audit logging
+- **Data export**: Students can request their data
+- **Data deletion**: Soft deletes with 30-day grace period
+
+### 18.2 GDPR Compliance
+- **Right to access**: API endpoint for data export
+- **Right to erasure**: Soft delete with permanent deletion after 30 days
+- **Data portability**: JSON export format
+- **Consent management**: Tracked in `consent_forms` table
+
+### 18.3 Payment Data Security
+- **PCI compliance**: Paystack handles card data (PCI DSS Level 1)
+- **No card storage**: Platform never stores card details
+- **Transaction logs**: Encrypted and access-controlled
+- **Audit trail**: All payment actions logged
+
+---
+
+## 19. Environment-Specific Policies
+
+### 19.1 Development Environment
+- **Database**: Separate Supabase project
+- **Payments**: Test mode only (Paystack test keys)
+- **Emails**: Captured in Inbucket (not sent)
+- **Cron jobs**: Disabled or manual trigger only
+
+### 19.2 Staging Environment
+- **Database**: Separate Supabase project with production-like data
+- **Payments**: Test mode (Paystack test keys)
+- **Emails**: Sent to test addresses only
+- **Cron jobs**: Enabled with reduced frequency
+
+### 19.3 Production Environment
+- **Database**: Production Supabase project
+- **Payments**: Live mode (Paystack live keys)
+- **Emails**: Sent to real addresses
+- **Cron jobs**: Full schedule enabled
+- **Monitoring**: All monitoring tools active
+- **Backups**: Automated daily backups
+
+---
+
+## 20. Migration & Deployment Policies
+
+### 20.1 Database Migrations
+- **Naming**: `YYYYMMDDHHMMSS_description.sql`
+- **Testing**: All migrations tested in staging first
+- **Rollback**: Reversible migrations preferred
+- **Documentation**: Each migration documented in commit message
+
+### 20.2 Deployment Process
+- **Pre-deployment**: Run deployment checklist
+- **Deployment**: Zero-downtime deployment via Vercel
+- **Post-deployment**: Monitor for 1 hour after deployment
+- **Rollback**: Immediate rollback if error rate > 1%
+
+### 20.3 Feature Flags
+- **Implementation**: Environment variables
+- **Examples**: `ENABLE_PAYMENTS`, `ENABLE_GAMIFICATION`
+- **Testing**: Features tested behind flags before full rollout
+
+---
+
+*Last updated: April 17, 2026*
+*All policies enforced at code level. This document serves as reference.*
