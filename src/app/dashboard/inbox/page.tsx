@@ -136,8 +136,106 @@ export default function WhatsAppInbox() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSaveContact, setShowSaveContact] = useState(false);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [students, setStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [filterSchool, setFilterSchool] = useState('');
+  const [filterClass, setFilterClass] = useState('');
   const [contactToSave, setContactToSave] = useState<{ phone: string; name: string } | null>(null);
   const [savingContact, setSavingContact] = useState(false);
+
+  // Fetch metadata for filters
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      const { data: schoolsData } = await supabase.from('schools').select('id, name').order('name');
+      const { data: classesData } = await supabase.from('classes').select('id, name').order('name');
+      if (schoolsData) setSchools(schoolsData);
+      if (classesData) setClasses(classesData);
+    };
+    fetchMetadata();
+  }, []);
+
+  // Search students
+  useEffect(() => {
+    if (!showNewChat) return;
+    const searchStudents = async () => {
+      setLoadingStudents(true);
+      let query = supabase
+        .from('portal_users')
+        .select(`
+          id, 
+          full_name, 
+          phone, 
+          school_id,
+          schools (name),
+          student_classes (class_id, classes (name))
+        `)
+        .eq('status', 'active');
+
+      if (filterSchool) query = query.eq('school_id', filterSchool);
+      if (studentSearch) query = query.ilike('full_name', `%${studentSearch}%`);
+      
+      const { data } = await query.limit(20);
+      
+      // Secondary local filter for class since multi-level joins are tricky in maybeSingle/select
+      let filteredData = data || [];
+      if (filterClass) {
+        filteredData = filteredData.filter((s: any) => 
+          s.student_classes?.some((c: any) => c.class_id === filterClass)
+        );
+      }
+      
+      setStudents(filteredData);
+      setLoadingStudents(false);
+    };
+    
+    const timer = setTimeout(searchStudents, 300);
+    return () => clearTimeout(timer);
+  }, [studentSearch, filterSchool, filterClass, showNewChat]);
+
+  const startChatWithStudent = async (student: any) => {
+    if (!student.phone) {
+      alert("This student doesn't have a phone number linked.");
+      return;
+    }
+
+    const cleanPhone = student.phone.replace(/\+/g, '');
+    
+    // Check if conversation exists
+    let { data: existing } = await supabase
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('phone_number', cleanPhone)
+      .maybeSingle();
+
+    if (!existing) {
+      // Create new conversation
+      const { data: created, error } = await supabase
+        .from('whatsapp_conversations')
+        .insert({
+          phone_number: cleanPhone,
+          contact_name: student.full_name,
+          portal_user_id: student.id,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: 'New chat started'
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        alert("Failed to start chat.");
+        return;
+      }
+      existing = created;
+    }
+
+    setShowNewChat(false);
+    fetchConversations();
+    setActiveConv(existing as any);
+  };
 
   // Quick response templates
   const templates = [
@@ -200,6 +298,13 @@ export default function WhatsAppInbox() {
         <div className="h-16 px-4 bg-gray-50 flex items-center justify-between border-b border-gray-200 shrink-0">
           <h2 className="text-xl font-bold text-gray-800 tracking-tight">Inbox</h2>
           <div className="flex gap-3 text-gray-500">
+            <button 
+              onClick={() => setShowNewChat(true)}
+              className="p-1.5 hover:bg-emerald-500/10 hover:text-emerald-600 rounded-lg transition-all"
+              title="Start New Chat"
+            >
+              <Search className="w-5 h-5" />
+            </button>
             <MoreVertical className="w-5 h-5 cursor-pointer hover:text-gray-700" />
           </div>
         </div>
@@ -473,6 +578,108 @@ export default function WhatsAppInbox() {
               >
                 {savingContact ? 'Saving...' : 'Save Contact'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+        </div>
+      )}
+
+      {/* New Chat / Student Directory Modal */}
+      {showNewChat && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full h-full md:h-auto md:max-w-xl bg-white rounded-none md:rounded-2xl shadow-2xl flex flex-col max-h-screen md:max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div>
+                <h2 className="text-lg font-black text-gray-900 leading-tight">Student Directory</h2>
+                <p className="text-xs text-gray-500">Search students by school or class</p>
+              </div>
+              <button 
+                onClick={() => setShowNewChat(false)} 
+                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-3 shrink-0">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Type student name..." 
+                  value={studentSearch}
+                  onChange={e => setStudentSearch(e.target.value)}
+                  className="w-full bg-white border border-gray-300 text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-2 gap-3">
+                <select 
+                  value={filterSchool}
+                  onChange={e => setFilterSchool(e.target.value)}
+                  className="bg-white border border-gray-300 text-xs rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="">All Schools</option>
+                  {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <select
+                  value={filterClass}
+                  onChange={e => setFilterClass(e.target.value)}
+                  className="bg-white border border-gray-300 text-xs rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="">All Classes</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+              {loadingStudents ? (
+                <div className="flex flex-col items-center justify-center p-12 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                  <p className="text-sm text-gray-400">Filtering student records...</p>
+                </div>
+              ) : students.length === 0 ? (
+                <div className="text-center p-12">
+                  <p className="text-sm text-gray-500">No students found matching filters.</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {students.map((student) => (
+                    <button 
+                      key={student.id}
+                      onClick={() => startChatWithStudent(student)}
+                      className="w-full flex items-center p-3 hover:bg-emerald-50 rounded-xl transition-all group"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-black text-lg mr-4 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        {student.full_name[0]}
+                      </div>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">{student.full_name}</p>
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <span className="text-[10px] text-gray-400 truncate">{student.schools?.name || 'No School'}</span>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-[10px] text-gray-400 truncate">
+                            {student.student_classes?.[0]?.classes?.name || 'General Admission'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-emerald-500 p-2 rounded-full text-white">
+                          <Send className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 text-center bg-gray-50 md:rounded-b-2xl">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Directory shows top 20 matches</p>
             </div>
           </div>
         </div>
