@@ -4,7 +4,10 @@
 
 import { useAuth } from '@/contexts/auth-context';
 import {
-  ClockIcon, ExclamationTriangleIcon
+  ClockIcon, ExclamationTriangleIcon, BuildingOfficeIcon,
+  AcademicCapIcon, ChartBarIcon, CogIcon, UserPlusIcon,
+  UserGroupIcon, ClipboardDocumentListIcon, BookOpenIcon,
+  RocketLaunchIcon, TrophyIcon, BanknotesIcon, ShieldCheckIcon
 } from '@/lib/icons';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -20,28 +23,28 @@ import { useDashboardData, useDashboardAutoRefresh } from '@/hooks/useDashboardD
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
   admin: [
-    { name: 'Partner Schools', href: '/dashboard/schools', icon: 'BuildingOfficeIcon', desc: 'View and approve schools' },
-    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: 'AcademicCapIcon', desc: 'View and manage staff' },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: 'ChartBarIcon', desc: 'System-wide analytics' },
-    { name: 'Settings', href: '/dashboard/settings', icon: 'CogIcon', desc: 'Account preferences' },
+    { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
+    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, desc: 'System-wide analytics' },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon, desc: 'Account preferences' },
   ],
   teacher: [
-    { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: 'UserPlusIcon', desc: 'Add students individually or in bulk' },
-    { name: 'My Students', href: '/dashboard/students', icon: 'UserGroupIcon', desc: 'View & manage student roster' },
-    { name: 'Assignments', href: '/dashboard/assignments', icon: 'ClipboardDocumentListIcon', desc: 'Create & grade work' },
-    { name: 'Classes', href: '/dashboard/classes', icon: 'BookOpenIcon', desc: 'Manage your classes' },
+    { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, desc: 'Add students individually or in bulk' },
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Create & grade work' },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your classes' },
   ],
   student: [
-    { name: 'Learning Center', href: '/dashboard/learning', icon: 'RocketLaunchIcon', desc: 'View enrolled programs' },
-    { name: 'Assignments', href: '/dashboard/assignments', icon: 'ClipboardDocumentListIcon', desc: 'View & submit work' },
-    { name: 'My Progress', href: '/dashboard/progress', icon: 'ChartBarIcon', desc: 'Track your progress' },
-    { name: 'Grades', href: '/dashboard/grades', icon: 'TrophyIcon', desc: 'See your grades' },
+    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs' },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit work' },
+    { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track your progress' },
+    { name: 'Grades', href: '/dashboard/grades', icon: TrophyIcon, desc: 'See your grades' },
   ],
   school: [
-    { name: 'My Students', href: '/dashboard/students', icon: 'UserGroupIcon', desc: 'View enrolled students' },
-    { name: 'Classes', href: '/dashboard/classes', icon: 'BookOpenIcon', desc: 'View class rosters' },
-    { name: 'Grades & Reports', href: '/dashboard/results', icon: 'TrophyIcon', desc: 'View student grades' },
-    { name: 'Smart Finance', href: '/dashboard/finance', icon: 'BanknotesIcon', desc: 'Billing and payments' },
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
+    { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
+    { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon, desc: 'Billing and payments' },
   ],
 };
 
@@ -264,31 +267,31 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
 function transformStatsForAdmin(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Partner Schools', value: stats.totalSchools || 0, icon: 'BuildingOfficeIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Partner Accounts', value: stats.totalPartners || 0, icon: 'ShieldCheckIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: 'AcademicCapIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: 'UserGroupIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: 'ChartBarIcon', gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Partner Schools', value: stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Partner Accounts', value: stats.totalPartners || 0, icon: ShieldCheckIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
   ];
 }
 
 function transformStatsForTeacher(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'My Classes', value: stats.classes || 0, icon: 'BookOpenIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: 'UserGroupIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Pending Grading', value: stats.pendingGrading || 0, icon: 'ClipboardDocumentListIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Avg Class Perf', value: `${stats.avgPerformance || 0}%`, icon: 'ChartBarIcon', gradient: 'from-orange-600 to-orange-400' },
+    { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Pending Grading', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Avg Class Perf', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
   ];
 }
 
 function transformStatsForSchool(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Registered Students', value: stats.totalStudents || 0, icon: 'UserGroupIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: 'AcademicCapIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: 'ChartBarIcon', gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: 'ClipboardDocumentListIcon', gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Registered Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400' },
   ];
 }
 
@@ -299,7 +302,7 @@ function transformActivities(activities: any[]) {
     title: a.title,
     desc: a.description,
     time: a.time_ago,
-    icon: a.icon_type === 'trophy' ? 'TrophyIcon' : 'ClipboardDocumentListIcon',
+    icon: a.icon_type === 'trophy' ? TrophyIcon : ClipboardDocumentListIcon,
     color: a.color_class === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
   }));
 }
