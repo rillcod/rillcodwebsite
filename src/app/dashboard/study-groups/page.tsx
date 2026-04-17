@@ -25,7 +25,7 @@ export default function StudyGroupsPage() {
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const isStudent = profile?.role === 'student';
+  const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
   useEffect(() => {
     loadGroups();
@@ -78,7 +78,7 @@ export default function StudyGroupsPage() {
             <h1 className="text-3xl font-black">Peer Study Groups</h1>
             <p className="text-muted-foreground text-sm mt-1">Collaborate with classmates in real-time with shared chat and code pad</p>
           </div>
-          {isStudent && (
+          {isTeacher && (
             <button
               onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors"
@@ -123,7 +123,7 @@ export default function StudyGroupsPage() {
         ) : groups.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-none">
             <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground text-sm">No study groups yet. {isStudent ? 'Create the first one!' : ''}</p>
+            <p className="text-muted-foreground text-sm">No study groups yet. {isTeacher ? 'Create the first one!' : ''}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -150,7 +150,7 @@ export default function StudyGroupsPage() {
                     >
                       <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" /> Open
                     </Link>
-                    {isStudent && (
+                    {!isTeacher && (
                       <button
                         onClick={() => joinGroup(group.id)}
                         disabled={isFull || joinLoading === group.id}

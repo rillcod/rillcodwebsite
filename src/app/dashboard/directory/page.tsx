@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   MagnifyingGlassIcon, UserGroupIcon, EnvelopeIcon, PhoneIcon,
-  PencilSquareIcon, TrashIcon, PlusIcon, ArrowDownTrayIcon,
-  FunnelIcon, XMarkIcon, CheckIcon, UserIcon, AcademicCapIcon,
-  BuildingOfficeIcon, ChatBubbleLeftRightIcon,
+  ArrowDownTrayIcon, ChatBubbleLeftRightIcon, PrinterIcon,
 } from '@/lib/icons';
 
 interface Contact {
@@ -15,13 +12,7 @@ interface Contact {
   full_name: string;
   email: string;
   phone: string | null;
-  parent_email: string | null;
-  parent_name: string | null;
-  parent_phone: string | null;
-  parent_relationship: string | null;
   school_name: string | null;
-  grade_level: string | null;
-  section_class: string | null;
   role: 'student' | 'parent' | 'teacher' | 'school';
   _type: 'student' | 'parent' | 'staff';
 }
@@ -35,11 +26,8 @@ export default function DirectoryPage() {
   const [filterType, setFilterType] = useState<'all' | 'students' | 'parents' | 'staff'>('all');
   const [filterSchool, setFilterSchool] = useState('');
   const [schools, setSchools] = useState<string[]>([]);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   useEffect(() => {
     if (isStaff) loadContacts();
@@ -52,30 +40,41 @@ export default function DirectoryPage() {
   const loadContacts = async () => {
     setLoading(true);
     try {
-      // Fetch students with parent info
+      // Fetch students - only essential info
       const studentsRes = await fetch('/api/students');
       const studentsJson = await studentsRes.json();
-      const students = (studentsJson.data ?? []).map((s: any) => ({
-        ...s,
-        _type: 'student' as const,
-        role: 'student' as const,
-      }));
+      const students = (studentsJson.data ?? [])
+        .filter((s: any) => s.full_name && (s.email || s.phone)) // Only include if has name and contact info
+        .map((s: any) => ({
+          id: s.id,
+          full_name: s.full_name,
+          email: s.email || '',
+          phone: s.phone || s.parent_phone || null,
+          school_name: s.school_name || null,
+          role: 'student' as const,
+          _type: 'student' as const,
+        }));
 
-      // Fetch portal users (parents, teachers, school staff)
+      // Fetch portal users (parents, teachers) - only essential info
       const usersRes = await fetch('/api/portal-users?scoped=true');
       const usersJson = await usersRes.json();
       const users = (usersJson.data ?? [])
-        .filter((u: any) => ['parent', 'teacher', 'school'].includes(u.role))
+        .filter((u: any) => ['parent', 'teacher'].includes(u.role) && u.full_name && (u.email || u.phone))
         .map((u: any) => ({
-          ...u,
+          id: u.id,
+          full_name: u.full_name,
+          email: u.email || '',
+          phone: u.phone || null,
+          school_name: u.school_name || null,
+          role: u.role,
           _type: u.role === 'parent' ? 'parent' : 'staff',
         }));
 
       const allContacts = [...students, ...users];
       setContacts(allContacts);
 
-      // Extract unique schools
-      const uniqueSchools = [...new Set(allContacts.map((c: any) => c.school_name).filter(Boolean))];
+      // Extract unique schools for filtering
+      const uniqueSchools = [...new Set(allContacts.map(c => c.school_name).filter(Boolean))];
       setSchools(uniqueSchools as string[]);
     } catch (err) {
       console.error('Failed to load contacts:', err);
@@ -104,75 +103,21 @@ export default function DirectoryPage() {
         c.full_name?.toLowerCase().includes(term) ||
         c.email?.toLowerCase().includes(term) ||
         c.phone?.toLowerCase().includes(term) ||
-        c.parent_name?.toLowerCase().includes(term) ||
-        c.parent_email?.toLowerCase().includes(term) ||
-        c.parent_phone?.toLowerCase().includes(term) ||
-        c.school_name?.toLowerCase().includes(term) ||
-        c.grade_level?.toLowerCase().includes(term)
+        c.school_name?.toLowerCase().includes(term)
       );
     }
 
     setFilteredContacts(filtered);
   };
 
-  const handleEdit = (contact: Contact) => {
-    setEditingContact({ ...contact });
-    setShowEditModal(true);
-  };
-
-  const handleSave = async () => {
-    if (!editingContact) return;
-    setSaving(true);
-    try {
-      if (editingContact._type === 'student') {
-        // Update student parent info
-        const res = await fetch(`/api/students/${editingContact.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            parent_email: editingContact.parent_email || null,
-            parent_name: editingContact.parent_name || null,
-            parent_phone: editingContact.parent_phone || null,
-            parent_relationship: editingContact.parent_relationship || null,
-          }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-      } else {
-        // Update portal user
-        const res = await fetch(`/api/portal-users/${editingContact.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: editingContact.full_name,
-            email: editingContact.email,
-            phone: editingContact.phone || null,
-          }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-      }
-      await loadContacts();
-      setShowEditModal(false);
-      setEditingContact(null);
-    } catch (err: any) {
-      alert(err.message ?? 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const exportCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Type', 'School', 'Grade/Class', 'Parent Name', 'Parent Email', 'Parent Phone', 'Relationship'];
+    const headers = ['Name', 'Email', 'Phone', 'Type', 'School'];
     const rows = filteredContacts.map(c => [
       c.full_name,
       c.email,
       c.phone || '',
       c._type,
       c.school_name || '',
-      c.grade_level || c.section_class || '',
-      c.parent_name || '',
-      c.parent_email || '',
-      c.parent_phone || '',
-      c.parent_relationship || '',
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -181,6 +126,231 @@ export default function DirectoryPage() {
     a.href = url;
     a.download = `directory_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
+  };
+
+  const printDirectory = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    // Get current filter descriptions
+    const filterDescription = [];
+    if (filterType !== 'all') filterDescription.push(`Type: ${filterType}`);
+    if (filterSchool) filterDescription.push(`School: ${filterSchool}`);
+    if (search) filterDescription.push(`Search: "${search}"`);
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>School Directory - Rillcod Technologies</title>
+          <style>
+            body { 
+              font-family: 'Arial', sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              background: #fff;
+              color: #333;
+            }
+            .header { 
+              border-bottom: 3px solid #ea580c; 
+              padding-bottom: 20px; 
+              margin-bottom: 30px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+            }
+            .logo-section {
+              display: flex;
+              align-items: center;
+              gap: 15px;
+            }
+            .logo {
+              width: 60px;
+              height: 60px;
+              background: linear-gradient(135deg, #ea580c, #f97316);
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 24px;
+            }
+            .company-info h1 { 
+              color: #ea580c; 
+              margin: 0 0 5px 0; 
+              font-size: 28px;
+              font-weight: 900;
+              letter-spacing: -0.5px;
+            }
+            .company-info .tagline {
+              color: #666;
+              margin: 0;
+              font-size: 14px;
+              font-weight: 500;
+            }
+            .print-info {
+              text-align: right;
+              color: #666;
+              font-size: 12px;
+            }
+            .filters {
+              background: #f8fafc;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              border-left: 4px solid #ea580c;
+            }
+            .filters h3 {
+              margin: 0 0 10px 0;
+              color: #ea580c;
+              font-size: 14px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .filter-tags {
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+            }
+            .filter-tag {
+              background: #ea580c;
+              color: white;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: 500;
+            }
+            .stats { 
+              margin-bottom: 20px; 
+              color: #666; 
+              font-size: 14px;
+              font-weight: 500;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 10px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            th, td { 
+              border: 1px solid #e2e8f0; 
+              padding: 12px 8px; 
+              text-align: left; 
+            }
+            th { 
+              background: #ea580c; 
+              color: white;
+              font-weight: bold;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            tr:nth-child(even) { 
+              background: #f8fafc; 
+            }
+            tr:hover {
+              background: #f1f5f9;
+            }
+            .contact-type {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 12px;
+              font-size: 10px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .type-student { background: #dbeafe; color: #1e40af; }
+            .type-parent { background: #d1fae5; color: #065f46; }
+            .type-staff { background: #e0e7ff; color: #3730a3; }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e2e8f0;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+            }
+            @media print {
+              body { margin: 0; }
+              .header { page-break-after: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-section">
+              <div class="logo">R</div>
+              <div class="company-info">
+                <h1>RILLCOD TECHNOLOGIES</h1>
+                <p class="tagline">Educational Excellence & Innovation</p>
+              </div>
+            </div>
+            <div class="print-info">
+              <div><strong>School Directory</strong></div>
+              <div>Generated: ${new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</div>
+              <div>Time: ${new Date().toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}</div>
+            </div>
+          </div>
+          
+          ${filterDescription.length > 0 ? `
+            <div class="filters">
+              <h3>Applied Filters</h3>
+              <div class="filter-tags">
+                ${filterDescription.map(filter => `<span class="filter-tag">${filter}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <div class="stats">
+            <strong>${filteredContacts.length}</strong> contacts found
+            ${contacts.length !== filteredContacts.length ? ` (filtered from ${contacts.length} total)` : ''}
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>School</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredContacts.map(c => `
+                <tr>
+                  <td><strong>${c.full_name}</strong></td>
+                  <td>${c.email}</td>
+                  <td>${c.phone || '—'}</td>
+                  <td><span class="contact-type type-${c._type}">${c._type}</span></td>
+                  <td>${c.school_name || '—'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p><strong>Rillcod Technologies</strong> | Educational Management System</p>
+            <p>This directory contains confidential information. Handle with care.</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const sendWhatsApp = (phone: string, name: string) => {
@@ -198,7 +368,7 @@ export default function DirectoryPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
@@ -207,21 +377,21 @@ export default function DirectoryPage() {
           </div>
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tight">School Directory</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Manage contacts for students, parents, and staff</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Essential contact information for easy export and printing</p>
           </div>
         </div>
       </div>
 
       {/* Filters & Search */}
       <div className="bg-card border border-border rounded-xl p-4 mb-6 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
-          <div className="md:col-span-2">
+          <div>
             <div className="relative">
               <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search by name, email, phone..."
+                placeholder="Search by name, email, or phone..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -258,18 +428,27 @@ export default function DirectoryPage() {
           </div>
         </div>
 
-        {/* Stats & Export */}
+        {/* Stats & Actions */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
           <p className="text-sm text-muted-foreground">
             Showing <span className="font-bold text-foreground">{filteredContacts.length}</span> of <span className="font-bold text-foreground">{contacts.length}</span> contacts
           </p>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
-          >
-            <ArrowDownTrayIcon className="w-4 h-4" />
-            Export CSV
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={printDirectory}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
+            >
+              <PrinterIcon className="w-4 h-4" />
+              Print
+            </button>
+            <button
+              onClick={exportCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              Export CSV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -289,18 +468,18 @@ export default function DirectoryPage() {
             <table className="w-full">
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Contact</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">School/Grade</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Parent Info</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground">Actions</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Phone</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground">School</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredContacts.map(contact => (
                   <tr key={contact.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
                           contact._type === 'student' ? 'bg-blue-500' :
@@ -310,14 +489,36 @@ export default function DirectoryPage() {
                         </div>
                         <div>
                           <p className="font-semibold text-sm text-foreground">{contact.full_name}</p>
-                          {contact.section_class && (
-                            <p className="text-xs text-muted-foreground">{contact.section_class}</p>
-                          )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                    <td className="px-6 py-4">
+                      {contact.email ? (
+                        <div className="flex items-center gap-2">
+                          <EnvelopeIcon className="w-4 h-4 text-muted-foreground" />
+                          <a 
+                            href={`mailto:${contact.email}`} 
+                            className="text-sm text-foreground hover:text-orange-500 transition-colors"
+                          >
+                            {contact.email}
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {contact.phone ? (
+                        <div className="flex items-center gap-2">
+                          <PhoneIcon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-foreground">{contact.phone}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
                         contact._type === 'student' ? 'bg-blue-500/20 text-blue-400' :
                         contact._type === 'parent' ? 'bg-emerald-500/20 text-emerald-400' :
                         'bg-violet-500/20 text-violet-400'
@@ -325,190 +526,30 @@ export default function DirectoryPage() {
                         {contact._type}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-1">
-                        {contact.email && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <EnvelopeIcon className="w-3 h-3" />
-                            <a href={`mailto:${contact.email}`} className="hover:text-orange-500 transition-colors">
-                              {contact.email}
-                            </a>
-                          </div>
-                        )}
-                        {contact.phone && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <PhoneIcon className="w-3 h-3" />
-                            <span>{contact.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-1">
-                        {contact.school_name && (
-                          <p className="text-xs text-foreground font-medium">{contact.school_name}</p>
-                        )}
-                        {contact.grade_level && (
-                          <p className="text-xs text-muted-foreground">{contact.grade_level}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {contact._type === 'student' && (contact.parent_name || contact.parent_email || contact.parent_phone) ? (
-                        <div className="space-y-1">
-                          {contact.parent_name && (
-                            <p className="text-xs text-foreground font-medium">{contact.parent_name}</p>
-                          )}
-                          {contact.parent_email && (
-                            <p className="text-xs text-muted-foreground">{contact.parent_email}</p>
-                          )}
-                          {contact.parent_phone && (
-                            <p className="text-xs text-muted-foreground">{contact.parent_phone}</p>
-                          )}
-                        </div>
+                    <td className="px-6 py-4">
+                      {contact.school_name ? (
+                        <span className="text-sm text-foreground">{contact.school_name}</span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-sm text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        {(contact.phone || contact.parent_phone) && (
+                        {contact.phone && (
                           <button
-                            onClick={() => sendWhatsApp(contact.phone || contact.parent_phone!, contact.full_name)}
+                            onClick={() => sendWhatsApp(contact.phone!, contact.full_name)}
                             className="p-2 hover:bg-emerald-500/10 text-emerald-500 rounded-lg transition-colors"
                             title="Send WhatsApp"
                           >
                             <ChatBubbleLeftRightIcon className="w-4 h-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => handleEdit(contact)}
-                          className="p-2 hover:bg-orange-500/10 text-orange-500 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <PencilSquareIcon className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && editingContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Edit Contact</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-muted-foreground hover:text-foreground">
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              {editingContact._type === 'student' ? (
-                <>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student Name</label>
-                    <input
-                      type="text"
-                      value={editingContact.full_name}
-                      disabled
-                      className="w-full px-4 py-2.5 bg-muted border border-border text-sm text-muted-foreground rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Parent Name</label>
-                    <input
-                      type="text"
-                      value={editingContact.parent_name || ''}
-                      onChange={e => setEditingContact({ ...editingContact, parent_name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Parent Email</label>
-                    <input
-                      type="email"
-                      value={editingContact.parent_email || ''}
-                      onChange={e => setEditingContact({ ...editingContact, parent_email: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Parent Phone</label>
-                    <input
-                      type="tel"
-                      value={editingContact.parent_phone || ''}
-                      onChange={e => setEditingContact({ ...editingContact, parent_phone: e.target.value })}
-                      placeholder="+234..."
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
-                    <select
-                      value={editingContact.parent_relationship || 'Guardian'}
-                      onChange={e => setEditingContact({ ...editingContact, parent_relationship: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name</label>
-                    <input
-                      type="text"
-                      value={editingContact.full_name}
-                      onChange={e => setEditingContact({ ...editingContact, full_name: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Email</label>
-                    <input
-                      type="email"
-                      value={editingContact.email}
-                      onChange={e => setEditingContact({ ...editingContact, email: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
-                    <input
-                      type="tel"
-                      value={editingContact.phone || ''}
-                      onChange={e => setEditingContact({ ...editingContact, phone: e.target.value })}
-                      placeholder="+234..."
-                      className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-border">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 px-4 py-2.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-lg transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
           </div>
         </div>
       )}

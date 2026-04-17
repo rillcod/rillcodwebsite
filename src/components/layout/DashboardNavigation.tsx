@@ -138,7 +138,7 @@ export default function DashboardNavigation() {
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
           { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftRightIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'School-Teacher Messages', href: '/dashboard/school-teacher-messages', icon: EnvelopeIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -183,7 +183,7 @@ export default function DashboardNavigation() {
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Messages', href: '/dashboard/school-teacher-messages', icon: EnvelopeIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -223,7 +223,7 @@ export default function DashboardNavigation() {
             ? [{ name: 'My Payments', href: '/dashboard/my-payments', icon: BanknotesIcon }]
             : []),
           { divider: true, label: 'More' },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Messages', href: '/dashboard/school-teacher-messages', icon: EnvelopeIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -248,7 +248,6 @@ export default function DashboardNavigation() {
           { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -295,7 +294,7 @@ export default function DashboardNavigation() {
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Smart Finance', 'Student Reports', 'Messages']
         : profile?.role === 'admin'
-          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
+          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'School-Teacher Messages']
           : profile?.role === 'teacher'
             ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
             : profile?.role === 'parent'
