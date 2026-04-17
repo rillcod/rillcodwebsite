@@ -6,6 +6,11 @@ Welcome to the Rillcod Academy documentation. This folder contains all technical
 
 ## 📚 Documentation Index
 
+### Latest Updates
+
+- **[WHATS_NEW.md](./WHATS_NEW.md)** - Latest features and updates (School Directory, WhatsApp Inbox, AI improvements)
+- **[CUSTOMER_RETENTION.md](./CUSTOMER_RETENTION.md)** - Complete customer retention strategy with 12 major features
+
 ### Setup & Deployment
 
 - **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - Complete setup guide for environment variables, cron jobs, edge functions, and database functions

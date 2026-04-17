@@ -1,0 +1,157 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+// POST /api/inbox/auto-respond — auto-respond to common queries
+export async function POST(req: NextRequest) {
+  try {
+    const admin = adminClient();
+    const body = await req.json();
+    const { message, conversation_id, phone_number } = body;
+
+    if (!message || !conversation_id) {
+      return NextResponse.json({ error: 'message and conversation_id required' }, { status: 400 });
+    }
+
+    const lowerMsg = message.toLowerCase().trim();
+
+    // Auto-response rules
+    let autoResponse: string | null = null;
+    let shouldRespond = false;
+
+    // Greeting detection
+    if (/^(hi|hello|hey|good morning|good afternoon|good evening)/i.test(lowerMsg)) {
+      autoResponse = `Hello! 👋 Welcome to Rillcod Technologies. I'm here to help you with:
+
+📚 Course information
+💳 Payment inquiries
+📊 Progress reports
+🎓 Assignment help
+📞 Technical support
+
+How can I assist you today?`;
+      shouldRespond = true;
+    }
+    // Payment queries
+    else if (/payment|pay|invoice|fee|bill|cost|price/i.test(lowerMsg)) {
+      autoResponse = `💳 For payment inquiries:
+
+1. Check your invoice in the dashboard: https://rillcod.com/dashboard/finance
+2. Pay online via Paystack (instant confirmation)
+3. Contact our finance team: finance@rillcod.com
+
+Need help with payment plans? Let me know!`;
+      shouldRespond = true;
+    }
+    // Assignment help
+    else if (/assignment|homework|project|task/i.test(lowerMsg)) {
+      autoResponse = `📚 Assignment Help:
+
+1. View all assignments: https://rillcod.com/dashboard/assignments
+2. Submit your work directly in the dashboard
+3. Check deadlines and grades
+
+Which assignment do you need help with? I can connect you with your teacher.`;
+      shouldRespond = true;
+    }
+    // Technical support
+    else if (/problem|issue|error|not working|can't|cannot|help/i.test(lowerMsg)) {
+      autoResponse = `🔧 Technical Support:
+
+I'm sorry you're experiencing issues. To help you faster:
+
+1. Describe the problem
+2. Share any error messages
+3. Tell me which device you're using
+
+Our support team will respond within 2 hours. For urgent issues, call: 08116600000`;
+      shouldRespond = true;
+    }
+    // Schedule/timetable
+    else if (/schedule|timetable|class|time|when/i.test(lowerMsg)) {
+      autoResponse = `📅 Class Schedule:
+
+Check your personalized timetable: https://rillcod.com/dashboard/timetable
+
+Classes run Monday-Friday, 9 AM - 3 PM.
+Live sessions are announced in the dashboard.
+
+Need to reschedule? Let me know!`;
+      shouldRespond = true;
+    }
+    // Progress/grades
+    else if (/grade|score|result|progress|report/i.test(lowerMsg)) {
+      autoResponse = `📊 Progress & Grades:
+
+View your progress: https://rillcod.com/dashboard/results
+
+You can see:
+✅ Assignment grades
+✅ Test scores
+✅ Overall progress
+✅ Certificates earned
+
+Parents can also access this from their portal!`;
+      shouldRespond = true;
+    }
+    // Thank you
+    else if (/thank|thanks|appreciate/i.test(lowerMsg)) {
+      autoResponse = `You're very welcome! 🎉
+
+We're always here to help. Feel free to reach out anytime.
+
+Have a great day! 🚀`;
+      shouldRespond = true;
+    }
+
+    if (shouldRespond && autoResponse) {
+      // Save auto-response to database
+      const { data: newMessage, error: msgErr } = await admin
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id,
+          direction: 'outbound',
+          body: autoResponse,
+          status: 'sent',
+          created_at: new Date().toISOString(),
+          metadata: { auto_response: true, trigger: lowerMsg.slice(0, 50) },
+        })
+        .select()
+        .single();
+
+      if (msgErr) {
+        return NextResponse.json({ error: msgErr.message }, { status: 500 });
+      }
+
+      // Update conversation
+      await admin
+        .from('whatsapp_conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_preview: autoResponse.slice(0, 100),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', conversation_id);
+
+      return NextResponse.json({ 
+        success: true, 
+        responded: true,
+        data: newMessage 
+      });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      responded: false,
+      message: 'No auto-response triggered' 
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
