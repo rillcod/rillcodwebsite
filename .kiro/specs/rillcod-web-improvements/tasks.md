@@ -217,13 +217,13 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Call useSessionExpiry hook in `src/app/dashboard/layout.tsx`; render SessionExpiryBanner when expiry is near
   - _Requirements: Req 16.1, 16.2, 16.3_
 
-- [ ] 45. Integrate file validation + compression into upload flows (Req 17)
+- [x] 45. Integrate file validation + compression into upload flows (Req 17)
   - Wire validateAndCompressFile() into assignment submission file input component before upload
   - Wire validateAndCompressFile() into bank transfer proof upload component before upload
   - Add server-side MIME type + size re-validation to relevant upload API routes with HTTP 400 structured error response
   - _Requirements: Req 17.1, 17.2, 17.3, 17.4, 17.5_
 
-- [ ] 46. Apply input validation utilities across forms (Req 18)
+- [x] 46. Apply input validation utilities across forms (Req 18)
   - Apply validateEmail() to auth login form, registration form, and invoice editor email fields with inline errors
   - Apply validateNigerianPhone() to all registration forms with phone fields with inline errors
   - Add invoice editor validations: at least one line item with positive amount, due date not in the past
@@ -232,38 +232,38 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add server-side enforcement in auth/registration/invoice/CBT API routes returning `{ error, field }`
   - _Requirements: Req 18.1, 18.2, 18.3, 18.4, 18.5, 18.6_
 
-- [ ] 47. Apply `useDebounce` to all search/filter inputs (Req 19)
+- [x] 47. Apply `useDebounce` to all search/filter inputs (Req 19)
   - Apply useDebounce(value, 300) to search inputs on: students list, transactions list, invoices list, leaderboard, activity logs, and all other dashboard pages with search/filter inputs
   - _Requirements: Req 19.3_
 
-- [ ] 48. Implement audit log for manual finance actions (Req 20)
+- [x] 48. Implement audit log for manual finance actions (Req 20)
   - In finance admin UI: on payment_transactions status change, POST audit_logs row with actor_id, resource_type='payment_transaction', resource_id, old_value, new_value, action='status_change'
   - In bank transfer proof upload API route: check payment_status = 'completed' first; if true return HTTP 409 `{ error: 'ALREADY_PAID' }` and write audit_logs row recording the attempt
   - _Requirements: Req 20.1, 20.2_
 
-- [ ] 49. Implement notification deep-link routing (Req 21)
+- [x] 49. Implement notification deep-link routing (Req 21)
   - Update push.ts sendToUser() to always include url field in payload mapped from notification type to route (payment_confirmed → /dashboard/payments/invoices/[id], etc.)
   - Update service worker notificationclick handler to call clients.openWindow(event.notification.data.url) with /dashboard fallback
   - _Requirements: Req 21.1, 21.2, 21.3, 21.4, 21.5_
 
-- [ ] 50. Harden `withApiProxy` structured error responses (Req 22)
+- [x] 50. Harden `withApiProxy` structured error responses (Req 22)
   - Update `src/lib/api-wrapper.ts` error handler to map ValidationError → 400 + field, AuthError → 401, RateLimitError → 429 + retryAfter, AppError → 400/422 + code, unhandled → 500 generic; never return HTML; never include stack traces in production
   - _Requirements: Req 22.1, 22.2, 22.3, 22.4, 22.5_
 
-- [ ] 51. Implement portfolio public share link (Req 23)
+- [x] 51. Implement portfolio public share link (Req 23)
   - Create `src/app/api/portfolio/share/route.ts` POST: generate UUID token; store in portal_users.portfolio_share_token + expires_at = NOW()+30days; return { url, expires_at }
   - Create `src/app/api/portfolio/share/route.ts` DELETE: set both columns to null
   - Create `src/app/student/[token]/page.tsx`: public read-only portfolio view; return 410 Gone page when token expired or not found
   - Update `src/app/dashboard/portfolio/page.tsx`: share link card with expiry date, "Copy Link" (Clipboard API), "Share" (Web Share API), "Revoke Link" buttons; "No active share link" when null
   - _Requirements: Req 23.1, 23.2, 23.3, 23.4, 23.5, 23.6_
 
-- [ ] 52. Audit all API routes for `withApiProxy` + authorization consistency (Req 25)
+- [x] 52. Audit all API routes for `withApiProxy` + authorization consistency (Req 25)
   - Audit all data-mutating routes under src/app/api; add requireAuth: true + explicit roles[] where missing
   - Document /api/system/status and /api/payments/webhook as intentionally public in their withApiProxy config
   - Add roles: ['admin'] to billing health, sync-users, and system settings admin endpoints
   - _Requirements: Req 25.1, 25.2, 25.3, 25.4, 25.5_
 
-- [ ] 53. Checkpoint — Gap fixes complete; all existing tests pass
+- [x] 53. Checkpoint — Gap fixes complete; all existing tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
@@ -271,7 +271,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 4: New Features (NF-1 to NF-8)
 
-- [ ] 54. Implement AI Homework Helper (NF-1)
+- [x] 54. Implement AI Homework Helper (NF-1)
   - Create `src/app/api/ai/homework-helper/route.ts` POST: requireAuth, student role; accept { message, enrolled_course_ids, history[] }; scope AI prompt to enrolled_course_ids only; stream response via SSE; return polite redirect message when question is out of scope
   - Create `src/app/dashboard/homework-helper/page.tsx`: chat thread with SSE streaming display; enrolled-courses-only gate; inline retry button on stream failure without clearing history; session-only React state (no DB persistence)
   - _Requirements: NF-1.1, NF-1.2, NF-1.3, NF-1.4, NF-1.5, NF-1.6_
@@ -282,49 +282,49 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add certificates list with "Download" button (R2 signed URL) to student dashboard
   - _Requirements: NF-2.1, NF-2.2, NF-2.3, NF-2.4, NF-2.5, NF-2.6_
 
-- [ ] 56. Implement peer study groups service + routes (NF-3)
+- [x] 56. Implement peer study groups service + routes (NF-3)
   - Create `src/services/study-groups.service.ts`: createGroup(), joinGroup() with 20-member cap check throwing ValidationError on cap, leaveGroup(), sendMessage(), getMembers()
   - Create API routes: GET/POST /api/study-groups, POST /api/study-groups/[id]/join (409 GROUP_FULL if at cap), DELETE /api/study-groups/[id]/leave, GET/POST /api/study-groups/[id]/messages (cursor pagination)
   - Create `src/app/dashboard/study-groups/page.tsx`: group list scoped to enrolled courses, create form, join/leave, member cap indicator; set inactive when course ends
   - _Requirements: NF-3.1, NF-3.2, NF-3.5, NF-3.6_
 
-- [ ] 57. Implement study group chat + code pad page (NF-3)
+- [x] 57. Implement study group chat + code pad page (NF-3)
   - Create `src/app/dashboard/study-groups/[id]/page.tsx`: Supabase Realtime chat panel broadcasting study_group_messages; shared plain-text code pad with JS/Python syntax highlighting via highlight.js; last-write-wins Realtime sync for code pad; read-only mode for teacher/admin roles
   - _Requirements: NF-3.3, NF-3.4, NF-3.6_
 
-- [ ] 58. Implement `sm2()` pure function + flashcards service + routes (NF-4)
+- [x] 58. Implement `sm2()` pure function + flashcards service + routes (NF-4)
   - Implement sm2(state, quality) pure function in `src/lib/sm2.ts`: for quality < 3 reset repetitions=0 + intervalDays=1; for quality >= 3 compute intervalDays=max(1, round(old_interval*ease)), update easeFactor with SM-2 formula clamped to min 1.3; return { intervalDays, easeFactor, repetitions, nextReviewAt }
   - Create `src/services/flashcards.service.ts`: createDeck(), addCard(), getDueCards() WHERE next_review_at <= NOW(), recordReview() applying sm2()
   - Create API routes: GET/POST /api/flashcards/decks, POST /api/flashcards/decks/[id]/cards, GET /api/flashcards/decks/[id]/due, POST /api/flashcards/reviews
   - _Requirements: NF-4.1, NF-4.3, NF-4.4, NF-4.5_
 
-- [ ] 59. Implement flashcard pages + lesson editor integration (NF-4)
+- [x] 59. Implement flashcard pages + lesson editor integration (NF-4)
   - Create `src/app/dashboard/flashcards/page.tsx`: deck list by course/lesson, "Start Review" button per deck, "No cards due" empty state with next review date
   - Create `src/app/dashboard/flashcards/[deckId]/review/page.tsx`: card flip animation, quality buttons 1–5, progress indicator, session summary on end
   - Add flashcard deck section to teacher lesson editor for adding front/back card pairs
   - _Requirements: NF-4.2, NF-4.6, NF-4.7_
 
-- [ ] 60. Implement streak reminder cron route (NF-5)
+- [x] 60. Implement streak reminder cron route (NF-5)
   - Create `src/app/api/cron/streak-reminder/route.ts`: CRON_SECRET auth; query students with no lesson completion, flashcard review, or CBT session today (WAT); check streak_reminder preference column; send VAPID push via push.ts sendToUser() with personalised first name; skip students with no subscriptions; handle 410/404 cleanup
   - _Requirements: NF-5.1, NF-5.2, NF-5.3, NF-5.4, NF-5.5, NF-5.6_
 
-- [ ] 61. Implement parent-teacher chat service + routes (NF-6)
+- [x] 61. Implement parent-teacher chat service + routes (NF-6)
   - Create `src/services/parent-teacher-chat.service.ts`: getOrCreateThread(), sendMessage(), markRead(), getThreadMessages() with 50-per-page cursor pagination, getTeacherInbox()
   - Create API routes: GET/POST /api/parent-teacher/threads, GET/POST /api/parent-teacher/threads/[id]/messages
   - Update `src/app/dashboard/messages/page.tsx`: parent-teacher threads panel, unread badge via Supabase Realtime, "Load Earlier" cursor pagination, send email_enabled category email to teacher on new parent message
   - _Requirements: NF-6.1, NF-6.2, NF-6.3, NF-6.4, NF-6.5, NF-6.6_
 
-- [ ] 62. Implement weekly summary cron route (NF-7)
+- [x] 62. Implement weekly summary cron route (NF-7)
   - Create `src/app/api/cron/weekly-summary/route.ts`: CRON_SECRET auth; runs Fridays 17:00 UTC; query parents with weekly_summary=true and linked students; compile per-student: lessons completed, assignments submitted, CBT scores, attendance rate, XP total; send via notificationsService.sendEmail() with weekly_summary category; Redis idempotency key weekly_summary:${parentEmail}:${weekStartDate} with 7-day TTL; send "No activity this week" when no data
   - _Requirements: NF-7.1, NF-7.2, NF-7.3, NF-7.4, NF-7.5, NF-7.6_
 
-- [ ] 63. Implement digital consent forms service + routes + pages (NF-8)
+- [x] 63. Implement digital consent forms service + routes + pages (NF-8)
   - Create `src/services/consent-forms.service.ts`: createForm(), signForm() with ON CONFLICT DO NOTHING + 409 on already signed, getResponses(), exportResponsesCSV()
   - Create API routes: GET/POST /api/consent-forms, POST /api/consent-forms/[id]/sign (409 ALREADY_SIGNED if duplicate), GET /api/consent-forms/[id]/export (CSV response)
   - Create `src/app/dashboard/consent-forms/page.tsx`: admin/teacher view with create form, response count, "Export CSV"; parent view with pending/signed status; "I Agree" button on signing page; send report_published email on publish
   - _Requirements: NF-8.1, NF-8.2, NF-8.3, NF-8.4, NF-8.5, NF-8.6_
 
-- [ ] 64. Checkpoint — NF-1 through NF-8 complete; verify Realtime subscriptions and cron routes work
+- [x] 64. Checkpoint — NF-1 through NF-8 complete; verify Realtime subscriptions and cron routes work
   - Ensure all tests pass, ask the user if questions arise.
 
 
@@ -343,7 +343,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add "Download Receipt" button to invoices and transactions pages for transactions with payment_status='completed'
   - _Requirements: NF-10.1, NF-10.2, NF-10.3, NF-10.4, NF-10.5_
 
-- [ ] 67. Implement outstanding balance widget (NF-11)
+- [x] 67. Implement outstanding balance widget (NF-11)
   - Create `src/app/api/billing/outstanding/route.ts` GET: requireAuth, parent; scope to linked students; return { total, perStudent: [{ studentId, name, amount, overdueCount }] }
   - Add Outstanding Balance card to `src/app/dashboard/overview/page.tsx` (parent view): per-student breakdown, overdue count, "Pay Now" → /dashboard/parent-invoices, "All fees paid" green state when zero; 5-minute client-side cache; auto-refresh on load
   - _Requirements: NF-11.1, NF-11.2, NF-11.3, NF-11.4, NF-11.5, NF-11.6_
@@ -362,7 +362,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 6: Autonomous Term Engine (NF-16 to NF-25)
 
-- [ ] 70. Implement curriculum service + generator page (NF-16)
+- [x] 70. Implement curriculum service + generator page (NF-16)
   - Create `src/services/curriculum.service.ts`: generateCurriculum() calling POST /api/ai/generate type='curriculum'; ON CONFLICT (course_id, school_id) increment version + preserve old content in JSONB history; getCurriculumVersions()
   - Create `src/app/api/curricula/route.ts` POST: requireAuth, school_admin; call curriculumService.generateCurriculum(); do NOT save partial result if AI call fails
   - Create `src/app/dashboard/curriculum/page.tsx`: "Generate Curriculum" form (course name, grade level, school, term count, weeks per term, subject area, notes); version history list; curriculum detail with content rendered as rich text
@@ -389,7 +389,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add "Generate All Projects" button to lesson plan detail page with SSE progress indicator
   - _Requirements: NF-20.1, NF-20.2, NF-20.3, NF-20.4, NF-20.5_
 
-- [ ] 75. Implement term scheduler — activation + cron release (NF-21)
+- [x] 75. Implement term scheduler — activation + cron release (NF-21)
   - Create `src/app/api/lesson-plans/[id]/schedule/route.ts` POST: INSERT into term_schedules { is_active: true, current_week: 1, term_start, cadence_days }
   - Create `src/app/api/lesson-plans/[id]/release-week/route.ts` POST: manual week release; UPDATE lessons/assignments/projects status='published' WHERE lesson_plan_id + week_number + teacher-approved
   - Create `src/app/api/cron/term-scheduler/route.ts` POST: CRON_SECRET auth; Mondays 05:00 UTC; SELECT active term_schedules; for each: release current_week content; INCREMENT current_week
@@ -402,7 +402,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - On status='graded': trigger push + email notification to student (if prefs allow)
   - _Requirements: NF-22.1, NF-22.2, NF-22.3, NF-22.4, NF-22.5, NF-22.6, NF-22.7_
 
-- [ ] 77. Implement grading service + routes + grading page (NF-23, NF-24)
+- [x] 77. Implement grading service + routes + grading page (NF-23, NF-24)
   - Create `src/services/grading.service.ts`: getSubmissions() with cursor pagination, acceptAIGrade() setting final_grade + status='graded' + audit_log, overrideGrade() with audit_log old/new value, bulkGrade()
   - Create API routes: GET /api/grading/submissions, PATCH /api/grading/submissions/[id] (action: accept_ai | override), POST /api/grading/submissions/bulk
   - Create `src/app/dashboard/grading/page.tsx`: role-scoped submission list, AI suggested grade panel with confidence badge, accept/override inputs, bulk grade action, grading mode badge per row
