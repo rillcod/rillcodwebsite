@@ -4,6 +4,36 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+interface TeacherStats {
+  classes: number;
+  portal_students: number;
+  registry_students: number;
+  pending_assignments: number;
+  pending_exams: number;
+  avg_grade: number;
+}
+
+interface StudentStats {
+  enrolled_courses: number;
+  lessons_completed: number;
+  avg_score: number;
+  pending_assignments: number;
+  xp_points: number;
+  current_streak: number;
+  achievement_level: string;
+  badges_count: number;
+  leaderboard_rank: number | null;
+}
+
+interface SchoolStats {
+  total_students: number;
+  portal_students: number;
+  assigned_teachers: number;
+  total_classes: number;
+  avg_performance: number;
+  submissions_count: number;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -61,13 +91,14 @@ export async function GET(req: NextRequest) {
       });
 
       if (!error && data) {
+        const d = data as unknown as TeacherStats;
         stats = {
-          classes: data.classes || 0,
-          totalStudents: (data.portal_students || 0) + (data.registry_students || 0),
-          pendingGrading: (data.pending_assignments || 0) + (data.pending_exams || 0),
-          avgPerformance: data.avg_grade || 0,
-          ungradedAssignments: data.pending_assignments || 0,
-          ungradedExams: data.pending_exams || 0,
+          classes: d.classes || 0,
+          totalStudents: (d.portal_students || 0) + (d.registry_students || 0),
+          pendingGrading: (d.pending_assignments || 0) + (d.pending_exams || 0),
+          avgPerformance: d.avg_grade || 0,
+          ungradedAssignments: d.pending_assignments || 0,
+          ungradedExams: d.pending_exams || 0,
         };
       }
     } else if (role === 'student') {
@@ -76,16 +107,17 @@ export async function GET(req: NextRequest) {
       });
 
       if (!error && data) {
+        const d = data as unknown as StudentStats;
         stats = {
-          enrolledCourses: data.enrolled_courses || 0,
-          xp: data.xp_points || 0,
-          streak: data.current_streak || 0,
-          level: data.achievement_level || 'Bronze',
-          lessonsDone: data.lessons_completed || 0,
-          avgScore: data.avg_score || 0,
-          pendingAssignments: data.pending_assignments || 0,
-          badgesCount: data.badges_count || 0,
-          leaderboardRank: data.leaderboard_rank || null,
+          enrolledCourses: d.enrolled_courses || 0,
+          xp: d.xp_points || 0,
+          streak: d.current_streak || 0,
+          level: d.achievement_level || 'Bronze',
+          lessonsDone: d.lessons_completed || 0,
+          avgScore: d.avg_score || 0,
+          pendingAssignments: d.pending_assignments || 0,
+          badgesCount: d.badges_count || 0,
+          leaderboardRank: d.leaderboard_rank || null,
         };
       }
     } else if (role === 'school') {
@@ -95,13 +127,14 @@ export async function GET(req: NextRequest) {
       });
 
       if (!error && data) {
+        const d = data as unknown as SchoolStats;
         stats = {
-          totalStudents: data.total_students || 0,
-          portalStudents: data.portal_students || 0,
-          assignedTeachers: data.assigned_teachers || 0,
-          totalClasses: data.total_classes || 0,
-          avgPerformance: data.avg_performance || 0,
-          submissionsCount: data.submissions_count || 0,
+          totalStudents: d.total_students || 0,
+          portalStudents: d.portal_students || 0,
+          assignedTeachers: d.assigned_teachers || 0,
+          totalClasses: d.total_classes || 0,
+          avgPerformance: d.avg_performance || 0,
+          submissionsCount: d.submissions_count || 0,
         };
       }
     }
