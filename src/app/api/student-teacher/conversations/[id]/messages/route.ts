@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -13,13 +15,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: conversationId } = await context.params;
+    const { id } = await context.params;
 
     // Verify user has access to this conversation
     const { data: conversation } = await supabase
       .from('student_teacher_conversations')
       .select('student_id, teacher_id')
-      .eq('id', conversationId)
+      .eq('id', id)
       .single();
 
     if (!conversation) {
@@ -50,7 +52,7 @@ export async function GET(
         *,
         sender:portal_users!sender_id(full_name, role)
       `)
-      .eq('conversation_id', conversationId)
+      .eq('conversation_id', id)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -62,7 +64,7 @@ export async function GET(
     await supabase
       .from('student_teacher_messages')
       .update({ is_read: true })
-      .eq('conversation_id', conversationId)
+      .eq('conversation_id', id)
       .neq('sender_id', user.id);
 
     return NextResponse.json({ data: messages });
@@ -84,7 +86,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: conversationId } = await context.params;
+    const { id } = await context.params;
     const body = await request.json();
     const { content } = body;
 
@@ -96,7 +98,7 @@ export async function POST(
     const { data: conversation } = await supabase
       .from('student_teacher_conversations')
       .select('student_id, teacher_id')
-      .eq('id', conversationId)
+      .eq('id', id)
       .single();
 
     if (!conversation) {
@@ -124,7 +126,7 @@ export async function POST(
     const { data: message, error } = await supabase
       .from('student_teacher_messages')
       .insert({
-        conversation_id: conversationId,
+        conversation_id: id,
         sender_id: user.id,
         content: content.trim(),
         created_at: new Date().toISOString(),
@@ -145,7 +147,7 @@ export async function POST(
     await supabase
       .from('student_teacher_conversations')
       .update({ updated_at: new Date().toISOString() })
-      .eq('id', conversationId);
+      .eq('id', id);
 
     return NextResponse.json({ data: message });
   } catch (error) {
