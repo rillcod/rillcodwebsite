@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { assertRegistrationInstalmentAllowed } from './instalment-guard';
+import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
 // ── Partner school pricing (Young Innovators & Teen Developers are subsidised) ──
 const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
@@ -145,6 +147,18 @@ export async function POST(req: Request) {
         }
         if (!PARENT_EMAIL_RE.test(String(parent_email).trim())) {
             return NextResponse.json({ error: 'Invalid parent email address' }, { status: 400 });
+        }
+
+        // Req 7.2 — 3 req / 5 min per email
+        try {
+            await checkCustomRateLimit({ key: String(parent_email).trim().toLowerCase(), max: 3, window: 300 });
+        } catch (err) {
+            if (err instanceof RateLimitError) {
+                return NextResponse.json(
+                    { error: 'Too many requests. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 300 },
+                    { status: 429 },
+                );
+            }
         }
         if (!full_name) {
             return NextResponse.json({ error: 'Student name is required' }, { status: 400 });

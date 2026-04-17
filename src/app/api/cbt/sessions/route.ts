@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
 
     const body = await request.json();
-    const { exam_id, start_time, end_time, score, status, answers, manual_scores, grading_notes, needs_grading } = body;
+    const { exam_id, start_time, end_time, score, status, answers, manual_scores, grading_notes, needs_grading, auto_submitted, submitted_at } = body;
 
     if (!exam_id) return NextResponse.json({ error: 'exam_id required' }, { status: 400 });
 
@@ -41,6 +41,31 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return NextResponse.json({ error: 'Exam already submitted' }, { status: 409 });
+    }
+
+    // ── Req 2.2: Server-side deadline enforcement ─────────────────────────────
+    // Fetch the exam's deadline from the generated column (migration 20260501000002)
+    const { data: sessionRow } = await admin
+      .from('cbt_sessions')
+      .select('deadline')
+      .eq('exam_id', exam_id)
+      .eq('user_id', caller.id)
+      .maybeSingle();
+
+    // If a deadline exists on an in-progress session, check it
+    if (sessionRow?.deadline) {
+      const deadlineMs = new Date(sessionRow.deadline).getTime();
+      const submittedMs = submitted_at
+        ? new Date(submitted_at).getTime()
+        : Date.now();
+      const GRACE_MS = 30_000; // 30-second grace period
+
+      if (submittedMs > deadlineMs + GRACE_MS) {
+        return NextResponse.json(
+          { error: 'DEADLINE_EXCEEDED', deadline: sessionRow.deadline },
+          { status: 422 },
+        );
+      }
     }
 
     const { data, error } = await admin

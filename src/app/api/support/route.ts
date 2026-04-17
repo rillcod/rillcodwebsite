@@ -82,6 +82,27 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Req 12.4 — acknowledgement email to ticket creator
+  try {
+    const { notificationsService } = await import('@/services/notifications.service');
+    const { data: userProfile } = await admin
+      .from('portal_users')
+      .select('email, full_name')
+      .eq('id', caller.id)
+      .maybeSingle();
+
+    if (userProfile?.email) {
+      await notificationsService.sendEmail(caller.id, {
+        to: userProfile.email,
+        subject: `Support ticket received: ${subject.slice(0, 60)}`,
+        html: `<p>Hi ${userProfile.full_name || 'there'},</p>
+               <p>We've received your support request: <strong>${subject}</strong></p>
+               <p>Our team will get back to you shortly. You can track your ticket in your dashboard.</p>
+               <p>Ticket ID: ${(data as any).id}</p>`,
+      });
+    }
+  } catch { /* non-critical */ }
+
   // Notify admins via internal notification
   try {
     const { data: admins } = await admin

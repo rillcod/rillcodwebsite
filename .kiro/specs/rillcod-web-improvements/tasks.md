@@ -87,56 +87,56 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 2: Core Infrastructure
 
-- [~] 19. Add `validateEmail()` and `validateNigerianPhone()` to `src/lib/validation.ts`
+- [x] 19. Add `validateEmail()` and `validateNigerianPhone()` to `src/lib/validation.ts`
   - Add EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/ and validateEmail(value: string): boolean using trimmed value
   - Add NG_PHONE_REGEX = /^(0\d{10}|\+234\d{10})$/ and validateNigerianPhone(value: string): boolean using trimmed value
   - _Requirements: Req 18.1, 18.2_
 
-- [~] 20. Create `src/lib/fileUpload.ts`
+- [x] 20. Create `src/lib/fileUpload.ts`
   - Implement validateAndCompressFile(file: File): Promise\<File\>: if image MIME → draw to canvas → resize to max 1200px width at quality 0.75 via canvas.toBlob → validate MIME ∈ ALLOWED_MIME_TYPES → validate compressed size ≤ 10MB → throw ValidationError with field name on violation; PDF bypasses compression
   - _Requirements: Req 17.1, 17.2, 17.3, 17.4_
 
-- [~] 21. Create `src/hooks/useDebounce.ts`
+- [x] 21. Create `src/hooks/useDebounce.ts`
   - Implement useDebounce\<T\>(value: T, delay = 300): T using useState + useEffect with setTimeout; bypass debounce immediately when value is '' or null
   - _Requirements: Req 19.1, 19.2, 19.4, 19.5_
 
-- [~] 22. Create `src/hooks/useSessionExpiry.ts`
+- [x] 22. Create `src/hooks/useSessionExpiry.ts`
   - Decode JWT exp from supabase.auth.getSession(); show banner when exp - now < 5 minutes; on user interaction within 60s call supabase.auth.refreshSession() silently; on refresh failure call supabase.auth.signOut() + router.push('/login?reason=session_expired'); intercept 401 responses for one silent refresh before redirecting
   - _Requirements: Req 16.1, 16.2, 16.3, 16.4, 16.5_
 
-- [~] 23. Create `src/hooks/useSystemStatus.ts`
+- [x] 23. Create `src/hooks/useSystemStatus.ts`
   - Poll GET /api/system/status on mount and every 60 seconds while tab is visible (Page Visibility API to pause/resume); return { maintenanceMode, minimumWebVersion, loading }
   - _Requirements: Req 11.2, 11.6_
 
-- [~] 24. Update `src/services/notifications.service.ts` with idempotency guard + preference check
+- [x] 24. Update `src/services/notifications.service.ts` with idempotency guard + preference check
   - Add SHA-256 idempotency key = sha256(`${to}:${eventType}:${referenceId}`); Redis SETNX with 600s TTL before sending; if key exists log suppression and return; check corresponding preference column (payment_updates, report_published, etc.) and skip if false; retry SendPulse once after 30s on non-2xx
   - _Requirements: Req 8.4, Req 24.1, 24.2, 24.3, 24.4_
 
-- [~] 25. Update `src/services/gamification.service.ts` with idempotency
+- [x] 25. Update `src/services/gamification.service.ts` with idempotency
   - Change awardPoints() to INSERT INTO point_transactions ... ON CONFLICT (portal_user_id, activity_type, reference_id) DO NOTHING; recalculate total_points = SELECT SUM(points) FROM point_transactions WHERE portal_user_id = $1; return { awarded: boolean, totalPoints }
   - _Requirements: Req 4.2, 4.3, 4.4_
 
-- [~] 26. Update `src/services/analytics.service.ts` for triggered signals
+- [x] 26. Update `src/services/analytics.service.ts` for triggered signals
   - Update getAtRiskStudents() to call get_at_risk_students RPC with school_id and optional class_id; map triggered_signals JSONB array to AtRiskStudent interface; scope by teacherId via class_id filter
   - _Requirements: Req 5.2, 5.3_
 
-- [~] 27. Update `src/services/queue.service.ts` to email-only
+- [x] 27. Update `src/services/queue.service.ts` to email-only
   - Change NotificationJob type to `type: 'email'` only — remove 'sms' and 'whatsapp' union members; ensure TypeScript produces compile error on invalid types; update process-notifications cron handler to discard non-email jobs with console.warn
   - _Requirements: Req 14.1, 14.2, 14.3, 14.4, 14.5_
 
-- [~] 28. Update `src/proxies/rateLimit.proxy.ts` for per-endpoint custom limits
+- [x] 28. Update `src/proxies/rateLimit.proxy.ts` for per-endpoint custom limits
   - Extend rateLimitProxy.check() to accept { key: string, max: number, window: number } config object instead of using only global defaults; keep Upstash Redis + in-memory Map fallback pattern
   - _Requirements: Req 7.1, 7.2, 7.4_
 
-- [~] 29. Update `src/lib/push.ts` to use `web_push_subscriptions` + auto-delete on 410/404
+- [x] 29. Update `src/lib/push.ts` to use `web_push_subscriptions` + auto-delete on 410/404
   - Replace any `system_settings` push_sub_* key reads with query to web_push_subscriptions by portal_user_id; on webpush.sendNotification() returning 410 or 404 delete the row from web_push_subscriptions; always include url field in payload
   - _Requirements: Req 1.4, 1.7, Req 21.1_
 
-- [~] 30. Wire `ErrorBoundary` into `src/app/dashboard/layout.tsx`
+- [x] 30. Wire `ErrorBoundary` into `src/app/dashboard/layout.tsx`
   - Wrap children with existing ErrorBoundary component; implement onError callback as a server action that writes an activity_logs row with error.message, componentStack, and portal_user_id; production mode hides stack traces; "Try Again" button calls ErrorBoundary reset
   - _Requirements: Req 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [~] 31. Checkpoint — Verify Phase 1 migrations apply cleanly and Phase 2 services compile without TypeScript errors
+- [x] 31. Checkpoint — Verify Phase 1 migrations apply cleanly and Phase 2 services compile without TypeScript errors
   - Ensure all tests pass, ask the user if questions arise.
 
 
@@ -144,44 +144,44 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 3: Gap Fixes (Requirements 1–25)
 
-- [~] 32. Implement push subscription API routes (Req 1)
+- [x] 32. Implement push subscription API routes (Req 1)
   - Create `src/app/api/push/subscribe/route.ts`: POST withApiProxy requireAuth; upsert into web_push_subscriptions ON CONFLICT (endpoint) DO UPDATE SET updated_at=NOW()
   - Create `src/app/api/push/unsubscribe/route.ts`: DELETE withApiProxy requireAuth; DELETE FROM web_push_subscriptions WHERE endpoint = body.endpoint AND portal_user_id = userId
   - Add client-side retry (3× exponential backoff 1s/2s/4s) in the push subscription hook/component
   - _Requirements: Req 1.3, 1.5_
 
-- [ ] 33. Add deadline enforcement to `POST /api/cbt/sessions` (Req 2)
+- [x] 33. Add deadline enforcement to `POST /api/cbt/sessions` (Req 2)
   - In `src/app/api/cbt/sessions/route.ts` POST handler: compare submitted_at against cbt_sessions.deadline; if submitted_at > deadline + 30s return HTTP 422 `{ error: 'DEADLINE_EXCEEDED', deadline: deadline.toISOString() }`
   - Update CBT taking page to display server-authoritative countdown from deadline, warning banner when < 5 minutes remain, and auto-submit when countdown reaches zero
   - _Requirements: Req 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 34. Implement CBT periodic auto-save (Req 3)
+- [x] 34. Implement CBT periodic auto-save (Req 3)
   - Create `src/app/api/cbt/sessions/[id]/route.ts` PATCH handler: accept { answers: Record\<string,unknown\> }; update cbt_sessions.answers only if status = 'in_progress'; return `{ saved_at: new Date().toISOString() }` or 422 on deadline exceeded
   - Update CBT taking page: setInterval every 60s to PATCH current answers; show "Saved at HH:MM" on success; retain answers in memory and retry every 30s on network failure; stop retrying and trigger auto-submit on 422 DEADLINE_EXCEEDED
   - _Requirements: Req 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 35. Update analytics dashboard UI for triggered signals (Req 5)
+- [x] 35. Update analytics dashboard UI for triggered signals (Req 5)
   - In at-risk student panel component, render triggered_signals array as labelled badges ('no_login' → "No Login 7d", 'low_attendance' → "Low Attendance", 'overdue_assignments' → "Overdue Work"); show empty-state message when array is empty
   - _Requirements: Req 5.4, 5.5_
 
-- [ ] 36. Update payment webhook to use atomic RPC (Req 6)
+- [x] 36. Update payment webhook to use atomic RPC (Req 6)
   - In `src/app/api/payments/webhook/route.ts`: check existing payment_transactions WHERE transaction_reference = reference first; if exists return HTTP 200; otherwise call supabase.rpc('process_payment_atomic', { reference, invoice_id, amount }); verify Paystack signature and return 401 on failure
   - _Requirements: Req 6.1, 6.3, 6.4, 6.5_
 
-- [ ] 37. Apply per-endpoint rate limits to public routes (Req 7)
+- [x] 37. Apply per-endpoint rate limits to public routes (Req 7)
   - In `/api/public/student` route: add rateLimitProxy.check(req, { key: clientIp, max: 10, window: 60 })
   - In `/api/payments/registration` route: add rateLimitProxy.check(req, { key: body.email, max: 3, window: 300 })
   - Both throw RateLimitError on exceed; withApiProxy maps to HTTP 429 with retryAfter
   - _Requirements: Req 7.1, 7.2, 7.3_
 
-- [ ] 38. Update notification preferences — service, schema, and settings UI (Req 8)
+- [x] 38. Update notification preferences — service, schema, and settings UI (Req 8)
   - Update preferencesService to read/write payment_updates, report_published, attendance_alerts, weekly_summary, streak_reminder columns
   - Update updatePrefsSchema in preferences API route to accept and validate all five new fields
   - Add toggles for all four new categories (+ streak_reminder) to the notification preferences settings page
   - Ensure new portal_user insert triggers corresponding notification_preferences row with defaults
   - _Requirements: Req 8.2, 8.3, 8.5, 8.6_
 
-- [ ] 39. Implement cursor pagination on heavy list API routes (Req 10)
+- [x] 39. Implement cursor pagination on heavy list API routes (Req 10)
   - Update transactions API route: replace .limit(200/.500) with cursor pagination (created_at DESC, id DESC, limit 20) + nextCursor response field
   - Update invoices API route with same cursor pattern
   - Update leaderboard API route with same cursor pattern
@@ -189,30 +189,30 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Update corresponding UI pages to show "Load More" button using nextCursor; reset on navigate back
   - _Requirements: Req 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 40. Create `GET /api/system/status` route + UI components (Req 11)
+- [x] 40. Create `GET /api/system/status` route + UI components (Req 11)
   - Create `src/app/api/system/status/route.ts`: public (no auth); read maintenance_mode + minimum_web_version from system_settings; return JSON
   - Create `src/components/ui/MaintenanceBanner.tsx`: full-screen blocking overlay when maintenance_mode = true; auto-dismiss when mode transitions to false on next poll
   - Create `src/components/ui/ForceRefreshBanner.tsx`: non-blocking top banner with "Refresh" button (triggers hard reload) when deployed version < minimum_web_version
   - Wire useSystemStatus hook in `src/app/dashboard/layout.tsx`
   - _Requirements: Req 11.1, 11.3, 11.4, 11.5_
 
-- [ ] 41. Create support ticket dashboard page (Req 12)
+- [x] 41. Create support ticket dashboard page (Req 12)
   - Create `src/app/api/support/route.ts` POST handler: create ticket + send acknowledgement email via notificationsService.sendEmail()
   - Create `src/app/api/support/[id]/route.ts` POST handler: append reply message; send email notification to ticket creator when staff replies
   - Create `src/app/dashboard/support/page.tsx`: ticket list (cursor-paginated), create form, thread detail view with reply; school_admin sees all school tickets
   - _Requirements: Req 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
 
-- [ ] 42. Implement timetable conflict detection (Req 13)
+- [x] 42. Implement timetable conflict detection (Req 13)
   - Update `src/app/api/timetable-slots/route.ts` POST: call supabase.rpc('check_timetable_conflicts', { slot }) before insert; return HTTP 409 with TEACHER_CONFLICT or ROOM_CONFLICT + conflictingSlot
   - Update timetable UI: client-side conflict check against loaded slots before submit; inline warning listing conflicting slot; red border/warning icon on conflicting grid cells; clear conflict errors on re-submit
   - _Requirements: Req 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
 
-- [ ] 43. Redesign lesson plans pages (Req 15)
+- [x] 43. Redesign lesson plans pages (Req 15)
   - Redesign `src/app/dashboard/lesson-plans/page.tsx`: creation form with course, class, school, term, start_date, end_date, sessions_per_week, optional curriculum_version_id; status badges (draft/published/archived); version indicator
   - Redesign `src/app/dashboard/lesson-plans/[id]/page.tsx`: inline week entry editing, PDF export via browser print, linked curriculum title display, status transitions
   - _Requirements: Req 15.1, 15.2, 15.4, 15.5, 15.6, 15.7_
 
-- [ ] 44. Wire session expiry UI in dashboard layout (Req 16)
+- [x] 44. Wire session expiry UI in dashboard layout (Req 16)
   - Create `src/components/ui/SessionExpiryBanner.tsx`: non-blocking top banner "Session expiring soon — Stay signed in" with click handler to trigger silent refresh
   - Call useSessionExpiry hook in `src/app/dashboard/layout.tsx`; render SessionExpiryBanner when expiry is near
   - _Requirements: Req 16.1, 16.2, 16.3_

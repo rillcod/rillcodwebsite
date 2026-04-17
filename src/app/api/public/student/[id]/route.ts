@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Req 7.1 — 10 req / 60 s per client IP
+  try {
+    await checkCustomRateLimit({ key: getClientIp(req), max: 10, window: 60 });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 60 },
+        { status: 429 },
+      );
+    }
+  }
+
   const { id } = await params;
 
   if (!id) {

@@ -35,6 +35,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'timetable_id and subject are required' }, { status: 400 });
 
   const admin = adminClient();
+
+  // Req 13.3 — server-side conflict detection via RPC
+  const { data: conflictResult, error: rpcErr } = await admin
+    .rpc('check_timetable_conflicts', {
+      p_slot: {
+        timetable_id,
+        day_of_week: day_of_week || 'Monday',
+        start_time: start_time || '08:00',
+        end_time: end_time || '09:00',
+        teacher_id: teacher_id || null,
+        room: room?.trim() || null,
+      },
+    });
+
+  if (rpcErr) {
+    console.error('check_timetable_conflicts RPC error:', rpcErr);
+    // Non-fatal — proceed without conflict check if RPC fails
+  } else if (conflictResult?.conflict === 'TEACHER_CONFLICT') {
+    // Req 13.4
+    return NextResponse.json(
+      { error: 'TEACHER_CONFLICT', conflictingSlot: conflictResult.conflictingSlot },
+      { status: 409 },
+    );
+  } else if (conflictResult?.conflict === 'ROOM_CONFLICT') {
+    // Req 13.5
+    return NextResponse.json(
+      { error: 'ROOM_CONFLICT', conflictingSlot: conflictResult.conflictingSlot },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await admin
     .from('timetable_slots')
     .insert({

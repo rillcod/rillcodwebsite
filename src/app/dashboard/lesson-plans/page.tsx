@@ -7,18 +7,29 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
-  LightBulbIcon, AcademicCapIcon, SparklesIcon,
+  SparklesIcon, AcademicCapIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 interface LessonPlan {
   id: string;
-  lesson_id: string;
-  objectives: string | null;
-  activities: string | null;
-  assessment_methods: string | null;
-  staff_notes: string | null;
-  summary_notes: string | null;
+  lesson_id?: string | null;
+  course_id?: string | null;
+  class_id?: string | null;
+  school_id?: string | null;
+  term?: string | null;
+  term_start?: string | null;
+  term_end?: string | null;
+  sessions_per_week?: number | null;
+  curriculum_version_id?: string | null;
+  status?: string | null;
+  version?: number | null;
+  plan_data?: Record<string, unknown> | null;
+  objectives?: string | null;
+  activities?: string | null;
+  assessment_methods?: string | null;
+  staff_notes?: string | null;
+  summary_notes?: string | null;
   created_at: string;
   updated_at: string;
   lessons?: {
@@ -29,158 +40,110 @@ interface LessonPlan {
     status: string;
     courses?: { id: string; title: string };
   } | null;
+  courses?: { id: string; title: string } | null;
+  classes?: { id: string; name: string } | null;
+  schools?: { id: string; name: string } | null;
 }
 
-interface Lesson {
-  id: string;
-  title: string;
-  lesson_type: string | null;
-  courses?: { id: string; title: string } | null;
-}
+interface Course { id: string; title: string }
+interface Class { id: string; name: string }
+interface School { id: string; name: string }
+
+const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  published: { label: 'Published', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  archived:  { label: 'Archived',  cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+};
 
 export default function LessonPlansPage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const [plans, setPlans] = useState<LessonPlan[]>([]);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editPlan, setEditPlan] = useState<LessonPlan | null>(null);
-  const [viewPlan, setViewPlan] = useState<LessonPlan | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
-    lesson_id: '',
-    objectives: '',
-    activities: '',
-    assessment_methods: '',
-    staff_notes: '',
-    summary_notes: '',
+    course_id: '',
+    class_id: '',
+    school_id: '',
+    term: '',
+    term_start: '',
+    term_end: '',
+    sessions_per_week: '5',
+    curriculum_version_id: '',
   });
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const canManage = isAdmin || isTeacher;
-  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [plansRes, lessonsRes] = await Promise.all([
+      const [plansRes, coursesRes, classesRes] = await Promise.all([
         fetch('/api/lesson-plans'),
-        fetch('/api/lessons'),
+        fetch('/api/courses'),
+        fetch('/api/classes'),
       ]);
       const plansJson = await plansRes.json();
-      const lessonsJson = lessonsRes.ok ? await lessonsRes.json() : { data: [] };
+      const coursesJson = coursesRes.ok ? await coursesRes.json() : { data: [] };
+      const classesJson = classesRes.ok ? await classesRes.json() : { data: [] };
       setPlans(plansJson.data ?? []);
-      setLessons(lessonsJson.data ?? []);
+      setCourses(coursesJson.data ?? []);
+      setClasses(classesJson.data ?? []);
+
+      if (isAdmin) {
+        const schoolsRes = await fetch('/api/schools');
+        const schoolsJson = schoolsRes.ok ? await schoolsRes.json() : { data: [] };
+        setSchools(schoolsJson.data ?? []);
+      }
     } catch {
       toast.error('Failed to load lesson plans');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
-  useEffect(() => { if (!authLoading && !profileLoading && profile) load(); }, [authLoading, profileLoading, profile, load]);
-
-  async function generateWithAI() {
-    const selectedLesson = lessons.find(l => l.id === form.lesson_id) ?? (editPlan ? editPlan.lessons : null);
-    const lessonTitle = selectedLesson?.title ?? '';
-    const courseTitle = (selectedLesson as any)?.courses?.title ?? '';
-    if (!lessonTitle) { toast.error('Select a lesson first so AI knows what to generate'); return; }
-    setGenerating(true);
-    try {
-      const prompt = `You are an expert Nigerian secondary school curriculum designer.
-Generate a detailed, practical lesson plan for the following lesson:
-
-Lesson Title: "${lessonTitle}"${courseTitle ? `\nCourse/Subject: "${courseTitle}"` : ''}
-
-Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
-{
-  "objectives": "3-5 specific, measurable learning objectives using action verbs (Bloom's taxonomy). Numbered list.",
-  "activities": "Step-by-step teaching activities including: starter activity (5 min hook), main instruction, guided practice, group/pair work, and closing reflection. Include estimated time for each.",
-  "assessment_methods": "2-3 assessment strategies to check understanding: formative (during lesson) and summative (end of lesson). Include quick quiz ideas, exit ticket, or class discussion prompts.",
-  "staff_notes": "Key preparation notes: materials needed, common misconceptions to address, differentiation tips for weaker and stronger students, cross-curricular links.",
-  "summary_notes": "One-paragraph lesson summary suitable for student handout or parent communication."
-}`;
-
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'custom', prompt }),
-      });
-      const j = await res.json();
-      const raw: string = j.content ?? j.text ?? j.result ?? '';
-      // Strip possible markdown fences
-      const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-      let parsed: Record<string, string> = {};
-      try { parsed = JSON.parse(cleaned); } catch {
-        // Fallback: try to extract each field with a regex
-        const extract = (key: string) => {
-          const m = cleaned.match(new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?:"\\s*[,}]|"\\s*$)`, 'm'));
-          return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : '';
-        };
-        ['objectives', 'activities', 'assessment_methods', 'staff_notes', 'summary_notes'].forEach(k => {
-          const v = extract(k);
-          if (v) parsed[k] = v;
-        });
-      }
-      if (!Object.keys(parsed).length) { toast.error('AI returned an unexpected format — try again'); return; }
-      setForm(prev => ({
-        ...prev,
-        objectives: parsed.objectives ?? prev.objectives,
-        activities: parsed.activities ?? prev.activities,
-        assessment_methods: parsed.assessment_methods ?? prev.assessment_methods,
-        staff_notes: parsed.staff_notes ?? prev.staff_notes,
-        summary_notes: parsed.summary_notes ?? prev.summary_notes,
-      }));
-      toast.success('AI lesson plan generated — review and edit before saving');
-    } catch (e: any) {
-      toast.error(e.message ?? 'AI generation failed');
-    } finally {
-      setGenerating(false);
-    }
-  }
+  useEffect(() => {
+    if (!authLoading && !profileLoading && profile) load();
+  }, [authLoading, profileLoading, profile, load]);
 
   async function save() {
-    if (!form.lesson_id) { toast.error('Please select a lesson'); return; }
+    if (!form.course_id) { toast.error('Please select a course'); return; }
+    if (!form.term_start || !form.term_end) { toast.error('Start and end dates are required'); return; }
     setSubmitting(true);
     try {
-      if (editPlan) {
-        const res = await fetch(`/api/lesson-plans/${editPlan.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        });
-        if (!res.ok) throw new Error('Update failed');
-        toast.success('Plan updated');
-      } else {
-        const res = await fetch('/api/lesson-plans', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        });
-        if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
-        toast.success('Lesson plan saved');
-      }
-      setShowForm(false); setEditPlan(null);
-      setForm({ lesson_id: '', objectives: '', activities: '', assessment_methods: '', staff_notes: '', summary_notes: '' });
+      const res = await fetch('/api/lesson-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          course_id: form.course_id || null,
+          class_id: form.class_id || null,
+          school_id: form.school_id || profile?.school_id || null,
+          term: form.term || null,
+          term_start: form.term_start || null,
+          term_end: form.term_end || null,
+          sessions_per_week: form.sessions_per_week ? Number(form.sessions_per_week) : null,
+          curriculum_version_id: form.curriculum_version_id || null,
+          status: 'draft',
+          plan_data: {},
+          created_by: profile?.id,
+        }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      toast.success('Lesson plan created');
+      setShowForm(false);
+      setForm({ course_id: '', class_id: '', school_id: '', term: '', term_start: '', term_end: '', sessions_per_week: '5', curriculum_version_id: '' });
       load();
-    } catch (e: any) { toast.error(e.message || 'Failed to save'); }
-    finally { setSubmitting(false); }
-  }
-
-  function openEdit(plan: LessonPlan) {
-    setEditPlan(plan);
-    setForm({
-      lesson_id: plan.lesson_id,
-      objectives: plan.objectives ?? '',
-      activities: plan.activities ?? '',
-      assessment_methods: plan.assessment_methods ?? '',
-      staff_notes: plan.staff_notes ?? '',
-      summary_notes: plan.summary_notes ?? '',
-    });
-    setShowForm(true);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (authLoading || profileLoading || !profile) {
@@ -196,19 +159,15 @@ Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
     );
   }
 
-  // Lessons that don't have a plan yet
-  const plannedLessonIds = new Set(plans.map(p => p.lesson_id));
-  const unplannedLessons = lessons.filter(l => !plannedLessonIds.has(l.id));
-
   const filtered = plans.filter(p => !search ||
-    p.lessons?.title?.toLowerCase().includes(search.toLowerCase()) ||
-    p.lessons?.courses?.title?.toLowerCase().includes(search.toLowerCase()) ||
-    p.objectives?.toLowerCase().includes(search.toLowerCase())
+    (p.courses?.title ?? p.lessons?.courses?.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.classes?.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.term ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Lessons Hub Tab Bar */}
+      {/* Tab Bar */}
       <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
         <Link href="/dashboard/lessons"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -218,38 +177,26 @@ Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
           <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
         </span>
       </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
             <DocumentTextIcon className="w-7 h-7 text-violet-400" />
-            Lesson Plans
+            Term Lesson Plans
           </h1>
-          <p className="text-card-foreground/50 text-sm mt-0.5">
-            {plans.length} plans created · {unplannedLessons.length} lessons need plans
-          </p>
+          <p className="text-card-foreground/50 text-sm mt-0.5">{plans.length} plans</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
             <ArrowPathIcon className={`w-4 h-4 text-card-foreground/50 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={() => { setShowForm(true); setEditPlan(null); setForm({ lesson_id: '', objectives: '', activities: '', assessment_methods: '', staff_notes: '', summary_notes: '' }); }}
+          <button onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-500/20">
             <PlusIcon className="w-4 h-4" /> New Plan
           </button>
         </div>
       </div>
-
-      {/* Coverage Banner */}
-      {unplannedLessons.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
-          <LightBulbIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
-          <p className="text-sm text-amber-300">
-            <span className="font-bold">{unplannedLessons.length} lesson{unplannedLessons.length !== 1 ? 's' : ''}</span> don't have plans yet.
-            <button onClick={() => { setShowForm(true); setEditPlan(null); }} className="ml-1.5 underline underline-offset-2 font-bold hover:text-amber-200">Create a plan</button>
-          </p>
-        </div>
-      )}
 
       {/* Search */}
       <div className="relative w-full sm:w-80">
@@ -269,154 +216,134 @@ Return ONLY a JSON object with exactly these keys (no markdown, no extra text):
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filtered.map(plan => (
-            <div key={plan.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-violet-500/30 transition-all group cursor-pointer"
-              onClick={() => setViewPlan(plan)}>
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {plan.lessons?.courses && (
-                      <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[120px]">{plan.lessons.courses.title}</span>
-                    )}
-                    {plan.lessons?.lesson_type && (
-                      <span className="text-xs text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full capitalize">{plan.lessons.lesson_type}</span>
-                    )}
+          {filtered.map(plan => {
+            const status = plan.status ?? 'draft';
+            const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
+            const courseTitle = plan.courses?.title ?? plan.lessons?.courses?.title ?? 'Unknown Course';
+            return (
+              <Link key={plan.id} href={`/dashboard/lesson-plans/${plan.id}`}
+                className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-violet-500/30 transition-all group block">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[140px]">{courseTitle}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
+                      {(plan.version ?? 1) > 1 && (
+                        <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
+                      )}
+                    </div>
+                    <h3 className="font-black text-card-foreground text-base">
+                      {plan.term ?? 'Term Plan'} {plan.classes?.name ? `— ${plan.classes.name}` : ''}
+                    </h3>
                   </div>
-                  <h3 className="font-black text-card-foreground text-base">{plan.lessons?.title ?? 'Untitled Lesson'}</h3>
+                  <PencilIcon className="w-4 h-4 text-card-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => openEdit(plan)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
-                    <PencilIcon className="w-4 h-4 text-card-foreground/50" />
-                  </button>
+
+                <div className="space-y-1.5 text-xs text-card-foreground/50">
+                  {plan.term_start && plan.term_end && (
+                    <p>{new Date(plan.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(plan.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  )}
+                  {plan.sessions_per_week && <p>{plan.sessions_per_week} sessions/week</p>}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                {plan.objectives && (
-                  <div className="flex gap-2">
-                    <AcademicCapIcon className="w-4 h-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-card-foreground/60 line-clamp-2">{plan.objectives}</p>
-                  </div>
-                )}
-                {plan.activities && (
-                  <div className="flex gap-2">
-                    <LightBulbIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-card-foreground/60 line-clamp-2">{plan.activities}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
-                {['objectives', 'activities', 'assessment_methods', 'staff_notes'].map(field => (
-                  <div key={field} title={field.replace(/_/g, ' ')}
-                    className={`w-2 h-2 rounded-full ${(plan as any)[field] ? 'bg-emerald-400' : 'bg-white/10'}`} />
-                ))}
-                <span className="text-xs text-card-foreground/30 ml-1">{['objectives', 'activities', 'assessment_methods', 'staff_notes'].filter(f => (plan as any)[f]).length}/4 sections</span>
-                <span className="ml-auto text-xs text-card-foreground/30">
-                  {new Date(plan.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                </span>
-              </div>
-            </div>
-          ))}
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
+                  <AcademicCapIcon className="w-3.5 h-3.5 text-violet-400" />
+                  <span className="text-xs text-card-foreground/30">
+                    {plan.plan_data && typeof plan.plan_data === 'object' && 'weeks' in plan.plan_data
+                      ? `${(plan.plan_data.weeks as unknown[]).length} weeks`
+                      : 'No weeks yet'}
+                  </span>
+                  <span className="ml-auto text-xs text-card-foreground/30">
+                    {new Date(plan.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 
-      {/* Plan Form Modal */}
+      {/* Create Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-2xl shadow-2xl my-4">
+          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-lg shadow-2xl my-4">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
-              <h3 className="font-black text-card-foreground text-lg">{editPlan ? 'Edit Lesson Plan' : 'Create Lesson Plan'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><XMarkIcon className="w-5 h-5 text-card-foreground/50" /></button>
+              <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
+                <SparklesIcon className="w-5 h-5 text-violet-400" /> New Term Plan
+              </h3>
+              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-white/5 rounded-lg">
+                <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
+              </button>
             </div>
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              {!editPlan && (
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Course <span className="text-rose-400">*</span></label>
+                <select value={form.course_id} onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50">
+                  <option value="">Select course…</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Class</label>
+                <select value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50">
+                  <option value="">Select class…</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              {isAdmin && schools.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Lesson <span className="text-rose-400">*</span></label>
-                  <select value={form.lesson_id} onChange={e => setForm(f => ({ ...f, lesson_id: e.target.value }))}
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">School</label>
+                  <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50">
-                    <option value="">Choose a lesson…</option>
-                    {unplannedLessons.map(l => (
-                      <option key={l.id} value={l.id}>{l.title}{l.courses ? ` — ${l.courses.title}` : ''}</option>
-                    ))}
+                    <option value="">Select school…</option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
               )}
-              {/* AI Generate */}
-              <div className="flex items-center justify-between py-2 border-t border-white/[0.06]">
-                <p className="text-xs text-card-foreground/40">Let AI draft the full plan — then edit to your style</p>
-                <button
-                  type="button"
-                  onClick={generateWithAI}
-                  disabled={generating || (!form.lesson_id && !editPlan)}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-violet-500/20"
-                >
-                  {generating
-                    ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Generating…</>
-                    : <><SparklesIcon className="w-3.5 h-3.5" /> AI Generate Plan</>}
-                </button>
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Term</label>
+                <select value={form.term} onChange={e => setForm(f => ({ ...f, term: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50">
+                  <option value="">Select term…</option>
+                  <option value="First Term">First Term</option>
+                  <option value="Second Term">Second Term</option>
+                  <option value="Third Term">Third Term</option>
+                </select>
               </div>
-
-              {[
-                { key: 'objectives', label: 'Learning Objectives', placeholder: 'What should students know/be able to do after this lesson?', rows: 3 },
-                { key: 'activities', label: 'Teaching Activities', placeholder: 'Activities, exercises, and teaching methods to use…', rows: 3 },
-                { key: 'assessment_methods', label: 'Assessment Methods', placeholder: 'How will you assess student understanding?', rows: 2 },
-                { key: 'staff_notes', label: 'Staff Notes', placeholder: 'Internal notes, preparation reminders…', rows: 2 },
-                { key: 'summary_notes', label: 'Summary Notes', placeholder: 'Post-lesson summary and reflections…', rows: 2 },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">{f.label}</label>
-                  <textarea value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    rows={f.rows} placeholder={f.placeholder}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50 resize-none" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date <span className="text-rose-400">*</span></label>
+                  <input type="date" value={form.term_start} onChange={e => setForm(f => ({ ...f, term_start: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
                 </div>
-              ))}
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date <span className="text-rose-400">*</span></label>
+                  <input type="date" value={form.term_end} onChange={e => setForm(f => ({ ...f, term_end: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Sessions per Week</label>
+                <input type="number" min="1" max="7" value={form.sessions_per_week}
+                  onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Curriculum Version ID <span className="text-card-foreground/30">(optional)</span></label>
+                <input type="text" value={form.curriculum_version_id}
+                  onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
+                  placeholder="UUID of linked curriculum version"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50" />
+              </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-white/[0.08]">
               <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all">Cancel</button>
-              <button onClick={save} disabled={submitting || (!editPlan && !form.lesson_id)}
+              <button onClick={save} disabled={submitting || !form.course_id || !form.term_start || !form.term_end}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
-                <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Saving…' : 'Save Plan'}
+                <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Creating…' : 'Create Plan'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Plan Modal */}
-      {viewPlan && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-2xl shadow-2xl my-4">
-            <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
-              <div>
-                <h3 className="font-black text-card-foreground text-lg">{viewPlan.lessons?.title ?? 'Lesson Plan'}</h3>
-                {viewPlan.lessons?.courses && <p className="text-sm text-card-foreground/50">{viewPlan.lessons.courses.title}</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setViewPlan(null); openEdit(viewPlan); }} className="p-1.5 hover:bg-white/10 rounded-lg">
-                  <PencilIcon className="w-4 h-4 text-card-foreground/50" />
-                </button>
-                <button onClick={() => setViewPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg">
-                  <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
-                </button>
-              </div>
-            </div>
-            <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
-              {[
-                { key: 'objectives', label: 'Learning Objectives', color: 'text-violet-400', bg: 'bg-violet-500/10' },
-                { key: 'activities', label: 'Teaching Activities', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                { key: 'assessment_methods', label: 'Assessment Methods', color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                { key: 'staff_notes', label: 'Staff Notes', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                { key: 'summary_notes', label: 'Summary Notes', color: 'text-rose-400', bg: 'bg-rose-500/10' },
-              ].map(f => (viewPlan as any)[f.key] && (
-                <div key={f.key} className={`${f.bg} border border-white/10 rounded-xl p-4`}>
-                  <h4 className={`text-xs font-black uppercase tracking-wider mb-2 ${f.color}`}>{f.label}</h4>
-                  <p className="text-sm text-card-foreground/80 whitespace-pre-wrap">{(viewPlan as any)[f.key]}</p>
-                </div>
-              ))}
-            </div>
-            <div className="p-5 border-t border-white/[0.08]">
-              <button onClick={() => setViewPlan(null)} className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all">Close</button>
             </div>
           </div>
         </div>

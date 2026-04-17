@@ -13,20 +13,51 @@ const POINTS_CONFIG: Record<ActivityType, number> = {
 };
 
 export class GamificationService {
-    async awardPoints(userId: string, activityType: ActivityType, referenceId?: string, description?: string) {
+    /**
+     * Awards XP points for an activity exactly once per (userId, activityType,
+     * referenceId) triple (Req 4.2 — ON CONFLICT DO NOTHING).
+     *
+     * total_points is recalculated from the SUM of all point_transactions rows
+     * rather than incrementing a stored counter (Req 4.3).
+     *
+     * Returns { awarded: true } when a new row was inserted, or
+     * { awarded: false } when the triple already existed (duplicate call).
+     */
+    async awardPoints(
+        userId: string,
+        activityType: ActivityType,
+        referenceId?: string,
+        description?: string,
+    ): Promise<{ awarded: boolean; totalPoints: number; newLevel: string; streak: number }> {
         const supabase = await createClient();
         const points = POINTS_CONFIG[activityType];
 
-        // 1. Log transaction
-        await supabase.from('point_transactions').insert([{
-            portal_user_id: userId,
-            points,
-            activity_type: activityType,
-            reference_id: referenceId,
-            description
-        }]);
+        // 1. Idempotent insert — ON CONFLICT (portal_user_id, activity_type, reference_id) DO NOTHING
+        const { error: insertError, count } = await supabase
+            .from('point_transactions')
+            .insert([{
+                portal_user_id: userId,
+                points,
+                activity_type: activityType,
+                reference_id: referenceId ?? null,
+                description,
+            }], { count: 'exact' });
 
-        // 2. Update user_points (upsert)
+        if (insertError) throw new AppError(insertError.message, 500);
+
+        const awarded = (count ?? 0) > 0;
+
+        // 2. Recalculate total_points from SUM (Req 4.3)
+        const { data: sumData, error: sumError } = await supabase
+            .from('point_transactions')
+            .select('points.sum()')
+            .eq('portal_user_id', userId)
+            .single();
+
+        if (sumError) throw new AppError(sumError.message, 500);
+        const totalPoints: number = (sumData as any)?.sum ?? 0;
+
+        // 3. Update user_points (streak + level)
         const { data: currentPoints } = await supabase
             .from('user_points')
             .select('*')
@@ -35,14 +66,12 @@ export class GamificationService {
 
         const today = new Date().toISOString().split('T')[0];
         let streak = currentPoints?.current_streak || 0;
-        let lastActivity = currentPoints?.last_activity_date;
+        const lastActivity = currentPoints?.last_activity_date;
 
-        // Streak logic
         if (lastActivity) {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
-
             if (lastActivity === yesterdayStr) {
                 streak += 1;
             } else if (lastActivity !== today) {
@@ -52,32 +81,31 @@ export class GamificationService {
             streak = 1;
         }
 
-        const totalPoints = (currentPoints?.total_points || 0) + points;
         const newLevel = this.calculateLevel(totalPoints);
 
-        const { error } = await supabase.from('user_points').upsert({
+        const { error: upsertError } = await supabase.from('user_points').upsert({
             portal_user_id: userId,
             total_points: totalPoints,
             current_streak: streak,
             longest_streak: Math.max(streak, currentPoints?.longest_streak || 0),
             last_activity_date: today,
             achievement_level: newLevel,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         });
 
-        if (error) throw new AppError(error.message, 500);
+        if (upsertError) throw new AppError(upsertError.message, 500);
 
-        // 3. Level up notification
-        if (currentPoints && currentPoints.achievement_level !== newLevel) {
+        // 4. Level-up notification (only when a new row was actually inserted)
+        if (awarded && currentPoints && currentPoints.achievement_level !== newLevel) {
             await notificationsService.logNotification(
                 userId,
                 'Level Up! 🎉',
                 `Congratulations! You've reached the ${newLevel} level.`,
-                'success'
+                'success',
             );
         }
 
-        return { points, totalPoints, newLevel, streak };
+        return { awarded, totalPoints, newLevel, streak };
     }
 
     private calculateLevel(points: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' {

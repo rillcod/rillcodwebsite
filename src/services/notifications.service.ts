@@ -4,6 +4,19 @@ import { AppError } from '@/lib/errors';
 import { templatesService } from './templates.service';
 import { queueService } from './queue.service';
 import { emitToUser } from '@/lib/socket-io';
+import { redisCache } from '@/lib/redis';
+import { createHash } from 'crypto';
+
+// Preference columns added in migration 20260501000005
+export type NotificationCategory =
+  | 'payment_updates'
+  | 'report_published'
+  | 'attendance_alerts'
+  | 'weekly_summary'
+  | 'streak_reminder'
+  | 'email_enabled';
+
+const IDEMPOTENCY_TTL = 600; // 10 minutes
 
 export interface EmailPayload {
     to: string;
@@ -130,6 +143,102 @@ export class NotificationsService {
         } catch (err) {
             console.error(`Failed to check notification preferences for user ${userId}:`, err);
             return true;
+        }
+    }
+
+    /**
+     * Checks whether a specific notification category is enabled for a user.
+     * Falls back to true (allow) on any error so notifications are not silently
+     * dropped due to a DB issue.
+     */
+    private async checkCategoryPreference(
+        userId: string,
+        category: NotificationCategory,
+    ): Promise<boolean> {
+        if (category === 'email_enabled') return this.checkPreferences(userId, 'email');
+        try {
+            const supabase = await createClient();
+            const { data, error } = await supabase
+                .from('notification_preferences')
+                .select(category)
+                .eq('portal_user_id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') return true;
+            if (!data) return true;
+            return (data as any)[category] ?? true;
+        } catch {
+            return true;
+        }
+    }
+
+    /**
+     * Category-aware email send with idempotency guard (Req 8.4, Req 24).
+     *
+     * - Computes SHA-256(to + eventType + referenceId) as idempotency key
+     * - Skips send if key already exists in Redis (10-min TTL)
+     * - Checks the corresponding notification_preferences column
+     * - Retries SendPulse once after 30 s on non-2xx (Req 24.4)
+     */
+    async sendCategorisedEmail(params: {
+        userId: string;
+        to: string;
+        subject: string;
+        html: string;
+        category: NotificationCategory;
+        eventType: string;
+        referenceId: string;
+        fromName?: string;
+        fromEmail?: string;
+    }): Promise<boolean> {
+        const { userId, to, subject, html, category, eventType, referenceId } = params;
+
+        // 1. Idempotency check
+        const hash = createHash('sha256')
+            .update(`${to}:${eventType}:${referenceId}`)
+            .digest('hex');
+        const idemKey = `email_idem:${hash}`;
+
+        const existing = await redisCache.get<string>(idemKey);
+        if (existing) {
+            console.warn('[notifications] Suppressed duplicate email', { idemKey, to, eventType });
+            return false;
+        }
+
+        // 2. Category preference check
+        const allowed = await this.checkCategoryPreference(userId, category);
+        if (!allowed) {
+            console.warn(`[notifications] Category "${category}" disabled for user ${userId}. Skipping.`);
+            return false;
+        }
+
+        // 3. Set idempotency key before dispatch
+        await redisCache.set(idemKey, '1', IDEMPOTENCY_TTL);
+
+        // 4. Send (with one retry after 30 s on failure)
+        const payload: EmailPayload = {
+            to,
+            subject,
+            html,
+            fromName: params.fromName,
+            fromEmail: params.fromEmail,
+        };
+
+        try {
+            await this.sendEmail(userId, payload);
+            return true;
+        } catch (firstErr: any) {
+            console.warn('[notifications] First send attempt failed, retrying in 30 s:', firstErr.message);
+            await new Promise(r => setTimeout(r, 30_000));
+            try {
+                await this.sendEmail(userId, payload);
+                return true;
+            } catch (retryErr: any) {
+                console.error('[notifications] Retry also failed:', retryErr.message);
+                // Remove idempotency key so a future manual retry can go through
+                await redisCache.del(idemKey);
+                return false;
+            }
         }
     }
 
