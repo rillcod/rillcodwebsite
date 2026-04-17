@@ -75,11 +75,20 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         if (!conversation) {
+          // Check if this phone number belongs to an existing portal user
+          const { data: user } = await admin
+            .from('portal_users')
+            .select('id')
+            .ilike('phone', `%${from.slice(-10)}%`) // Match last 10 digits to catch variations in country codes
+            .limit(1)
+            .maybeSingle();
+
           // Create new conversation
           const { data: newConv, error: convErr } = await admin
             .from('whatsapp_conversations')
             .insert({
               phone_number: from,
+              portal_user_id: user?.id || null,
               contact_name: value.contacts?.[0]?.profile?.name || null,
               last_message_at: new Date(parseInt(timestamp) * 1000).toISOString(),
               last_message_preview: messageBody.slice(0, 100),
@@ -95,6 +104,20 @@ export async function POST(req: NextRequest) {
           }
           conversation = newConv;
         } else {
+          // If conversation exists but isn't linked, try linking it now
+          if (!conversation.portal_user_id) {
+             const { data: user } = await admin
+              .from('portal_users')
+              .select('id')
+              .ilike('phone', `%${from.slice(-10)}%`)
+              .limit(1)
+              .maybeSingle();
+             
+             if (user) {
+               await admin.from('whatsapp_conversations').update({ portal_user_id: user.id }).eq('id', conversation.id);
+             }
+          }
+
           // Update existing conversation
           await admin
             .from('whatsapp_conversations')
