@@ -27,8 +27,11 @@ async function getCaller(): Promise<Caller | null> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/cbt/sessions/[id]
-// Used by teachers/admins to save grades on a CBT session.
-// Teacher must be assigned to the school of the exam the session belongs to.
+//
+// Two modes depending on caller role:
+//  • student  → auto-save answers (Req 3): only updates `answers` column,
+//               only when session status = 'in_progress', checks deadline.
+//  • teacher/admin → grade a session (existing behaviour).
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
@@ -36,12 +39,55 @@ export async function PATCH(
 ) {
   try {
     const caller = await getCaller();
-    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
-      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-    }
+    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
     const admin = adminClient();
+    const body = await request.json();
+
+    // ── Student auto-save path (Req 3) ────────────────────────────────────────
+    if (caller.role === 'student') {
+      const { answers } = body;
+      if (!answers) return NextResponse.json({ error: 'answers required' }, { status: 400 });
+
+      // Fetch session — must belong to this student and be in_progress
+      const { data: session } = await admin
+        .from('cbt_sessions')
+        .select('id, status, deadline')
+        .eq('id', id)
+        .eq('user_id', caller.id)
+        .maybeSingle();
+
+      if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      if (session.status !== 'in_progress') {
+        return NextResponse.json({ error: 'Session is not in progress' }, { status: 422 });
+      }
+
+      // Deadline check (Req 3.5 — stop auto-save if deadline exceeded)
+      if (session.deadline) {
+        const deadlineMs = new Date(session.deadline).getTime();
+        if (Date.now() > deadlineMs + 30_000) {
+          return NextResponse.json(
+            { error: 'DEADLINE_EXCEEDED', deadline: session.deadline },
+            { status: 422 },
+          );
+        }
+      }
+
+      const savedAt = new Date().toISOString();
+      const { error } = await admin
+        .from('cbt_sessions')
+        .update({ answers, updated_at: savedAt })
+        .eq('id', id);
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ saved_at: savedAt });
+    }
+
+    // ── Teacher / admin grading path (existing behaviour) ────────────────────
+    if (!['admin', 'teacher'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    }
 
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
@@ -52,7 +98,6 @@ export async function PATCH(
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-    // School boundary: only admin or teacher assigned to the exam's school can grade
     if (caller.role === 'teacher') {
       const exam = (session as any).cbt_exams;
       const examSchoolId: string | null = exam?.school_id ?? null;
@@ -80,12 +125,7 @@ export async function PATCH(
       }
     }
 
-    const body = await request.json();
-
-    // Whitelist updatable fields for grading — students can never call this endpoint
-    const allowed: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
+    const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if ('score'         in body) allowed.score         = body.score;
     if ('status'        in body) allowed.status        = body.status;
     if ('manual_scores' in body) allowed.manual_scores = body.manual_scores;

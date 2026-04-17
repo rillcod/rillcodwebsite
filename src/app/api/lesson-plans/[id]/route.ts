@@ -66,19 +66,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: existingPlan, error: existingErr } = await db
     .from('lesson_plans')
-    .select('id, lessons(school_id, created_by)')
+    .select('id, school_id, created_by, lessons(school_id, created_by)')
     .eq('id', id)
     .maybeSingle();
   if (existingErr || !existingPlan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  // For term-level plans (no lesson_id), scope by plan.school_id or plan.created_by
+  const planSchoolId = (existingPlan as any)?.lessons?.school_id ?? (existingPlan as any)?.school_id ?? null;
+  const planCreatedBy = (existingPlan as any)?.lessons?.created_by ?? (existingPlan as any)?.created_by ?? null;
+
   const teacherSchoolIds =
     user.role === 'teacher' ? await getTeacherSchoolIds(user.id, user.school_id) : [];
-  const allowed = canAccessLessonScope(
+  const allowed = user.role === 'admin' || canAccessLessonScope(
     { id: user.id, role: user.role, school_id: user.school_id },
-    {
-      school_id: (existingPlan as any)?.lessons?.school_id ?? null,
-      created_by: (existingPlan as any)?.lessons?.created_by ?? null,
-    },
+    { school_id: planSchoolId, created_by: planCreatedBy },
     teacherSchoolIds,
   );
   if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

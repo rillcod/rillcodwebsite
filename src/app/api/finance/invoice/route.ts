@@ -90,7 +90,8 @@ export async function POST(request: Request) {
 }
 
 /**
- * GET /api/finance/invoice?school_id=&subscription_id=&status=
+ * GET /api/finance/invoice?school_id=&subscription_id=&status=&cursor_created_at=&cursor_id=
+ * Cursor-based pagination (Req 10): 20 rows per page, ordered by created_at DESC, id DESC.
  */
 export async function GET(request: Request) {
   const caller = await getCaller();
@@ -98,19 +99,35 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const school_id = caller.role === 'admin' ? searchParams.get('school_id') : caller.school_id;
-  const subscription_id = searchParams.get('subscription_id');
   const status = searchParams.get('status');
+  const cursorCreatedAt = searchParams.get('cursor_created_at');
+  const cursorId = searchParams.get('cursor_id');
 
   const db = createAdminClient();
   let q = db.from('invoices')
     .select('*, portal_users(full_name, email), schools(name)')
     .order('created_at', { ascending: false })
-    .limit(200);
+    .order('id', { ascending: false })
+    .limit(21); // fetch 21 to detect if there's a next page
 
   if (school_id) q = q.eq('school_id', school_id) as any;
   if (status) q = q.eq('status', status) as any;
 
+  // Apply cursor (Req 10.3)
+  if (cursorCreatedAt && cursorId) {
+    q = q.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`) as any;
+  }
+
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+
+  const rows = data ?? [];
+  const hasMore = rows.length === 21;
+  const page = hasMore ? rows.slice(0, 20) : rows;
+  const last = page[page.length - 1] as any;
+  const nextCursor = hasMore && last
+    ? { created_at: last.created_at, id: last.id }
+    : null;
+
+  return NextResponse.json({ data: page, nextCursor });
 }

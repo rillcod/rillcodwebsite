@@ -23,10 +23,10 @@ export async function GET(req: Request) {
         try {
             if (job.type === 'email') {
                 await notificationsService.sendEmail(job.userId, job.payload);
-            } else if (job.type === 'sms') {
-                await notificationsService.sendSMS(job.userId, job.payload);
-            } else if (job.type === 'whatsapp') {
-                await notificationsService.sendWhatsApp(job.userId, job.payload);
+            } else {
+                // Req 14: only 'email' jobs are supported — discard anything else
+                console.warn(`[process-notifications] Discarding unsupported job type "${(job as any).type}" (id: ${job.id})`);
+                continue;
             }
             processed++;
         } catch (err) {
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
             // Simple retry: push back to end of queue if attempts < 3
             if (job.attempts < 3) {
                 job.attempts++;
-                await queueService.queueNotification(job.userId, job.type, job.payload);
+                await queueService.queueNotification(job.userId, 'email', job.payload);
             }
         }
     }

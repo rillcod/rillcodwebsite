@@ -11,6 +11,12 @@ export interface UserPreferences {
     announcement_notifications: boolean;
     discussion_replies: boolean;
     marketing_emails: boolean;
+    // New columns added in migration 20260501000005 (Req 8.1, NF-5.4)
+    payment_updates: boolean;
+    report_published: boolean;
+    attendance_alerts: boolean;
+    weekly_summary: boolean;
+    streak_reminder: boolean;
 }
 
 const DEFAULTS: UserPreferences = {
@@ -22,6 +28,11 @@ const DEFAULTS: UserPreferences = {
     announcement_notifications: true,
     discussion_replies: true,
     marketing_emails: false,
+    payment_updates: true,
+    report_published: true,
+    attendance_alerts: true,
+    weekly_summary: true,
+    streak_reminder: true,
 };
 
 export class PreferencesService {
@@ -29,7 +40,7 @@ export class PreferencesService {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('notification_preferences')
-            .select('email_enabled, sms_enabled, push_enabled, assignment_reminders, grade_notifications, announcement_notifications, discussion_replies, marketing_emails')
+            .select('email_enabled, sms_enabled, push_enabled, assignment_reminders, grade_notifications, announcement_notifications, discussion_replies, marketing_emails, payment_updates, report_published, attendance_alerts, weekly_summary, streak_reminder')
             .eq('portal_user_id', userId)
             .single();
 
@@ -48,6 +59,11 @@ export class PreferencesService {
             announcement_notifications: data.announcement_notifications ?? DEFAULTS.announcement_notifications,
             discussion_replies: data.discussion_replies ?? DEFAULTS.discussion_replies,
             marketing_emails: data.marketing_emails ?? DEFAULTS.marketing_emails,
+            payment_updates: (data as any).payment_updates ?? DEFAULTS.payment_updates,
+            report_published: (data as any).report_published ?? DEFAULTS.report_published,
+            attendance_alerts: (data as any).attendance_alerts ?? DEFAULTS.attendance_alerts,
+            weekly_summary: (data as any).weekly_summary ?? DEFAULTS.weekly_summary,
+            streak_reminder: (data as any).streak_reminder ?? DEFAULTS.streak_reminder,
         };
     }
 

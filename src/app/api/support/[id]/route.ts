@@ -69,6 +69,24 @@ export async function PATCH(
           type: 'info',
           link: '/dashboard/support',
         } as any);
+
+        // Req 12.6 — email notification to ticket creator when staff replies
+        const { notificationsService } = await import('@/services/notifications.service');
+        const { data: userProfile } = await admin
+          .from('portal_users')
+          .select('email, full_name')
+          .eq('id', ticket.user_id)
+          .maybeSingle();
+        if (userProfile?.email) {
+          await notificationsService.sendEmail(ticket.user_id, {
+            to: userProfile.email,
+            subject: `Reply on your support ticket: ${(ticket as any).subject?.slice(0, 60)}`,
+            html: `<p>Hi ${userProfile.full_name || 'there'},</p>
+                   <p>A staff member has replied to your support ticket.</p>
+                   <p><strong>Reply:</strong> ${body.admin_reply.slice(0, 300)}</p>
+                   <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/support">View ticket</a></p>`,
+          }).catch(() => {});
+        }
       }
     } catch { /* non-critical */ }
 

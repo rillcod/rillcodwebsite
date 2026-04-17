@@ -23,14 +23,33 @@ export async function GET(request: Request) {
   const db = createAdminClient();
 
   if (leaderboard) {
-    const { data, error } = await db
+    const cursorPoints = searchParams.get('cursor_points');
+    const cursorId = searchParams.get('cursor_id');
+
+    let q = db
       .from('user_points')
       .select('*, portal_users(id, full_name, email, school_id, section_class)')
       .order('total_points', { ascending: false })
-      .limit(limit);
+      .order('portal_user_id', { ascending: false })
+      .limit(21);
 
+    // Cursor: rows with fewer points, or same points but lower id
+    if (cursorPoints && cursorId) {
+      q = q.or(`total_points.lt.${cursorPoints},and(total_points.eq.${cursorPoints},portal_user_id.lt.${cursorId})`) as any;
+    }
+
+    const { data, error } = await q;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
+
+    const rows = data ?? [];
+    const hasMore = rows.length === 21;
+    const page = hasMore ? rows.slice(0, 20) : rows;
+    const last = page[page.length - 1] as any;
+    const nextCursor = hasMore && last
+      ? { points: last.total_points, id: last.portal_user_id }
+      : null;
+
+    return NextResponse.json({ data: page, nextCursor });
   }
 
   // Individual user points + transaction history

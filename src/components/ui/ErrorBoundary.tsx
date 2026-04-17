@@ -6,6 +6,7 @@ import Link from 'next/link';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -24,6 +25,11 @@ class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
+  }
+
+  public reset() {
+    this.setState({ hasError: false, error: undefined });
   }
 
   public render() {
@@ -41,20 +47,20 @@ class ErrorBoundary extends Component<Props, State> {
               </div>
               
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Oops! Something went wrong
+                Something went wrong on this page.
               </h1>
               
               <p className="text-gray-600 mb-6">
-                We're sorry, but something unexpected happened. Please try refreshing the page or contact support if the problem persists.
+                We&apos;re sorry, but something unexpected happened. Please try again or contact support if the problem persists.
               </p>
 
               <div className="space-y-3">
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => this.reset()}
                   className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Refresh Page
+                  Try Again
                 </button>
                 
                 <Link
@@ -86,4 +92,4 @@ class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-export default ErrorBoundary; 
+export default ErrorBoundary;

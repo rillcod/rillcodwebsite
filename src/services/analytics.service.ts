@@ -1,6 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 
+export type AtRiskSignal = 'no_login' | 'low_attendance' | 'overdue_assignments';
+
+export interface AtRiskStudent {
+  portal_user_id: string;
+  full_name: string;
+  triggered_signals: AtRiskSignal[];
+}
+
 export class AnalyticsService {
     async trackEvent(userId: string, eventType: string, metadata: any = {}) {
         const supabase = await createClient();
@@ -76,15 +84,27 @@ export class AnalyticsService {
         };
     }
 
-    async getAtRiskStudents(schoolId?: string) {
+    /**
+     * Returns at-risk students using the new get_at_risk_students RPC that
+     * returns triggered_signals JSONB (Req 5.1–5.3).
+     *
+     * @param schoolId  Required — scope to a specific school.
+     * @param classId   Optional — further scope to a specific class (teacher view).
+     */
+    async getAtRiskStudents(schoolId: string, classId?: string): Promise<AtRiskStudent[]> {
         const supabase = await createClient();
         const { data, error } = await supabase.rpc('get_at_risk_students', {
-            p_school_id: (schoolId || null) as unknown as string,
-            p_days_inactive: 7
+            p_school_id: schoolId,
+            p_class_id: classId ?? null,
         });
 
         if (error) throw new AppError(error.message, 500);
-        return data;
+
+        return (data ?? []).map((row: any) => ({
+            portal_user_id: row.portal_user_id,
+            full_name: row.full_name,
+            triggered_signals: (row.triggered_signals ?? []) as AtRiskSignal[],
+        }));
     }
 
     async generateStudentReport(studentId: string) {

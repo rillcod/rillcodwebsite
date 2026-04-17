@@ -72,7 +72,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ data: plans });
 }
 
-// POST /api/lesson-plans — create or upsert a lesson plan
+// POST /api/lesson-plans — create a term-level lesson plan (or legacy per-lesson upsert)
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user || !canCreateLessonPlan(user.role)) {
@@ -80,10 +80,42 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { lesson_id, objectives, activities, assessment_methods, staff_notes, summary_notes } = body;
-  if (!lesson_id) return NextResponse.json({ error: 'lesson_id required' }, { status: 400 });
+  const {
+    // Legacy per-lesson fields
+    lesson_id, objectives, activities, assessment_methods, staff_notes, summary_notes,
+    // New term-level fields (Req 15)
+    plan_data, status, version, curriculum_version_id,
+    term_start, term_end, sessions_per_week,
+    school_id, course_id, class_id, term, created_by,
+  } = body;
 
   const db = createAdminClient();
+
+  // ── Term-level plan (new flow) ──────────────────────────────────────────
+  if (course_id || (!lesson_id && (term_start || term_end))) {
+    const { data, error } = await db.from('lesson_plans').insert({
+      course_id: course_id || null,
+      class_id: class_id || null,
+      school_id: school_id || user.school_id || null,
+      term: term || null,
+      term_start: term_start || null,
+      term_end: term_end || null,
+      sessions_per_week: sessions_per_week ? Number(sessions_per_week) : null,
+      curriculum_version_id: curriculum_version_id || null,
+      plan_data: plan_data ?? {},
+      status: status ?? 'draft',
+      version: version ?? 1,
+      created_by: created_by || user.id,
+      updated_at: new Date().toISOString(),
+    }).select().single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data }, { status: 201 });
+  }
+
+  // ── Legacy per-lesson upsert ────────────────────────────────────────────
+  if (!lesson_id) return NextResponse.json({ error: 'lesson_id or course_id required' }, { status: 400 });
+
   const { data: lesson, error: lessonErr } = await db
     .from('lessons')
     .select('id, school_id, created_by')
@@ -101,7 +133,6 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Upsert — lesson_plans has unique constraint on lesson_id
   const { data, error } = await db.from('lesson_plans').upsert({
     lesson_id,
     objectives: objectives || null,

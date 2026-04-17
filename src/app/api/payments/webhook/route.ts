@@ -89,7 +89,19 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
 async function processSuccessfulPayment(reference: string, method: string, rawGatewayData: any) {
     const supabase = createAdminClient();
 
-    // 1. Get transaction
+    // 1. Idempotency check — Req 6.3: return early if already processed
+    const { data: existingTx } = await supabase
+        .from('payment_transactions')
+        .select('id, payment_status, invoice_id')
+        .eq('transaction_reference', reference)
+        .maybeSingle();
+
+    if (existingTx?.payment_status === 'completed') {
+        // Already processed — return silently (Req 6.3)
+        return;
+    }
+
+    // 2. Get full transaction record
     const { data: transaction, error: txError } = await supabase
         .from('payment_transactions')
         .select('*')
@@ -239,15 +251,16 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 .eq('id', cycle.sticky_notice_id);
         }
     } else if ((transaction as any).invoice_id) {
-        // Invoice paid — update invoice status
-        await (supabase as any)
-            .from('invoices')
-            .update({ 
-                status: 'paid',
-                payment_transaction_id: transaction.id,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', (transaction as any).invoice_id);
+        // Invoice paid — use atomic RPC to update both payment_transactions and invoices (Req 6.1)
+        const { error: rpcError } = await supabase.rpc('process_payment_atomic', {
+            p_reference: reference,
+            p_invoice_id: (transaction as any).invoice_id,
+            p_amount: Number(transaction.amount),
+        });
+        if (rpcError) {
+            console.error('process_payment_atomic RPC failed:', rpcError);
+            return;
+        }
     }
 
     // 4. Generate Receipt automatically (Task 23.1)
@@ -337,9 +350,11 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     html: portalHtml,
                 });
                 
-                // Fire Instant WhatsApp Receipt
-                queueService.queueNotification(portalUsers.id, 'whatsapp', {
-                    body: `Hi ${greet}! Your payment of ${amtLine} (Ref: ${String(transaction.transaction_reference)}) was successful. Your official receipt has been emailed and is available in your Rillcod dashboard.`
+                // Fire instant notification (email queue)
+                queueService.queueNotification(portalUsers.id, 'email', {
+                    to: portalUsers.email,
+                    subject: `Payment Receipt: Rillcod Academy`,
+                    html: `Hi ${greet}! Your payment of ${amtLine} (Ref: ${String(transaction.transaction_reference)}) was successful.`
                 }).catch(console.error);
             }
         }

@@ -13,6 +13,12 @@ const updatePrefsSchema = z.object({
     announcement_notifications: z.boolean().optional(),
     discussion_replies: z.boolean().optional(),
     marketing_emails: z.boolean().optional(),
+    // New category columns (Req 8.3)
+    payment_updates: z.boolean().optional(),
+    report_published: z.boolean().optional(),
+    attendance_alerts: z.boolean().optional(),
+    weekly_summary: z.boolean().optional(),
+    streak_reminder: z.boolean().optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {
