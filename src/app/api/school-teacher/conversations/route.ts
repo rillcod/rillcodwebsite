@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       .order('updated_at', { ascending: false });
 
     // Filter based on role
-    if (profile.role === 'school') {
+    if (profile.role === 'school' && profile.school_id) {
       query = query.eq('school_id', profile.school_id);
     } else if (profile.role === 'teacher') {
       query = query.eq('teacher_id', profile.id);
