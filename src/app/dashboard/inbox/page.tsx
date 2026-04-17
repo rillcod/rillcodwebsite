@@ -163,32 +163,34 @@ export default function WhatsAppInbox() {
     if (!showNewChat) return;
     const searchStudents = async () => {
       setLoadingStudents(true);
-      // Use any to prevent deep type instantiation from complex nested joins
-      let query = (supabase.from('portal_users') as any)
+      
+      let query = supabase
+        .from('portal_users')
         .select(`
           id, 
           full_name, 
           phone, 
           school_id,
           schools (name),
-          student_classes (class_id, classes (name))
+          classes (name)
         `)
         .eq('is_active', true);
 
       if (filterSchool) query = query.eq('school_id', filterSchool);
+      if (filterClass) query = query.eq('class_id', filterClass);
       if (studentSearch) query = query.ilike('full_name', `%${studentSearch}%`);
       
-      const { data } = await query.limit(20);
+      const { data } = await (query as any)
+        .limit(20)
+        .returns<{
+          id: string;
+          full_name: string;
+          phone: string | null;
+          schools: { name: string } | null;
+          classes: { name: string } | null;
+        }[]>();
       
-      // Secondary local filter for class since multi-level joins are tricky in maybeSingle/select
-      let filteredData = data || [];
-      if (filterClass) {
-        filteredData = filteredData.filter((s: any) => 
-          s.student_classes?.some((c: any) => c.class_id === filterClass)
-        );
-      }
-      
-      setStudents(filteredData);
+      setStudents(data || []);
       setLoadingStudents(false);
     };
     
@@ -664,7 +666,7 @@ export default function WhatsAppInbox() {
                         <span className="text-[10px] text-gray-400 truncate">{student.schools?.name || 'No School'}</span>
                         <span className="text-gray-300">•</span>
                         <span className="text-[10px] text-gray-400 truncate">
-                          {student.student_classes?.[0]?.classes?.name || 'General Admission'}
+                          {student.classes?.name || 'General Admission'}
                         </span>
                       </div>
                     </div>
