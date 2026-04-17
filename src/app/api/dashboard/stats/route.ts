@@ -36,6 +36,14 @@ export async function GET(req: NextRequest) {
         .select('*')
         .single();
 
+      // Get recent school payments
+      const { data: payments } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, amount, currency, status, due_date, created_at, schools(name)')
+        .not('school_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
       if (adminStats) {
         stats = {
           totalSchools: adminStats.total_schools,
@@ -44,6 +52,7 @@ export async function GET(req: NextRequest) {
           totalStudents: adminStats.total_students,
           totalPartners: adminStats.total_partners,
           totalGraded: (adminStats.graded_assignments || 0) + (adminStats.graded_cbt || 0),
+          schoolPayments: payments || [],
         };
       }
     } else if (role === 'teacher') {
