@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         // Get or create conversation
         let { data: conversation } = await admin
           .from('whatsapp_conversations')
-          .select('id, contact_name')
+          .select('id, contact_name, unread_count, portal_user_id')
           .eq('phone_number', from)
           .maybeSingle();
 

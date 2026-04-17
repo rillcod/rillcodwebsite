@@ -13,12 +13,12 @@ CREATE TABLE IF NOT EXISTS public.school_whatsapp_settings (
 -- Basic RLS
 ALTER TABLE public.school_whatsapp_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins/Staff can manage school WA settings" ON public.school_whatsapp_settings
+CREATE POLICY "Admins/Teachers can manage school WA settings" ON public.school_whatsapp_settings
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM portal_users 
       WHERE id = auth.uid() 
-      AND (role IN ('admin', 'school')) -- Main school admins
+      AND (role IN ('admin', 'teacher')) -- Only Global Admin and Teachers
       AND (school_id = school_whatsapp_settings.school_id OR role = 'admin')
     )
   );
