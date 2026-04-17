@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { id: lessonId } = await params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -53,10 +53,9 @@ export async function POST(
       });
     }
 
+    // Mark lesson as complete in progress table
     const now = new Date().toISOString();
-
     if (existing) {
-      // Update existing progress record
       const { error: updateError } = await supabase
         .from('lesson_progress')
         .update({
@@ -66,10 +65,8 @@ export async function POST(
           updated_at: now,
         })
         .eq('id', existing.id);
-
       if (updateError) throw updateError;
     } else {
-      // Create new progress record
       const { error: insertError } = await supabase
         .from('lesson_progress')
         .insert({
@@ -80,67 +77,24 @@ export async function POST(
           progress_percentage: progressPercentage || 100,
           time_spent_minutes: timeSpentMinutes || 0,
         });
-
       if (insertError) throw insertError;
     }
 
-    // Award XP for lesson completion (10 XP per lesson)
-    const { data: points } = await supabase
-      .from('user_points')
-      .select('id, total_points, current_streak, last_activity_date')
-      .eq('portal_user_id', profile.id)
-      .maybeSingle();
-
-    const xpToAward = 10;
-    const today = new Date().toISOString().split('T')[0];
-    const lastActivity = points?.last_activity_date;
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-    let newStreak = 1;
-    if (lastActivity === today) {
-      // Same day - keep streak
-      newStreak = points?.current_streak || 1;
-    } else if (lastActivity === yesterday) {
-      // Consecutive day - increment streak
-      newStreak = (points?.current_streak || 0) + 1;
-    }
-
-    if (points) {
-      await supabase
-        .from('user_points')
-        .update({
-          total_points: (points.total_points || 0) + xpToAward,
-          current_streak: newStreak,
-          last_activity_date: today,
-        })
-        .eq('id', points.id);
-    } else {
-      await supabase
-        .from('user_points')
-        .insert({
-          portal_user_id: profile.id,
-          total_points: xpToAward,
-          current_streak: 1,
-          last_activity_date: today,
-        });
-    }
-
-    // Create notification for lesson completion
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: profile.id,
-        title: 'Lesson Completed! 🎉',
-        message: `You completed "${lesson.title}" and earned ${xpToAward} XP!`,
-        type: 'achievement',
-        is_read: false,
-      });
+    // Use GamificationService for points, streak, and level logic
+    const { gamificationService } = await import('@/services/gamification.service');
+    const { totalPoints, streak } = await gamificationService.awardPoints(
+      profile.id,
+      'lesson_complete',
+      lessonId,
+      `Completed lesson: ${lesson.title}`
+    );
 
     return NextResponse.json({
       success: true,
       message: 'Lesson marked as complete',
-      xpAwarded: xpToAward,
-      newStreak,
+      xpAwarded: 10,
+      totalPoints,
+      newStreak: streak,
     });
   } catch (error: any) {
     console.error('Error marking lesson complete:', error);
