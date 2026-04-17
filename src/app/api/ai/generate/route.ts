@@ -784,7 +784,7 @@ export async function POST(req: NextRequest) {
     const { type } = body;
 
     // Security: students can use lesson-hook and daily-missions; staff gets everything
-    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback', 'custom'];
+    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback', 'custom', 'homework' as any];
     if (!isStaff && !STUDENT_ALLOWED.includes(type)) {
       return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
     }
