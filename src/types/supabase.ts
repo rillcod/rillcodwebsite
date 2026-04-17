@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -7426,6 +7451,19 @@ export type Database = {
       }
     }
     Views: {
+      admin_dashboard_stats: {
+        Row: {
+          active_schools: number | null
+          graded_assignments: number | null
+          graded_cbt: number | null
+          last_updated: string | null
+          total_partners: number | null
+          total_schools: number | null
+          total_students: number | null
+          total_teachers: number | null
+        }
+        Relationships: []
+      }
       student_performance_summary: {
         Row: {
           avg_assignment_grade: number | null
@@ -7493,10 +7531,34 @@ export type Database = {
         Args: { p_course_id: string }
         Returns: number
       }
+      get_dashboard_activity: {
+        Args: { activity_limit?: number; user_role: string; user_uuid: string }
+        Returns: {
+          color_class: string
+          created_at: string
+          description: string
+          icon_type: string
+          id: string
+          time_ago: string
+          title: string
+        }[]
+      }
       get_my_role: { Args: never; Returns: string }
       get_my_school_id: { Args: never; Returns: string }
       get_parent_child_user_ids: { Args: never; Returns: string[] }
       get_parent_student_ids: { Args: never; Returns: string[] }
+      get_school_dashboard_stats: {
+        Args: { school_name_param?: string; school_uuid: string }
+        Returns: Json
+      }
+      get_student_dashboard_stats: {
+        Args: { student_uuid: string }
+        Returns: Json
+      }
+      get_teacher_dashboard_stats: {
+        Args: { teacher_uuid: string }
+        Returns: Json
+      }
       get_timetable_ids_by_school: {
         Args: { p_school_id: string }
         Returns: string[]
@@ -7513,6 +7575,7 @@ export type Database = {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
       }
+      refresh_dashboard_stats: { Args: never; Returns: undefined }
       unlink_parent_from_student: {
         Args: { target_student_id: string }
         Returns: undefined
@@ -7645,6 +7708,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
