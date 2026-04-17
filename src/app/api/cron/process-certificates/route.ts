@@ -3,13 +3,20 @@ import { certificateService } from '@/services/certificate.service';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/cron/process-certificates
-// Background job to generate PDFs for newly issued certificates
-export async function POST(req: NextRequest) {
-    const authHeader = req.headers.get('authorization');
-    const secret = req.headers.get('x-cron-secret') || authHeader?.replace('Bearer ', '');
+// GET or POST /api/cron/process-certificates
+export async function GET(req: NextRequest) {
+    return handleProcess(req);
+}
 
-    if (secret !== process.env.BILLING_CRON_SECRET) {
+export async function POST(req: NextRequest) {
+    return handleProcess(req);
+}
+
+async function handleProcess(req: NextRequest) {
+    const authHeader = req.headers.get('authorization');
+    const secret = authHeader?.replace('Bearer ', '');
+
+    if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
