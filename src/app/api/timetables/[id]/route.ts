@@ -25,12 +25,12 @@ async function requireAdmin() {
 // PATCH /api/timetables/[id] — update timetable
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   const update: Record<string, any> = {};
@@ -54,12 +54,12 @@ export async function PATCH(
 // DELETE /api/timetables/[id] — delete timetable + its slots
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   await admin.from('timetable_slots').delete().eq('timetable_id', id);

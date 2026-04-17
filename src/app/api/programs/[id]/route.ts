@@ -22,10 +22,10 @@ async function requireStaff() {
 // GET /api/programs/[id]
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const { data, error } = await adminClient()
       .from('programs')
       .select('*, courses ( id, title, is_active )')
@@ -43,13 +43,13 @@ export async function GET(
 // PUT /api/programs/[id] — update program
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await request.json();
 
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -75,14 +75,14 @@ export async function PUT(
 // DELETE /api/programs/[id]
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     if (caller.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
-    const { id } = await params;
+    const { id } = await context.params;
     const { error } = await adminClient()
       .from('programs')
       .delete()

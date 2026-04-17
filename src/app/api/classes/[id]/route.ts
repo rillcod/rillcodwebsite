@@ -59,12 +59,12 @@ async function callerCanManageClass(caller: Caller, classSchoolId: string | null
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // Fetch the class first so we can do a pre-query school check
@@ -95,7 +95,7 @@ export async function GET(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
@@ -105,7 +105,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'School accounts cannot edit class records directly' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // Fetch the class to check school access
@@ -173,7 +173,7 @@ export async function PATCH(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
@@ -183,7 +183,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'School accounts cannot delete class records' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   const { data: cls } = await admin

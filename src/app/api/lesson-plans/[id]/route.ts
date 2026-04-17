@@ -26,11 +26,11 @@ async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string |
   return Array.from(ids);
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   const { data, error } = await db.from('lesson_plans').select(`
@@ -54,13 +54,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ data });
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || !['admin', 'teacher'].includes(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const db = createAdminClient();
 
@@ -92,11 +92,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ data });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   const { error } = await db.from('lesson_plans').delete().eq('id', id);

@@ -3,11 +3,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessSchool, getStaffContext } from '@/lib/cards/rbac';
 import { notificationsService } from '@/services/notifications.service';
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const ctx = await getStaffContext();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const channel = String(body?.channel || '').toLowerCase();
   if (!['email', 'whatsapp'].includes(channel)) {

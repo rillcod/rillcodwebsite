@@ -34,7 +34,7 @@ async function getCaller(): Promise<Caller | null> {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await getCaller();
@@ -43,7 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
-    const { id: assignment_id } = await params;
+    const { id: assignment_id } = await context.params;
     const admin = adminClient();
 
     // Fetch assignment to verify access + get weight/max_points

@@ -35,13 +35,13 @@ async function getCaller(): Promise<Caller | null> {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = await params;
+    const { id } = await context.params;
     const admin = adminClient();
     const body = await request.json();
 

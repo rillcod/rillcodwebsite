@@ -45,11 +45,11 @@ async function canManageExam(user: Awaited<ReturnType<typeof getUser>>, examId: 
 }
 
 // GET /api/exams/[id]/questions
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const allowed = await canManageExam(user as any, id);
   if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const db = createAdminClient();
@@ -65,11 +65,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 // POST /api/exams/[id]/questions — add a question
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id: exam_id } = await params;
+  const { id: exam_id } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const body = await request.json();
   const { question_text, question_type, points, options, correct_answer, explanation } = body;
@@ -98,11 +98,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 // PATCH /api/exams/[id]/questions — reorder questions (bulk update order)
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id: exam_id } = await params;
+  const { id: exam_id } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const { questions } = await request.json(); // Array of { id, order_index }
 

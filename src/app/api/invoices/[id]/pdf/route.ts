@@ -41,9 +41,9 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
 // GET /api/invoices/[id]/pdf — returns printable HTML invoice page
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
-  const { id: invoiceId } = await params;
+  const { id: invoiceId } = await context.params;
   const ctx = await getCallerAndInvoice(req, invoiceId);
   if (!ctx) return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404 });
 

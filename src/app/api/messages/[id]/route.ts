@@ -24,12 +24,12 @@ async function requireAuth() {
 // PATCH /api/messages/[id] — update message (mark read)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAuth();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   const update: Record<string, any> = {};

@@ -4,13 +4,13 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 // PATCH /api/lab/projects/[id] — update project
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const { title, code, blocks_xml, is_public, lesson_id, assignment_id } = body;
 
@@ -49,13 +49,13 @@ export async function PATCH(
 // DELETE /api/lab/projects/[id] — delete project
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   const { data: profile } = await supabase
     .from('portal_users')

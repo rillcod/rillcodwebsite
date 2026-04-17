@@ -10,13 +10,13 @@ import { paymentsService } from '@/services/payments.service';
  */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: Promise<{ transactionId: string }> },
+  context: { params: Promise<{ transactionId: string }> },
 ) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { transactionId } = await params;
+  const { transactionId } = await context.params;
   const db = createAdminClient();
 
   // Fetch transaction with school + portal_user

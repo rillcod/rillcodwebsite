@@ -5,9 +5,9 @@ import { AppError } from '@/lib/errors';
 // POST /api/live-sessions/[id]/join — Record attendance for joining student
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id: sessionId } = await params;
+  const { id: sessionId } = await context.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

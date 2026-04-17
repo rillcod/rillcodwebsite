@@ -25,12 +25,12 @@ async function requireStaff() {
 // PATCH /api/live-sessions/[id] — update session
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   const allowed: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -55,12 +55,12 @@ export async function PATCH(
 // DELETE /api/live-sessions/[id] — delete session
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
   const { error } = await admin.from('live_sessions').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

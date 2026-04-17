@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessSchool, getStaffContext } from '@/lib/cards/rbac';
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const ctx = await getStaffContext();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const { status, reason } = body || {};
   if (!['active', 'revoked', 'expired'].includes(status)) {

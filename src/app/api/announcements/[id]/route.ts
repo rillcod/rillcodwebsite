@@ -25,12 +25,12 @@ async function requireStaff() {
 // PATCH /api/announcements/[id] — update (e.g. soft-delete: is_active=false)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   const update: Record<string, any> = {};
@@ -54,12 +54,12 @@ export async function PATCH(
 // DELETE /api/announcements/[id] — hard delete
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
   const { error } = await admin.from('announcements').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

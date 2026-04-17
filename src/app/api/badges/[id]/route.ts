@@ -11,11 +11,11 @@ async function getUser() {
 }
 
 // GET /api/badges/[id] — get badge detail + who earned it
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   const [badgeRes, earnerRes] = await Promise.all([
@@ -30,11 +30,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 // PATCH /api/badges/[id] — update badge (admin only)
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const db = createAdminClient();
 
@@ -44,11 +44,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 // DELETE /api/badges/[id] — soft-delete (admin only)
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   const { error } = await db.from('badges').update({ is_active: false } as any).eq('id', id);

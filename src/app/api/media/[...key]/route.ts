@@ -51,14 +51,14 @@ async function resolveUser(req: NextRequest) {
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: Promise<{ key: string[] }> }
+    context: { params: Promise<{ key: string[] }> }
 ) {
     const user = await resolveUser(req);
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { key } = await params;
+    const { key } = await context.params;
     const r2Key = key.join('/');
 
     // Basic path validation — prevent directory traversal

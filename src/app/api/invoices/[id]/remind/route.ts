@@ -31,12 +31,12 @@ async function requireStaff() {
 // reminder_number 3 = final warning / overdue
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id: invoiceId } = await params;
+  const { id: invoiceId } = await context.params;
   const body = await req.json().catch(() => ({}));
   const reminderNumber: 1 | 2 | 3 = body.reminder_number ?? 2;
 

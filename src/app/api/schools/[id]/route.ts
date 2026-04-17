@@ -25,12 +25,12 @@ async function requireAdmin() {
 // GET /api/schools/[id] — fetch single school
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const { data, error } = await adminClient()
     .from('schools')
     .select('*, teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
@@ -44,12 +44,12 @@ export async function GET(
 // PATCH /api/schools/[id] — update school fields or status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   // Extract updatable fields — action: 'status' | 'details' | 'assign_teacher' | 'remove_teacher'
@@ -100,14 +100,14 @@ export async function PATCH(
 // DELETE /api/schools/[id] — force delete
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireAdmin();
   if (!caller || caller.role !== 'admin') {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // 1. Delete teacher assignments

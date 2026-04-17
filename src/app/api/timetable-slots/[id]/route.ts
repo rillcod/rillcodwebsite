@@ -25,12 +25,12 @@ async function requireTeacherOrAdmin() { // admin or teacher only
 // PATCH /api/timetable-slots/[id] — update slot
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireTeacherOrAdmin();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   const update: Record<string, any> = {};
@@ -55,12 +55,12 @@ export async function PATCH(
 // DELETE /api/timetable-slots/[id] — delete slot
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireTeacherOrAdmin();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
   const { error } = await admin.from('timetable_slots').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

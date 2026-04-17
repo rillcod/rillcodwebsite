@@ -10,11 +10,11 @@ async function getUser() {
   return data ? { ...user, role: data.role, school_id: data.school_id } : null;
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   const { data, error } = await db.from('subscriptions').select('*, schools(id, name, email)').eq('id', id).single();
@@ -28,11 +28,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ data });
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
   const db = createAdminClient();
 
@@ -44,11 +44,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ data });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const db = createAdminClient();
 
   // Cancel rather than delete

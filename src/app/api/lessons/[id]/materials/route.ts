@@ -22,13 +22,13 @@ async function requireStaff() {
 // POST /api/lessons/[id]/materials — add material to a lesson
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const { id: lesson_id } = await params;
+    const { id: lesson_id } = await context.params;
     const body = await request.json();
 
     const { data, error } = await adminClient()

@@ -60,12 +60,12 @@ async function callerCanAccessClass(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // Fetch session + its class school for boundary check
@@ -111,12 +111,12 @@ export async function PATCH(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // Fetch session + its class school for boundary check
