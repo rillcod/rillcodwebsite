@@ -129,7 +129,8 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       
       if (updatePayload.graded_by && data?.portal_user_id) {
-          queueService.queueNotification(data.portal_user_id, 'whatsapp', {
+          queueService.queueNotification(data.portal_user_id, 'email', {
+              subject: 'Assignment Graded',
               body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
           }).catch(console.error);
       }
@@ -159,7 +160,8 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       if (data?.portal_user_id) {
-          queueService.queueNotification(data.portal_user_id, 'whatsapp', {
+          queueService.queueNotification(data.portal_user_id, 'email', {
+              subject: 'Assignment Graded',
               body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
           }).catch(console.error);
       }

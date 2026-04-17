@@ -85,10 +85,11 @@ export async function POST(
       const prefixName = caller.full_name ? caller.full_name.split(' ')[0] : 'Teacher';
       const formattedMessage = `*[Rillcod: ${cls.name}]*\n_${prefixName} says:_ \n\n${body.text}`;
     
-      // Queue WhatsApp broadcast
+      // Queue email broadcast
       let queuedCount = 0;
       for (const student of students) {
-          await queueService.queueNotification(student.id, 'whatsapp', {
+          await queueService.queueNotification(student.id, 'email', {
+              subject: `Update: ${cls.name}`,
               body: formattedMessage,
               mediaUrl: body.mediaUrl || undefined // Optional attachment support
           }).catch(console.error);

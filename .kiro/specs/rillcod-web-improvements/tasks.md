@@ -217,7 +217,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Call useSessionExpiry hook in `src/app/dashboard/layout.tsx`; render SessionExpiryBanner when expiry is near
   - _Requirements: Req 16.1, 16.2, 16.3_
 
-- [-] 45. Integrate file validation + compression into upload flows (Req 17)
+- [x] 45. Integrate file validation + compression into upload flows (Req 17)
   - Wire validateAndCompressFile() into assignment submission file input component before upload
   - Wire validateAndCompressFile() into bank transfer proof upload component before upload
   - Add server-side MIME type + size re-validation to relevant upload API routes with HTTP 400 structured error response
@@ -332,13 +332,13 @@ Incremental implementation across 7 phases: database migrations → core infrast
 
 ### Phase 5: New Features (NF-9 to NF-15)
 
-- [-] 65. Implement instalment payment plans UI + API (NF-9)
+- [x] 65. Implement instalment payment plans UI + API (NF-9)
   - Create `src/app/api/billing/settlements/route.ts` POST: requireAuth, parent; accept { invoiceId, instalments: { amount, dueDate }[] }; verify SUM(amounts) equals invoice total exactly or return HTTP 422; save instalment schedule
   - Update invoice detail page: "Pay in Instalments" option with 2/3 equal split calculator; display each instalment with amount, due date, status; Paystack per-instalment checkout flow
   - Add 3-day due-date reminder: payment_updates category email via notificationsService; update instalment status to 'paid' on Paystack webhook + confirmation email
   - _Requirements: NF-9.1, NF-9.2, NF-9.3, NF-9.4, NF-9.5, NF-9.6_
 
-- [ ] 66. Implement payment receipt PDF download (NF-10)
+- [x] 66. Implement payment receipt PDF download (NF-10)
   - Create `src/app/api/payments/receipt/[transactionId]/route.ts` POST: requireAuth; verify transaction belongs to requesting user's school or parent-student relationship or return 403; generate PDF using pdfmake with school name, student name, invoice number, amount paid, payment date, transaction reference, receipt number; return Content-Type: application/pdf + Content-Disposition: attachment
   - Add "Download Receipt" button to invoices and transactions pages for transactions with payment_status='completed'
   - _Requirements: NF-10.1, NF-10.2, NF-10.3, NF-10.4, NF-10.5_
@@ -348,13 +348,13 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add Outstanding Balance card to `src/app/dashboard/overview/page.tsx` (parent view): per-student breakdown, overdue count, "Pay Now" → /dashboard/parent-invoices, "All fees paid" green state when zero; 5-minute client-side cache; auto-refresh on load
   - _Requirements: NF-11.1, NF-11.2, NF-11.3, NF-11.4, NF-11.5, NF-11.6_
 
-- [ ] 68. Complete announcement composer (NF-15)
+- [x] 68. Complete announcement composer (NF-15)
   - Update `src/app/dashboard/announcements/page.tsx` with "New Announcement" button: composer form with title, body (rich textarea), audience selector (all/students/parents/teachers/specific class), optional expires_at, draft save
   - Update POST /api/announcements: set status='published'; create in-app notification records for audience; send email via SendPulse to audience where email_enabled=true and announcement_notifications=true
   - Add status badges (Draft/Published/Expired) to announcements list; allow editing drafts; hide expired announcements from notification feed
   - _Requirements: NF-15.1, NF-15.2, NF-15.3, NF-15.4, NF-15.5, NF-15.6_
 
-- [ ] 69. Checkpoint — NF-9 through NF-15 complete; verify PDF generation and payment flows
+- [x] 69. Checkpoint — NF-9 through NF-15 complete; verify PDF generation and payment flows
   - Ensure all tests pass, ask the user if questions arise.
 
 
@@ -368,23 +368,23 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Create `src/app/dashboard/curriculum/page.tsx`: "Generate Curriculum" form (course name, grade level, school, term count, weeks per term, subject area, notes); version history list; curriculum detail with content rendered as rich text
   - _Requirements: NF-16.1, NF-16.2, NF-16.3, NF-16.4, NF-16.5, NF-16.6_
 
-- [ ] 71. Enhance lesson plan generator with curriculum context (NF-17)
+- [x] 71. Enhance lesson plan generator with curriculum context (NF-17)
   - Update POST /api/ai/generate (type='lesson-plan'): embed full curriculum content JSONB into AI prompt when curriculum_version_id is provided; store curriculum_version_id FK on lesson_plans row
   - When regenerating published plan: PATCH existing plan status='archived' before creating new draft
   - Add per-week teacher notes field to lesson plan detail page alongside AI content; enforce 30s timeout + do not persist on timeout
   - _Requirements: NF-17.1, NF-17.2, NF-17.3, NF-17.4, NF-17.5, NF-17.6_
 
-- [ ] 72. Implement bulk lesson generation with SSE progress (NF-18)
+- [x] 72. Implement bulk lesson generation with SSE progress (NF-18)
   - Create `src/app/api/lesson-plans/[id]/generate-lessons/route.ts` POST: requireAuth, teacher/admin; iterate plan_data.weeks; POST /api/ai/generate per week topic; save as draft lesson; emit SSE { generated: N, total: M } per item; log + emit warning event on per-item failure (do not halt); final SSE { done: true, generated, skipped }
   - Add "Generate All Lessons" button to lesson plan detail page (visible when status='published'); progress indicator "Generating lesson N of M…"; summary notification on completion; generated lessons require teacher approval (PATCH status='published') before student visibility
   - _Requirements: NF-18.1, NF-18.2, NF-18.3, NF-18.4, NF-18.5, NF-18.6_
 
-- [ ] 73. Implement bulk assignment generation with SSE progress (NF-19)
+- [x] 73. Implement bulk assignment generation with SSE progress (NF-19)
   - Create `src/app/api/lesson-plans/[id]/generate-assignments/route.ts` POST: same SSE streaming pattern as generate-lessons; generate assignment per week with due dates aligned to lesson schedule; save as draft; per-item failure tolerance
   - Add "Generate All Assignments" button to lesson plan detail page with SSE progress indicator
   - _Requirements: NF-19.1, NF-19.2, NF-19.3, NF-19.4, NF-19.5_
 
-- [ ] 74. Implement bulk project generation with SSE progress (NF-20)
+- [x] 74. Implement bulk project generation with SSE progress (NF-20)
   - Create `src/app/api/lesson-plans/[id]/generate-projects/route.ts` POST: same SSE streaming pattern; generate project per week; save as draft; per-item failure tolerance
   - Add "Generate All Projects" button to lesson plan detail page with SSE progress indicator
   - _Requirements: NF-20.1, NF-20.2, NF-20.3, NF-20.4, NF-20.5_
@@ -396,7 +396,7 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add "Activate Scheduler" button to lesson plan detail with term_start + cadence_days inputs; show current_week indicator; "Release Now" manual override button
   - _Requirements: NF-21.1, NF-21.2, NF-21.3, NF-21.4, NF-21.5_
 
-- [ ] 76. Implement auto-grading pipeline (NF-22)
+- [x] 76. Implement auto-grading pipeline (NF-22)
   - Update assignment submission API route: read grading_mode from parent assignment; if 'auto' compute score inline and set status='graded'; if 'ai_assisted' call POST /api/ai/generate type='cbt-grading' store ai_suggested_grade + ai_suggested_feedback, set status='pending_review' (NOT visible to student); if 'manual' set status='pending_review'
   - Update CBT submission API route with same grading_mode branching logic
   - On status='graded': trigger push + email notification to student (if prefs allow)
@@ -409,11 +409,11 @@ Incremental implementation across 7 phases: database migrations → core infrast
   - Add grading mode selector (auto/ai_assisted/manual) to assignment editor and CBT exam editor
   - _Requirements: NF-23.1, NF-23.2, NF-23.3, NF-24.1, NF-24.2, NF-24.3_
 
-- [ ] 78. Implement Content Dashboard tab on lesson plan detail (NF-25)
+- [x] 78. Implement Content Dashboard tab on lesson plan detail (NF-25)
   - Add "Content Dashboard" tab to `src/app/dashboard/lesson-plans/[id]/page.tsx`: per-week breakdown showing lesson count, assignment count, project count with progress bars; "Release Now", "Edit", and "Regenerate" action buttons per week; reflects current_week state from term_schedules
   - _Requirements: NF-25.1, NF-25.2, NF-25.3_
 
-- [ ] 79. Checkpoint — Autonomous term engine complete; verify SSE streaming and cron scheduling
+- [x] 79. Checkpoint — Autonomous term engine complete; verify SSE streaming and cron scheduling
   - Ensure all tests pass, ask the user if questions arise.
 
 
