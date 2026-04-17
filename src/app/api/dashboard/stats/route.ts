@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
     } else if (role === 'school') {
       const { data, error } = await supabase.rpc('get_school_dashboard_stats', {
         school_uuid: profile.school_id || '',
-        school_name_param: profile.school_name || null,
+        school_name_param: profile.school_name ?? undefined,
       });
 
       if (!error && data) {
@@ -139,7 +139,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ stats, role });
+    // Get activity feed
+    const { data: activities } = await supabase.rpc('get_dashboard_activity', {
+      user_role: role,
+      user_uuid: user.id,
+      activity_limit: 6
+    });
+
+    return NextResponse.json({ stats, role, activities: activities || [] });
   } catch (error: any) {
     console.error('Dashboard stats error:', error);
     return NextResponse.json(
