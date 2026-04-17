@@ -95,12 +95,12 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
   }
 
   async function sendMessage() {
-    if (!input.trim() || sending) return;
+    if (!input.trim() || sending || !profile?.id) return;
     setSending(true);
     const supabase = createClient();
     const { error } = await supabase.from('study_group_messages').insert({
       group_id: groupId,
-      sender_id: profile?.id,
+      sender_id: profile.id,
       content: input.trim()
     });
     if (error) console.error('Error sending message:', error);

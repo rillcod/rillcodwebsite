@@ -233,9 +233,13 @@ export default function UnifiedInbox() {
         if (conv.type === 'students') {
           await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', conv.id);
         } else if (conv.type === 'parents') {
-          await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile?.id);
+          if (profile?.id) {
+            await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile.id);
+          }
         } else if (conv.type === 'school') {
-          await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile?.id);
+          if (profile?.id) {
+            await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
+          }
         }
         setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
       }

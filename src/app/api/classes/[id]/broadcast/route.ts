@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { queueService } from '@/services/queue.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,8 +90,9 @@ export async function POST(
 
       // Filter students who have reachable phone numbers (student phone OR parent phone)
       const reachableStudents = students.filter(student => {
-        const studentPhone = student.phone || student.students?.phone;
-        const parentPhone = student.students?.parent_phone;
+        const studentInfo = Array.isArray(student.students) ? student.students[0] : student.students;
+        const studentPhone = student.phone || studentInfo?.phone;
+        const parentPhone = studentInfo?.parent_phone;
         return studentPhone || parentPhone;
       });
 
@@ -114,8 +114,9 @@ export async function POST(
       for (const student of reachableStudents) {
         try {
           // Prefer parent phone, fallback to student phone
-          const targetPhone = student.students?.parent_phone || student.phone || student.students?.phone;
-          const recipientName = student.students?.parent_name || student.full_name;
+          const studentInfo = Array.isArray(student.students) ? student.students[0] : student.students;
+          const targetPhone = studentInfo?.parent_phone || student.phone || studentInfo?.phone;
+          const recipientName = studentInfo?.parent_name || student.full_name;
           
           if (!targetPhone) continue;
 
