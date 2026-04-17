@@ -163,8 +163,8 @@ export default function WhatsAppInbox() {
     if (!showNewChat) return;
     const searchStudents = async () => {
       setLoadingStudents(true);
-      let query = supabase
-        .from('portal_users')
+      // Use any to prevent deep type instantiation from complex nested joins
+      let query = (supabase.from('portal_users') as any)
         .select(`
           id, 
           full_name, 
