@@ -237,9 +237,19 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
   }
 }
 
+export async function GET(request: Request) {
+  return handleRequest(request);
+}
+
 export async function POST(request: Request) {
+  return handleRequest(request);
+}
+
+async function handleRequest(request: Request) {
   const secret = request.headers.get('x-cron-secret') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  if (!env.BILLING_CRON_SECRET || secret !== env.BILLING_CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET;
+  
+  if (cronSecret && secret !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

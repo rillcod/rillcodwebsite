@@ -249,32 +249,32 @@ async function run(triggeredBy: 'cron' | 'manual') {
   return result;
 }
 
-// Vercel Cron calls GET
+// Manual trigger or cron
 export async function GET(req: NextRequest) {
-  // Vercel injects Authorization: Bearer CRON_SECRET automatically
-  const authHeader = req.headers.get('authorization');
-  const cronSecret = process.env.BILLING_CRON_SECRET || process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const result = await run('cron');
-  return NextResponse.json({ success: true, ...result });
+  return handleRequest(req, 'cron');
 }
 
-// Manual trigger from admin dashboard
 export async function POST(req: NextRequest) {
+  return handleRequest(req, 'manual');
+}
+
+async function handleRequest(req: NextRequest, type: 'cron' | 'manual') {
   const secret = req.headers.get('x-cron-secret') || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  const cronSecret = process.env.BILLING_CRON_SECRET || process.env.CRON_SECRET;
+  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET;
+  
   if (cronSecret && secret !== cronSecret) {
-    // Also allow admin session auth for the "Run Now" button
-    const { createClient: createServerClient } = await import('@/lib/supabase/server');
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const db = createAdminClient();
-    const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).single();
-    if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (type === 'manual') {
+      const { createClient: createServerClient } = await import('@/lib/supabase/server');
+      const supabase = await createServerClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const db = createAdminClient();
+      const { data: profile } = await db.from('portal_users').select('role').eq('id', user.id).single();
+      if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    } else {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
-  const result = await run('manual');
+  const result = await run(type);
   return NextResponse.json({ success: true, ...result });
 }

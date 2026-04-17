@@ -10,8 +10,16 @@ function adminClient() {
   );
 }
 
-// POST /api/cron/term-scheduler — runs Mondays at 05:00 UTC (06:00 WAT)
+// GET or POST /api/cron/term-scheduler
+export async function GET(req: NextRequest) {
+  return handleRequest(req);
+}
+
 export async function POST(req: NextRequest) {
+  return handleRequest(req);
+}
+
+async function handleRequest(req: NextRequest) {
   const secret = req.headers.get('x-cron-secret') ?? req.headers.get('authorization')?.replace('Bearer ', '');
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
