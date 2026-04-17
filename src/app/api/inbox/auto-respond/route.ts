@@ -19,6 +19,52 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'message and conversation_id required' }, { status: 400 });
     }
 
+    // Identify student and school for scoping
+    const { data: conv } = await admin
+      .from('whatsapp_conversations')
+      .select('portal_user_id')
+      .eq('id', conversation_id)
+      .single();
+
+    if (!conv?.portal_user_id) return NextResponse.json({ success: true, message: 'Unlinked conversation' });
+
+    const { data: student } = await admin
+      .from('portal_users')
+      .select('school_id')
+      .eq('id', conv.portal_user_id)
+      .single();
+
+    if (!student?.school_id) return NextResponse.json({ success: true, message: 'Student has no school association' });
+
+    // Check school-specific control settings
+    const { data: settings } = await admin
+      .from('school_whatsapp_settings')
+      .select('is_enabled, human_takeover_timeout_minutes')
+      .eq('school_id', student.school_id)
+      .maybeSingle();
+
+    if (settings && !settings.is_enabled) {
+      return NextResponse.json({ success: true, responded: false, message: 'Auto-responder disabled for this school' });
+    }
+
+    // HUMAN TAKEOVER check: Did a teacher/admin reply recently?
+    const timeout = settings?.human_takeover_timeout_minutes ?? 30;
+    const sinceTime = new Date(Date.now() - timeout * 60 * 1000).toISOString();
+    
+    const { data: recentHumanMsg } = await admin
+      .from('whatsapp_messages')
+      .select('id')
+      .eq('conversation_id', conversation_id)
+      .eq('direction', 'outbound')
+      .is('metadata->auto_response', null) // Only check non-auto messages
+      .gte('created_at', sinceTime)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentHumanMsg) {
+      return NextResponse.json({ success: true, responded: false, message: 'Human is currently in active conversation' });
+    }
+
     const lowerMsg = message.toLowerCase().trim();
 
     // Auto-response rules
