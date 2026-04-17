@@ -40,6 +40,7 @@ const STATUS_CONFIG: Record<AttendanceStatus, { label: string; emoji: string; bg
 export default function StaffQRScanner() {
   const { profile } = useAuth();
   const router = useRouter();
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const db = createClient();
 
   const [open, setOpen] = useState(false);
@@ -200,7 +201,7 @@ export default function StaffQRScanner() {
     setState('idle');
   };
 
-  if (!isStaff) return null;
+  if (!isStaff || pathname === '/dashboard/inbox') return null;
 
   return (
     <>
