@@ -130,6 +130,12 @@ export async function POST(req: NextRequest) {
             .eq('id', conversation.id);
         }
 
+        // Final safety check for TypeScript
+        if (!conversation) {
+          console.error('[WhatsApp Webhook] No conversation found or created for', from);
+          continue;
+        }
+
         // Save message to database
         const { error: msgErr } = await admin
           .from('whatsapp_messages')
