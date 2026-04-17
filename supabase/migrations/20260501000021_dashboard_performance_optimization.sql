@@ -60,7 +60,7 @@ ON lesson_progress(portal_user_id, status, completed_at DESC);
 
 -- Assignments due dates
 CREATE INDEX IF NOT EXISTS idx_assignments_due_date 
-ON assignments(due_date, status) 
+ON assignments(due_date, is_active) 
 WHERE due_date IS NOT NULL;
 
 -- ============================================================================
@@ -354,7 +354,7 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION refresh_dashboard_stats()
 RETURNS void AS $$
 BEGIN
-  REFRESH MATERIALIZED VIEW CONCURRENTLY admin_dashboard_stats;
+  REFRESH MATERIALIZED VIEW admin_dashboard_stats;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -366,7 +366,7 @@ GRANT EXECUTE ON FUNCTION get_dashboard_activity(TEXT, UUID, INTEGER) TO authent
 GRANT EXECUTE ON FUNCTION refresh_dashboard_stats() TO service_role;
 
 -- Initial refresh
-SELECT refresh_dashboard_stats();
+REFRESH MATERIALIZED VIEW admin_dashboard_stats;
 
 -- ============================================================================
 -- PART 5: AUTOMATIC REFRESH TRIGGER (every 5 minutes)

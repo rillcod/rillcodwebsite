@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
   const [parentChildren, setParentChildren] = useState<any[]>([]);
+  const [upcomingSlots, setUpcomingSlots] = useState<any[]>([]);
 
   // Use optimized data fetching hook
   const { data, loading: dataLoading, error, refetch } = useDashboardData(!authLoading && !profileLoading && !!profile);
@@ -83,6 +84,16 @@ export default function DashboardPage() {
         .then(res => res.json())
         .then(data => setParentChildren(data.children ?? []))
         .catch(err => console.error('Failed to load parent data:', err));
+    }
+  }, [profile?.role]);
+
+  // Load timetable slots for teachers and schools
+  useEffect(() => {
+    if (profile?.role === 'teacher' || profile?.role === 'school') {
+      fetch('/api/dashboard/timetable')
+        .then(res => res.json())
+        .then(data => setUpcomingSlots(data.slots ?? []))
+        .catch(err => console.error('Failed to load timetable:', err));
     }
   }, [profile?.role]);
 
@@ -170,7 +181,7 @@ export default function DashboardPage() {
           profile={profile}
           stats={transformStatsForAdmin(data.stats)}
           activities={transformActivities(data.activities)}
-          schoolPayments={[]}
+          schoolPayments={data.stats?.schoolPayments || []}
           quickActions={quickActions}
           dataLoading={dataLoading}
           onRefresh={refetch}
@@ -181,7 +192,7 @@ export default function DashboardPage() {
           profile={profile}
           stats={transformStatsForTeacher(data.stats)}
           activities={transformActivities(data.activities)}
-          upcomingSlots={[]}
+          upcomingSlots={upcomingSlots}
           teacherActionCenter={data.stats ? {
             ungradedAssignments: data.stats.ungradedAssignments || 0,
             ungradedExams: data.stats.ungradedExams || 0,
@@ -196,7 +207,7 @@ export default function DashboardPage() {
           profile={profile}
           stats={transformStatsForSchool(data.stats)}
           activities={transformActivities(data.activities)}
-          upcomingSlots={[]}
+          upcomingSlots={upcomingSlots}
           quickActions={quickActions}
           dataLoading={dataLoading}
           onRefresh={refetch}
