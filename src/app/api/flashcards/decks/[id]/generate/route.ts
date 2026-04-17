@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
         'X-Title': 'Rillcod Academy Flashcards'
       },
       body: JSON.stringify({
