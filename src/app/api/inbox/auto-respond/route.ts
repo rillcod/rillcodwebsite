@@ -111,6 +111,40 @@ Have a great day! 🚀`;
     }
 
     if (shouldRespond && autoResponse) {
+      const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
+      const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
+
+      // Try to send via Meta WhatsApp API
+      let whatsappMessageId = null;
+      let apiStatus = 'pending';
+
+      if (WHATSAPP_API_URL && WHATSAPP_API_TOKEN) {
+        try {
+          const waRes = await fetch(WHATSAPP_API_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: phone_number.replace(/\D/g, ''),
+              type: 'text',
+              text: { body: autoResponse }
+            })
+          });
+
+          if (waRes.ok) {
+            const waData = await waRes.json();
+            whatsappMessageId = waData.messages?.[0]?.id;
+            apiStatus = 'sent';
+          }
+        } catch (e) {
+          console.error('[AutoRespond] WhatsApp API failed:', e);
+        }
+      }
+
       // Save auto-response to database
       const { data: newMessage, error: msgErr } = await admin
         .from('whatsapp_messages')
@@ -118,9 +152,13 @@ Have a great day! 🚀`;
           conversation_id,
           direction: 'outbound',
           body: autoResponse,
-          status: 'sent',
+          status: apiStatus,
           created_at: new Date().toISOString(),
-          metadata: { auto_response: true, trigger: lowerMsg.slice(0, 50) },
+          metadata: { 
+            auto_response: true, 
+            trigger: lowerMsg.slice(0, 50),
+            whatsapp_message_id: whatsappMessageId 
+          },
         })
         .select()
         .single();
@@ -142,6 +180,7 @@ Have a great day! 🚀`;
       return NextResponse.json({ 
         success: true, 
         responded: true,
+        whatsapp_status: apiStatus,
         data: newMessage 
       });
     }
