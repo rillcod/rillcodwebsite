@@ -25,12 +25,12 @@ async function getCaller() {
 // PATCH /api/support/[id] — update ticket (admin: any field; user: only add reply)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await req.json().catch(() => ({}));
   const admin = adminClient();
 

@@ -32,7 +32,7 @@ async function requireStaff(): Promise<Caller | { _err: string } | null> {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
       const staffResult = await requireStaff();
@@ -43,7 +43,7 @@ export async function POST(
         );
       }
       const caller = staffResult as Caller;
-      const { id: classId } = await params;
+      const { id: classId } = await context.params;
       const admin = adminClient();
     
       // Fetch the class

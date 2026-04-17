@@ -16,10 +16,10 @@ function adminClient() {
 // and safe auto-heal for stale/missing class_id assignments.
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: classId } = await params;
+    const { id: classId } = await context.params;
     const admin = adminClient();
     const serverSupabase = await createServerClient();
 

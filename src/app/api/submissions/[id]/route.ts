@@ -25,12 +25,12 @@ async function requireGrader() {
 // PATCH /api/submissions/[id] — grade or update a submission (admin/teacher only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireGrader();
   if (!caller) return NextResponse.json({ error: 'Admin or Teacher access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await request.json();
 
   // Whitelist allowed update fields
@@ -61,12 +61,12 @@ export async function PATCH(
 // DELETE /api/submissions/[id] — delete a submission (admin/teacher only)
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireGrader();
   if (!caller) return NextResponse.json({ error: 'Admin or Teacher access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const { error } = await adminClient()
     .from('assignment_submissions')
     .delete()

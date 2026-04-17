@@ -18,7 +18,7 @@ function adminClient() {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createServerClient();
@@ -41,7 +41,7 @@ export async function GET(
       return NextResponse.json({ error: 'Use /api/assignments/[id] for staff access' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const searchParams = _request.nextUrl.searchParams;
     const studentIdParam = searchParams.get('studentId');
 

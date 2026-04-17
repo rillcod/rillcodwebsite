@@ -53,12 +53,12 @@ async function callerCanManageExam(caller: Caller, examSchoolId: string | null, 
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
   const isStaff = ['admin', 'teacher', 'school'].includes(caller.role);
 
@@ -133,14 +133,14 @@ export async function GET(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller || !['admin', 'teacher'].includes(caller.role)) {
     return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   // Fetch exam to validate access
@@ -228,7 +228,7 @@ export async function PATCH(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await getCaller();
@@ -236,7 +236,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const admin = adminClient();
 
     const { data: examMeta } = await admin

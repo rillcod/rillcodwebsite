@@ -42,11 +42,11 @@ async function canManageExam(user: any, examId: string) {
   return false;
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; qid: string }> }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string; qid: string }> }) {
   const user = await getUser();
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id: exam_id, qid } = await params;
+  const { id: exam_id, qid } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const body = await request.json();
   const db = createAdminClient();
@@ -61,11 +61,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ data });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; qid: string }> }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string; qid: string }> }) {
   const user = await getUser();
   if (!user || user.role === 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id: exam_id, qid } = await params;
+  const { id: exam_id, qid } = await context.params;
   if (!(await canManageExam(user as any, exam_id))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const db = createAdminClient();
 

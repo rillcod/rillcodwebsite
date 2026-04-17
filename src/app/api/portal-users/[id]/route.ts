@@ -24,13 +24,13 @@ async function getCallerRole(userId: string) {
 // - Any authenticated user can update their OWN full_name, phone, bio, avatar_url (self-edit)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const isSelf = user.id === id;
   const caller = await getCallerRole(user.id);
   const isAdmin = caller?.role === 'admin';
@@ -87,7 +87,7 @@ export async function PATCH(
 // bypassing FK constraints by manually cleaning up all dependent records first.
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
   const { data: { user }, error: deleteAuthErr } = await supabase.auth.getUser();
@@ -97,7 +97,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   // Prevent self-deletion
   if (id === caller.id) {

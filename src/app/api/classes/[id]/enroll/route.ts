@@ -63,7 +63,7 @@ async function callerHasClassAccess(caller: Caller, classSchoolId: string | null
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
@@ -73,7 +73,7 @@ export async function GET(
     );
   }
   const caller = staffResult as Caller;
-  const { id: classId } = await params;
+  const { id: classId } = await context.params;
   const admin = adminClient();
 
   // Fetch the class to determine its school
@@ -141,7 +141,7 @@ export async function GET(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
@@ -152,7 +152,7 @@ export async function POST(
   }
   const caller = staffResult as Caller;
 
-  const { id: classId } = await params;
+  const { id: classId } = await context.params;
   const body = await request.json();
   const studentId: string | undefined = body.studentId;
   if (!studentId) return NextResponse.json({ error: 'studentId required' }, { status: 400 });
@@ -284,7 +284,7 @@ export async function POST(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
@@ -295,7 +295,7 @@ export async function PUT(
   }
   const caller = staffResult as Caller;
 
-  const { id: classId } = await params;
+  const { id: classId } = await context.params;
   const body = await request.json();
   const studentIds: string[] | undefined = body.studentIds;
   if (!Array.isArray(studentIds) || studentIds.length === 0) {
@@ -471,7 +471,7 @@ export async function PUT(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const staffResult = await requireStaff();
   if (!staffResult || '_err' in staffResult) {
@@ -481,7 +481,7 @@ export async function DELETE(
     );
   }
   const caller = staffResult as Caller;
-  const { id: classId } = await params;
+  const { id: classId } = await context.params;
   const admin = adminClient();
 
   // Fetch class school for the access guard

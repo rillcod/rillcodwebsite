@@ -52,7 +52,7 @@ function computeAutoGrade(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const supabase = await createServerClient();
@@ -68,7 +68,7 @@ export async function POST(
 
     if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
 
-    const { id: assignment_id } = await params;
+    const { id: assignment_id } = await context.params;
     const body = await request.json();
     const { portal_user_id, submission_text, file_url, answers } = body;
 

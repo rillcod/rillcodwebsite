@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: lessonId } = await params;
+    const { id: lessonId } = await context.params;
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -90,7 +90,6 @@ export async function POST(
         .insert({
           portal_user_id: profile.id,
           lesson_id: lessonId,
-          course_id: lesson.course_id,
           completed_at: now,
           progress_percentage: progress || 100,
           time_spent_minutes: minutes,

@@ -25,12 +25,12 @@ async function requireStaff() {
 // GET /api/lessons/[id]
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const { data, error } = await adminClient()
     .from('lessons')
     .select('*, courses ( id, title, programs ( name ) ), lesson_plans (*)')
@@ -45,13 +45,13 @@ export async function GET(
 // PATCH /api/lessons/[id] — update lesson
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   // Teachers can only edit their own lessons
   if (caller.role === 'teacher') {
@@ -93,13 +93,13 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
 // DELETE /api/lessons/[id]
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   // Teachers can only delete their own lessons
   if (caller.role === 'teacher') {

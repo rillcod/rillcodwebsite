@@ -25,12 +25,12 @@ async function requireStaff() {
 // GET /api/invoices/[id] — fetch single invoice with related data
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   const { data, error } = await admin
@@ -53,12 +53,12 @@ export async function GET(
 // PATCH /api/invoices/[id] — update invoice
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   const body = await req.json();
   const { due_date, notes, status, items, amount, portal_user_id } = body;
 

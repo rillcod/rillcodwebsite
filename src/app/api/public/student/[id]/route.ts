@@ -5,7 +5,7 @@ import { RateLimitError } from '@/lib/errors';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   // Req 7.1 — 10 req / 60 s per client IP
   try {
@@ -19,7 +19,7 @@ export async function GET(
     }
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
 
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });

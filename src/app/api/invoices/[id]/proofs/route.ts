@@ -25,7 +25,7 @@ async function getUser() {
 // GET /api/invoices/[id]/proofs — list proof submissions for an invoice (staff only)
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getUser();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,7 +33,7 @@ export async function GET(
     return NextResponse.json({ error: 'Staff only' }, { status: 403 });
   }
 
-  const { id: invoiceId } = await params;
+  const { id: invoiceId } = await context.params;
   const admin = adminClient();
 
   const { data, error } = await admin
@@ -68,12 +68,12 @@ export async function GET(
 // Expects multipart/form-data with field "file" (image) and optional "note"
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getUser();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id: invoiceId } = await params;
+  const { id: invoiceId } = await context.params;
   const admin = adminClient();
 
   // Verify the invoice exists and belongs to this parent / their children
@@ -150,7 +150,7 @@ export async function POST(
 // Body: { proof_id: string; action: 'approved' | 'rejected' | 'request_more'; admin_note?: string }
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getUser();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -158,7 +158,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Staff only' }, { status: 403 });
   }
 
-  const { id: invoiceId } = await params;
+  const { id: invoiceId } = await context.params;
   const body = await req.json().catch(() => ({}));
   const { proof_id, action, admin_note } = body as { proof_id: string; action: string; admin_note?: string };
 

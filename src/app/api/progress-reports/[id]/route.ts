@@ -58,12 +58,12 @@ async function canModifyReport(caller: any, reportId: string) {
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   if (!(await canModifyReport(caller, id))) {
     return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
   }
@@ -101,12 +101,12 @@ export async function PATCH(
 // DELETE /api/progress-reports/[id] — delete a report
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id } = await params;
+  const { id } = await context.params;
   if (!(await canModifyReport(caller, id))) {
     return NextResponse.json({ error: 'Forbidden report scope' }, { status: 403 });
   }

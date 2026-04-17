@@ -54,7 +54,7 @@ async function callerCanManageAssignment(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
@@ -62,7 +62,7 @@ export async function GET(
     return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   const { data, error } = await admin
@@ -102,7 +102,7 @@ export async function GET(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
@@ -110,7 +110,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not authorized to edit assignments' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   const { data: existing } = await admin
@@ -153,7 +153,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
@@ -161,7 +161,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Not authorized to delete assignments' }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id } = await context.params;
   const admin = adminClient();
 
   const { data: existing } = await admin

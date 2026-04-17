@@ -22,13 +22,13 @@ async function requireStaff() {
 // DELETE /api/lessons/[id]/materials/[mid]
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string; mid: string }> },
+  context: { params: Promise<{ id: string; mid: string }> },
 ) {
   try {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const { mid } = await params;
+    const { mid } = await context.params;
     const { error } = await adminClient().from('lesson_materials').delete().eq('id', mid);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

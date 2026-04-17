@@ -12,7 +12,7 @@ function adminClient() {
 // PATCH /api/students/[id] — update a pre-portal student record (admin/teacher/school)
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: Promise<{ id: string }> },
+    context: { params: Promise<{ id: string }> },
 ) {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -27,7 +27,7 @@ export async function PATCH(
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const body = await req.json();
 
     // Non-admins must be scoped to their assigned school
@@ -69,7 +69,7 @@ export async function PATCH(
 
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: Promise<{ id: string }> },
+    context: { params: Promise<{ id: string }> },
 ) {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -85,7 +85,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const admin = adminClient();
 
     // Fetch the student to verify school ownership before deleting

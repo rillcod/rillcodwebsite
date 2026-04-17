@@ -61,13 +61,13 @@ async function callerCanManageSubmission(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const { id } = await params;
+    const { id } = await context.params;
     const admin = adminClient();
 
     // Fetch submission + its assignment school for boundary check (single query)
@@ -153,7 +153,7 @@ export async function PATCH(
 // ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const caller = await getCaller();
@@ -162,7 +162,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'School accounts cannot delete submissions' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = await context.params;
     const admin = adminClient();
 
     const { data: sub } = await admin
