@@ -106,17 +106,24 @@ export async function GET(req: NextRequest) {
         student_uuid: profile.id,
       });
 
+      // Fetch from new engagement tables
+      const [xpRes, streakRes, badgeRes] = await Promise.all([
+        supabase.from('student_xp_summary').select('*').eq('student_id', profile.id).maybeSingle(),
+        supabase.from('student_streaks').select('*').eq('student_id', profile.id).maybeSingle(),
+        supabase.from('student_badges').select('*', { count: 'exact', head: true }).eq('student_id', profile.id)
+      ]);
+
       if (!error && data) {
         const d = data as unknown as StudentStats;
         stats = {
           enrolledCourses: d.enrolled_courses || 0,
-          xp: d.xp_points || 0,
-          streak: d.current_streak || 0,
-          level: d.achievement_level || 'Bronze',
+          xp: xpRes.data?.total_xp ?? d.xp_points || 0,
+          streak: streakRes.data?.current_streak ?? d.current_streak || 0,
+          level: xpRes.data?.level ? `Level ${xpRes.data.level}` : d.achievement_level || 'Bronze',
           lessonsDone: d.lessons_completed || 0,
           avgScore: d.avg_score || 0,
           pendingAssignments: d.pending_assignments || 0,
-          badgesCount: d.badges_count || 0,
+          badgesCount: badgeRes.count ?? d.badges_count || 0,
           leaderboardRank: d.leaderboard_rank || null,
         };
       }

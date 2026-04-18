@@ -17,6 +17,7 @@ const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; 
   Silver:   { label: 'Silver',   emoji: '🥈', bar: 'bg-slate-400',  text: 'text-slate-400',  border: 'border-slate-400/40' },
   Gold:     { label: 'Gold',     emoji: '🥇', bar: 'bg-amber-400',  text: 'text-amber-400',  border: 'border-amber-400/40' },
   Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400',   text: 'text-cyan-400',   border: 'border-cyan-400/40' },
+  Modern:   { label: 'Level',    emoji: '⭐', bar: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500/40' },
 };
 const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 };
 const CUR_THRESHOLD:  Record<string, number>  = { Bronze: 0,   Silver: 500,  Gold: 2000, Platinum: 5000 };
@@ -133,9 +134,19 @@ export default function StudentDashboard() {
     })();
   }, [profile?.id]);
 
-  const levelConf = LEVEL_COLORS[data.level] ?? LEVEL_COLORS.Bronze;
-  const nextThreshold = NEXT_THRESHOLD[data.level] ?? 500;
-  const curThreshold  = CUR_THRESHOLD[data.level]  ?? 0;
+  let levelConf = LEVEL_COLORS[data.level] ?? LEVEL_COLORS.Bronze;
+  let nextThreshold = NEXT_THRESHOLD[data.level] ?? 500;
+  let curThreshold  = CUR_THRESHOLD[data.level]  ?? 0;
+  let nextLevelName = NEXT_LEVEL[data.level] ?? 'Next Level';
+
+  if (data.level?.startsWith('Level ')) {
+    const levelNum = parseInt(data.level.split(' ')[1]) || 1;
+    levelConf = { ...LEVEL_COLORS.Modern, label: data.level };
+    curThreshold = (levelNum - 1) * 500;
+    nextThreshold = levelNum * 500;
+    nextLevelName = `Level ${levelNum + 1}`;
+  }
+
   const xpPct = data.level === 'Platinum' ? 100 : Math.min(100, ((data.xp - curThreshold) / (nextThreshold - curThreshold)) * 100);
 
   const generateHook = async () => {
@@ -302,7 +313,7 @@ export default function StudentDashboard() {
         <div className="mt-6 relative z-10">
           <div className="flex justify-between text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
             <span>{levelConf.label}</span>
-            <span>{data.level !== 'Platinum' ? `${(nextThreshold - data.xp).toLocaleString()} XP to ${NEXT_LEVEL[data.level]}` : 'Max Level!'}</span>
+            <span>{data.level !== 'Platinum' ? `${(nextThreshold - data.xp).toLocaleString()} XP to ${nextLevelName}` : 'Max Level!'}</span>
           </div>
           <div className="h-1.5 bg-muted overflow-hidden">
             <motion.div
