@@ -172,6 +172,36 @@ export async function POST(req: NextRequest) {
           console.error('[WhatsApp Webhook] Auto-response failed:', autoResErr);
         }
 
+        // Check for opt-out/opt-in commands
+        const lowerBody = messageBody.toLowerCase().trim();
+        if (lowerBody === 'stop' || lowerBody === 'unsubscribe' || lowerBody === 'opt out') {
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/inbox/opt-out`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversation_id: conversation.id,
+                phone_number: from,
+              }),
+            });
+          } catch (optOutErr) {
+            console.error('[WhatsApp Webhook] Opt-out failed:', optOutErr);
+          }
+        } else if (lowerBody === 'start' || lowerBody === 'subscribe' || lowerBody === 'opt in') {
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/inbox/opt-out`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conversation_id: conversation.id,
+                phone_number: from,
+              }),
+            });
+          } catch (optInErr) {
+            console.error('[WhatsApp Webhook] Opt-in failed:', optInErr);
+          }
+        }
+
         console.log(`[WhatsApp Webhook] Message received from ${from}: ${messageBody.slice(0, 50)}...`);
       }
     }

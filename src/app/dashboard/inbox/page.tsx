@@ -182,6 +182,11 @@ export default function UnifiedInbox() {
   const [directoryResults, setDirectoryResults] = useState<any[]>([]);
   const [loadingDirectory, setLoadingDirectory] = useState(false);
 
+  // Quick chat by number (floating button)
+  const [showQuickChat, setShowQuickChat]       = useState(false);
+  const [quickChatNumber, setQuickChatNumber]   = useState('');
+  const [quickChatError, setQuickChatError]     = useState('');
+
   // Advanced contact filters
   const [contactSchoolFilter, setContactSchoolFilter] = useState('');
   const [contactClassFilter, setContactClassFilter]   = useState('');
@@ -244,7 +249,7 @@ export default function UnifiedInbox() {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, normaliseMsg(msg)]);
       // Mark as read immediately if it's the active conversation
       if (msg.direction === 'inbound' || msg.sender_id !== profile?.id) {
-         markAsRead(activeConv);
+        markAsRead(activeConv);
       }
     }
   };
@@ -459,12 +464,13 @@ export default function UnifiedInbox() {
   const markAsRead = async (conv: Conversation) => {
     if (!profile?.id) return;
     try {
-      if (conv.type === 'students')
+      if (conv.type === 'students') {
         await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', conv.id);
-      else if (conv.type === 'parents')
+      } else if (conv.type === 'parents') {
         await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile.id);
-      else
+      } else {
         await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
+      }
       
       setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
     } catch (err) { console.error('markAsRead error:', err); }
@@ -535,6 +541,13 @@ export default function UnifiedInbox() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Send failed');
         if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
+        
+        // Show warning if number is not on WhatsApp
+        if (json.is_not_whatsapp_user) {
+          setSendError(`⚠️ ${json.message || 'This number is not registered on WhatsApp'}`);
+        } else if (json.whatsapp_status === 'pending') {
+          setSendError(`ℹ️ ${json.message || 'Message saved but not sent via WhatsApp'}`);
+        }
       } else if (activeConv.type === 'parents') {
         const { data, error } = await supabase.from('parent_teacher_messages').insert({ thread_id: activeConv.id, sender_id: profile.id, body }).select().single();
         if (error) throw error;
@@ -633,6 +646,74 @@ export default function UnifiedInbox() {
     const t = setTimeout(search, 250);
     return () => clearTimeout(t);
   }, [directorySearch, showNewChat, activeTab]); // eslint-disable-line
+
+  // ── Quick chat by number ───────────────────────────────────────────────────
+  const startQuickChat = async () => {
+    const phone = quickChatNumber.replace(/\D/g, '');
+    if (!phone || phone.length < 7) {
+      setQuickChatError('Please enter a valid phone number (at least 7 digits)');
+      return;
+    }
+    setQuickChatError('');
+    setShowQuickChat(false);
+    setQuickChatNumber('');
+    
+    // Check if conversation exists
+    const { data: existing } = await supabase
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('phone_number', phone)
+      .maybeSingle();
+    
+    if (existing) {
+      // Open existing conversation
+      const c: Conversation = {
+        id: existing.id,
+        type: 'students',
+        phone_number: existing.phone_number,
+        contact_name: existing.contact_name || `+${phone}`,
+        last_message_at: existing.last_message_at ?? '',
+        last_message_preview: existing.last_message_preview || '',
+        unread_count: existing.unread_count || 0,
+        portal_user_id: existing.portal_user_id ?? undefined,
+      };
+      setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+      setActiveConv(c);
+      setShowSidebar(false);
+      setSidebarView('chats');
+      setActiveTab('students');
+    } else {
+      // Create new conversation
+      const { data: created } = await supabase
+        .from('whatsapp_conversations')
+        .insert({
+          phone_number: phone,
+          contact_name: `+${phone}`,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: '',
+          unread_count: 0,
+        })
+        .select()
+        .single();
+      
+      if (created) {
+        const c: Conversation = {
+          id: created.id,
+          type: 'students',
+          phone_number: phone,
+          contact_name: `+${phone}`,
+          last_message_at: created.last_message_at ?? '',
+          last_message_preview: '',
+          unread_count: 0,
+        };
+        setConversations(prev => [c, ...prev]);
+        setActiveConv(c);
+        setShowSidebar(false);
+        setSidebarView('chats');
+        setActiveTab('students');
+      }
+    }
+  };
 
   // ── Open / create a WhatsApp conversation for any contact with a phone ─────
   const openWhatsAppConversation = async (item: {
@@ -1848,6 +1929,107 @@ export default function UnifiedInbox() {
               <button onClick={saveProfileAndSend} disabled={savingProfile || !profileForm.full_name.trim()}
                 className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
                 {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save & Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ QUICK CHAT BY NUMBER (FLOATING BUTTON) ═════════════════════════ */}
+      {activeTab === 'students' && !showQuickChat && (
+        <button
+          onClick={() => setShowQuickChat(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 z-40 group"
+          title="Quick chat by number"
+        >
+          <MessageSquare className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+            <Plus className="w-3 h-3" />
+          </span>
+        </button>
+      )}
+
+      {/* ══ QUICK CHAT MODAL ════════════════════════════════════════════════ */}
+      {showQuickChat && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-[#202c33] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                  <MessageSquare className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-[16px]">Quick Chat</h2>
+                  <p className="text-white/30 text-xs">Start WhatsApp conversation</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="p-5 space-y-4">
+              {quickChatError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm font-bold flex items-center gap-2">
+                  <X className="w-4 h-4 shrink-0" />{quickChatError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                  Phone Number <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    autoFocus
+                    value={quickChatNumber}
+                    onChange={e => { setQuickChatNumber(e.target.value); setQuickChatError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') startQuickChat(); }}
+                    placeholder="e.g. +234 800 000 0000 or 2348000000000"
+                    type="tel"
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-3 outline-none placeholder-white/30 focus:ring-2 focus:ring-emerald-500/40"
+                  />
+                </div>
+                <p className="text-[10px] text-white/30 mt-2 ml-1">
+                  Enter any phone number to start a WhatsApp conversation. The number doesn't need to be in your contacts.
+                </p>
+              </div>
+
+              {/* Preview if valid number */}
+              {quickChatNumber.replace(/\D/g, '').length >= 7 && (
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                    <Phone className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-bold truncate">+{quickChatNumber.replace(/\D/g, '')}</p>
+                    <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Ready to chat</p>
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={startQuickChat}
+                disabled={!quickChatNumber.trim() || quickChatNumber.replace(/\D/g, '').length < 7}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                <MessageSquare className="w-4 h-4" /> Start Chat
               </button>
             </div>
           </div>

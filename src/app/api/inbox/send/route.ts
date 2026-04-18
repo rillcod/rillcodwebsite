@@ -64,10 +64,28 @@ async function sendWhatsAppMessage(to: string, message: string) {
 
     if (!response.ok) {
       console.error('[WhatsApp API Error]', data);
+      
+      // Check if it's a "not a WhatsApp user" error
+      const errorMessage = data.error?.message || '';
+      const errorCode = data.error?.code;
+      
+      const isNotWhatsAppUser = errorMessage.toLowerCase().includes('not a whatsapp user') || 
+                                 errorMessage.toLowerCase().includes('phone number is not registered') ||
+                                 errorCode === 131026;
+      
+      // Check for rate limit errors
+      const isRateLimitError = errorCode === 80007 || 
+                                errorCode === 130429 ||
+                                errorMessage.toLowerCase().includes('rate limit') ||
+                                errorMessage.toLowerCase().includes('too many requests');
+      
       return { 
         success: false, 
-        reason: 'api_error',
-        error: data.error?.message || 'Unknown error'
+        reason: isNotWhatsAppUser ? 'not_whatsapp_user' : isRateLimitError ? 'rate_limit' : 'api_error',
+        error: data.error?.message || 'Unknown error',
+        errorCode,
+        isNotWhatsAppUser,
+        isRateLimitError
       };
     }
 
@@ -99,15 +117,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'conversation_id and message required' }, { status: 400 });
     }
 
-    // Fetch conversation to get phone number
+    // Fetch conversation to get phone number and opt-out status
     const { data: conversation, error: convErr } = await admin
       .from('whatsapp_conversations')
-      .select('phone_number, contact_name')
+      .select('phone_number, contact_name, opted_out')
       .eq('id', conversation_id)
       .single();
 
     if (convErr || !conversation) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Check if user has opted out
+    if (conversation.opted_out) {
+      return NextResponse.json({ 
+        error: 'User has opted out of WhatsApp notifications. They must reply "START" to opt back in.',
+        opted_out: true
+      }, { status: 403 });
     }
 
     // Try to send via WhatsApp Business API
@@ -128,6 +154,9 @@ export async function POST(req: NextRequest) {
       messageStatus = 'pending'; // Will retry or send manually
       metadata.api_error = whatsappResult.reason;
       metadata.error_details = whatsappResult.error;
+      metadata.is_not_whatsapp_user = whatsappResult.isNotWhatsAppUser || false;
+      metadata.is_rate_limit_error = whatsappResult.isRateLimitError || false;
+      metadata.error_code = whatsappResult.errorCode;
     }
 
     // Create outbound message record in database
@@ -167,12 +196,21 @@ export async function POST(req: NextRequest) {
         message: 'Message sent via WhatsApp Business API'
       });
     } else {
+      const isNotWhatsAppUser = whatsappResult.isNotWhatsAppUser || whatsappResult.reason === 'not_whatsapp_user';
+      const isRateLimitError = whatsappResult.isRateLimitError || whatsappResult.reason === 'rate_limit';
+      
       return NextResponse.json({ 
         success: true, 
         data: newMessage,
         whatsapp_status: 'pending',
+        is_not_whatsapp_user: isNotWhatsAppUser,
+        is_rate_limit_error: isRateLimitError,
         message: whatsappResult.reason === 'credentials_missing'
           ? 'Message saved. WhatsApp API credentials pending - add WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN to environment variables.'
+          : isNotWhatsAppUser
+          ? `This number (+${conversation.phone_number}) is not registered on WhatsApp. Message saved but cannot be delivered via WhatsApp.`
+          : isRateLimitError
+          ? `⚠️ Rate limit reached! You've hit WhatsApp's message limit (1,000 conversations/month or 250 messages/day). Message saved but not sent. Consider upgrading to paid tier.`
           : `Message saved but WhatsApp API failed: ${whatsappResult.error || whatsappResult.reason}. You can send manually via wa.me link.`,
         fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(message.trim())}`
       });
