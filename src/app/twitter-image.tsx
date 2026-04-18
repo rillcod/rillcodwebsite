@@ -9,6 +9,7 @@ export const size = {
 };
 
 export const contentType = 'image/png';
+
 export default async function Image() {
   return new ImageResponse(
     (
@@ -22,7 +23,7 @@ export default async function Image() {
           fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
         }}
       >
-        {/* Left Panel - Dark Branded Section */}
+        {/* Left Panel - Branded Section */}
         <div
           style={{
             width: '42%',
@@ -31,50 +32,33 @@ export default async function Image() {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            background: '#0a0f1e',
-            padding: '60px 40px',
+            backgroundColor: '#0a0f1e',
+            padding: '40px',
             position: 'relative',
             overflow: 'hidden',
           }}
         >
-          {/* Background Pattern */}
+          {/* Background Glow */}
           <div
             style={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(249, 115, 22, 0.15) 1px, transparent 0)',
-              backgroundSize: '40px 40px',
-              opacity: 0.3,
+              top: '10%',
+              left: '10%',
+              width: '400px',
+              height: '400px',
+              background: 'radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, transparent 70%)',
               display: 'flex',
             }}
           />
 
-          {/* Glow Effect (Simplified) */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '20%',
-              left: '20%',
-              width: '300px',
-              height: '300px',
-              background: 'rgba(249, 115, 22, 0.1)',
-              borderRadius: '50%',
-            }}
-          />
-
-          {/* Logo Container */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              zIndex: 1,
+              zIndex: 10,
             }}
           >
-            {/* Official Logo */}
             <div
               style={{
                 width: '180px',
@@ -83,67 +67,56 @@ export default async function Image() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '32px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                padding: '20px',
+                background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(249, 115, 22, 0.3)',
+                padding: '20px',
+                marginBottom: '32px',
               }}
             >
               <img
                 src="https://www.rillcod.com/logo.png"
-                alt="Rillcod Logo"
+                alt="Logo"
                 width="140"
                 height="140"
-                style={{
-                  objectFit: 'contain',
-                }}
+                style={{ objectFit: 'contain' }}
               />
             </div>
 
-            {/* Brand Name */}
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                marginTop: '32px',
+                fontSize: '48px',
+                fontWeight: '900',
+                color: '#ffffff',
+                letterSpacing: '-1px',
+                lineHeight: 1,
               }}
             >
-              <div
-                style={{
-                  fontSize: '48px',
-                  fontWeight: '900',
-                  color: '#ffffff',
-                  letterSpacing: '-1px',
-                  textAlign: 'center',
-                }}
-              >
-                RILLCOD
-              </div>
-              <div
-                style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: '#f97316',
-                  letterSpacing: '4px',
-                  textTransform: 'uppercase',
-                  marginTop: '4px',
-                }}
-              >
-                Technologies
-              </div>
-              <div
-                style={{
-                  width: '80px',
-                  height: '4px',
-                  background: '#f97316',
-                  marginTop: '16px',
-                }}
-              />
+              RILLCOD
             </div>
+            <div
+              style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                color: '#f97316',
+                letterSpacing: '4px',
+                textTransform: 'uppercase',
+                marginTop: '8px',
+              }}
+            >
+              Technologies
+            </div>
+            <div
+              style={{
+                width: '60px',
+                height: '4px',
+                background: '#f97316',
+                marginTop: '20px',
+              }}
+            />
           </div>
         </div>
 
-        {/* Right Panel - Light Content Section */}
+        {/* Right Panel - Content Section */}
         <div
           style={{
             width: '58%',
@@ -151,12 +124,11 @@ export default async function Image() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
-            padding: '40px 45px',
+            padding: '60px',
             backgroundColor: '#f8fafc',
             position: 'relative',
           }}
         >
-          {/* Main Heading */}
           <div
             style={{
               fontSize: '48px',
@@ -171,21 +143,17 @@ export default async function Image() {
             Innovation Hub
           </div>
 
-          {/* Subtitle */}
-          <div
+          <p
             style={{
               fontSize: '20px',
               color: '#64748b',
               marginBottom: '32px',
-              lineHeight: 1.4,
               fontWeight: '500',
             }}
           >
-            Empowering Nigeria with cutting-edge<br />
-            technology solutions and education
-          </div>
+            Empowering Nigeria with cutting-edge tech solutions and premium STEM education.
+          </p>
 
-          {/* Service Cards */}
           <div
             style={{
               display: 'flex',
@@ -194,59 +162,34 @@ export default async function Image() {
             }}
           >
             {[
-              { icon: '🎓', title: 'STEM Education', desc: 'Coding & Robotics Training', color: '#ecfdf5', border: '#86efac' },
-              { icon: '💻', title: 'Web & App Development', desc: 'Custom Software Solutions', color: '#eff6ff', border: '#93c5fd' },
-              { icon: '🏠', title: 'Smart Home & IoT', desc: 'Automation Systems', color: '#fef3f2', border: '#fca5a5' },
-            ].map((service) => (
+              { icon: '🎓', title: 'STEM Education', color: '#ecfdf5', border: '#86efac' },
+              { icon: '💻', title: 'Web & App Dev', color: '#eff6ff', border: '#93c5fd' },
+              { icon: '🤖', title: 'Robotics & AI', color: '#fef3f2', border: '#fca5a5' },
+            ].map((s) => (
               <div
-                key={service.title}
+                key={s.title}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '16px',
-                  padding: '14px 20px',
-                  background: service.color,
-                  borderRadius: '14px',
-                  border: `2px solid ${service.border}`,
-                  display: 'flex',
+                  padding: '16px 20px',
+                  background: s.color,
+                  borderRadius: '16px',
+                  border: `2px solid ${s.border}`,
                 }}
               >
-                <div style={{ fontSize: '32px' }}>{service.icon}</div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div
-                    style={{
-                      fontSize: '20px',
-                      fontWeight: '800',
-                      color: '#0f172a',
-                      letterSpacing: '-0.5px',
-                    }}
-                  >
-                    {service.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '15px',
-                      color: '#64748b',
-                      fontWeight: '500',
-                    }}
-                  >
-                    {service.desc}
-                  </div>
-                </div>
+                <span style={{ fontSize: '28px' }}>{s.icon}</span>
+                <span style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{s.title}</span>
               </div>
             ))}
           </div>
 
-          {/* Location Badge */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              marginTop: '28px',
-              padding: '10px 24px',
-              background: '#fff7ed',
-              borderRadius: '50px',
-              border: '2px solid #fed7aa',
+              marginTop: '32px',
+              gap: '10px',
               color: '#ea580c',
               fontSize: '16px',
               fontWeight: '700',
@@ -256,12 +199,12 @@ export default async function Image() {
           </div>
         </div>
 
-        {/* Vertical Accent Line */}
+        {/* Separator */}
         <div
           style={{
             position: 'absolute',
             left: '42%',
-            top: '0',
+            top: 0,
             width: '4px',
             height: '100%',
             background: '#f97316',

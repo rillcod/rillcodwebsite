@@ -9,7 +9,6 @@ export const size = {
 };
 
 export const contentType = 'image/png';
-
 export default async function Image() {
   return new ImageResponse(
     (
@@ -19,34 +18,45 @@ export default async function Image() {
           width: '100%',
           display: 'flex',
           position: 'relative',
-          backgroundColor: '#0a0f1e',
+          background: '#0a0f1e',
           fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
           overflow: 'hidden',
+          color: 'white',
         }}
       >
-        {/* Background Gradients (No filters) */}
+        {/* Background Base - Deep Blue Gradient */}
         <div
           style={{
             position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '100%',
-            height: '100%',
-            background: 'linear-gradient(135deg, #0a0f1e 0%, #1a237e 30%, #0a0f1e 100%)',
+            inset: 0,
+            background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1f35 50%, #0f1729 100%)',
             display: 'flex',
           }}
         />
-        
-        {/* Simplified Glows (Solid Opacity) */}
+
+        {/* Large Orange Glow Orb (Simulating blur with radial-gradient) */}
         <div
           style={{
             position: 'absolute',
-            top: '-20%',
-            right: '-10%',
+            top: '-300px',
+            right: '-100px',
+            width: '800px',
+            height: '800px',
+            background: 'radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, transparent 70%)',
+            display: 'flex',
+          }}
+        />
+
+        {/* Medium Blue Glow Orb */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '-200px',
+            left: '-100px',
             width: '600px',
             height: '600px',
-            background: 'rgba(249, 115, 22, 0.08)',
-            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+            display: 'flex',
           }}
         />
 
@@ -54,18 +64,15 @@ export default async function Image() {
         <div
           style={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-            opacity: 0.2,
+            inset: 0,
+            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.04) 1px, transparent 1px)',
+            backgroundSize: '50px 50px',
+            opacity: 0.3,
             display: 'flex',
           }}
         />
 
-        {/* Main Content Container */}
+        {/* Main Content */}
         <div
           style={{
             display: 'flex',
@@ -75,10 +82,10 @@ export default async function Image() {
             width: '100%',
             height: '100%',
             padding: '40px',
-            zIndex: 1,
+            zIndex: 10,
           }}
         >
-          {/* Logo Container */}
+          {/* Logo Section */}
           <div
             style={{
               display: 'flex',
@@ -88,32 +95,41 @@ export default async function Image() {
               position: 'relative',
             }}
           >
+            {/* Halo around logo */}
             <div
               style={{
-                width: '140px',
-                height: '140px',
+                position: 'absolute',
+                width: '240px',
+                height: '240px',
+                background: 'radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, transparent 70%)',
+                display: 'flex',
+              }}
+            />
+            
+            <div
+              style={{
+                width: '150px',
+                height: '150px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: '24px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                padding: '12px',
-                border: '1px solid rgba(249, 115, 22, 0.2)',
+                borderRadius: '28px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(249, 115, 22, 0.3)',
+                padding: '16px',
               }}
             >
               <img
                 src="https://www.rillcod.com/logo.png"
-                alt="Rillcod Technologies"
-                width="110"
-                height="110"
-                style={{
-                  objectFit: 'contain',
-                }}
+                alt="Logo"
+                width="120"
+                height="120"
+                style={{ objectFit: 'contain' }}
               />
             </div>
           </div>
 
-          {/* Brand Name (Solid White for Satori Compatibility) */}
+          {/* Title Area */}
           <div
             style={{
               display: 'flex',
@@ -124,12 +140,12 @@ export default async function Image() {
           >
             <div
               style={{
-                fontSize: '64px',
+                fontSize: '60px',
                 fontWeight: '900',
                 color: '#ffffff',
                 letterSpacing: '-2px',
                 textAlign: 'center',
-                lineHeight: 1.1,
+                lineHeight: 1,
               }}
             >
               RILLCOD TECHNOLOGIES
@@ -138,77 +154,93 @@ export default async function Image() {
               style={{
                 width: '120px',
                 height: '4px',
-                background: '#f97316',
-                marginTop: '12px',
+                background: 'linear-gradient(90deg, transparent, #f97316, transparent)',
+                marginTop: '16px',
               }}
             />
           </div>
 
-          {/* Tagline */}
           <div
             style={{
               fontSize: '28px',
               fontWeight: '600',
-              color: '#94a3b8',
+              color: '#d1d5db',
               textAlign: 'center',
               marginBottom: '40px',
-              maxWidth: '850px',
             }}
           >
             Tech Education & Innovation Hub
           </div>
 
-          {/* Service Pills */}
+          {/* Service Grid - Premium Look */}
           <div
             style={{
               display: 'flex',
-              gap: '12px',
+              gap: '14px',
               justifyContent: 'center',
               flexWrap: 'wrap',
+              maxWidth: '1000px',
             }}
           >
-            {[
-              'STEM Education',
-              'Web & App Dev',
-              'Robotics',
-              'IoT Solutions',
-            ].map((label) => (
+            {['STEM Education', 'Web & App Dev', 'Robotics', 'Smart Home', 'IoT Solutions'].map((text) => (
               <div
-                key={label}
+                key={text}
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   padding: '10px 24px',
-                  background: 'rgba(249, 115, 22, 0.15)',
+                  background: 'rgba(15, 23, 42, 0.8)',
                   borderRadius: '50px',
-                  border: '1px solid rgba(249, 115, 22, 0.3)',
-                  color: '#f8fafc',
+                  border: '1px solid rgba(249, 115, 22, 0.4)',
+                  color: '#f3f4f6',
                   fontSize: '18px',
                   fontWeight: '700',
-                  display: 'flex',
                 }}
               >
-                {label}
+                {text}
               </div>
             ))}
           </div>
 
-          {/* Location Badge */}
+          {/* Location Bar */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               marginTop: '40px',
-              padding: '12px 28px',
+              gap: '12px',
+              padding: '12px 30px',
               background: 'rgba(249, 115, 22, 0.1)',
               borderRadius: '50px',
-              border: '2px solid rgba(249, 115, 22, 0.5)',
-              color: '#f97316',
-              fontSize: '18px',
-              fontWeight: '800',
+              border: '2px solid #f97316',
             }}
           >
-            Nigeria • Benin City • Edo State
+            <div style={{ fontSize: '20px' }}>📍</div>
+            <div
+              style={{
+                fontSize: '18px',
+                fontWeight: '800',
+                color: '#f97316',
+              }}
+            >
+              Benin City, Edo State • Nigeria
+            </div>
           </div>
         </div>
+
+        {/* Corner Accent */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '200px',
+            height: '200px',
+            background: 'linear-gradient(135deg, transparent 0%, rgba(249, 115, 22, 0.1) 100%)',
+            borderTopLeftRadius: '100%',
+          }}
+        />
       </div>
     ),
     {
