@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   VideoCameraIcon,
   CalendarDaysIcon,
@@ -422,11 +423,20 @@ function SessionCard({
   const showRecording = session.status === 'completed' && !!session.recording_url;
 
   return (
-    <div className={`relative bg-[#0d0d0d] border flex flex-col gap-0 transition-all duration-300 overflow-hidden group
-      ${isLive ? 'border-emerald-500/40 shadow-[0_0_40px_rgba(16,185,129,0.1)] scale-[1.02] z-10' : 'border-white/[0.06] hover:border-white/[0.12]'}`}>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5, scale: 1.01 }}
+      className={`relative bg-card/40 backdrop-blur-md border flex flex-col gap-0 transition-all duration-500 overflow-hidden group
+      ${isLive ? 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 z-10' : 'border-white/[0.08] hover:border-white/20 hover:shadow-2xl hover:shadow-black/50'}`}>
       
-      {/* Live glow strip */}
-      {isLive && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 animate-pulse" />}
+      {/* Live glow effect */}
+      {isLive && (
+        <>
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
+          <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
+        </>
+      )}
 
       <div className="p-6 flex flex-col gap-5 flex-1">
         {/* Top badges row */}
@@ -457,68 +467,68 @@ function SessionCard({
           </div>
 
           {canManage && (
-            <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => onEdit(session)} className="p-2 bg-white/5 hover:bg-white/10 border border-white/5 text-white/40 hover:text-white transition-all">
-                <PencilIcon className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+              <button onClick={() => onEdit(session)} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white transition-all rounded-sm">
+                <PencilIcon className="w-4 h-4" />
               </button>
-              <button onClick={() => onDelete(session.id)} className="p-2 bg-white/5 hover:bg-rose-600 border border-white/5 text-white/40 hover:text-white transition-all">
-                <TrashIcon className="w-3.5 h-3.5" />
+              <button onClick={() => onDelete(session.id)} className="p-2.5 bg-white/5 hover:bg-rose-600/20 hover:border-rose-500/30 text-white/40 hover:text-rose-400 transition-all rounded-sm">
+                <TrashIcon className="w-4 h-4" />
               </button>
             </div>
           )}
         </div>
 
         {/* Title */}
-        <div>
-          <h3 className="text-base font-black text-white uppercase tracking-tight leading-snug group-hover:text-orange-500 transition-colors">{session.title}</h3>
+        <div className="space-y-3">
+          <h3 className="text-lg font-black text-white uppercase tracking-tight leading-tight group-hover:text-orange-500 transition-colors duration-300">{session.title}</h3>
           {session.description && (
-            <p className="text-xs text-white/30 font-medium mt-2 leading-relaxed line-clamp-2">{session.description}</p>
+            <p className="text-xs text-white/40 font-medium leading-relaxed line-clamp-2 italic border-l border-white/10 pl-3">{session.description}</p>
           )}
         </div>
 
-        {/* Meta */}
-        <div className="space-y-2.5 border-t border-white/5 pt-4">
-          <div className="flex items-center gap-3 text-white/30">
-            <CalendarDaysIcon className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-wide">{formatDateTime(session.scheduled_at)}</span>
+        {/* Meta Grid */}
+        <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-white/5 pt-5">
+          <div className="flex items-center gap-3 text-white/30 group/meta">
+            <div className="p-1.5 bg-orange-600/5 border border-orange-600/20 group-hover/meta:border-orange-600/40 transition-colors">
+              <CalendarDaysIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{formatDateTime(session.scheduled_at).split(',')[0]}</span>
           </div>
-          <div className="flex items-center gap-3 text-white/30">
-            <ClockIcon className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-wide">{session.duration_minutes} Minutes</span>
+          <div className="flex items-center gap-3 text-white/30 group/meta">
+            <div className="p-1.5 bg-orange-600/5 border border-orange-600/20 group-hover/meta:border-orange-600/40 transition-colors">
+              <ClockIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{session.duration_minutes}m</span>
           </div>
           {session.host && (
-            <div className="flex items-center gap-3 text-white/30">
-              <UserCircleIcon className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-              <span className="text-[10px] font-black uppercase tracking-wide truncate">{session.host.full_name}</span>
-              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 border ${session.host.role === 'admin' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
-                {session.host.role}
-              </span>
-            </div>
-          )}
-          {session.program && (
-            <div className="flex items-center gap-3 text-white/30">
-              <AcademicCapIcon className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-              <span className="text-[10px] font-black uppercase tracking-wide truncate">{session.program.name}</span>
+            <div className="col-span-2 flex items-center gap-3 text-white/30 group/meta">
+              <div className="p-1.5 bg-blue-600/5 border border-blue-600/20 group-hover/meta:border-blue-600/40 transition-colors">
+                <UserCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-wide truncate text-white/70">{session.host.full_name}</span>
+                <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest">{session.host.role}</span>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="border-t border-white/5">
+      <div className="mt-auto border-t border-white/5">
         {(showJoin || showRecording) && (
-          <div className="flex">
+          <div className="flex p-3 gap-2">
             {showJoin && (
               <button
                 onClick={() => onJoin(session.id, session.session_url!)}
-                className={`flex-1 flex items-center justify-center gap-3 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 flex items-center justify-center gap-3 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm ${
                   isLive
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/30 animate-pulse'
                     : 'bg-orange-600 hover:bg-orange-500 text-white'
                 }`}
               >
-                {isLive ? <SignalIcon className="w-4 h-4 animate-pulse" /> : <LinkIcon className="w-4 h-4" />}
-                {isLive ? 'Join Live Now' : 'Join Session'}
+                {isLive ? <SignalIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                {isLive ? 'Enter Live Hall' : 'Join Uplink'}
               </button>
             )}
             {showRecording && (
@@ -526,28 +536,28 @@ function SessionCard({
                 href={session.recording_url!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-3 py-4 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                className="flex-1 flex items-center justify-center gap-3 py-3.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm"
               >
                 <FilmIcon className="w-4 h-4" />
-                Watch Recording
+                Archive
               </a>
             )}
           </div>
         )}
         {/* Polls + Rooms quick-access */}
-        <div className="flex border-t border-white/[0.04]">
+        <div className="flex border-t border-white/[0.04] bg-white/[0.01]">
           <button onClick={() => onPolls(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-orange-400 hover:bg-white/[0.02] transition-all">
-            <ChartBarIcon className="w-3.5 h-3.5" /> Polls
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-orange-400 hover:bg-white/[0.03] transition-all">
+            <ChartBarIcon className="w-4 h-4" /> Polls
           </button>
-          <span className="w-px bg-white/[0.04]" />
+          <div className="w-[1px] bg-white/[0.04]" />
           <button onClick={() => onRooms(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-purple-400 hover:bg-white/[0.02] transition-all">
-            <UsersIcon className="w-3.5 h-3.5" /> Rooms
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-purple-400 hover:bg-white/[0.03] transition-all">
+            <UsersIcon className="w-4 h-4" /> Rooms
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -882,13 +892,11 @@ export default function LiveSessionsPage() {
   }
 
   async function handleJoin(id: string, url: string) {
-    // 1. Log join attempt (Logic Improvement)
     try {
       await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' });
     } catch (e) {
       console.error('Silent error recording join:', e);
     }
-    // 2. Proceed to platform
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
@@ -915,58 +923,64 @@ export default function LiveSessionsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Header ── */}
-        <div className="relative bg-[#0a0a0a] border border-white/5 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group">
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-600/5 blur-[120px] -mr-48 -mt-48 pointer-events-none group-hover:bg-orange-600/8 transition-all duration-1000" />
+        <div className="relative bg-card/10 border border-white/10 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-orange-600/15 transition-all duration-1000" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
           
-          <div className="relative z-10 space-y-5">
-            <div className="flex items-center gap-4">
-              <div className="px-4 py-1.5 bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[9px] font-black uppercase tracking-[0.4em]">
-                Sector: Broadcast
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="px-4 py-1.5 bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
+                <SignalIcon className="w-3 h-3" />
+                Sector: Broadcast Uplink
               </div>
               {liveSessions.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                   </span>
                   <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest">
-                    {liveSessions.length} Session{liveSessions.length !== 1 ? 's' : ''} Live
+                    {liveSessions.length} Channel{liveSessions.length !== 1 ? 's' : ''} Open
                   </span>
                 </div>
               )}
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter leading-[0.9] italic">
-                Live<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500">Sessions.</span>
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase">
+                Virtual<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500">
+                  Hall.
+                </span>
+                <span className="text-white/10 ml-4 not-italic font-black opacity-20 hidden md:inline">01</span>
               </h1>
-              <p className="text-sm text-white/30 font-medium mt-4 max-w-sm leading-relaxed">
+              <p className="text-sm text-white/40 font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-orange-600/30 pl-6">
                 {canManage
-                  ? 'Schedule and broadcast live video sessions across all academic sectors.'
-                  : 'Join live sessions and access recordings from your instructors.'}
+                  ? 'Real-time academic infrastructure. Manage broadcasts, track attendance, and engage students with live polls and breakout rooms.'
+                  : 'Welcome to the broadcast lobby. Join your scheduled classes and engage in interactive sessions.'}
               </p>
             </div>
           </div>
 
-          <div className="relative z-10 flex flex-col gap-4 sm:items-end">
-            {/* Stat cards */}
-            <div className="grid grid-cols-3 sm:grid-cols-1 gap-3 sm:w-40">
+          <div className="relative z-10 flex flex-col gap-6 sm:items-end">
+            {/* Stat row */}
+            <div className="flex items-center gap-3">
               {[
-                { label: 'Total', value: sessions.length, color: 'text-white' },
-                { label: 'Upcoming', value: upcomingCount, color: 'text-orange-400' },
-                { label: 'Live Now', value: liveSessions.length, color: 'text-emerald-400' },
+                { label: 'Active', value: liveSessions.length, color: 'emerald' },
+                { label: 'Total', value: sessions.length, color: 'white' },
               ].map(stat => (
-                <div key={stat.label} className="bg-white/[0.02] border border-white/5 p-4 sm:p-5 sm:flex sm:items-center sm:justify-between">
-                  <p className={`text-lg sm:text-2xl font-black ${stat.color}`}>{stat.value}</p>
-                  <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-0.5">{stat.label}</p>
+                <div key={stat.label} className="bg-white/[0.03] border border-white/10 p-5 min-w-[100px] text-center backdrop-blur-md">
+                   <p className={`text-2xl font-black text-${stat.color === 'white' ? 'white' : 'emerald-400'}`}>{stat.value}</p>
+                   <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-1">{stat.label}</p>
                 </div>
               ))}
             </div>
 
             {canManage && (
               <button onClick={openCreate}
-                className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 active:scale-95">
-                <PlusIcon className="w-4 h-4" /> Schedule Session
+                className="group/btn flex items-center gap-4 px-10 py-5 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-orange-600/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                <PlusIcon className="w-4 h-4 relative z-10" /> 
+                <span className="relative z-10">Broadcast New Session</span>
               </button>
             )}
           </div>

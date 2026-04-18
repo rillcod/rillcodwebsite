@@ -7552,6 +7552,150 @@ export type Database = {
           }
         ]
       }
+      crm_interactions: {
+        Row: {
+          id: string
+          contact_id: string
+          contact_type: string
+          contact_name: string
+          type: string
+          direction: string
+          content: string
+          staff_id: string | null
+          staff_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contact_id: string
+          contact_type?: string
+          contact_name: string
+          type?: string
+          direction?: string
+          content: string
+          staff_id?: string | null
+          staff_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          contact_id?: string
+          contact_type?: string
+          contact_name?: string
+          type?: string
+          direction?: string
+          content?: string
+          staff_id?: string | null
+          staff_name?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      crm_attachments: {
+        Row: {
+          id: string
+          contact_id: string
+          contact_type: string
+          contact_name: string
+          file_name: string
+          file_key: string
+          file_type: string | null
+          file_size: number | null
+          uploaded_by: string | null
+          uploaded_by_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contact_id: string
+          contact_type?: string
+          contact_name: string
+          file_name: string
+          file_key: string
+          file_type?: string | null
+          file_size?: number | null
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          contact_id?: string
+          contact_type?: string
+          contact_name?: string
+          file_name?: string
+          file_key?: string
+          file_type?: string | null
+          file_size?: number | null
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      crm_pipeline: {
+        Row: {
+          id: string
+          contact_id: string
+          contact_type: string
+          contact_name: string | null
+          stage: string
+          pipeline_notes: string | null
+          updated_by: string | null
+          updated_by_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          contact_id: string
+          contact_type?: string
+          contact_name?: string | null
+          stage?: string
+          pipeline_notes?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          contact_id?: string
+          contact_type?: string
+          contact_name?: string | null
+          stage?: string
+          pipeline_notes?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipeline_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       admin_dashboard_stats: {

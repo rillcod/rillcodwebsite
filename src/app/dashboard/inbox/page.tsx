@@ -8,7 +8,7 @@ import {
   Loader2, X, MessageSquare, Users, Building2, Plus,
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
-  Pencil, ExternalLink, AtSign, FileText, CheckCircle2,
+  Pencil, AtSign, FileText, CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -216,9 +216,9 @@ export default function UnifiedInbox() {
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
-    { id: 'students'  as const, label: 'Students',                         icon: MessageSquare },
-    ...(!isSchool ? [{ id: 'parents' as const, label: 'Parents',            icon: Users }] : []),
-    ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',          icon: GraduationCap }] : []),
+    { id: 'students'  as const, label: 'WhatsApp',                           icon: MessageSquare },
+    ...(!isSchool ? [{ id: 'parents' as const, label: 'Parents',             icon: Users }] : []),
+    ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',           icon: GraduationCap }] : []),
     { id: 'school'    as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 },
   ];
 
@@ -567,10 +567,32 @@ export default function UnifiedInbox() {
       try {
         let data: any[] = [];
         if (activeTab === 'students') {
-          let q = supabase.from('portal_users').select('id, full_name, phone, school_name, role, enrollment_type').eq('is_active', true).eq('role', 'student');
+          // WhatsApp tab — search ALL contacts with phone numbers (any role) + external phonebook
+          let q = supabase.from('portal_users')
+            .select('id, full_name, phone, school_name, role, enrollment_type')
+            .eq('is_active', true)
+            .not('phone', 'is', null);
           if (isSchool && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
+          if (isTeacher && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
           if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
-          data = (await (q.limit(30) as any)).data || [];
+          const portalData = (await (q.limit(30) as any)).data || [];
+
+          // Also pull external phonebook (whatsapp_conversations without portal_user_id)
+          let extQ = supabase.from('whatsapp_conversations')
+            .select('id, contact_name, phone_number')
+            .is('portal_user_id', null)
+            .order('last_message_at', { ascending: false });
+          if (directorySearch) extQ = extQ.ilike('contact_name', `%${directorySearch}%`);
+          const extRaw = (await extQ.limit(20)).data || [];
+          const extContacts = extRaw.map((c: any) => ({
+            id:           c.id,
+            full_name:    c.contact_name || c.phone_number || 'Unknown',
+            phone:        c.phone_number,
+            role:         'external',
+            isExternalWA: true,   // flag: already has a WA conversation record
+          }));
+
+          data = [...portalData, ...extContacts];
         } else if (activeTab === 'parents') {
           let q = supabase.from('portal_users').select('id, full_name, phone, role').eq('is_active', true).eq('role', 'parent');
           if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
@@ -598,26 +620,57 @@ export default function UnifiedInbox() {
     return () => clearTimeout(t);
   }, [directorySearch, showNewChat, activeTab]); // eslint-disable-line
 
+  // ── Open / create a WhatsApp conversation for any contact with a phone ─────
+  const openWhatsAppConversation = async (item: {
+    id: string; full_name: string; phone?: string; phone_number?: string;
+    role?: string; school_name?: string; isExternalWA?: boolean;
+  }) => {
+    const phone = (item.phone || item.phone_number || '').replace(/\D/g, '');
+    if (!phone) { setSendError(`${item.full_name} has no phone number on file.`); return; }
+
+    if (item.isExternalWA) {
+      // item.id IS the whatsapp_conversations.id — just open it
+      const { data: conv } = await supabase.from('whatsapp_conversations').select('*').eq('id', item.id).maybeSingle();
+      if (conv) {
+        const c: Conversation = { id: conv.id, type: 'students', phone_number: conv.phone_number, contact_name: conv.contact_name || item.full_name, last_message_at: conv.last_message_at ?? '', last_message_preview: conv.last_message_preview || '', unread_count: conv.unread_count || 0, role: 'external' };
+        setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+        setActiveConv(c); setShowSidebar(false);
+        setSidebarView('chats'); setActiveTab('students');
+      }
+      return;
+    }
+
+    // Portal user — find or create whatsapp_conversations
+    const { data: existing } = await supabase.from('whatsapp_conversations').select('*').eq('phone_number', phone).maybeSingle();
+    const conv = existing || (await supabase.from('whatsapp_conversations').insert({
+      phone_number: phone, contact_name: item.full_name,
+      portal_user_id: item.id === item.phone ? null : item.id, // don't store external ids
+      last_message_at: new Date().toISOString(), last_message_preview: '',
+    }).select().single()).data;
+
+    if (conv) {
+      const c: Conversation = {
+        id: conv.id, type: 'students', phone_number: phone,
+        contact_name: item.full_name, last_message_at: conv.last_message_at ?? '',
+        last_message_preview: conv.last_message_preview || '', unread_count: 0,
+        school_name: item.school_name, role: item.role || 'external',
+        portal_user_id: item.id,
+      };
+      setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+      setActiveConv(c); setShowSidebar(false);
+      setSidebarView('chats'); setActiveTab('students');
+    }
+  };
+
   // ── Start new conversation ─────────────────────────────────────────────────
   const startNewConversation = async (item: any) => {
     setShowNewChat(false);
     try {
       if (activeTab === 'students') {
-        const cleanPhone = item.phone?.replace(/\D/g, '');
-        if (!cleanPhone) { setSendError('This student has no phone number on file.'); return; }
-        const { data: existing } = await supabase.from('whatsapp_conversations').select('*').eq('phone_number', cleanPhone).maybeSingle();
-        const conv = existing || (await supabase.from('whatsapp_conversations').insert({ phone_number: cleanPhone, contact_name: item.full_name, portal_user_id: item.id, last_message_at: new Date().toISOString(), last_message_preview: '' }).select().single()).data;
-        if (conv) {
-          const c: Conversation = { id: conv.id, type: 'students', phone_number: cleanPhone, contact_name: item.full_name, last_message_at: conv.last_message_at ?? '', last_message_preview: conv.last_message_preview || '', unread_count: 0, school_name: item.school_name, role: item.role || 'student', portal_user_id: item.id };
-          setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
-          setActiveConv(c); setShowSidebar(false);
-          setSidebarView('chats'); setActiveTab('students');
-        }
+        await openWhatsAppConversation(item);
       } else if (activeTab === 'teachers' || activeTab === 'school') {
         // Open subject dialog instead of window.prompt
-        setShowNewChat(false);
         setSubjectDialog({ open: true, subject: '', pendingItem: item });
-        return;
       }
     } catch (err) { console.error(err); }
   };
@@ -1086,10 +1139,10 @@ export default function UnifiedInbox() {
                           <MessageSquare className="w-3 h-3" /> Message
                         </button>
                         {contact.phone && (
-                          <a href={`https://wa.me/${contact.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                          <button onClick={() => { setActiveContact(null); openWhatsAppConversation(contact); }}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-full transition-colors">
-                            <ExternalLink className="w-3 h-3" /> WhatsApp
-                          </a>
+                            <MessageSquare className="w-3 h-3" /> WhatsApp
+                          </button>
                         )}
                         {contact.email && (
                           <button onClick={() => openEmailCompose(contact)}
