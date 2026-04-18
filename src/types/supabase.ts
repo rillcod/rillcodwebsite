@@ -5203,6 +5203,7 @@ export type Database = {
           section_class: string | null
           student_id: string | null
           updated_at: string | null
+          whatsapp_opt_in: boolean | null
         }
         Insert: {
           avatar_url?: string | null
@@ -5234,6 +5235,7 @@ export type Database = {
           section_class?: string | null
           student_id?: string | null
           updated_at?: string | null
+          whatsapp_opt_in?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -5265,6 +5267,7 @@ export type Database = {
           section_class?: string | null
           student_id?: string | null
           updated_at?: string | null
+          whatsapp_opt_in?: boolean | null
         }
         Relationships: [
           {
@@ -7694,6 +7697,9 @@ export type Database = {
           id: string
           last_message_at: string | null
           last_message_preview: string | null
+          opted_in_at: string | null
+          opted_out: boolean | null
+          opted_out_at: string | null
           phone_number: string
           portal_user_id: string | null
           unread_count: number | null
@@ -7705,6 +7711,9 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
+          opted_in_at?: string | null
+          opted_out?: boolean | null
+          opted_out_at?: string | null
           phone_number: string
           portal_user_id?: string | null
           unread_count?: number | null
@@ -7716,6 +7725,9 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
+          opted_in_at?: string | null
+          opted_out?: boolean | null
+          opted_out_at?: string | null
           phone_number?: string
           portal_user_id?: string | null
           unread_count?: number | null
@@ -7797,6 +7809,7 @@ export type Database = {
           media_url: string | null
           message_type: string | null
           meta_message_id: string | null
+          metadata: Json | null
           status: string | null
         }
         Insert: {
@@ -7808,6 +7821,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string | null
           meta_message_id?: string | null
+          metadata?: Json | null
           status?: string | null
         }
         Update: {
@@ -7819,6 +7833,7 @@ export type Database = {
           media_url?: string | null
           message_type?: string | null
           meta_message_id?: string | null
+          metadata?: Json | null
           status?: string | null
         }
         Relationships: [
