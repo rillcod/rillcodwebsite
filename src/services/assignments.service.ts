@@ -186,9 +186,39 @@ export class AssignmentsService {
 
         const { gamificationService } = await import('./gamification.service');
         const { badgeService } = await import('./badge.service');
+        const { engagementService } = await import('./engagement.service');
 
+        // Legacy points (keeping for compatibility)
         const result_gamify = await gamificationService.awardPoints(userId, 'assignment_submit', id, 'Submitted an assignment');
         await badgeService.awardBadgeIfEligible(userId, 'points_milestone', { totalPoints: result_gamify.totalPoints });
+
+        // New Engagement tracking
+        try {
+            // 1. Award XP
+            await engagementService.awardXP(userId, 'assignment_submitted', {
+                refId: id,
+                refType: 'assignment',
+                schoolId: assignment.school_id ?? undefined
+            });
+
+            // 2. Update Streak
+            await engagementService.updateWeeklyStreak(userId);
+
+            // 3. Check for specific badges
+            const { count: submissionCount } = await supabase
+                .from('assignment_submissions')
+                .select('*', { count: 'exact', head: true })
+                .eq('portal_user_id', userId);
+
+            if (submissionCount === 1) {
+                await engagementService.awardBadge(userId, 'first_assignment', { refId: id });
+            } else if (submissionCount === 10) {
+                await engagementService.awardBadge(userId, 'consistent_10');
+            }
+        } catch (engErr) {
+            console.error('Engagement tracking failed:', engErr);
+            // Don't fail the submission if engagement tracking errors
+        }
 
         return result;
     }
