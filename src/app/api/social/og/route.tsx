@@ -2,14 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const alt = 'Rillcod Technologies — Tech Education & Innovation Hub';
-export const size = {
-  width: 1200,
-  height: 630,
-};
-
-export const contentType = 'image/png';
-export default async function Image() {
+export async function GET() {
   return new ImageResponse(
     (
       <div
@@ -34,7 +27,7 @@ export default async function Image() {
           }}
         />
 
-        {/* Large Orange Glow Orb (Simulating blur with radial-gradient) */}
+        {/* Large Orange Glow Orb */}
         <div
           style={{
             position: 'absolute',
@@ -60,7 +53,7 @@ export default async function Image() {
           }}
         />
 
-        {/* Grid Pattern Pattern */}
+        {/* Grid Pattern */}
         <div
           style={{
             position: 'absolute',
@@ -93,7 +86,6 @@ export default async function Image() {
             zIndex: 10,
           }}
         >
-          {/* Logo Section */}
           <div
             style={{
               display: 'flex',
@@ -103,7 +95,6 @@ export default async function Image() {
               position: 'relative',
             }}
           >
-            {/* Halo around logo */}
             <div
               style={{
                 position: 'absolute',
@@ -137,7 +128,6 @@ export default async function Image() {
             </div>
           </div>
 
-          {/* Title Area */}
           <div
             style={{
               display: 'flex',
@@ -180,7 +170,6 @@ export default async function Image() {
             Tech Education & Innovation Hub
           </div>
 
-          {/* Service Grid - Premium Look */}
           <div
             style={{
               display: 'flex',
@@ -210,7 +199,6 @@ export default async function Image() {
             ))}
           </div>
 
-          {/* Location Bar */}
           <div
             style={{
               display: 'flex',
@@ -225,34 +213,16 @@ export default async function Image() {
             }}
           >
             <div style={{ fontSize: '20px' }}>📍</div>
-            <div
-              style={{
-                fontSize: '18px',
-                fontWeight: '800',
-                color: '#f97316',
-              }}
-            >
+            <div style={{ fontSize: '18px', fontWeight: '800', color: '#f97316' }}>
               Benin City, Edo State • Nigeria
             </div>
           </div>
         </div>
-
-        {/* Corner Accent */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            width: '200px',
-            height: '200px',
-            background: 'linear-gradient(135deg, transparent 0%, rgba(249, 115, 22, 0.1) 100%)',
-            borderTopLeftRadius: '100%',
-          }}
-        />
       </div>
     ),
     {
-      ...size,
+      width: 1200,
+      height: 630,
     }
   );
 }
