@@ -245,8 +245,8 @@ export default function DashboardNavigation() {
           { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
-          { divider: true, label: 'Finance' },
-          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
+          { divider: true, label: 'Billing' },
+          { name: 'My Billing', href: '/dashboard/school-billing', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
@@ -294,7 +294,7 @@ export default function DashboardNavigation() {
         ? ['Dashboard', 'Learning Center', 'My Payments', 'My Report Card', 'Messages']
         : ['Dashboard', 'Learning Center', 'My Report Card', 'Messages']
       : profile?.role === 'school'
-        ? ['Dashboard', 'My Students', 'Smart Finance', 'Student Reports', 'Messages']
+        ? ['Dashboard', 'My Students', 'My Billing', 'Student Reports', 'Messages']
         : profile?.role === 'admin'
           ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'School-Teacher Messages']
           : profile?.role === 'teacher'

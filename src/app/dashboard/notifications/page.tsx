@@ -147,6 +147,206 @@ function EmptyState({ filter }: { filter: Filter }) {
   );
 }
 
+// ─── Broadcast Panel (admin/teacher only) ────────────────────────────────────
+
+const BROADCAST_TARGETS = [
+  { value: 'students', label: 'All Students' },
+  { value: 'parents',  label: 'All Parents'  },
+  { value: 'teachers', label: 'All Teachers' },
+  { value: 'all',      label: 'Everyone'     },
+] as const;
+
+type BroadcastTarget = (typeof BROADCAST_TARGETS)[number]['value'];
+
+function BroadcastPanel() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [target, setTarget] = useState<BroadcastTarget>('students');
+  const [type, setType] = useState<'info' | 'warning' | 'success' | 'announcement'>('info');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; msg: string } | null>(null);
+
+  async function send() {
+    if (!title.trim() || !message.trim()) return;
+    setSending(true);
+    setResult(null);
+    try {
+      const res = await fetch('/api/notifications/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, message, target, type }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setResult({ success: true, msg: `Sent to ${json.recipients} recipient${json.recipients !== 1 ? 's' : ''} (${json.in_app_sent} in-app, ${json.push_sent} push)` });
+        setTitle(''); setMessage('');
+      } else {
+        setResult({ success: false, msg: json.error || 'Failed to send' });
+      }
+    } catch {
+      setResult({ success: false, msg: 'Network error' });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mb-6 border border-orange-500/20 bg-orange-500/5 rounded-none">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2.5">
+          <BellAlertIcon className="w-4 h-4 text-orange-400" />
+          <span className="text-xs font-black uppercase tracking-widest text-orange-400">Send Notification</span>
+        </div>
+        <span className="text-muted-foreground text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Target Audience</label>
+              <select
+                value={target}
+                onChange={e => setTarget(e.target.value as BroadcastTarget)}
+                className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground rounded-none focus:outline-none focus:border-orange-500"
+              >
+                {BROADCAST_TARGETS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Type</label>
+              <select
+                value={type}
+                onChange={e => setType(e.target.value as any)}
+                className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground rounded-none focus:outline-none focus:border-orange-500"
+              >
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="success">Success</option>
+                <option value="announcement">Announcement</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Title</label>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Notification title..."
+              className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground rounded-none focus:outline-none focus:border-orange-500"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Message</label>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              rows={3}
+              placeholder="Write your notification message..."
+              className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground rounded-none focus:outline-none focus:border-orange-500 resize-none"
+            />
+          </div>
+          {result && (
+            <p className={`text-xs font-bold px-3 py-2 rounded-none border ${result.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+              {result.msg}
+            </p>
+          )}
+          <button
+            onClick={send}
+            disabled={sending || !title.trim() || !message.trim()}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest rounded-none transition-colors"
+          >
+            {sending ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BellAlertIcon className="w-3.5 h-3.5" />}
+            {sending ? 'Sending...' : 'Send Now'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Automation Triggers (admin only) ────────────────────────────────────────
+
+const CRON_JOBS = [
+  { key: 'billing-reminders',    label: 'Billing Reminders',    desc: 'Send billing cycle reminders (Week 6/7/8)' },
+  { key: 'invoice-reminders',    label: 'Invoice Reminders',    desc: 'Send invoice reminder emails & mark overdue' },
+  { key: 'process-certificates', label: 'Process Certificates', desc: 'Issue pending completion certificates' },
+  { key: 'streak-reminder',      label: 'Streak Reminders',     desc: 'Remind students who missed learning today' },
+  { key: 'term-scheduler',       label: 'Term Scheduler',       desc: 'Release lessons & assignments for current week' },
+  { key: 'weekly-summary',       label: 'Weekly Summary',       desc: 'Email parents a weekly student summary' },
+  { key: 'live-session-reminders', label: 'Session Reminders',  desc: 'Remind students about upcoming live sessions' },
+  { key: 'process-notifications', label: 'Process Queue',       desc: 'Flush the notification delivery queue' },
+] as const;
+
+function AutomationTriggers() {
+  const [open, setOpen] = useState(false);
+  const [running, setRunning] = useState<Record<string, boolean>>({});
+  const [results, setResults] = useState<Record<string, string>>({});
+
+  async function trigger(key: string) {
+    setRunning(r => ({ ...r, [key]: true }));
+    setResults(r => ({ ...r, [key]: '' }));
+    try {
+      const res = await fetch(`/api/cron/${key}`, { method: 'POST' });
+      const json = await res.json();
+      if (json.error) setResults(r => ({ ...r, [key]: `Error: ${json.error}` }));
+      else {
+        const { success: _s, ...rest } = json;
+        const summary = Object.entries(rest).map(([k, v]) => `${k}: ${v}`).join(', ');
+        setResults(r => ({ ...r, [key]: summary || 'Done' }));
+      }
+    } catch (e: any) {
+      setResults(r => ({ ...r, [key]: `Failed: ${e.message}` }));
+    } finally {
+      setRunning(r => ({ ...r, [key]: false }));
+    }
+  }
+
+  return (
+    <div className="mb-6 border border-border bg-muted/20 rounded-none">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2.5">
+          <ArrowPathIcon className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Automation Jobs</span>
+          <span className="text-[9px] px-1.5 py-0.5 bg-muted border border-border text-muted-foreground rounded-full font-bold uppercase">Admin</span>
+        </div>
+        <span className="text-muted-foreground text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-border border-t border-border">
+          {CRON_JOBS.map(job => (
+            <div key={job.key} className="flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black text-foreground">{job.label}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{job.desc}</p>
+                {results[job.key] && (
+                  <p className={`text-[10px] mt-0.5 font-bold ${results[job.key].startsWith('Error') || results[job.key].startsWith('Failed') ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {results[job.key]}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => trigger(job.key)}
+                disabled={running[job.key]}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border text-[10px] font-black uppercase tracking-widest text-foreground rounded-none transition-colors disabled:opacity-50"
+              >
+                {running[job.key] ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <ArrowPathIcon className="w-3 h-3" />}
+                {running[job.key] ? 'Running' : 'Run'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
@@ -310,6 +510,12 @@ export default function NotificationsPage() {
             </button>
           )}
         </div>
+
+        {/* ── Broadcast Panel — admin/teacher only ── */}
+        {['admin', 'teacher'].includes(profile.role) && <BroadcastPanel />}
+
+        {/* ── Automation Triggers — admin only ── */}
+        {profile.role === 'admin' && <AutomationTriggers />}
 
         {/* ── Filter Tabs ── */}
         <div className="flex items-center gap-0 mb-6 border border-border bg-card rounded-none overflow-x-auto">

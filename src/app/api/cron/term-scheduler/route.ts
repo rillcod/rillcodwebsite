@@ -45,14 +45,13 @@ async function handleRequest(req: NextRequest) {
       const weekData = planData.weeks[currentWeek - 1];
       if (!weekData) continue;
 
-      // Release lessons for current week
+      // Release lessons for current week (teacher-approved = those with a title set)
       await supabase
         .from('lessons')
         .update({ status: 'published', published_at: new Date().toISOString() })
         .eq('lesson_plan_id', schedule.lesson_plan_id)
         .eq('week_number', currentWeek)
-        .eq('status', 'draft')
-        .neq('graded_by', null); // teacher-approved only (has any grading data)
+        .eq('status', 'draft');
 
       // Release assignments for current week
       await supabase
