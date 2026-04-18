@@ -69,8 +69,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@rillcodacademy",
-    creator: "@rillcodacademy",
+    site: "@rillcod_",
+    creator: "@rillcod_",
     title: "Rillcod Technologies — Tech Education & Innovation Hub | STEM, Robotics, Web/App Development & IoT",
     description:
       "Nigeria's premier tech education and innovation hub. STEM education, coding & robotics training, web/app development services, and smart home automation solutions.",
@@ -127,11 +127,26 @@ export default function RootLayout({
       <head>
         <OrganizationJsonLd />
         <WebSiteJsonLd />
-        <link rel="canonical" href="https://rillcod.com" />
+        <link rel="canonical" href="https://www.rillcod.com" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
+        
+        {/* Explicit Open Graph meta tags for better compatibility */}
+        <meta property="og:image" content="https://www.rillcod.com/opengraph-image?v=2" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:alt" content="Rillcod Technologies — Tech Education & Innovation Hub" />
+        
+        {/* Twitter Card meta tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@rillcod_" />
+        <meta name="twitter:creator" content="@rillcod_" />
+        <meta name="twitter:image" content="https://www.rillcod.com/twitter-image?v=2" />
+        <meta name="twitter:image:alt" content="Rillcod Technologies — Tech Education & Innovation" />
+        
         {/* iOS standalone PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
