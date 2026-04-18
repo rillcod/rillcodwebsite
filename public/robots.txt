@@ -1,3 +1,14 @@
+# Allow Facebook and WhatsApp crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Allow all other crawlers
 User-agent: *
 Allow: /
 
