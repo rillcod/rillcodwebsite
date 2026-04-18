@@ -4,11 +4,13 @@ import { notificationsService } from '@/services/notifications.service';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+async function handleRequest(req: Request) {
     // Simple "worker" that processes a batch of notifications when called
     // Suitable for serverless environments where long-running processes are difficult
     const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const secret = (req.headers.get('x-cron-secret') ?? authHeader?.replace(/^Bearer\s+/i, '')) || '';
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && secret !== cronSecret) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -46,3 +48,6 @@ export async function GET(req: Request) {
         remaining: await queueService.getQueueLength()
     });
 }
+
+export async function GET(req: Request) { return handleRequest(req); }
+export async function POST(req: Request) { return handleRequest(req); }
