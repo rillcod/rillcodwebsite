@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import {
-  MessageSquare, Phone, Users, Building2, Loader2,
-  ChevronRight, Circle,
+  MessageSquare, Users, Building2, Loader2,
+  ChevronRight, GraduationCap,
 } from 'lucide-react';
 
 interface PreviewConv {
   id: string;
-  type: 'students' | 'parents' | 'school';
+  type: 'students' | 'parents' | 'school' | 'teachers';
   contact_name: string;
   last_message_preview: string;
   last_message_at: string;
@@ -39,12 +39,14 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   students: MessageSquare,
   parents:  Users,
   school:   Building2,
+  teachers: GraduationCap,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   students: 'bg-emerald-500',
   parents:  'bg-orange-500',
   school:   'bg-blue-600',
+  teachers: 'bg-violet-600',
 };
 
 export default function InboxPreviewWidget() {
@@ -209,9 +211,10 @@ export default function InboxPreviewWidget() {
                       <span className={`shrink-0 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
                         conv.type === 'students' ? 'bg-emerald-500/10 text-emerald-400' :
                         conv.type === 'parents'  ? 'bg-orange-500/10 text-orange-400' :
+                        conv.type === 'teachers' ? 'bg-violet-500/10 text-violet-400' :
                                                    'bg-blue-500/10 text-blue-400'
                       }`}>
-                        {conv.type === 'students' ? 'WhatsApp' : conv.type === 'parents' ? 'Parent' : 'School'}
+                        {conv.type === 'students' ? 'WhatsApp' : conv.type === 'parents' ? 'Parent' : conv.type === 'teachers' ? 'Teacher' : 'School'}
                       </span>
                     </div>
                     <span className={`text-[10px] shrink-0 ${conv.unread_count > 0 ? 'text-orange-400 font-bold' : 'text-muted-foreground'}`}>

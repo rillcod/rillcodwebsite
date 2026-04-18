@@ -13,7 +13,7 @@ import {
 import Link from 'next/link';
 
 // ── Types ───────────────────────────────────────────────────────────────────
-type InboxCategory = 'students' | 'parents' | 'school';
+type InboxCategory = 'students' | 'parents' | 'school' | 'teachers';
 type SidebarView   = 'chats' | 'contacts';
 
 interface Conversation {
@@ -107,18 +107,20 @@ const AVATAR_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-500',
   parents:  'bg-orange-500',
   school:   'bg-blue-600',
+  teachers: 'bg-violet-600',
 };
 const ROLE_COLORS: Record<string, string> = {
   student: 'bg-emerald-500/20 text-emerald-400',
   parent:  'bg-orange-500/20 text-orange-400',
-  teacher: 'bg-blue-500/20 text-blue-400',
-  school:  'bg-indigo-500/20 text-indigo-400',
+  teacher: 'bg-violet-500/20 text-violet-400',
+  school:  'bg-blue-500/20 text-blue-400',
   admin:   'bg-rose-500/20 text-rose-400',
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-900/40 text-emerald-500',
   parents:  'bg-orange-900/40 text-orange-500',
   school:   'bg-blue-900/40 text-blue-500',
+  teachers: 'bg-violet-900/40 text-violet-500',
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -186,9 +188,10 @@ export default function UnifiedInbox() {
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
-    { id: 'students' as const, label: 'Students', icon: MessageSquare },
-    ...(!isSchool ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
-    { id: 'school' as const, label: isSchool ? 'Teachers' : 'School', icon: Building2 },
+    { id: 'students'  as const, label: 'Students',                         icon: MessageSquare },
+    ...(!isSchool ? [{ id: 'parents' as const, label: 'Parents',            icon: Users }] : []),
+    ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',          icon: GraduationCap }] : []),
+    { id: 'school'    as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 },
   ];
 
   // ── Real-time ─────────────────────────────────────────────────────────────
@@ -272,6 +275,21 @@ export default function UnifiedInbox() {
             role:                 'parent',
           };
         }));
+      } else if (cat === 'teachers') {
+        // Admin-only: direct messages with individual teachers
+        // Re-uses school_teacher_conversations filtered to where teacher side is a teacher (not a school)
+        const res  = await fetch('/api/school-teacher/conversations?type=teacher');
+        const json = await res.json();
+        if (json.data) setConversations(json.data.map((c: any) => ({
+          id:                   c.id, type: 'teachers' as const,
+          contact_name:         c.teacher?.full_name || 'Teacher',
+          subject:              c.subject,
+          last_message_at:      c.last_message_at || c.created_at,
+          last_message_preview: c.last_message_preview || 'No messages yet',
+          unread_count:         c.unread_count || 0,
+          school_name:          c.teacher?.school_name,
+          role:                 'teacher',
+        })));
       } else {
         const res  = await fetch('/api/school-teacher/conversations');
         const json = await res.json();
@@ -323,9 +341,9 @@ export default function UnifiedInbox() {
       if (isSchool && profile?.school_id) {
         q = (q as any).eq('school_id', profile.school_id);
       }
-      // Students/parents are excluded from staff-only views
+      // Teachers see all except other non-relevant roles (but DO include other teachers for collaboration)
       if (isTeacher) {
-        q = (q as any).in('role', ['student', 'parent', 'school', 'admin']);
+        q = (q as any).in('role', ['student', 'parent', 'teacher', 'school', 'admin']);
       }
 
       const { data: portalUsers } = await q.limit(200);
@@ -480,6 +498,7 @@ export default function UnifiedInbox() {
         if (error) throw error;
         if (data) setMessages(prev => [...prev, { ...normaliseMsg(data), conversation_id: data.thread_id }]);
       } else {
+        // handles both 'school' and 'teachers' tabs — both use school_teacher_messages
         const { data, error } = await supabase.from('school_teacher_messages').insert({ conversation_id: activeConv.id, sender_id: profile.id, body }).select().single();
         if (error) throw error;
         if (data) setMessages(prev => [...prev, normaliseMsg(data)]);
@@ -528,6 +547,11 @@ export default function UnifiedInbox() {
           let q = supabase.from('portal_users').select('id, full_name, phone, role').eq('is_active', true).eq('role', 'parent');
           if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
           data = (await (q.limit(30) as any)).data || [];
+        } else if (activeTab === 'teachers') {
+          // Admin → all teachers in the system
+          let q = supabase.from('portal_users').select('id, full_name, phone, school_name, role').eq('is_active', true).eq('role', 'teacher');
+          if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
+          data = (await (q.limit(50) as any)).data || [];
         } else if (isSchool) {
           let q = supabase.from('portal_users').select('id, full_name, phone, role').eq('is_active', true).eq('role', 'teacher');
           if (profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
@@ -561,19 +585,34 @@ export default function UnifiedInbox() {
           setActiveConv(c); setShowSidebar(false);
           setSidebarView('chats'); setActiveTab('students');
         }
-      } else if (activeTab === 'school') {
-        const subject = window.prompt('Subject for this conversation:');
+      } else if (activeTab === 'teachers' || activeTab === 'school') {
+        const subject = window.prompt(activeTab === 'teachers' ? `Message to ${item.full_name} — subject:` : 'Subject for this conversation:');
         if (!subject?.trim()) return;
         const res = await fetch('/api/school-teacher/conversations', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ school_id: isSchool ? (profile?.school_id || '') : item.id, teacher_id: isSchool ? item.id : profile?.id, subject: subject.trim() }),
+          body: JSON.stringify({
+            school_id:  isSchool ? (profile?.school_id || '') : (activeTab === 'teachers' ? null : item.id),
+            teacher_id: isSchool ? item.id : (activeTab === 'teachers' ? item.id : profile?.id),
+            subject:    subject.trim(),
+          }),
         });
         const json = await res.json();
         if (json.data) {
-          const c: Conversation = { id: json.data.id, type: 'school', contact_name: isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'), subject: subject.trim(), last_message_at: json.data.created_at || new Date().toISOString(), last_message_preview: '', unread_count: 0 };
+          const isTeacherTab = activeTab === 'teachers';
+          const c: Conversation = {
+            id:                   json.data.id,
+            type:                 isTeacherTab ? 'teachers' : 'school',
+            contact_name:         isTeacherTab ? (item.full_name || 'Teacher') : isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'),
+            school_name:          isTeacherTab ? item.school_name : undefined,
+            role:                 isTeacherTab ? 'teacher' : isSchool ? 'teacher' : 'school',
+            subject:              subject.trim(),
+            last_message_at:      json.data.created_at || new Date().toISOString(),
+            last_message_preview: '',
+            unread_count:         0,
+          };
           setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
           setActiveConv(c); setShowSidebar(false);
-          setSidebarView('chats'); setActiveTab('school');
+          setSidebarView('chats'); setActiveTab(isTeacherTab ? 'teachers' : 'school');
         }
       }
     } catch (err) { console.error(err); }
@@ -625,7 +664,13 @@ export default function UnifiedInbox() {
     } else if (role === 'parent') {
       setSidebarView('chats'); setActiveTab('parents');
       await fetchConversations('parents');
+    } else if (role === 'teacher') {
+      // Admin → use Teachers tab; teacher/school → use School tab
+      const targetTab = isAdmin ? 'teachers' : 'school';
+      setSidebarView('chats'); setActiveTab(targetTab);
+      await fetchConversations(targetTab);
     } else {
+      // role === 'school' | 'admin' → internal school tab
       setSidebarView('chats'); setActiveTab('school');
       await fetchConversations('school');
     }
@@ -1099,7 +1144,7 @@ export default function UnifiedInbox() {
                                   <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>{activeConv.role}</span>
                                 )}
                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[activeConv.type]}`}>
-                                  {activeConv.type === 'students' ? 'WhatsApp' : activeConv.type === 'parents' ? 'Parent' : 'School'}
+                                  {activeConv.type === 'students' ? 'WhatsApp' : activeConv.type === 'parents' ? 'Parent' : activeConv.type === 'teachers' ? 'Teacher' : 'School'}
                                 </span>
                                 {activeConv.school_name && (
                                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/40 truncate max-w-[120px]">{activeConv.school_name}</span>
@@ -1235,7 +1280,7 @@ export default function UnifiedInbox() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
               <div>
                 <h2 className="text-white font-black text-lg">
-                  New {activeTab === 'school' && isSchool ? 'Teacher' : activeTab === 'parents' ? 'Parent' : activeTab === 'students' ? 'Student' : 'School'} Chat
+                  New {activeTab === 'teachers' ? 'Teacher' : activeTab === 'school' && isSchool ? 'Teacher' : activeTab === 'parents' ? 'Parent' : activeTab === 'students' ? 'Student' : 'School'} Chat
                 </h2>
                 <p className="text-white/30 text-xs mt-0.5">
                   {activeTab === 'students' ? 'Search students by name or school' :
