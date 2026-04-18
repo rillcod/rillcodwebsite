@@ -60,14 +60,22 @@ export default async function Image() {
           }}
         />
 
-        {/* Grid Pattern Overlay */}
+        {/* Grid Pattern Pattern */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(249, 115, 22, 0.04) 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
-            opacity: 0.3,
+            backgroundImage: 'linear-gradient(rgba(249, 115, 22, 0.05) 1px, transparent 1px)',
+            backgroundSize: '100% 50px',
+            display: 'flex',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'linear-gradient(90deg, rgba(249, 115, 22, 0.05) 1px, transparent 1px)',
+            backgroundSize: '50px 100%',
             display: 'flex',
           }}
         />
