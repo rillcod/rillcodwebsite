@@ -120,7 +120,8 @@
       "Bash(sed 's/export function //')",
       "Bash(sed 's/\\(.*//')",
       "Bash(cat src/lib/api-fetch.ts)",
-      "Bash(cat src/lib/api-fetch.tsx)"
+      "Bash(cat src/lib/api-fetch.tsx)",
+      "WebFetch(domain:www.rillcod.com)"
     ]
   }
 }

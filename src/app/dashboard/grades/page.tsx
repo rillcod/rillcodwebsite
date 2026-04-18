@@ -17,22 +17,26 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
-// ─── Grade helpers ────────────────────────────────────────────
+// ─── WAEC Grade helpers ───────────────────────────────────────
+import { getWAECGrade } from '@/lib/grading';
+
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
-    const letter = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F';
-    const color = pct >= 70 ? 'emerald' : pct >= 50 ? 'amber' : 'rose';
-    const label = pct >= 90 ? 'Distinction' : pct >= 80 ? 'Excellent' : pct >= 70 ? 'Very Good' : pct >= 60 ? 'Good' : pct >= 50 ? 'Pass' : 'Fail';
-    return { pct, letter, color, label };
+    const waec = getWAECGrade(pct);
+    const letter = waec.code;
+    const label = waec.label;
+    const color = pct >= 65 ? 'emerald' : pct >= 50 ? 'amber' : pct >= 40 ? 'orange' : 'rose';
+    return { pct, letter, color, label, waec };
 }
 
+// WAEC-aligned quick grades (A1 → F9)
 const QUICK_GRADES = [
-    { label: 'A+', pct: 95, color: 'emerald' },
-    { label: 'A', pct: 82, color: 'emerald' },
-    { label: 'B', pct: 75, color: 'blue' },
-    { label: 'C', pct: 65, color: 'amber' },
-    { label: 'D', pct: 52, color: 'orange' },
-    { label: 'F', pct: 30, color: 'rose' },
+    { label: 'A1', pct: 85, color: 'emerald' },
+    { label: 'B2', pct: 72, color: 'emerald' },
+    { label: 'C4', pct: 62, color: 'blue' },
+    { label: 'C6', pct: 52, color: 'amber' },
+    { label: 'D7', pct: 47, color: 'orange' },
+    { label: 'F9', pct: 25, color: 'rose' },
 ];
 
 function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
