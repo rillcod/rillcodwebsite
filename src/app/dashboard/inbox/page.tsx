@@ -240,7 +240,7 @@ export default function UnifiedInbox() {
   const handleRealtime = (type: InboxCategory, msg: any) => {
     if (type === activeTab) fetchConversations(type, false);
     const convId = msg.conversation_id || msg.thread_id;
-    if (activeConv?.id === convId) {
+    if (activeConv && activeConv.id === convId) {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, normaliseMsg(msg)]);
       // Mark as read immediately if it's the active conversation
       if (msg.direction === 'inbound' || msg.sender_id !== profile?.id) {
