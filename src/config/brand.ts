@@ -69,7 +69,7 @@ export const companyInfo = {
 
 // SEO configuration
 export const seoConfig = {
-  siteUrl: 'https://rillcod.com',
+  siteUrl: 'https://www.rillcod.com',
   siteName: 'Rillcod Technologies',
   defaultTitle: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
   defaultDescription:

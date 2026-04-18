@@ -11,111 +11,115 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  // Fetch the logo
+  // Fetch the local logo
   const logoData = await fetch(
-    new URL('../../../public/logo.png', import.meta.url)
+    new URL('../../public/images/logo.png', import.meta.url)
   ).then((res) => res.arrayBuffer());
 
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 60,
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          width: '100%',
           height: '100%',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '80px',
-          color: 'white',
+          backgroundColor: '#0f172a',
+          backgroundImage: 'radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%)',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Official Logo */}
-        <img
-          src={logoData as any}
-          alt="Rillcod Technologies Logo"
-          width={150}
-          height={150}
-          style={{
-            marginBottom: 40,
-          }}
-        />
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 'bold',
-            textAlign: 'center',
-            marginBottom: 20,
-            background: 'linear-gradient(90deg, #ffffff 0%, #f97316 100%)',
-            backgroundClip: 'text',
-            color: 'transparent',
-            lineHeight: 1.2,
-          }}
-        >
-          Rillcod Technologies
-        </div>
-
-        {/* Subtitle */}
-        <div
-          style={{
-            fontSize: 32,
-            textAlign: 'center',
-            color: '#94a3b8',
-            marginBottom: 30,
-            maxWidth: 900,
-            lineHeight: 1.4,
-          }}
-        >
-          Empowering Nigerian Children with STEM Skills
-        </div>
-
-        {/* Features */}
+        {/* Container for Logo + Brand Name */}
         <div
           style={{
             display: 'flex',
-            gap: 30,
-            fontSize: 24,
-            color: '#cbd5e1',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '40px',
+            marginBottom: '40px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img
+            src={logoData as any}
+            alt="Logo"
+            width="180"
+            height="180"
+            style={{
+              borderRadius: '24px',
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
             <div
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#10b981',
+                fontSize: '96px',
+                fontWeight: 'bold',
+                color: 'white',
+                lineHeight: 1,
               }}
-            />
-            Coding
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            >
+              Rillcod
+            </div>
             <div
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#3b82f6',
+                fontSize: '52px',
+                fontWeight: 'bold',
+                color: '#f97316',
+                lineHeight: 1,
+                marginTop: '10px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
               }}
-            />
-            Robotics
+            >
+              Technologies
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        </div>
+
+        {/* Tagline */}
+        <div
+          style={{
+            fontSize: '36px',
+            color: '#94a3b8',
+            maxWidth: '900px',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            marginBottom: '40px',
+          }}
+        >
+          Empowering Nigerian Children with Future-Ready Tech Skills.
+        </div>
+
+        {/* Categories */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '30px',
+          }}
+        >
+          {['Coding', 'Robotics', 'AI'].map((item, i) => (
             <div
+              key={item}
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#8b5cf6',
+                background: 'rgba(249, 115, 22, 0.1)',
+                padding: '12px 32px',
+                borderRadius: '50px',
+                border: '1px solid rgba(249, 115, 22, 0.3)',
+                color: '#f97316',
+                fontSize: '22px',
+                fontWeight: '600',
               }}
-            />
-            AI
-          </div>
+            >
+              {item}
+            </div>
+          ))}
         </div>
       </div>
     ),
@@ -124,3 +128,4 @@ export default async function Image() {
     }
   );
 }
+
