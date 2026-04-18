@@ -11,9 +11,6 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  // Fetch the official logo from the deployed URL
-  const logoUrl = 'https://www.rillcod.com/logo.png';
-
   return new ImageResponse(
     (
       <div
@@ -88,19 +85,32 @@ export default async function Image() {
                 position: 'relative',
               }}
             >
-              <img
-                src={logoUrl}
-                alt="Rillcod Logo"
-                width="200"
-                height="200"
+              <div
                 style={{
-                  objectFit: 'contain',
+                  width: '200px',
+                  height: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   borderRadius: '32px',
                   boxShadow: '0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(249, 115, 22, 0.3)',
                   background: 'rgba(255, 255, 255, 0.05)',
-                  padding: '12px',
+                  padding: '20px',
+                  overflow: 'hidden',
                 }}
-              />
+              >
+                <img
+                  src="https://www.rillcod.com/logo.png"
+                  alt="Rillcod Logo"
+                  width="160"
+                  height="160"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                  }}
+                />
+              </div>
             </div>
 
             {/* Brand Name */}
