@@ -1452,28 +1452,52 @@ export default function UnifiedInbox() {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {loadingDirectory ? (
                 <div className="p-12 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-orange-400" /></div>
-              ) : directoryResults.length === 0 ? (
-                <div className="p-12 text-center text-white/25 text-[13px]">{directorySearch ? 'No results found.' : 'Start typing to search…'}</div>
               ) : (
-                directoryResults.map(item => (
-                  <button key={item.id} onClick={() => startNewConversation(item)}
-                    className="w-full flex items-center px-4 py-3 hover:bg-white/[0.05] transition-colors text-left group border-b border-white/[0.04]">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 mr-3 ${AVATAR_COLORS[activeTab]}`}>
-                      {initials(item.full_name || item.name || 'U')}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-[13px] truncate">{item.full_name || item.name}</p>
-                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                        {item.phone       && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
-                        {item.school_name && <span className="text-[10px] text-white/30 truncate">{item.school_name}</span>}
-                        {item.email       && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
-                        {item.role        && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
-                        {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
+                <>
+                  {directoryResults.map(item => (
+                    <button key={item.id} onClick={() => startNewConversation(item)}
+                      className="w-full flex items-center px-4 py-3 hover:bg-white/[0.05] transition-colors text-left group border-b border-white/[0.04]">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 mr-3 ${AVATAR_COLORS[activeTab]}`}>
+                        {initials(item.full_name || item.name || 'U')}
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-orange-400 transition-colors" />
-                  </button>
-                ))
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-white text-[13px] truncate">{item.full_name || item.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                          {item.phone       && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
+                          {item.school_name && <span className="text-[10px] text-white/30 truncate">{item.school_name}</span>}
+                          {item.email       && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
+                          {item.role        && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
+                          {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-orange-400 transition-colors" />
+                    </button>
+                  ))}
+
+                  {/* Message by Number Option */}
+                  {activeTab === 'students' && directorySearch.replace(/\D/g, '').length >= 7 && (
+                    <button 
+                      onClick={() => {
+                        const phone = directorySearch.replace(/\D/g, '');
+                        startNewConversation({ id: phone, full_name: `+${phone}`, phone: phone, role: 'external' });
+                      }}
+                      className="w-full flex items-center px-4 py-4 bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left group border-b border-orange-500/10"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mr-3">
+                        <Plus className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-white text-[14px]">Message +{directorySearch.replace(/\D/g, '')} directly</p>
+                        <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Start WhatsApp conversation</p>
+                      </div>
+                      <MessageSquare className="w-5 h-5 text-orange-400 mr-2" />
+                    </button>
+                  )}
+
+                  {directoryResults.length === 0 && (!directorySearch || (activeTab === 'students' && directorySearch.replace(/\D/g, '').length < 7)) && (
+                    <div className="p-12 text-center text-white/25 text-[13px]">{directorySearch ? 'No results found.' : 'Start typing to search…'}</div>
+                  )}
+                </>
               )}
             </div>
             {activeTab === 'parents' && (
