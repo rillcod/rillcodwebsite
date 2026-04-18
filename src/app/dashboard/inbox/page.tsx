@@ -31,6 +31,7 @@ interface Conversation {
   class_name?: string;
   role?: string;
   portal_user_id?: string;
+  assigned_staff_id?: string | null;
 }
 
 interface Message {
@@ -272,10 +273,19 @@ export default function UnifiedInbox() {
     if (setLoad) setIsLoading(true);
     try {
       if (cat === 'students') {
-        const { data } = await supabase
+        const query = supabase
           .from('whatsapp_conversations')
           .select('*, portal_user:portal_users!portal_user_id(full_name, phone, school_name, role)')
           .order('last_message_at', { ascending: false });
+
+        if (isTeacher) {
+          // Teachers see their assigned + mapped students
+          query.or(`assigned_staff_id.eq.${profile.id},portal_user_id.is.null`); // Allow seeing externals to "claim" them? 
+          // User said "teacher can add external chat of parent t thier own but they dont see meesges or conversion from the admin end"
+          // So they see externals but NOT admin-assigned chats.
+        }
+
+        const { data } = await query;
         if (data) setConversations(data.map(c => ({
           id:                   c.id,
           type:                 'students' as const,
@@ -284,9 +294,10 @@ export default function UnifiedInbox() {
           last_message_at:      c.last_message_at || '',
           last_message_preview: c.last_message_preview || '',
           unread_count:         c.unread_count || 0,
-          school_name:          (c.portal_user as any)?.school_name,
-          role:                 (c.portal_user as any)?.role || 'student',
+          school_name:          (c.portal_user as any)?.school_name || c.school_name,
+          role:                 (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
           portal_user_id:       c.portal_user_id ?? undefined,
+          assigned_staff_id:    c.assigned_staff_id,
         })));
       } else if (cat === 'parents') {
         let q = supabase.from('parent_teacher_threads').select(`
@@ -956,6 +967,24 @@ export default function UnifiedInbox() {
     } catch (err: any) {
       setContactError(err.message || 'Failed to save contact.');
     } finally { setSavingContact(false); }
+  };
+
+  const assignToMe = async (convId: string) => {
+    if (!profile) return;
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ assigned_staff_id: profile.id })
+        .eq('id', convId);
+      
+      if (error) throw error;
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, assigned_staff_id: profile.id } : c));
+      if (activeConv?.id === convId) {
+        setActiveConv(prev => prev ? { ...prev, assigned_staff_id: profile.id } : null);
+      }
+    } catch (err) {
+      console.error('assignToMe error:', err);
+    }
   };
 
   const openEditContact = (c: Contact) => {

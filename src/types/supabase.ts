@@ -7692,6 +7692,7 @@ export type Database = {
       }
       whatsapp_conversations: {
         Row: {
+          assigned_staff_id: string | null
           contact_name: string | null
           created_at: string | null
           id: string
@@ -7702,10 +7703,12 @@ export type Database = {
           opted_out_at: string | null
           phone_number: string
           portal_user_id: string | null
+          school_name: string | null
           unread_count: number | null
           updated_at: string | null
         }
         Insert: {
+          assigned_staff_id?: string | null
           contact_name?: string | null
           created_at?: string | null
           id?: string
@@ -7716,10 +7719,12 @@ export type Database = {
           opted_out_at?: string | null
           phone_number: string
           portal_user_id?: string | null
+          school_name?: string | null
           unread_count?: number | null
           updated_at?: string | null
         }
         Update: {
+          assigned_staff_id?: string | null
           contact_name?: string | null
           created_at?: string | null
           id?: string
@@ -7730,10 +7735,25 @@ export type Database = {
           opted_out_at?: string | null
           phone_number?: string
           portal_user_id?: string | null
+          school_name?: string | null
           unread_count?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
           {
             foreignKeyName: "whatsapp_conversations_portal_user_id_fkey"
             columns: ["portal_user_id"]
