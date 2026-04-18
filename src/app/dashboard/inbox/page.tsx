@@ -240,8 +240,13 @@ export default function UnifiedInbox() {
   const handleRealtime = (type: InboxCategory, msg: any) => {
     if (type === activeTab) fetchConversations(type, false);
     const convId = msg.conversation_id || msg.thread_id;
-    if (activeConv?.id === convId)
+    if (activeConv?.id === convId) {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, normaliseMsg(msg)]);
+      // Mark as read immediately if it's the active conversation
+      if (msg.direction === 'inbound' || msg.sender_id !== profile?.id) {
+         markAsRead(activeConv);
+      }
+    }
   };
 
   function normaliseMsg(m: any): Message {
@@ -451,6 +456,21 @@ export default function UnifiedInbox() {
   };
 
   // ── Fetch messages ─────────────────────────────────────────────────────────
+  const markAsRead = async (conv: Conversation) => {
+    if (!profile?.id) return;
+    try {
+      if (conv.type === 'students')
+        await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', conv.id);
+      else if (conv.type === 'parents')
+        await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile.id);
+      else
+        await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
+      
+      setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+    } catch (err) { console.error('markAsRead error:', err); }
+  };
+
+  // ── Fetch messages ─────────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (conv: Conversation) => {
     setMsgLoading(true);
     try {
@@ -467,14 +487,8 @@ export default function UnifiedInbox() {
           .eq('conversation_id', conv.id).order('created_at', { ascending: true });
         if (data) setMessages(data.map(normaliseMsg));
       }
-      if (conv.unread_count > 0 && profile?.id) {
-        if (conv.type === 'students')
-          await supabase.from('whatsapp_conversations').update({ unread_count: 0 }).eq('id', conv.id);
-        else if (conv.type === 'parents')
-          await supabase.from('parent_teacher_messages').update({ is_read: true }).eq('thread_id', conv.id).neq('sender_id', profile.id);
-        else
-          await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
-        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+      if (conv.unread_count > 0) {
+        await markAsRead(conv);
       }
     } catch (err) { console.error('fetchMessages error:', err); }
     finally { setMsgLoading(false); }
@@ -901,7 +915,7 @@ export default function UnifiedInbox() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full w-full overflow-hidden bg-[#111b21]">
+    <div className="flex h-screen w-full overflow-hidden bg-[#111b21] fixed inset-0 md:relative z-10">
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
       <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[340px] lg:w-[380px] flex-col bg-[#111b21] border-r border-white/[0.07] shrink-0`}>
@@ -1026,6 +1040,16 @@ export default function UnifiedInbox() {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Mobile Floating Action Button (FAB) for New Chat */}
+            <div className="md:hidden absolute bottom-20 right-6 z-20">
+              <button
+                onClick={() => setShowNewChat(true)}
+                className="w-14 h-14 bg-orange-500 hover:bg-orange-400 text-white rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
+              >
+                <Plus className="w-7 h-7" />
+              </button>
             </div>
           </>
         ) : (
