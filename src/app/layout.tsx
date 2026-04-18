@@ -88,9 +88,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Add your verification codes here when available
-    // google: 'your-google-verification-code',
-    // yandex: 'your-yandex-verification-code',
+    google: 'GPd05n2EkQyc0DKulfDYKGQly0TTc7-s87B-lD9J1P0',
   },
   category: "education",
   other: {
