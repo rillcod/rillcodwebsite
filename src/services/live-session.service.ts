@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
+import { sendPushNotification, buildNotificationUrl } from '@/lib/push';
 import type { Database } from '@/types/supabase';
 
 export interface ScheduleSessionParams {
@@ -77,6 +78,11 @@ export class LiveSessionService {
             .single();
 
         if (error) throw new AppError(error.message, 500);
+
+        if (status === 'completed' && data) {
+            await this.logCompletionInteractions(data);
+        }
+
         return data;
     }
 
@@ -115,6 +121,11 @@ export class LiveSessionService {
             .single();
 
         if (error) throw new AppError(error.message, 500);
+
+        if (updates.status === 'completed' && data) {
+            await this.logCompletionInteractions(data);
+        }
+
         return data;
     }
 
@@ -211,7 +222,7 @@ export class LiveSessionService {
 
         const { data: sessions, error } = await supabase
             .from('live_sessions')
-            .select('id, title, scheduled_at, program_id')
+            .select('id, title, scheduled_at, program_id, school_id')
             .gte('scheduled_at', now.toISOString())
             .lte('scheduled_at', inFifteen.toISOString())
             .eq('status', 'scheduled');
@@ -219,26 +230,128 @@ export class LiveSessionService {
         if (error) throw new AppError(error.message, 500);
 
         for (const session of sessions ?? []) {
-            if (!session.program_id) continue;
+            let recipientIds: string[] = [];
 
-            const { data: enrollments } = await supabase
-                .from('enrollments')
-                .select('user_id')
-                .eq('program_id', session.program_id)
-                .eq('status', 'active');
+            if (session.program_id) {
+                const { data: enrollments } = await supabase
+                    .from('enrollments')
+                    .select('user_id')
+                    .eq('program_id', session.program_id)
+                    .eq('status', 'active');
+                recipientIds = (enrollments ?? []).map(e => e.user_id).filter((id): id is string => !!id);
+            } else if (session.school_id) {
+                const { data: schoolUsers } = await supabase
+                    .from('portal_users')
+                    .select('id')
+                    .eq('school_id', session.school_id)
+                    .eq('role', 'student')
+                    .eq('is_active', true);
+                recipientIds = (schoolUsers ?? []).map(u => u.id);
+            }
 
-            for (const enrollment of enrollments ?? []) {
-                if (!enrollment.user_id) continue;
+            if (recipientIds.length === 0) continue;
+
+            for (const userId of recipientIds) {
+                // 1. In-app notification
                 await notificationsService.logNotification(
-                    enrollment.user_id,
+                    userId,
                     'Live Session Reminder',
                     `Your live session "${session.title}" starts in 15 minutes.`,
                     'info'
+                );
+
+                // 2. Push Notification
+                await sendPushNotification(
+                    userId,
+                    {
+                        title: 'Live Session Reminder',
+                        body: `Your live session "${session.title}" starts in 15 minutes.`,
+                        url: buildNotificationUrl('live_session', session.id),
+                    }
                 );
             }
         }
 
         return { processed: sessions?.length ?? 0 };
+    }
+
+    private async logCompletionInteractions(session: Database['public']['Tables']['live_sessions']['Row']) {
+        const supabase = await createClient();
+
+        // 1. Fetch all attendees for this session
+        const { data: attendees, error: attErr } = await supabase
+            .from('live_session_attendance')
+            .select(`
+                portal_user_id,
+                portal_users (
+                    full_name,
+                    school_id
+                )
+            `)
+            .eq('session_id', session.id)
+            .not('portal_user_id', 'is', null);
+
+        if (attErr || !attendees || attendees.length === 0) return;
+
+        // 2. Fetch host name for the log
+        const { data: host } = await supabase
+            .from('portal_users')
+            .select('full_name')
+            .eq('id', session.host_id)
+            .single();
+
+        const hostName = host?.full_name || 'Instructor';
+
+        // 3. Log for each student (contact)
+        const studentInteractions: any[] = attendees.map(att => {
+            const user = (Array.isArray(att.portal_users) ? att.portal_users[0] : att.portal_users) as any;
+            return {
+                contact_id: att.portal_user_id,
+                contact_type: 'portal_user',
+                contact_name: user?.full_name || 'Unknown Student',
+                type: 'meeting',
+                direction: 'inbound',
+                content: `Attended live session: "${session.title}" (Duration: ${session.duration_minutes} min)`,
+                staff_id: session.host_id,
+                staff_name: hostName,
+                created_at: new Date().toISOString()
+            };
+        });
+
+        if (studentInteractions.length > 0) {
+            await supabase.from('crm_interactions').insert(studentInteractions);
+        }
+
+        // 4. Log for each unique school involved
+        const schoolsToLog = new Map<string, number>();
+        attendees.forEach(att => {
+            const user = (Array.isArray(att.portal_users) ? att.portal_users[0] : att.portal_users) as any;
+            if (user?.school_id) {
+                schoolsToLog.set(user.school_id, (schoolsToLog.get(user.school_id) || 0) + 1);
+            }
+        });
+
+        if (schoolsToLog.size > 0) {
+            const { data: schools } = await supabase
+                .from('schools')
+                .select('id, name')
+                .in('id', Array.from(schoolsToLog.keys()));
+
+            if (schools) {
+                const schoolInteractions = schools.map(school => ({
+                    contact_id: school.id,
+                    contact_type: 'school',
+                    contact_name: school.name,
+                    type: 'meeting',
+                    direction: 'inbound',
+                    content: `Live session completed: "${session.title}". ${schoolsToLog.get(school.id)} student(s) from this school attended. Host: ${hostName}.`,
+                    staff_id: session.host_id,
+                    staff_name: hostName,
+                    created_at: new Date().toISOString()
+                }));
+                await supabase.from('crm_interactions').insert(schoolInteractions);
+            }
+        }
     }
 
     // Breakout room methods (still supported by DB)

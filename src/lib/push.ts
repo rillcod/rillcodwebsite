@@ -151,7 +151,8 @@ export type NotificationType =
   | 'streak_reminder'
   | 'instalment_due'
   | 'consent_form'
-  | 'parent_message';
+  | 'parent_message'
+  | 'live_session';
 
 /**
  * Builds the deep-link URL for a notification type + optional resource id.
@@ -176,6 +177,8 @@ export function buildNotificationUrl(type: NotificationType, resourceId?: string
       return resourceId ? `/dashboard/consent-forms/${resourceId}` : '/dashboard/consent-forms';
     case 'parent_message':
       return resourceId ? `/dashboard/messages/${resourceId}` : '/dashboard/messages';
+    case 'live_session':
+      return resourceId ? `/dashboard/learning?session=${resourceId}` : '/dashboard/learning';
     default:
       return '/dashboard';
   }
