@@ -191,7 +191,7 @@ export default function StudentDashboard() {
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/playground', icon: BoltIcon, label: 'Playground', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -434,7 +434,7 @@ export default function StudentDashboard() {
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/playground', icon: BoltIcon, label: 'Playground', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
