@@ -170,6 +170,7 @@ export default function DashboardNavigation() {
           { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
           { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
           { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
+          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
