@@ -29,6 +29,33 @@ import {
   ChartBarIcon,
 } from '@/lib/icons';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function isJitsiUrl(url?: string | null): boolean {
+  return !!url && url.includes('meet.jit.si');
+}
+
+function getYouTubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function getVimeoId(url: string): string | null {
+  const m = url.match(/vimeo\.com\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+function getRecordingType(url: string): 'youtube' | 'vimeo' | 'video' | 'link' {
+  if (getYouTubeId(url)) return 'youtube';
+  if (getVimeoId(url)) return 'vimeo';
+  if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return 'video';
+  return 'link';
+}
+
+function generateJitsiRoomUrl(sessionId: string): string {
+  return `https://meet.jit.si/Rillcod-${sessionId.slice(0, 12)}`;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LiveSession {
@@ -73,13 +100,14 @@ type FilterTab = 'upcoming' | 'past' | 'all';
 // ─── Platform config ──────────────────────────────────────────────────────────
 
 const PLATFORM_CONFIG: Record<
-  LiveSession['platform'],
+  LiveSession['platform'] | 'jitsi',
   { label: string; textClass: string; bgClass: string; borderClass: string; dot: string }
 > = {
   zoom:        { label: 'Zoom',        textClass: 'text-blue-400',    bgClass: 'bg-blue-500/10',    borderClass: 'border-blue-500/30',    dot: 'bg-blue-400' },
   google_meet: { label: 'Google Meet', textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/30', dot: 'bg-emerald-400' },
   teams:       { label: 'Teams',       textClass: 'text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/30',  dot: 'bg-purple-400' },
   discord:     { label: 'Discord',     textClass: 'text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/30',  dot: 'bg-indigo-400' },
+  jitsi:       { label: 'In-App',      textClass: 'text-orange-400',  bgClass: 'bg-orange-500/10',  borderClass: 'border-orange-500/30',  dot: 'bg-orange-400' },
   other:       { label: 'Other',       textClass: 'text-white/40',    bgClass: 'bg-white/5',        borderClass: 'border-white/10',       dot: 'bg-white/30' },
 };
 
@@ -405,7 +433,7 @@ function RoomsModal({ session, canManage, onClose }: {
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
-  session, canManage, onEdit, onDelete, onJoin, onPolls, onRooms
+  session, canManage, onEdit, onDelete, onJoin, onPolls, onRooms, onRecording
 }: {
   session: LiveSession;
   canManage: boolean;
@@ -414,8 +442,11 @@ function SessionCard({
   onJoin: (id: string, url: string) => void;
   onPolls: (s: LiveSession) => void;
   onRooms: (s: LiveSession) => void;
+  onRecording: (s: LiveSession) => void;
 }) {
-  const platCfg = PLATFORM_CONFIG[session.platform];
+  const isInApp = isJitsiUrl(session.session_url);
+  const platKey = isInApp ? 'jitsi' : session.platform;
+  const platCfg = PLATFORM_CONFIG[platKey] ?? PLATFORM_CONFIG.other;
   const statusCfg = STATUS_CONFIG[session.status];
   const countdown = getCountdown(session.scheduled_at);
   const isLive = session.status === 'live';
@@ -527,20 +558,18 @@ function SessionCard({
                     : 'bg-orange-600 hover:bg-orange-500 text-white'
                 }`}
               >
-                {isLive ? <SignalIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
-                {isLive ? 'Enter Live Hall' : 'Join Uplink'}
+                {isInApp ? <VideoCameraIcon className="w-4 h-4" /> : isLive ? <SignalIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                {isInApp ? (isLive ? 'Open Live Room' : 'Open Room') : isLive ? 'Enter Live Hall' : 'Join Uplink'}
               </button>
             )}
             {showRecording && (
-              <a
-                href={session.recording_url!}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => onRecording(session)}
                 className="flex-1 flex items-center justify-center gap-3 py-3.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm"
               >
                 <FilmIcon className="w-4 h-4" />
-                Archive
-              </a>
+                Watch Recording
+              </button>
             )}
           </div>
         )}
@@ -620,13 +649,25 @@ function SessionModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Platform</label>
-              <select value={form.platform} onChange={e => set('platform', e.target.value as LiveSession['platform'])}
+              <select value={isJitsiUrl(form.session_url) ? 'jitsi' : form.platform}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === 'jitsi') {
+                    set('platform', 'other');
+                    // Auto-generate a Jitsi room URL using a timestamp-based room name
+                    set('session_url', `https://meet.jit.si/Rillcod-${Date.now().toString(36)}`);
+                  } else {
+                    set('platform', val as LiveSession['platform']);
+                    if (isJitsiUrl(form.session_url)) set('session_url', '');
+                  }
+                }}
                 className={`${fieldCls} appearance-none`}>
                 <option value="zoom" className="bg-[#0a0a0a]">Zoom</option>
                 <option value="google_meet" className="bg-[#0a0a0a]">Google Meet</option>
                 <option value="teams" className="bg-[#0a0a0a]">Microsoft Teams</option>
                 <option value="discord" className="bg-[#0a0a0a]">Discord</option>
-                <option value="other" className="bg-[#0a0a0a]">Other</option>
+                <option value="jitsi" className="bg-[#0a0a0a]">In-App Meeting (Jitsi)</option>
+                <option value="other" className="bg-[#0a0a0a]">Other / Custom</option>
               </select>
             </div>
             <div>
@@ -769,6 +810,8 @@ export default function LiveSessionsPage() {
 
   const [pollsSession, setPollsSession] = useState<LiveSession | null>(null);
   const [roomsSession, setRoomsSession] = useState<LiveSession | null>(null);
+  const [jitsiSession, setJitsiSession] = useState<LiveSession | null>(null);
+  const [recordingSession, setRecordingSession] = useState<LiveSession | null>(null);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
@@ -897,7 +940,13 @@ export default function LiveSessionsPage() {
     } catch (e) {
       console.error('Silent error recording join:', e);
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (isJitsiUrl(url)) {
+      // Open in-canvas embedded meeting room
+      const session = sessions.find(s => s.id === id) ?? null;
+      setJitsiSession(session);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   if (authLoading || loading) {
@@ -1046,6 +1095,7 @@ export default function LiveSessionsPage() {
                 onJoin={handleJoin}
                 onPolls={setPollsSession}
                 onRooms={setRoomsSession}
+                onRecording={setRecordingSession}
               />
             ))}
           </div>
@@ -1081,6 +1131,105 @@ export default function LiveSessionsPage() {
           onClose={() => setRoomsSession(null)}
         />
       )}
+
+      {/* ── In-Canvas Jitsi Meeting ── */}
+      {jitsiSession && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+          {/* Header bar */}
+          <div className="h-12 shrink-0 bg-[#0d0d0d] border-b border-white/10 flex items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span className="text-white font-black text-sm truncate max-w-[300px]">{jitsiSession.title}</span>
+              <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-400">In-App Meeting</span>
+            </div>
+            <button
+              onClick={() => setJitsiSession(null)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase rounded-lg transition-colors">
+              <XMarkIcon className="w-4 h-4" /> Leave
+            </button>
+          </div>
+          {/* Jitsi iframe — full remaining height */}
+          <iframe
+            src={jitsiSession.session_url!}
+            allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+            className="flex-1 w-full border-0"
+            title={jitsiSession.title}
+          />
+        </div>
+      )}
+
+      {/* ── Recording Player Modal ── */}
+      {recordingSession && recordingSession.recording_url && (() => {
+        const url = recordingSession.recording_url!;
+        const type = getRecordingType(url);
+        const ytId = type === 'youtube' ? getYouTubeId(url) : null;
+        const vmId = type === 'vimeo' ? getVimeoId(url) : null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+            <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-4xl flex flex-col shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] shrink-0">
+                <div className="flex items-center gap-3">
+                  <FilmIcon className="w-5 h-5 text-blue-400" />
+                  <div>
+                    <p className="text-sm font-black text-white uppercase tracking-widest">Recording</p>
+                    <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[300px]">{recordingSession.title}</p>
+                  </div>
+                </div>
+                <button onClick={() => setRecordingSession(null)} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Player */}
+              <div className="relative bg-black" style={{ paddingBottom: '56.25%' }}>
+                {type === 'youtube' && ytId && (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    className="absolute inset-0 w-full h-full border-0"
+                    title={recordingSession.title}
+                  />
+                )}
+                {type === 'vimeo' && vmId && (
+                  <iframe
+                    src={`https://player.vimeo.com/video/${vmId}?autoplay=1`}
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    className="absolute inset-0 w-full h-full border-0"
+                    title={recordingSession.title}
+                  />
+                )}
+                {type === 'video' && (
+                  <video
+                    src={url} controls autoPlay
+                    className="absolute inset-0 w-full h-full"
+                  />
+                )}
+                {type === 'link' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white/40">
+                    <FilmIcon className="w-12 h-12 text-white/10" />
+                    <p className="text-sm font-bold">External recording link</p>
+                    <a href={url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-black rounded-xl transition-colors">
+                      <LinkIcon className="w-4 h-4" /> Open Recording
+                    </a>
+                  </div>
+                )}
+              </div>
+              {/* Footer with session info */}
+              <div className="px-6 py-3 border-t border-white/[0.06] flex items-center justify-between">
+                <span className="text-[11px] text-white/30">{new Date(recordingSession.scheduled_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · {recordingSession.duration_minutes} min</span>
+                <a href={url} target="_blank" rel="noopener noreferrer"
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-bold transition-colors">
+                  Open externally ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
