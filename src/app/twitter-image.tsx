@@ -167,7 +167,7 @@ export default async function Image() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
-            padding: '60px 50px',
+            padding: '40px 45px',
             background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
             position: 'relative',
           }}
@@ -188,11 +188,11 @@ export default async function Image() {
           {/* Main Heading */}
           <div
             style={{
-              fontSize: '52px',
+              fontSize: '46px',
               fontWeight: '900',
               color: '#0f172a',
               lineHeight: 1.1,
-              marginBottom: '20px',
+              marginBottom: '16px',
               letterSpacing: '-1px',
             }}
           >
@@ -203,10 +203,10 @@ export default async function Image() {
           {/* Subtitle */}
           <div
             style={{
-              fontSize: '22px',
+              fontSize: '20px',
               color: '#64748b',
-              marginBottom: '40px',
-              lineHeight: 1.5,
+              marginBottom: '32px',
+              lineHeight: 1.4,
               fontWeight: '500',
             }}
           >
@@ -219,7 +219,7 @@ export default async function Image() {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '14px',
+              gap: '12px',
             }}
           >
             {[
@@ -232,17 +232,17 @@ export default async function Image() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '18px',
-                  padding: '18px 24px',
+                  gap: '16px',
+                  padding: '14px 20px',
                   background: service.gradient,
-                  borderRadius: '16px',
+                  borderRadius: '14px',
                   border: `2px solid ${service.border}`,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.05)',
                 }}
               >
                 <div
                   style={{
-                    fontSize: '36px',
+                    fontSize: '32px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -253,7 +253,7 @@ export default async function Image() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div
                     style={{
-                      fontSize: '22px',
+                      fontSize: '20px',
                       fontWeight: '800',
                       color: '#0f172a',
                       letterSpacing: '-0.5px',
@@ -263,7 +263,7 @@ export default async function Image() {
                   </div>
                   <div
                     style={{
-                      fontSize: '16px',
+                      fontSize: '15px',
                       color: '#64748b',
                       fontWeight: '500',
                       marginTop: '2px',
@@ -281,20 +281,20 @@ export default async function Image() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              marginTop: '36px',
-              padding: '12px 24px',
+              gap: '10px',
+              marginTop: '28px',
+              padding: '10px 20px',
               background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
               borderRadius: '50px',
               border: '2px solid #fed7aa',
               width: 'fit-content',
-              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.1)',
+              boxShadow: '0 3px 10px rgba(249, 115, 22, 0.1)',
             }}
           >
-            <div style={{ fontSize: '20px' }}>📍</div>
+            <div style={{ fontSize: '18px' }}>📍</div>
             <div
               style={{
-                fontSize: '18px',
+                fontSize: '16px',
                 fontWeight: '700',
                 color: '#ea580c',
               }}
