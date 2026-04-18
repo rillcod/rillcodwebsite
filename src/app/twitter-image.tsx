@@ -9,7 +9,6 @@ export const size = {
 };
 
 export const contentType = 'image/png';
-
 export default async function Image() {
   return new ImageResponse(
     (
@@ -19,7 +18,7 @@ export default async function Image() {
           width: '100%',
           display: 'flex',
           position: 'relative',
-          background: '#ffffff',
+          backgroundColor: '#ffffff',
           fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
         }}
       >
@@ -32,7 +31,7 @@ export default async function Image() {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1f35 50%, #0f1729 100%)',
+            background: '#0a0f1e',
             padding: '60px 40px',
             position: 'relative',
             overflow: 'hidden',
@@ -49,20 +48,20 @@ export default async function Image() {
               backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(249, 115, 22, 0.15) 1px, transparent 0)',
               backgroundSize: '40px 40px',
               opacity: 0.3,
+              display: 'flex',
             }}
           />
 
-          {/* Glow Effect */}
+          {/* Glow Effect (Simplified) */}
           <div
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '400px',
-              height: '400px',
-              background: 'radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%)',
-              filter: 'blur(60px)',
+              top: '20%',
+              left: '20%',
+              width: '300px',
+              height: '300px',
+              background: 'rgba(249, 115, 22, 0.1)',
+              borderRadius: '50%',
             }}
           />
 
@@ -75,42 +74,29 @@ export default async function Image() {
               zIndex: 1,
             }}
           >
-            {/* Official Logo with Premium Frame */}
+            {/* Official Logo */}
             <div
               style={{
+                width: '180px',
+                height: '180px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '32px',
-                position: 'relative',
+                borderRadius: '32px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                padding: '20px',
+                border: '1px solid rgba(249, 115, 22, 0.3)',
               }}
             >
-              <div
+              <img
+                src="https://www.rillcod.com/logo.png"
+                alt="Rillcod Logo"
+                width="140"
+                height="140"
                 style={{
-                  width: '200px',
-                  height: '200px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '32px',
-                  boxShadow: '0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(249, 115, 22, 0.3)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  padding: '20px',
-                  overflow: 'hidden',
+                  objectFit: 'contain',
                 }}
-              >
-                <img
-                  src="https://www.rillcod.com/logo.png"
-                  alt="Rillcod Logo"
-                  width="160"
-                  height="160"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                  }}
-                />
-              </div>
+              />
             </div>
 
             {/* Brand Name */}
@@ -119,15 +105,14 @@ export default async function Image() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
+                marginTop: '32px',
               }}
             >
               <div
                 style={{
                   fontSize: '48px',
                   fontWeight: '900',
-                  background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)',
-                  backgroundClip: 'text',
-                  color: 'transparent',
+                  color: '#ffffff',
                   letterSpacing: '-1px',
                   textAlign: 'center',
                 }}
@@ -149,10 +134,9 @@ export default async function Image() {
               <div
                 style={{
                   width: '80px',
-                  height: '3px',
-                  background: 'linear-gradient(90deg, transparent 0%, #f97316 50%, transparent 100%)',
+                  height: '4px',
+                  background: '#f97316',
                   marginTop: '16px',
-                  borderRadius: '2px',
                 }}
               />
             </div>
@@ -168,27 +152,14 @@ export default async function Image() {
             flexDirection: 'column',
             justifyContent: 'center',
             padding: '40px 45px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            backgroundColor: '#f8fafc',
             position: 'relative',
           }}
         >
-          {/* Subtle Pattern */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: '300px',
-              height: '300px',
-              background: 'radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, transparent 70%)',
-              borderRadius: '50%',
-            }}
-          />
-
           {/* Main Heading */}
           <div
             style={{
-              fontSize: '46px',
+              fontSize: '48px',
               fontWeight: '900',
               color: '#0f172a',
               lineHeight: 1.1,
@@ -223,9 +194,9 @@ export default async function Image() {
             }}
           >
             {[
-              { icon: '🎓', title: 'STEM Education', desc: 'Coding & Robotics Training', gradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', border: '#86efac' },
-              { icon: '💻', title: 'Web & App Development', desc: 'Custom Software Solutions', gradient: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#93c5fd' },
-              { icon: '🏠', title: 'Smart Home & IoT', desc: 'Automation Systems', gradient: 'linear-gradient(135deg, #fef3f2 0%, #fee2e2 100%)', border: '#fca5a5' },
+              { icon: '🎓', title: 'STEM Education', desc: 'Coding & Robotics Training', color: '#ecfdf5', border: '#86efac' },
+              { icon: '💻', title: 'Web & App Development', desc: 'Custom Software Solutions', color: '#eff6ff', border: '#93c5fd' },
+              { icon: '🏠', title: 'Smart Home & IoT', desc: 'Automation Systems', color: '#fef3f2', border: '#fca5a5' },
             ].map((service) => (
               <div
                 key={service.title}
@@ -234,22 +205,13 @@ export default async function Image() {
                   alignItems: 'center',
                   gap: '16px',
                   padding: '14px 20px',
-                  background: service.gradient,
+                  background: service.color,
                   borderRadius: '14px',
                   border: `2px solid ${service.border}`,
-                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.05)',
+                  display: 'flex',
                 }}
               >
-                <div
-                  style={{
-                    fontSize: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {service.icon}
-                </div>
+                <div style={{ fontSize: '32px' }}>{service.icon}</div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div
                     style={{
@@ -266,7 +228,6 @@ export default async function Image() {
                       fontSize: '15px',
                       color: '#64748b',
                       fontWeight: '500',
-                      marginTop: '2px',
                     }}
                   >
                     {service.desc}
@@ -281,26 +242,17 @@ export default async function Image() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
               marginTop: '28px',
-              padding: '10px 20px',
-              background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+              padding: '10px 24px',
+              background: '#fff7ed',
               borderRadius: '50px',
               border: '2px solid #fed7aa',
-              width: 'fit-content',
-              boxShadow: '0 3px 10px rgba(249, 115, 22, 0.1)',
+              color: '#ea580c',
+              fontSize: '16px',
+              fontWeight: '700',
             }}
           >
-            <div style={{ fontSize: '18px' }}>📍</div>
-            <div
-              style={{
-                fontSize: '16px',
-                fontWeight: '700',
-                color: '#ea580c',
-              }}
-            >
-              Benin City, Edo State • Nigeria
-            </div>
+            📍 Benin City, Edo State • Nigeria
           </div>
         </div>
 
@@ -312,8 +264,7 @@ export default async function Image() {
             top: '0',
             width: '4px',
             height: '100%',
-            background: 'linear-gradient(180deg, #f97316 0%, #ea580c 50%, #f97316 100%)',
-            boxShadow: '0 0 20px rgba(249, 115, 22, 0.5)',
+            background: '#f97316',
           }}
         />
       </div>
