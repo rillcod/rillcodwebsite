@@ -24,10 +24,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Fetch lesson plan
+    // Fetch lesson plan with curriculum
     const { data: plan, error: planErr } = await (supabase as any)
       .from('lesson_plans')
-      .select('*, courses(title), classes(name)')
+      .select('*, courses(title, programs(title)), classes(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
       .single();
 
@@ -45,6 +45,14 @@ export async function POST(
       return NextResponse.json({ error: 'No weeks defined in plan' }, { status: 422 });
     }
 
+    // Extract curriculum context for richer AI generation
+    const curriculumContent = plan.curriculum?.content;
+    const allCurriculumTopics: string[] = curriculumContent?.terms
+      ? curriculumContent.terms.flatMap((t: any) => t.weeks?.map((w: any) => w.topic).filter(Boolean) ?? [])
+      : [];
+    const programName = (plan.courses as any)?.programs?.title || curriculumContent?.course_title || undefined;
+    const courseName = (plan.courses as any)?.title || undefined;
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -60,7 +68,10 @@ export async function POST(
           try {
             emit({ generated, total, current: week.week, status: `Generating lesson for Week ${week.week}: ${week.topic}...` });
 
-            // Call AI generate endpoint
+            // Sibling lessons = all OTHER topics in the curriculum (for continuity)
+            const siblingLessons = allCurriculumTopics.filter((t: string) => t !== week.topic);
+
+            // Call AI generate endpoint with full curriculum context
             const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
               method: 'POST',
               headers: {
@@ -71,9 +82,11 @@ export async function POST(
                 type: 'lesson',
                 topic: week.topic,
                 gradeLevel: plan.classes?.name || 'Basic 1–SS3',
-                subject: plan.courses?.title || 'Coding & Technology',
+                subject: courseName || 'Coding & Technology',
                 durationMinutes: 60,
-                courseName: plan.courses?.title,
+                courseName,
+                programName,
+                siblingLessons: siblingLessons.slice(0, 10), // Cap to avoid huge prompts
               }),
             });
 

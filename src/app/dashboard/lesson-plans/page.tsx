@@ -48,6 +48,7 @@ interface LessonPlan {
 interface Course { id: string; title: string }
 interface Class { id: string; name: string }
 interface School { id: string; name: string }
+interface Curriculum { id: string; version: number; content: any }
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
@@ -61,6 +62,7 @@ export default function LessonPlansPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
+  const [curricula, setCurricula] = useState<Curriculum[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -76,6 +78,14 @@ export default function LessonPlansPage() {
     sessions_per_week: '5',
     curriculum_version_id: '',
   });
+
+  // Load curricula when course changes
+  useEffect(() => {
+    if (!form.course_id) { setCurricula([]); setForm(f => ({ ...f, curriculum_version_id: '' })); return; }
+    fetch(`/api/curricula?course_id=${form.course_id}`)
+      .then(r => r.json())
+      .then(j => setCurricula(j.data ?? []));
+  }, [form.course_id]);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -168,14 +178,18 @@ export default function LessonPlansPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
       {/* Tab Bar */}
-      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
-        <Link href="/dashboard/lessons"
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+        <Link href="/dashboard/curriculum"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-          <BookOpenIcon className="w-4 h-4" /> Lessons
+          <SparklesIcon className="w-4 h-4" /> Curriculum
         </Link>
         <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
           <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
         </span>
+        <Link href="/dashboard/lessons"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <BookOpenIcon className="w-4 h-4" /> Lessons
+        </Link>
       </div>
 
       {/* Header */}
@@ -331,11 +345,24 @@ export default function LessonPlansPage() {
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Curriculum Version ID <span className="text-card-foreground/30">(optional)</span></label>
-                <input type="text" value={form.curriculum_version_id}
-                  onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
-                  placeholder="UUID of linked curriculum version"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50" />
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
+                  Link to AI Curriculum <span className="text-card-foreground/30">(optional — auto-imports weeks)</span>
+                </label>
+                <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50"
+                  disabled={!form.course_id}>
+                  <option value="">{form.course_id ? (curricula.length === 0 ? 'No curricula for this course' : 'No curriculum linked') : 'Select a course first'}</option>
+                  {curricula.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.content?.course_title ?? `Curriculum v${c.version}`}
+                    </option>
+                  ))}
+                </select>
+                {form.curriculum_version_id && (
+                  <p className="text-xs text-emerald-400 mt-1">
+                    ✓ Weeks will be auto-imported from the linked curriculum when this plan is created.
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-white/[0.08]">
