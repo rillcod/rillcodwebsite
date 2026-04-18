@@ -16,7 +16,8 @@ import {
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
-  CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon
+  CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon,
+  SparklesIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
