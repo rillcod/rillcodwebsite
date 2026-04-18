@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const alt = 'Rillcod Technologies — Nigeria\'s Leading STEM & Coding Academy';
+export const alt = 'Rillcod Technologies — Tech Education & Innovation Hub';
 export const size = {
   width: 1200,
   height: 630,
@@ -95,7 +95,7 @@ export default async function Image() {
             marginBottom: '50px',
           }}
         >
-          Nigeria's Premier STEM, Coding & Robotics Academy for Future Leaders.
+          Tech Education & Innovation Hub | STEM, Robotics, Web/App Dev & IoT
         </div>
 
         {/* Feature Tags */}
@@ -105,7 +105,7 @@ export default async function Image() {
             gap: '30px',
           }}
         >
-          {['Coding', 'Robotics', 'AI', 'STEM'].map((item, i) => (
+          {['STEM Education', 'Web/App Dev', 'Smart Home', 'IoT'].map((item, i) => (
             <div
               key={item}
               style={{
