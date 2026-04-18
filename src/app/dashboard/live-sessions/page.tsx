@@ -1066,7 +1066,7 @@ export default function LiveSessionsPage() {
       {/* ── Polls Modal ── */}
       {pollsSession && (
         <PollsModal
-          session={pollsSession}
+          session={pollsSession!}
           canManage={canManage}
           userId={profile?.id ?? ''}
           onClose={() => setPollsSession(null)}
@@ -1076,7 +1076,7 @@ export default function LiveSessionsPage() {
       {/* ── Breakout Rooms Modal ── */}
       {roomsSession && (
         <RoomsModal
-          session={roomsSession}
+          session={roomsSession!}
           canManage={canManage}
           onClose={() => setRoomsSession(null)}
         />
