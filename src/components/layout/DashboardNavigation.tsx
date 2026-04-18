@@ -242,6 +242,8 @@ export default function DashboardNavigation() {
           { name: 'My Billing', href: '/dashboard/school-billing', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
+          { name: 'Curriculum Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { name: 'WAEC Grading Guide', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
