@@ -55,14 +55,6 @@ export const metadata: Metadata = {
     title: "Rillcod Technologies — Tech Education & Innovation Hub | STEM, Robotics, Web/App Development & IoT",
     description:
       "Nigeria's premier tech education and innovation hub. STEM education, coding & robotics training, web/app development services, and smart home automation solutions in Benin City, Edo State.",
-    images: [
-      {
-        url: "/og-image.jpg?v=2",
-        width: 1200,
-        height: 630,
-        alt: "Rillcod Technologies — Tech Education & Innovation Hub",
-      },
-    ],
   },
   facebook: {
     appId: "1504064024671418",
@@ -71,10 +63,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@rillcod_",
     creator: "@rillcod_",
-    title: "Rillcod Technologies — Tech Education & Innovation Hub | STEM, Robotics, Web/App Development & IoT",
-    description:
-      "Nigeria's premier tech education and innovation hub. STEM education, coding & robotics training, web/app development services, and smart home automation solutions.",
-    images: ["/twitter-image.png?v=2"],
   },
   robots: {
     index: true,
