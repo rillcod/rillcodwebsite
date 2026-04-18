@@ -58,9 +58,9 @@ export const metadata: Metadata = {
       "Empowering Nigerian children with hands-on coding, robotics, AI, and STEM skills. Classes delivered in partner schools across Benin City, Ekpoma, Uromi, Auchi, and all of Edo State.",
     images: [
       {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
+        url: "/icon-512x512.png",
+        width: 512,
+        height: 512,
         alt: "Rillcod Technologies — STEM & Coding Education for Nigerian Children",
       },
     ],
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     title: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy",
     description:
       "Hands-on coding, robotics & STEM education for Nigerian kids. Partner schools in Benin City, Edo State & across Nigeria.",
-    images: ["/og-image.jpg"],
+    images: ["/icon-512x512.png"],
   },
   robots: {
     index: true,
