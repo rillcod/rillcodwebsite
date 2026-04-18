@@ -93,6 +93,36 @@ export async function POST(request: Request) {
 
   // ── Term-level plan (new flow) ──────────────────────────────────────────
   if (course_id || (!lesson_id && (term_start || term_end))) {
+    // Auto-import weeks from linked curriculum if no plan_data provided
+    let autoPlanData = plan_data ?? {};
+    if (curriculum_version_id && (!plan_data || !plan_data.weeks?.length)) {
+      const { data: curriculum } = await db
+        .from('course_curricula')
+        .select('content')
+        .eq('id', curriculum_version_id)
+        .single();
+
+      const curriculumContent = curriculum?.content as any;
+      if (curriculumContent?.terms) {
+        // Match term number from plan's term string
+        const termNum = term === 'First Term' ? 1 : term === 'Second Term' ? 2 : term === 'Third Term' ? 3 : 1;
+        const termData = curriculumContent.terms.find((t: any) => t.term === termNum)
+          ?? curriculumContent.terms[0];
+
+        if (termData?.weeks?.length) {
+          autoPlanData = {
+            weeks: termData.weeks.map((w: any) => ({
+              week: w.week,
+              topic: w.topic || '',
+              objectives: Array.isArray(w.subtopics) ? w.subtopics.join(', ') : (w.subtopics || ''),
+              activities: Array.isArray(w.activities) ? w.activities.join(', ') : (w.activities || ''),
+              notes: w.assessment || '',
+            })),
+          };
+        }
+      }
+    }
+
     const { data, error } = await db.from('lesson_plans').insert({
       course_id: course_id || null,
       class_id: class_id || null,
@@ -102,7 +132,7 @@ export async function POST(request: Request) {
       term_end: term_end || null,
       sessions_per_week: sessions_per_week ? Number(sessions_per_week) : null,
       curriculum_version_id: curriculum_version_id || null,
-      plan_data: plan_data ?? {},
+      plan_data: autoPlanData,
       status: status ?? 'draft',
       version: version ?? 1,
       created_by: created_by || user.id,

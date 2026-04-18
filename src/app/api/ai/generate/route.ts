@@ -103,7 +103,7 @@ RULES:
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -147,6 +147,13 @@ interface GenerateRequest {
   prompt?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
+  // Curriculum generation specific fields
+  course_name?: string;
+  grade_level?: string;
+  subject_area?: string;
+  term_count?: number;
+  weeks_per_term?: number;
+  notes?: string;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -757,6 +764,59 @@ Requirements:
 - Follow industry standards and premium coding patterns.`;
     }
 
+    case 'curriculum': {
+      const courseName = req.course_name ?? req.courseName ?? req.topic;
+      const gradeLevel = req.grade_level ?? req.gradeLevel ?? 'JSS1';
+      const subjectArea = req.subject_area ?? req.subject ?? 'STEM / Coding';
+      const termCount = req.term_count ?? 3;
+      const weeksPerTerm = req.weeks_per_term ?? 12;
+
+      return `You are an expert curriculum designer for Rillcod Technologies, a STEM/Coding academy serving Nigerian schools (KG to SS3).
+
+Design a complete, progressive academic curriculum for the following:
+Course: "${courseName}"
+Grade Level: ${gradeLevel}
+Subject Area: ${subjectArea}
+Academic Terms: ${termCount}
+Weeks Per Term: ${weeksPerTerm}
+${req.notes ? `Special Notes: ${req.notes}` : ''}
+
+Return ONLY a valid JSON object with this exact shape:
+{
+  "course_title": "string — official course title",
+  "overview": "string — 2-3 paragraph course overview explaining what students will learn and why it matters for Nigerian students",
+  "learning_outcomes": ["string — 6-8 measurable outcomes students will achieve by end of course"],
+  "terms": [
+    {
+      "term": 1,
+      "title": "string — term theme (e.g. 'Foundations of Coding')",
+      "objectives": ["string — 3-4 term-level objectives"],
+      "weeks": [
+        {
+          "week": 1,
+          "topic": "string — main topic title",
+          "subtopics": ["string — 2-4 subtopics"],
+          "activities": ["string — 2-3 classroom/lab activities"],
+          "assessment": "string — how learning is assessed this week"
+        }
+      ]
+    }
+  ],
+  "assessment_strategy": "string — overall assessment approach including formative and summative",
+  "materials_required": ["string — list of physical/digital materials"],
+  "recommended_tools": ["string — software, platforms, or hardware"]
+}
+
+CURRICULUM DESIGN RULES:
+- Generate EXACTLY ${termCount} term objects in the "terms" array.
+- Each term MUST have EXACTLY ${weeksPerTerm} week objects.
+- Topics MUST build progressively: early weeks = foundations, middle weeks = core application, final weeks = projects + review.
+- For coding/tech courses: specify the exact language, tool, or platform each week (e.g. Python, Scratch, Arduino, Figma).
+- For Nigerian context: include locally relevant projects (smart traffic systems, agriculture tech, fintech, Afrotech startups, etc.).
+- Each term should end with a capstone project or revision/exam week.
+- Tone: professional, practical, aligned with Nigerian secondary school curriculum standards (NERDC/WAEC scope).`;
+    }
+
     default:
       throw new Error(`Unknown generate type: ${req.type}`);
   }
@@ -793,7 +853,7 @@ export async function POST(req: NextRequest) {
     if (!body.topic?.trim() && !body.prompt?.trim()) {
       return NextResponse.json({ error: 'topic or prompt is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
@@ -952,6 +1012,19 @@ export async function POST(req: NextRequest) {
         ];
         adaptiveTemperature = 0.8;
         adaptiveMaxTokens = 3000;
+        break;
+
+      case 'curriculum':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "qwen/qwen3-235b-a22b:free",
+          "moonshotai/kimi-k2.5",
+          "deepseek/deepseek-chat-v3-5",
+          "meta-llama/llama-3.3-70b-instruct",
+          "google/gemini-2.0-flash-lite-001",
+        ];
+        adaptiveTemperature = 0.4;
+        adaptiveMaxTokens = 8000;
         break;
 
       default:

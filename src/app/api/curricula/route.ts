@@ -31,13 +31,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'school'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Only school admins can create curricula' }, { status: 403 });
+  if (!profile || !['admin', 'school', 'teacher'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Only staff can create curricula' }, { status: 403 });
   }
 
   const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = await req.json();
-  if (!course_id || !course_name) {
-    return NextResponse.json({ error: 'course_id and course_name are required' }, { status: 400 });
+  if (!course_name) {
+    return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
   }
 
   // Call AI generation
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', Cookie: req.headers.get('cookie') ?? '' },
       body: JSON.stringify({
         type: 'curriculum',
+        topic: course_name,
         course_name,
         grade_level,
         term_count: term_count ?? 3,
@@ -67,29 +68,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI returned no content' }, { status: 502 });
   }
 
-  // Check existing curriculum
-  const { data: existing } = await (supabase as any)
-    .from('course_curricula')
-    .select('id, version')
-    .eq('course_id', course_id)
-    .eq('school_id', profile.school_id)
-    .single();
-
-  if (existing) {
-    // Increment version
-    const { data, error } = await supabase
+  // Check existing curriculum (only if course_id provided)
+  if (course_id) {
+    const existingQuery = (supabase as any)
       .from('course_curricula')
-      .update({ content: aiContent, version: existing.version + 1, updated_at: new Date().toISOString() })
-      .eq('id', existing.id)
-      .select()
-      .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data });
+      .select('id, version')
+      .eq('course_id', course_id);
+    if (profile.school_id) existingQuery.eq('school_id', profile.school_id);
+    const { data: existing } = await existingQuery.single();
+
+    if (existing) {
+      // Increment version
+      const { data, error } = await supabase
+        .from('course_curricula')
+        .update({ content: aiContent, version: existing.version + 1, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ data });
+    }
   }
+
+  const insertPayload: any = {
+    content: aiContent,
+    version: 1,
+    created_by: user.id,
+  };
+  if (course_id) insertPayload.course_id = course_id;
+  if (profile.school_id) insertPayload.school_id = profile.school_id;
 
   const { data, error } = await (supabase as any)
     .from('course_curricula')
-    .insert({ course_id, school_id: profile.school_id, content: aiContent, version: 1, created_by: user.id })
+    .insert(insertPayload)
     .select()
     .single();
 

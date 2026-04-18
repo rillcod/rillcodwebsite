@@ -19,6 +19,7 @@ import ParentDashboard from '@/components/dashboard/ParentDashboard';
 import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useDashboardData, useDashboardAutoRefresh } from '@/hooks/useDashboardData';
+import InboxPreviewWidget from '@/components/dashboard/InboxPreviewWidget';
 
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
@@ -214,6 +215,10 @@ export default function DashboardPage() {
         />
       )}
       {role === 'student' && <StudentDashboardWidget />}
+
+      {/* Inbox preview — all staff roles */}
+      {['admin', 'teacher', 'school'].includes(role) && <InboxPreviewWidget />}
+
       {role === 'parent' && (
         <ParentDashboard
           profile={profile}
