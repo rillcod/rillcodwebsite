@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const alt = 'Rillcod Technologies — STEM & Coding Education for Nigerian Children';
+export const alt = 'Rillcod Technologies — Nigeria\'s Leading STEM & Coding Academy';
 export const size = {
   width: 1200,
   height: 630,
@@ -11,123 +11,135 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  // Fetch the logo
+  // Fetch the local logo
   const logoData = await fetch(
-    new URL('../../../public/logo.png', import.meta.url)
+    new URL('../../public/images/logo.png', import.meta.url)
   ).then((res) => res.arrayBuffer());
 
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 60,
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          width: '100%',
           height: '100%',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '80px',
-          color: 'white',
+          backgroundColor: '#0f172a',
+          backgroundImage: 'radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%)',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Official Logo */}
-        <img
-          src={logoData as any}
-          alt="Rillcod Technologies Logo"
-          width={150}
-          height={150}
-          style={{
-            marginBottom: 40,
-          }}
-        />
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 'bold',
-            textAlign: 'center',
-            marginBottom: 20,
-            background: 'linear-gradient(90deg, #ffffff 0%, #f97316 100%)',
-            backgroundClip: 'text',
-            color: 'transparent',
-            lineHeight: 1.2,
-          }}
-        >
-          Rillcod Technologies
-        </div>
-
-        {/* Subtitle */}
-        <div
-          style={{
-            fontSize: 32,
-            textAlign: 'center',
-            color: '#94a3b8',
-            marginBottom: 30,
-            maxWidth: 900,
-            lineHeight: 1.4,
-          }}
-        >
-          Nigeria's Leading STEM & Coding Academy
-        </div>
-
-        {/* Features */}
+        {/* Container for Logo + Brand Name */}
         <div
           style={{
             display: 'flex',
-            gap: 30,
-            fontSize: 24,
-            color: '#cbd5e1',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '40px',
+            marginBottom: '40px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Official Logo alongside the Brand Title */}
+          <img
+            src={logoData as any}
+            alt="Rillcod Technologies Logo"
+            width="180"
+            height="180"
+            style={{
+              borderRadius: '24px',
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
             <div
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#10b981',
+                fontSize: '96px',
+                fontWeight: 'bold',
+                color: 'white',
+                lineHeight: 1,
               }}
-            />
-            Coding
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            >
+              Rillcod
+            </div>
             <div
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#3b82f6',
+                fontSize: '52px',
+                fontWeight: 'bold',
+                color: '#f97316', // Orange theme color
+                lineHeight: 1,
+                marginTop: '10px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
               }}
-            />
-            Robotics
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                background: '#8b5cf6',
-              }}
-            />
-            AI & STEM
+            >
+              Technologies
+            </div>
           </div>
         </div>
 
-        {/* Location */}
+        {/* Tagline */}
+        <div
+          style={{
+            fontSize: '36px',
+            color: '#94a3b8',
+            maxWidth: '900px',
+            textAlign: 'center',
+            lineHeight: 1.4,
+            marginBottom: '50px',
+          }}
+        >
+          Nigeria's Premier STEM, Coding & Robotics Academy for Future Leaders.
+        </div>
+
+        {/* Feature Tags */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '30px',
+          }}
+        >
+          {['Coding', 'Robotics', 'AI', 'STEM'].map((item, i) => (
+            <div
+              key={item}
+              style={{
+                background: i % 2 === 0 ? '#1e293b' : 'rgba(249, 115, 22, 0.1)',
+                padding: '12px 32px',
+                borderRadius: '50px',
+                border: i % 2 === 0 ? '1px solid #334155' : '1px solid rgba(249, 115, 22, 0.3)',
+                color: i % 2 === 0 ? '#cbd5e1' : '#f97316',
+                fontSize: '22px',
+                fontWeight: '600',
+              }}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Info */}
         <div
           style={{
             position: 'absolute',
-            bottom: 40,
-            fontSize: 20,
+            bottom: '40px',
+            fontSize: '20px',
             color: '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
           }}
         >
-          Benin City, Edo State • Nigeria
+          <span>Benin City, Edo State</span>
+          <div style={{ width: '4px', height: '4px', borderRadius: '2px', background: '#334155' }} />
+          <span>Nigeria</span>
+          <div style={{ width: '4px', height: '4px', borderRadius: '2px', background: '#334155' }} />
+          <span>www.rillcod.com</span>
         </div>
       </div>
     ),
@@ -136,3 +148,4 @@ export default async function Image() {
     }
   );
 }
+

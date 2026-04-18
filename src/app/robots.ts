@@ -21,6 +21,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://rillcod.com/sitemap.xml',
+    sitemap: 'https://www.rillcod.com/sitemap.xml',
   }
-} 
+}

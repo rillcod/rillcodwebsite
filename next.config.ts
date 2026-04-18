@@ -61,6 +61,15 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  async rewrites() {
+    return [
+      {
+        source: '/og-image.jpg',
+        destination: '/opengraph-image',
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
