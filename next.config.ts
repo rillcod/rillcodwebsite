@@ -67,6 +67,10 @@ const nextConfig: NextConfig = {
         source: '/og-image.jpg',
         destination: '/opengraph-image',
       },
+      {
+        source: '/twitter-image.png',
+        destination: '/twitter-image',
+      },
     ];
   },
 
