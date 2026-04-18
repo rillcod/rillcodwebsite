@@ -11,10 +11,8 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
-  // Fetch the official logo
-  const logoData = await fetch(
-    new URL('../../public/logo.png', import.meta.url)
-  ).then((res) => res.arrayBuffer());
+  // Fetch the official logo from the deployed URL
+  const logoUrl = 'https://www.rillcod.com/logo.png';
 
   return new ImageResponse(
     (
@@ -91,7 +89,7 @@ export default async function Image() {
               }}
             >
               <img
-                src={logoData as any}
+                src={logoUrl}
                 alt="Rillcod Logo"
                 width="200"
                 height="200"
@@ -101,7 +99,6 @@ export default async function Image() {
                   boxShadow: '0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(249, 115, 22, 0.3)',
                   background: 'rgba(255, 255, 255, 0.05)',
                   padding: '12px',
-                  backdropFilter: 'blur(10px)',
                 }}
               />
             </div>
