@@ -8,7 +8,7 @@ import {
   Loader2, X, MessageSquare, Users, Building2, Plus,
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
-  ArrowLeft, Pencil, Trash2, ExternalLink,
+  Pencil, ExternalLink, AtSign, FileText, CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -74,6 +74,24 @@ interface ProfilePopupForm {
   school_name: string;
   class_name: string;
 }
+
+interface EmailComposeForm {
+  to: string;
+  to_name: string;
+  subject: string;
+  body: string;
+  cc: string;
+}
+
+interface SubjectDialogState {
+  open: boolean;
+  subject: string;
+  pendingItem: any;
+}
+
+const EMPTY_EMAIL_FORM: EmailComposeForm = {
+  to: '', to_name: '', subject: '', body: '', cc: '',
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function initials(name: string) {
@@ -177,6 +195,16 @@ export default function UnifiedInbox() {
   const [profileForm, setProfileForm] = useState<ProfilePopupForm>({ full_name: '', phone: '', school_name: '', class_name: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [pendingSendBody, setPendingSendBody] = useState('');
+
+  // Email compose
+  const [showEmailCompose, setShowEmailCompose] = useState(false);
+  const [emailForm, setEmailForm] = useState<EmailComposeForm>(EMPTY_EMAIL_FORM);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
+
+  // Subject dialog (replaces window.prompt for school/teacher convs)
+  const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
@@ -586,36 +614,81 @@ export default function UnifiedInbox() {
           setSidebarView('chats'); setActiveTab('students');
         }
       } else if (activeTab === 'teachers' || activeTab === 'school') {
-        const subject = window.prompt(activeTab === 'teachers' ? `Message to ${item.full_name} — subject:` : 'Subject for this conversation:');
-        if (!subject?.trim()) return;
-        const res = await fetch('/api/school-teacher/conversations', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            school_id:  isSchool ? (profile?.school_id || '') : (activeTab === 'teachers' ? null : item.id),
-            teacher_id: isSchool ? item.id : (activeTab === 'teachers' ? item.id : profile?.id),
-            subject:    subject.trim(),
-          }),
-        });
-        const json = await res.json();
-        if (json.data) {
-          const isTeacherTab = activeTab === 'teachers';
-          const c: Conversation = {
-            id:                   json.data.id,
-            type:                 isTeacherTab ? 'teachers' : 'school',
-            contact_name:         isTeacherTab ? (item.full_name || 'Teacher') : isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'),
-            school_name:          isTeacherTab ? item.school_name : undefined,
-            role:                 isTeacherTab ? 'teacher' : isSchool ? 'teacher' : 'school',
-            subject:              subject.trim(),
-            last_message_at:      json.data.created_at || new Date().toISOString(),
-            last_message_preview: '',
-            unread_count:         0,
-          };
-          setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
-          setActiveConv(c); setShowSidebar(false);
-          setSidebarView('chats'); setActiveTab(isTeacherTab ? 'teachers' : 'school');
-        }
+        // Open subject dialog instead of window.prompt
+        setShowNewChat(false);
+        setSubjectDialog({ open: true, subject: '', pendingItem: item });
+        return;
       }
     } catch (err) { console.error(err); }
+  };
+
+  // ── Confirm subject dialog and create school/teacher conversation ─────────
+  const confirmSubjectAndCreate = async () => {
+    const item    = subjectDialog.pendingItem;
+    const subject = subjectDialog.subject.trim();
+    if (!subject || !item) return;
+    setSubjectDialog({ open: false, subject: '', pendingItem: null });
+    try {
+      const isTeacherTab = activeTab === 'teachers';
+      const res = await fetch('/api/school-teacher/conversations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id:  isSchool ? (profile?.school_id || '') : (isTeacherTab ? null : item.id),
+          teacher_id: isSchool ? item.id : (isTeacherTab ? item.id : profile?.id),
+          subject,
+        }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        const c: Conversation = {
+          id:                   json.data.id,
+          type:                 isTeacherTab ? 'teachers' : 'school',
+          contact_name:         isTeacherTab ? (item.full_name || 'Teacher') : isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'),
+          school_name:          isTeacherTab ? item.school_name : undefined,
+          role:                 isTeacherTab ? 'teacher' : isSchool ? 'teacher' : 'school',
+          subject,
+          last_message_at:      json.data.created_at || new Date().toISOString(),
+          last_message_preview: '',
+          unread_count:         0,
+        };
+        setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+        setActiveConv(c); setShowSidebar(false);
+        setSidebarView('chats'); setActiveTab(isTeacherTab ? 'teachers' : 'school');
+      }
+    } catch (err) { console.error('confirmSubjectAndCreate error:', err); }
+  };
+
+  // ── Send real email via SendPulse ─────────────────────────────────────────
+  const sendEmail = async () => {
+    if (!emailForm.to.trim() || !emailForm.subject.trim() || !emailForm.body.trim()) {
+      setEmailError('To, Subject, and Body are all required.'); return;
+    }
+    setSendingEmail(true); setEmailError(''); setEmailSuccess('');
+    try {
+      const res = await fetch('/api/inbox/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailForm),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Email send failed');
+      setEmailSuccess(`Email sent to ${emailForm.to_name || emailForm.to}`);
+      setTimeout(() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailSuccess(''); }, 2000);
+    } catch (err: any) {
+      setEmailError(err.message || 'Failed to send email.');
+    } finally { setSendingEmail(false); }
+  };
+
+  // ── Open email compose pre-filled from a contact or conversation ──────────
+  const openEmailCompose = (contact?: Contact | Conversation | null) => {
+    setEmailForm({
+      to:       (contact as any)?.email || (contact as any)?.phone_number || '',
+      to_name:  (contact as any)?.full_name || (contact as any)?.contact_name || '',
+      subject:  '',
+      body:     '',
+      cc:       '',
+    });
+    setEmailError(''); setEmailSuccess('');
+    setShowEmailCompose(true);
   };
 
   // ── Start chat from contact card ───────────────────────────────────────────
@@ -796,6 +869,9 @@ export default function UnifiedInbox() {
                 <button onClick={() => setFilterUnread(v => !v)} title={filterUnread ? 'Show all' : 'Unread only'}
                   className={`p-2 rounded-full transition-colors ${filterUnread ? 'bg-orange-500 text-white' : 'text-white/50 hover:bg-white/10'}`}>
                   <Filter className="w-4 h-4" />
+                </button>
+                <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors" title="Compose email">
+                  <Mail className="w-4 h-4" />
                 </button>
                 <button onClick={() => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
                   <Plus className="w-5 h-5" />
@@ -1016,10 +1092,10 @@ export default function UnifiedInbox() {
                           </a>
                         )}
                         {contact.email && (
-                          <a href={`mailto:${contact.email}`}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[11px] font-black rounded-full transition-colors">
+                          <button onClick={() => openEmailCompose(contact)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 text-[11px] font-black rounded-full transition-colors">
                             <Mail className="w-3 h-3" /> Email
-                          </a>
+                          </button>
                         )}
                         <button onClick={() => openEditContact(contact)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 text-[11px] font-black rounded-full transition-colors">
@@ -1069,12 +1145,14 @@ export default function UnifiedInbox() {
                 </button>
               </div>
               <div className="flex items-center gap-1">
-                {activeConv.phone_number && (
-                  <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                    className="p-2 text-white/50 hover:text-emerald-400 hover:bg-white/10 rounded-full transition-colors" title="Open in WhatsApp">
-                    <Phone className="w-5 h-5" />
-                  </a>
-                )}
+                {/* Compose email button — shown when contact has email */}
+                <button
+                  onClick={() => openEmailCompose(activeConv)}
+                  title="Send email via SendPulse"
+                  className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <Mail className="w-5 h-5" />
+                </button>
                 <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-orange-400 bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
@@ -1183,13 +1261,24 @@ export default function UnifiedInbox() {
                     <p className="text-white/40 text-xs uppercase font-bold tracking-widest mt-0.5 capitalize">{activeConv.role || activeConv.type}</p>
                   </div>
                   <div className="p-4 space-y-3 text-sm">
+                    {/* Quick action buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => openEmailCompose(activeConv)}
+                        className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 text-[11px] font-black rounded-xl transition-colors">
+                        <Mail className="w-3.5 h-3.5" /> Email
+                      </button>
+                      {activeConv.phone_number && (
+                        <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[11px] font-black rounded-xl transition-colors">
+                          <Phone className="w-3.5 h-3.5" /> WhatsApp
+                        </a>
+                      )}
+                    </div>
+
                     {activeConv.phone_number && (
                       <div className="bg-[#202c33] rounded-xl p-3">
                         <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">Phone / WhatsApp</p>
-                        <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                          className="text-emerald-400 font-bold text-sm hover:underline flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5" />+{activeConv.phone_number}
-                        </a>
+                        <p className="text-white text-sm font-bold">+{activeConv.phone_number}</p>
                       </div>
                     )}
                     {activeConv.school_name && (
@@ -1213,7 +1302,7 @@ export default function UnifiedInbox() {
                     <div className="bg-[#202c33] rounded-xl p-3">
                       <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">Channel</p>
                       <div className="flex items-center gap-2">
-                        <p className="text-white text-sm font-bold capitalize">{activeConv.type}</p>
+                        <p className="text-white text-sm font-bold capitalize">{activeConv.type === 'teachers' ? 'Internal (Teacher)' : activeConv.type === 'school' ? 'Internal (School)' : activeConv.type === 'parents' ? 'Internal (Parent)' : 'WhatsApp'}</p>
                         {activeConv.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>{activeConv.role}</span>}
                       </div>
                     </div>
@@ -1261,9 +1350,12 @@ export default function UnifiedInbox() {
                isSchool  ? 'Communicate with your students via WhatsApp and your teachers via direct messages.' :
                'Manage student WhatsApp messages, parent threads, and school communications.'}
             </p>
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
               <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-sm font-black rounded-full transition-colors shadow-lg shadow-orange-500/20">
                 <Plus className="w-4 h-4" /> New Chat
+              </button>
+              <button onClick={() => openEmailCompose()} className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-full transition-colors shadow-lg shadow-violet-500/20">
+                <Mail className="w-4 h-4" /> Compose Email
               </button>
               <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black rounded-full transition-colors">
                 <BookUser className="w-4 h-4" /> Contacts
@@ -1456,6 +1548,168 @@ export default function UnifiedInbox() {
           </div>
         </div>
       )}
+      {/* ══ SUBJECT DIALOG (replaces window.prompt) ════════════════════════ */}
+      {subjectDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-[#202c33] rounded-2xl overflow-hidden shadow-2xl">
+            <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-black text-[16px]">New Conversation</h2>
+                <p className="text-white/40 text-xs mt-0.5">
+                  With: <strong className="text-orange-400">{subjectDialog.pendingItem?.full_name || subjectDialog.pendingItem?.name || 'Contact'}</strong>
+                </p>
+              </div>
+              <button onClick={() => setSubjectDialog({ open: false, subject: '', pendingItem: null })} className="p-2 hover:bg-white/10 rounded-full">
+                <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                  Subject / Topic <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    autoFocus
+                    value={subjectDialog.subject}
+                    onChange={e => setSubjectDialog(d => ({ ...d, subject: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') confirmSubjectAndCreate(); }}
+                    placeholder="e.g. Student progress update"
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button onClick={() => setSubjectDialog({ open: false, subject: '', pendingItem: null })}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmSubjectAndCreate} disabled={!subjectDialog.subject.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
+                <MessageSquare className="w-4 h-4" /> Start Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ EMAIL COMPOSE MODAL (via SendPulse) ════════════════════════════ */}
+      {showEmailCompose && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-[#202c33] md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-violet-500/20 flex items-center justify-center border border-violet-500/20">
+                  <Mail className="w-4 h-4 text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-[16px]">Compose Email</h2>
+                  <p className="text-white/30 text-xs">Sent via SendPulse · support@rillcod.com</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
+              {emailError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm font-bold flex items-center gap-2">
+                  <X className="w-4 h-4 shrink-0" />{emailError}
+                </div>
+              )}
+              {emailSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />{emailSuccess}
+                </div>
+              )}
+
+              {/* To */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                  To <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input value={emailForm.to} onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
+                    placeholder="recipient@email.com" type="email" autoFocus={!emailForm.to}
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-violet-500/40" />
+                </div>
+                {emailForm.to_name && (
+                  <p className="text-[10px] text-violet-400 font-bold mt-1 ml-1">Recipient: {emailForm.to_name}</p>
+                )}
+              </div>
+
+              {/* CC */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">CC (optional)</label>
+                <div className="relative">
+                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input value={emailForm.cc} onChange={e => setEmailForm(f => ({ ...f, cc: e.target.value }))}
+                    placeholder="cc@email.com"
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-violet-500/40" />
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                  Subject <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
+                    placeholder="e.g. Student Progress Update – Term 2"
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-violet-500/40" />
+                </div>
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
+                  Message <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  value={emailForm.body}
+                  onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
+                  placeholder="Write your message here…&#10;&#10;The Rillcod branded template will be applied automatically."
+                  rows={7}
+                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl px-4 py-3 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-violet-500/40 leading-relaxed"
+                />
+              </div>
+
+              {/* Branding note */}
+              <div className="bg-violet-500/5 border border-violet-500/10 rounded-xl p-3 flex items-start gap-2">
+                <Mail className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-white/40 leading-relaxed">
+                  Emails are sent using the <strong className="text-white/60">Rillcod Academy branded template</strong> via SendPulse SMTP from <strong className="text-violet-400">support@rillcod.com</strong>. Recipients can reply directly to this address.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex gap-3">
+              <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); }}
+                className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                Discard
+              </button>
+              <button onClick={sendEmail} disabled={sendingEmail || !emailForm.to.trim() || !emailForm.subject.trim() || !emailForm.body.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20">
+                {sendingEmail
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending via SendPulse…</>
+                  : <><Send className="w-4 h-4" /> Send Email</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══ PROFILE REQUIRED POPUP ══════════════════════════════════════════ */}
       {showProfilePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
