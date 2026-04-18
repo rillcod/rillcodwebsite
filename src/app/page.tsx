@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Hero, About, NigerianSTEMShowcase, Contact, Footer } from '@/components/landing';
+import { Hero, About, NigerianSTEMShowcase, Contact, Footer, ProgramExplorer } from '@/components/landing';
 
 export default function Home() {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function Home() {
     <div className="bg-background min-h-screen">
       <Hero />
       <About />
+      <ProgramExplorer />
       <NigerianSTEMShowcase />
       <Contact />
       <Footer />
