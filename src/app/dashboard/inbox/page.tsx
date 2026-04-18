@@ -913,9 +913,8 @@ export default function UnifiedInbox() {
   const uniqueSchools = Array.from(new Set(contacts.map(c => c.school_name).filter(Boolean))) as string[];
   const uniqueClasses = Array.from(new Set(contacts.map(c => c.class_name).filter(Boolean))) as string[];
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#111b21] fixed inset-0 md:relative z-10">
+    <div className="flex h-full w-full overflow-hidden bg-[#111b21]">
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
       <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[340px] lg:w-[380px] flex-col bg-[#111b21] border-r border-white/[0.07] shrink-0`}>
@@ -939,6 +938,10 @@ export default function UnifiedInbox() {
                 </button>
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); setContactError(''); }}
+                  className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="Add contact">
+                  <UserPlus className="w-5 h-5" />
                 </button>
                 <button onClick={() => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
                   <Plus className="w-5 h-5" />
@@ -1040,16 +1043,6 @@ export default function UnifiedInbox() {
                   </div>
                 ))
               )}
-            </div>
-
-            {/* Mobile Floating Action Button (FAB) for New Chat */}
-            <div className="md:hidden absolute bottom-20 right-6 z-20">
-              <button
-                onClick={() => setShowNewChat(true)}
-                className="w-14 h-14 bg-orange-500 hover:bg-orange-400 text-white rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-transform"
-              >
-                <Plus className="w-7 h-7" />
-              </button>
             </div>
           </>
         ) : (
