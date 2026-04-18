@@ -73,7 +73,7 @@ export default async function Image() {
             justifyContent: 'center',
             width: '100%',
             height: '100%',
-            padding: '80px',
+            padding: '50px 80px',
             zIndex: 1,
           }}
         >
@@ -83,7 +83,7 @@ export default async function Image() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '48px',
+              marginBottom: '28px',
               position: 'relative',
             }}
           >
@@ -91,8 +91,8 @@ export default async function Image() {
             <div
               style={{
                 position: 'absolute',
-                width: '240px',
-                height: '240px',
+                width: '200px',
+                height: '200px',
                 background: 'radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, transparent 70%)',
                 borderRadius: '50%',
                 filter: 'blur(40px)',
@@ -102,23 +102,23 @@ export default async function Image() {
             {/* Official Logo */}
             <div
               style={{
-                width: '180px',
-                height: '180px',
+                width: '140px',
+                height: '140px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: '28px',
-                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(249, 115, 22, 0.2)',
+                borderRadius: '24px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(249, 115, 22, 0.2)',
                 background: 'rgba(255, 255, 255, 0.05)',
-                padding: '16px',
+                padding: '14px',
                 overflow: 'hidden',
               }}
             >
               <img
                 src="https://www.rillcod.com/logo.png"
                 alt="Rillcod Technologies"
-                width="148"
-                height="148"
+                width="112"
+                height="112"
                 style={{
                   maxWidth: '100%',
                   maxHeight: '100%',
@@ -134,12 +134,12 @@ export default async function Image() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              marginBottom: '32px',
+              marginBottom: '20px',
             }}
           >
             <div
               style={{
-                fontSize: '72px',
+                fontSize: '58px',
                 fontWeight: '900',
                 background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #cbd5e1 100%)',
                 backgroundClip: 'text',
@@ -153,10 +153,10 @@ export default async function Image() {
             </div>
             <div
               style={{
-                width: '120px',
-                height: '4px',
+                width: '100px',
+                height: '3px',
                 background: 'linear-gradient(90deg, transparent 0%, #f97316 50%, transparent 100%)',
-                marginTop: '16px',
+                marginTop: '12px',
                 borderRadius: '2px',
               }}
             />
@@ -165,13 +165,13 @@ export default async function Image() {
           {/* Tagline */}
           <div
             style={{
-              fontSize: '32px',
+              fontSize: '26px',
               fontWeight: '600',
               color: '#cbd5e1',
               textAlign: 'center',
-              marginBottom: '48px',
+              marginBottom: '32px',
               maxWidth: '900px',
-              lineHeight: 1.4,
+              lineHeight: 1.3,
             }}
           >
             Tech Education & Innovation Hub
@@ -181,40 +181,40 @@ export default async function Image() {
           <div
             style={{
               display: 'flex',
-              gap: '16px',
+              gap: '12px',
               flexWrap: 'wrap',
               justifyContent: 'center',
               maxWidth: '1000px',
             }}
           >
             {[
-              { icon: '🎓', label: 'STEM Education', color: '#10b981' },
-              { icon: '💻', label: 'Web & App Dev', color: '#3b82f6' },
-              { icon: '🤖', label: 'Robotics', color: '#8b5cf6' },
-              { icon: '🏠', label: 'Smart Home', color: '#f59e0b' },
-              { icon: '🔌', label: 'IoT Solutions', color: '#ec4899' },
-            ].map((item, index) => (
+              { icon: '🎓', label: 'STEM Education' },
+              { icon: '💻', label: 'Web & App Dev' },
+              { icon: '🤖', label: 'Robotics' },
+              { icon: '🏠', label: 'Smart Home' },
+              { icon: '🔌', label: 'IoT Solutions' },
+            ].map((item) => (
               <div
                 key={item.label}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px 28px',
+                  gap: '10px',
+                  padding: '10px 22px',
                   background: 'rgba(30, 41, 59, 0.6)',
                   borderRadius: '50px',
                   border: '2px solid rgba(249, 115, 22, 0.3)',
                   backdropFilter: 'blur(10px)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                  boxShadow: '0 6px 24px rgba(0, 0, 0, 0.3)',
                 }}
               >
-                <div style={{ fontSize: '28px' }}>{item.icon}</div>
+                <div style={{ fontSize: '22px' }}>{item.icon}</div>
                 <div
                   style={{
-                    fontSize: '20px',
+                    fontSize: '17px',
                     fontWeight: '700',
                     color: '#f1f5f9',
-                    letterSpacing: '0.5px',
+                    letterSpacing: '0.3px',
                   }}
                 >
                   {item.label}
@@ -228,20 +228,20 @@ export default async function Image() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              marginTop: '48px',
-              padding: '14px 32px',
+              gap: '10px',
+              marginTop: '32px',
+              padding: '10px 24px',
               background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(234, 88, 12, 0.15) 100%)',
               borderRadius: '50px',
               border: '2px solid rgba(249, 115, 22, 0.4)',
               backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 32px rgba(249, 115, 22, 0.2)',
+              boxShadow: '0 6px 24px rgba(249, 115, 22, 0.2)',
             }}
           >
-            <div style={{ fontSize: '24px' }}>📍</div>
+            <div style={{ fontSize: '20px' }}>📍</div>
             <div
               style={{
-                fontSize: '20px',
+                fontSize: '17px',
                 fontWeight: '700',
                 background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
                 backgroundClip: 'text',
