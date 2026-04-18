@@ -825,15 +825,15 @@ export default function UnifiedInbox() {
 
   // ── Guards ─────────────────────────────────────────────────────────────────
   if (authLoading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="h-full bg-[#111b21] flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
     </div>
   );
   if (!hasAccess) return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="h-full bg-[#111b21] flex items-center justify-center p-4">
       <div className="text-center max-w-md">
         <X className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
         <p className="text-white/50 mb-6">Messaging is restricted to staff members.</p>
         <Link href="/dashboard" className="px-6 py-2 bg-orange-600 text-white font-bold rounded-xl">Back to Dashboard</Link>
       </div>
@@ -848,13 +848,13 @@ export default function UnifiedInbox() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] overflow-hidden bg-[#111b21] max-w-[1400px] mx-auto md:my-4 md:rounded-2xl md:border border-white/10 md:shadow-2xl">
+    <div className="flex h-full w-full overflow-hidden bg-[#111b21]">
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
-      <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[360px] lg:w-[400px] flex-col bg-[#111b21] border-r border-white/[0.08] shrink-0`}>
+      <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[340px] lg:w-[380px] flex-col bg-[#111b21] border-r border-white/[0.07] shrink-0`}>
 
         {/* Sidebar Header */}
-        <div className="h-14 px-4 flex items-center justify-between bg-[#202c33] shrink-0">
+        <div className="h-[56px] px-4 flex items-center justify-between bg-[#1f2c34] shrink-0 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <h2 className="text-white font-black text-[16px] tracking-tight">
               {sidebarView === 'contacts' ? 'Contacts' : 'Inbox'}
@@ -897,25 +897,25 @@ export default function UnifiedInbox() {
         {sidebarView === 'chats' ? (
           <>
             {/* Tabs */}
-            <div className="flex bg-[#202c33] border-b border-white/[0.06] shrink-0">
+            <div className="flex bg-[#111b21] border-b border-white/[0.06] shrink-0">
               {tabs.map(tab => (
                 <button key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setActiveConv(null); setConvSearch(''); setFilterUnread(false); }}
-                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[10px] font-black uppercase tracking-wider ${
-                    activeTab === tab.id ? 'border-orange-400 text-orange-400' : 'border-transparent text-white/40 hover:text-white/60 hover:bg-white/5'
+                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${
+                    activeTab === tab.id ? 'border-orange-400 text-orange-400' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
                   }`}>
-                  <tab.icon className="w-4 h-4" />{tab.label}
+                  <tab.icon className="w-[15px] h-[15px]" />{tab.label}
                 </button>
               ))}
             </div>
 
             {/* Search */}
-            <div className="px-3 py-2 bg-[#111b21] shrink-0">
+            <div className="px-3 py-2.5 bg-[#111b21] shrink-0">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input value={convSearch} onChange={e => setConvSearch(e.target.value)}
                   placeholder={`Search ${activeTab === 'school' && isSchool ? 'teachers' : activeTab}…`}
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-orange-500/30" />
                 {convSearch && (
                   <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
                     <X className="w-3.5 h-3.5" />
@@ -1124,7 +1124,7 @@ export default function UnifiedInbox() {
         {activeConv ? (
           <>
             {/* Chat Header */}
-            <div className="h-14 px-3 bg-[#202c33] flex items-center justify-between border-b border-white/[0.06] shrink-0 z-10">
+            <div className="h-[56px] px-3 bg-[#1f2c34] flex items-center justify-between border-b border-white/[0.06] shrink-0 z-10">
               <div className="flex items-center flex-1 min-w-0 gap-3">
                 <button onClick={() => { setShowSidebar(true); setActiveConv(null); setShowInfo(false); }} className="md:hidden text-white/50 hover:text-white">
                   <ChevronLeft className="w-6 h-6" />
@@ -1183,17 +1183,17 @@ export default function UnifiedInbox() {
             {/* Chat body */}
             <div className="flex flex-1 overflow-hidden">
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-5 flex flex-col gap-1 custom-scrollbar"
-                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.02\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")', backgroundColor: '#0b141a' }}>
+              <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 flex flex-col gap-0.5 custom-scrollbar"
+                style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.018' fill-rule='evenodd'%3E%3Cpath d='M0 0h40v40H0zm40 40h40v40H40z'/%3E%3C/g%3E%3C/svg%3E\")" }}>
                 {msgLoading ? (
-                  <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-white/30" /></div>
+                  <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-white/25" /></div>
                 ) : messages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-center py-12">
-                    <div className="bg-[#202c33] rounded-2xl px-6 py-4 max-w-xs">
-                      <p className="text-white/50 text-sm">No messages yet.</p>
+                    <div className="bg-[#182229] rounded-xl px-6 py-5 max-w-xs border border-white/[0.06]">
+                      <p className="text-white/40 text-[13px]">No messages yet.</p>
                       {activeConv.type === 'students' && activeConv.phone_number && (
                         <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                          className="mt-2 text-xs text-emerald-400 font-bold flex items-center justify-center gap-1 hover:underline">
+                          className="mt-3 text-[11px] text-emerald-400 font-bold flex items-center justify-center gap-1 hover:underline">
                           <Phone className="w-3 h-3" /> Open in WhatsApp
                         </a>
                       )}
@@ -1210,9 +1210,9 @@ export default function UnifiedInbox() {
                             <span className="bg-[#202c33] text-white/50 text-[11px] font-bold px-3 py-1 rounded-full">{formatDateSep(msg.created_at)}</span>
                           </div>
                         )}
-                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] md:max-w-[65%] shadow-md ${
-                            isMine ? 'bg-[#005c4b] text-white rounded-2xl rounded-tr-sm px-3.5 py-2' : 'bg-[#202c33] text-white rounded-2xl rounded-tl-sm px-3.5 pt-2 pb-2'
+                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-[2px]`}>
+                          <div className={`max-w-[78%] md:max-w-[62%] shadow-sm ${
+                            isMine ? 'bg-[#005c4b] text-white rounded-[18px] rounded-tr-[4px] px-3.5 py-2' : 'bg-[#202c33] text-white rounded-[18px] rounded-tl-[4px] px-3.5 pt-2 pb-2'
                           }`}>
                             {/* Inbound meta row — role/school/class for teachers/admins */}
                             {!isMine && (
@@ -1252,63 +1252,45 @@ export default function UnifiedInbox() {
 
               {/* ── Info Panel ──────────────────────────────────────────── */}
               {showInfo && (
-                <div className="w-[280px] shrink-0 bg-[#111b21] border-l border-white/[0.08] overflow-y-auto custom-scrollbar">
-                  <div className="p-5 text-center border-b border-white/[0.08]">
+                <div className="w-[270px] shrink-0 bg-[#0d1418] border-l border-white/[0.07] overflow-y-auto custom-scrollbar">
+                  <div className="p-5 text-center border-b border-white/[0.07]">
                     <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-2xl text-white mx-auto mb-3 ${AVATAR_COLORS[activeConv.type]}`}>
                       {initials(activeConv.contact_name)}
                     </div>
-                    <h3 className="text-white font-black text-lg">{activeConv.contact_name}</h3>
-                    <p className="text-white/40 text-xs uppercase font-bold tracking-widest mt-0.5 capitalize">{activeConv.role || activeConv.type}</p>
+                    <h3 className="text-white font-black text-[16px]">{activeConv.contact_name}</h3>
+                    <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mt-0.5 capitalize">{activeConv.role || activeConv.type}</p>
                   </div>
-                  <div className="p-4 space-y-3 text-sm">
+                  <div className="p-4 space-y-2 text-sm">
                     {/* Quick action buttons */}
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-2">
                       <button onClick={() => openEmailCompose(activeConv)}
-                        className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 text-[11px] font-black rounded-xl transition-colors">
+                        className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 text-[11px] font-black rounded-lg transition-colors">
                         <Mail className="w-3.5 h-3.5" /> Email
                       </button>
                       {activeConv.phone_number && (
                         <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[11px] font-black rounded-xl transition-colors">
-                          <Phone className="w-3.5 h-3.5" /> WhatsApp
+                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-black rounded-lg transition-colors">
+                          <Phone className="w-3.5 h-3.5" /> WA
                         </a>
                       )}
                     </div>
 
-                    {activeConv.phone_number && (
-                      <div className="bg-[#202c33] rounded-xl p-3">
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">Phone / WhatsApp</p>
-                        <p className="text-white text-sm font-bold">+{activeConv.phone_number}</p>
+                    {[
+                      activeConv.phone_number ? { label: 'Phone / WhatsApp', value: `+${activeConv.phone_number}` } : null,
+                      activeConv.school_name  ? { label: 'School',           value: activeConv.school_name }       : null,
+                      activeConv.student_name ? { label: 'About Student',    value: activeConv.student_name }       : null,
+                      activeConv.subject      ? { label: 'Subject',          value: activeConv.subject }             : null,
+                      { label: 'Channel', value: activeConv.type === 'teachers' ? 'Internal · Teacher' : activeConv.type === 'school' ? 'Internal · School' : activeConv.type === 'parents' ? 'Internal · Parent' : 'WhatsApp' },
+                    ].filter(Boolean).map((item: any) => (
+                      <div key={item.label} className="bg-[#202c33]/60 rounded-lg p-3">
+                        <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest mb-1">{item.label}</p>
+                        <p className="text-white text-[13px] font-bold">{item.value}</p>
                       </div>
-                    )}
-                    {activeConv.school_name && (
-                      <div className="bg-[#202c33] rounded-xl p-3">
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">School</p>
-                        <p className="text-white text-sm font-bold">{activeConv.school_name}</p>
-                      </div>
-                    )}
-                    {activeConv.student_name && (
-                      <div className="bg-[#202c33] rounded-xl p-3">
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">About Student</p>
-                        <p className="text-white text-sm font-bold">{activeConv.student_name}</p>
-                      </div>
-                    )}
-                    {activeConv.subject && (
-                      <div className="bg-[#202c33] rounded-xl p-3">
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">Subject</p>
-                        <p className="text-white text-sm font-bold">{activeConv.subject}</p>
-                      </div>
-                    )}
-                    <div className="bg-[#202c33] rounded-xl p-3">
-                      <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-1">Channel</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-white text-sm font-bold capitalize">{activeConv.type === 'teachers' ? 'Internal (Teacher)' : activeConv.type === 'school' ? 'Internal (School)' : activeConv.type === 'parents' ? 'Internal (Parent)' : 'WhatsApp'}</p>
-                        {activeConv.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>{activeConv.role}</span>}
-                      </div>
-                    </div>
+                    ))}
+
                     {activeConv.type === 'students' && activeConv.phone_number && (
                       <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl transition-colors">
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-lg transition-colors mt-3">
                         <Phone className="w-4 h-4" /> Open in WhatsApp
                       </a>
                     )}
@@ -1318,46 +1300,57 @@ export default function UnifiedInbox() {
             </div>
 
             {/* Message Input */}
-            <div className="shrink-0 bg-[#202c33] border-t border-white/[0.06]">
+            <div className="shrink-0 bg-[#1f2c34] border-t border-white/[0.06]">
               {sendError && (
-                <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between">
+                <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10">
                   <span>{sendError}</span>
                   <button onClick={() => setSendError('')}><X className="w-3 h-3" /></button>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2">
+              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2.5">
                 <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
                   placeholder="Type a message…" rows={1}
-                  className="flex-1 bg-[#2a3942] text-white text-[15px] rounded-2xl px-4 py-3 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-white/20 transition-all max-h-[120px] overflow-y-auto" />
+                  className="flex-1 bg-[#2a3942] text-white text-[14px] rounded-2xl px-4 py-2.5 outline-none resize-none placeholder-white/25 focus:ring-1 focus:ring-white/15 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
                 <button type="submit" disabled={!newMessage.trim() || isSending}
-                  className="w-11 h-11 bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-orange-500/20">
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                  className="w-10 h-10 bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-orange-500/20">
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-[15px] h-[15px] ml-0.5" />}
                 </button>
               </form>
             </div>
           </>
         ) : (
-          /* Empty state */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8"
-            style={{ backgroundColor: '#0b141a', backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.015\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}>
-            <div className="w-24 h-24 bg-[#202c33] rounded-full flex items-center justify-center mb-6 border border-white/10">
-              <MessageSquare className="w-12 h-12 text-white/20" />
+          /* Empty state — full-bleed, native */
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none"
+            style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.012' fill-rule='evenodd'%3E%3Cpath d='M0 0h40v40H0zm40 40h40v40H40z'/%3E%3C/g%3E%3C/svg%3E\")" }}>
+            {/* Decorative ring */}
+            <div className="relative mb-7">
+              <div className="w-28 h-28 rounded-full border-2 border-white/[0.06] flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-[#202c33] flex items-center justify-center">
+                  <MessageSquare className="w-9 h-9 text-white/20" />
+                </div>
+              </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full" />
+              </div>
             </div>
-            <h1 className="text-2xl font-black text-white/80 mb-3">Unified Inbox</h1>
-            <p className="text-white/30 max-w-sm text-sm leading-relaxed">
-              {isAdmin   ? 'Manage WhatsApp, parent & school communications across all channels.' :
-               isSchool  ? 'Communicate with your students via WhatsApp and your teachers via direct messages.' :
-               'Manage student WhatsApp messages, parent threads, and school communications.'}
+            <h1 className="text-[22px] font-black text-white/75 mb-2 tracking-tight">Unified Inbox</h1>
+            <p className="text-white/25 max-w-xs text-[13px] leading-relaxed">
+              {isAdmin   ? 'All channels in one place — WhatsApp, parents, teachers & schools.' :
+               isSchool  ? 'Reach students via WhatsApp and communicate with teachers directly.' :
+               'Student WhatsApp messages, parent threads, and school communications.'}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-              <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-sm font-black rounded-full transition-colors shadow-lg shadow-orange-500/20">
+            <p className="text-white/15 text-[11px] mt-2 font-bold uppercase tracking-widest">
+              Select a conversation to start
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-7">
+              <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
                 <Plus className="w-4 h-4" /> New Chat
               </button>
-              <button onClick={() => openEmailCompose()} className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-full transition-colors shadow-lg shadow-violet-500/20">
-                <Mail className="w-4 h-4" /> Compose Email
+              <button onClick={() => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 text-[13px] font-black rounded-full border border-violet-500/20 transition-colors">
+                <Mail className="w-4 h-4" /> Email
               </button>
-              <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black rounded-full transition-colors">
+              <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] text-white/50 text-[13px] font-black rounded-full border border-white/[0.07] transition-colors">
                 <BookUser className="w-4 h-4" /> Contacts
               </button>
             </div>
@@ -1367,59 +1360,59 @@ export default function UnifiedInbox() {
 
       {/* ══ NEW CHAT MODAL ═══════════════════════════════════════════════════ */}
       {showNewChat && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#202c33] md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg bg-[#1f2c34] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl flex flex-col max-h-[88vh] border border-white/[0.07]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
               <div>
-                <h2 className="text-white font-black text-lg">
+                <h2 className="text-white font-black text-[16px]">
                   New {activeTab === 'teachers' ? 'Teacher' : activeTab === 'school' && isSchool ? 'Teacher' : activeTab === 'parents' ? 'Parent' : activeTab === 'students' ? 'Student' : 'School'} Chat
                 </h2>
-                <p className="text-white/30 text-xs mt-0.5">
+                <p className="text-white/30 text-[11px] mt-0.5">
                   {activeTab === 'students' ? 'Search students by name or school' :
                    activeTab === 'parents'  ? 'Search parents by name' :
                    isSchool                 ? 'Search teachers in your school' : 'Search partner schools'}
                 </p>
               </div>
-              <button onClick={() => setShowNewChat(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-white/50" /></button>
+              <button onClick={() => setShowNewChat(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-white/40" /></button>
             </div>
-            <div className="px-4 py-3 border-b border-white/[0.06] shrink-0">
+            <div className="px-4 py-3 border-b border-white/[0.05] shrink-0">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
                   placeholder="Type to search…"
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-2.5 outline-none placeholder-white/25 focus:ring-1 focus:ring-orange-500/30" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {loadingDirectory ? (
                 <div className="p-12 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-orange-400" /></div>
               ) : directoryResults.length === 0 ? (
-                <div className="p-12 text-center text-white/30 text-sm">{directorySearch ? 'No results found.' : 'Start typing to search…'}</div>
+                <div className="p-12 text-center text-white/25 text-[13px]">{directorySearch ? 'No results found.' : 'Start typing to search…'}</div>
               ) : (
                 directoryResults.map(item => (
                   <button key={item.id} onClick={() => startNewConversation(item)}
-                    className="w-full flex items-center px-4 py-3 hover:bg-[#2a3942] transition-colors text-left group border-b border-white/[0.04]">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 mr-3 ${AVATAR_COLORS[activeTab]}`}>
+                    className="w-full flex items-center px-4 py-3 hover:bg-white/[0.05] transition-colors text-left group border-b border-white/[0.04]">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 mr-3 ${AVATAR_COLORS[activeTab]}`}>
                       {initials(item.full_name || item.name || 'U')}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-[14px] truncate">{item.full_name || item.name}</p>
+                      <p className="font-bold text-white text-[13px] truncate">{item.full_name || item.name}</p>
                       <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                        {item.phone       && <span className="text-[11px] text-emerald-400 flex items-center gap-1"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
-                        {item.school_name && <span className="text-[11px] text-white/30 truncate">{item.school_name}</span>}
-                        {item.email       && <span className="text-[11px] text-white/30 truncate">{item.email}</span>}
-                        {item.role        && <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
+                        {item.phone       && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
+                        {item.school_name && <span className="text-[10px] text-white/30 truncate">{item.school_name}</span>}
+                        {item.email       && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
+                        {item.role        && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
                         {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-orange-400 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-orange-400 transition-colors" />
                   </button>
                 ))
               )}
             </div>
             {activeTab === 'parents' && (
-              <div className="px-5 py-3 bg-[#111b21] border-t border-white/[0.06] text-xs text-white/30 text-center">
-                To start a parent conversation, go to the student's profile and initiate from there.
+              <div className="px-5 py-3 bg-[#111b21] border-t border-white/[0.05] text-[11px] text-white/25 text-center">
+                To start a parent conversation, initiate from the student's profile.
               </div>
             )}
           </div>
@@ -1428,8 +1421,8 @@ export default function UnifiedInbox() {
 
       {/* ══ ADD / EDIT CONTACT MODAL ════════════════════════════════════════ */}
       {showAddContact && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#202c33] md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="w-full max-w-md bg-[#1f2c34] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border border-white/[0.07]">
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-3">
