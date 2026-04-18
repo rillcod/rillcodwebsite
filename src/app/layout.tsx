@@ -7,7 +7,7 @@ import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/landing/JsonLd";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rillcod.com"),
+  metadataBase: new URL("https://www.rillcod.com"),
   title: {
     default: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
     template: "%s | Rillcod Technologies",
@@ -41,29 +41,32 @@ export const metadata: Metadata = {
     "robotics for kids Nigeria",
     "Rillcod Technologies",
   ],
-  authors: [{ name: "Rillcod Technologies", url: "https://rillcod.com" }],
+  authors: [{ name: "Rillcod Technologies", url: "https://www.rillcod.com" }],
   creator: "Rillcod Technologies",
   publisher: "Rillcod Technologies",
   manifest: "/manifest.json",
   alternates: {
-    canonical: "https://rillcod.com",
+    canonical: "https://www.rillcod.com",
   },
   openGraph: {
     type: "website",
     locale: "en_NG",
-    url: "https://rillcod.com",
+    url: "https://www.rillcod.com",
     siteName: "Rillcod Technologies",
     title: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City",
     description:
       "Empowering Nigerian children with hands-on coding, robotics, AI, and STEM skills. Classes delivered in partner schools across Benin City, Ekpoma, Uromi, Auchi, and all of Edo State.",
     images: [
       {
-        url: "/icon-512x512.png",
-        width: 512,
-        height: 512,
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
         alt: "Rillcod Technologies — STEM & Coding Education for Nigerian Children",
       },
     ],
+  },
+  facebook: {
+    appId: "1504064024671418",
   },
   twitter: {
     card: "summary_large_image",
@@ -72,7 +75,7 @@ export const metadata: Metadata = {
     title: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy",
     description:
       "Hands-on coding, robotics & STEM education for Nigerian kids. Partner schools in Benin City, Edo State & across Nigeria.",
-    images: ["/icon-512x512.png"],
+    images: ["/twitter-image"],
   },
   robots: {
     index: true,

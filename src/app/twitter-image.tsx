@@ -11,6 +11,11 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
+  // Fetch the logo
+  const logoData = await fetch(
+    new URL('../../../public/logo.png', import.meta.url)
+  ).then((res) => res.arrayBuffer());
+
   return new ImageResponse(
     (
       <div
@@ -28,23 +33,16 @@ export default async function Image() {
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Logo */}
-        <div
+        {/* Official Logo */}
+        <img
+          src={logoData as any}
+          alt="Rillcod Technologies Logo"
+          width={150}
+          height={150}
           style={{
-            width: 120,
-            height: 120,
-            borderRadius: 30,
-            background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             marginBottom: 40,
-            fontSize: 70,
-            fontWeight: 'bold',
           }}
-        >
-          R
-        </div>
+        />
 
         {/* Title */}
         <div
