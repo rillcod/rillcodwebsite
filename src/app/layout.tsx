@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@rillcodacademy",
     creator: "@rillcodacademy",
-    title: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy",
+    title: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City",
     description:
       "Hands-on coding, robotics & STEM education for Nigerian kids. Partner schools in Benin City, Edo State & across Nigeria.",
     images: ["/twitter-image"],
