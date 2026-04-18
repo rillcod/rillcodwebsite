@@ -913,6 +913,7 @@ export default function UnifiedInbox() {
   const uniqueSchools = Array.from(new Set(contacts.map(c => c.school_name).filter(Boolean))) as string[];
   const uniqueClasses = Array.from(new Set(contacts.map(c => c.class_name).filter(Boolean))) as string[];
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#111b21]">
 
@@ -930,6 +931,10 @@ export default function UnifiedInbox() {
             )}
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); setContactError(''); }}
+              className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="Add contact">
+              <UserPlus className="w-5 h-5" />
+            </button>
             {sidebarView === 'chats' ? (
               <>
                 <button onClick={() => setFilterUnread(v => !v)} title={filterUnread ? 'Show all' : 'Unread only'}
@@ -939,20 +944,11 @@ export default function UnifiedInbox() {
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); setContactError(''); }}
-                  className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="Add contact">
-                  <UserPlus className="w-5 h-5" />
-                </button>
                 <button onClick={() => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
                   <Plus className="w-5 h-5" />
                 </button>
               </>
-            ) : (
-              <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); setContactError(''); }}
-                className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="Add contact">
-                <UserPlus className="w-5 h-5" />
-              </button>
-            )}
+            ) : null}
             {/* Toggle chats ↔ contacts */}
             <button
               onClick={() => { setSidebarView(v => v === 'chats' ? 'contacts' : 'chats'); setActiveContact(null); }}
