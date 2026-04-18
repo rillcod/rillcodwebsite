@@ -19,14 +19,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'message and conversation_id required' }, { status: 400 });
     }
 
-    // Identify student and school for scoping
+    // Fetch conversation to get phone number
     const { data: conv } = await admin
       .from('whatsapp_conversations')
-      .select('portal_user_id')
+      .select('portal_user_id, opted_out')
       .eq('id', conversation_id)
       .single();
 
     if (!conv?.portal_user_id) return NextResponse.json({ success: true, message: 'Unlinked conversation' });
+
+    // Check if user has opted out
+    if (conv.opted_out) {
+      return NextResponse.json({ success: true, responded: false, message: 'User has opted out of WhatsApp notifications' });
+    }
 
     const { data: student } = await admin
       .from('portal_users')
@@ -73,7 +78,9 @@ export async function POST(req: NextRequest) {
 
     // Greeting detection
     if (/^(hi|hello|hey|good morning|good afternoon|good evening)/i.test(lowerMsg)) {
-      autoResponse = `Hello! 👋 Welcome to Rillcod Technologies. I'm here to help you with:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+Hello! 👋 Welcome to Rillcod Technologies. I'm here to help you with:
 
 📚 Course information
 💳 Payment inquiries
@@ -81,34 +88,52 @@ export async function POST(req: NextRequest) {
 🎓 Assignment help
 📞 Technical support
 
-How can I assist you today?`;
+A team member will respond soon if you need personalized assistance.
+
+How can I assist you today?
+
+_Reply STOP to unsubscribe from notifications_`;
       shouldRespond = true;
     }
     // Payment queries
     else if (/payment|pay|invoice|fee|bill|cost|price/i.test(lowerMsg)) {
-      autoResponse = `💳 For payment inquiries:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+💳 For payment inquiries:
 
 1. Check your invoice in the dashboard: https://rillcod.com/dashboard/finance
 2. Pay online via Paystack (instant confirmation)
 3. Contact our finance team: finance@rillcod.com
 
-Need help with payment plans? Let me know!`;
+A team member will respond within 2 hours for personalized assistance.
+
+Need help with payment plans? Let me know!
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
     // Assignment help
     else if (/assignment|homework|project|task/i.test(lowerMsg)) {
-      autoResponse = `📚 Assignment Help:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+📚 Assignment Help:
 
 1. View all assignments: https://rillcod.com/dashboard/assignments
 2. Submit your work directly in the dashboard
 3. Check deadlines and grades
 
-Which assignment do you need help with? I can connect you with your teacher.`;
+A teacher will respond soon for specific questions.
+
+Which assignment do you need help with?
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
     // Technical support
     else if (/problem|issue|error|not working|can't|cannot|help/i.test(lowerMsg)) {
-      autoResponse = `🔧 Technical Support:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+🔧 Technical Support:
 
 I'm sorry you're experiencing issues. To help you faster:
 
@@ -116,24 +141,32 @@ I'm sorry you're experiencing issues. To help you faster:
 2. Share any error messages
 3. Tell me which device you're using
 
-Our support team will respond within 2 hours. For urgent issues, call: 08116600000`;
+Our support team will respond within 2 hours. For urgent issues, call: 08116600000
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
     // Schedule/timetable
     else if (/schedule|timetable|class|time|when/i.test(lowerMsg)) {
-      autoResponse = `📅 Class Schedule:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+📅 Class Schedule:
 
 Check your personalized timetable: https://rillcod.com/dashboard/timetable
 
 Classes run Monday-Friday, 9 AM - 3 PM.
 Live sessions are announced in the dashboard.
 
-Need to reschedule? Let me know!`;
+A team member will respond soon if you need to reschedule.
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
     // Progress/grades
     else if (/grade|score|result|progress|report/i.test(lowerMsg)) {
-      autoResponse = `📊 Progress & Grades:
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+📊 Progress & Grades:
 
 View your progress: https://rillcod.com/dashboard/results
 
@@ -143,16 +176,22 @@ You can see:
 ✅ Overall progress
 ✅ Certificates earned
 
-Parents can also access this from their portal!`;
+Parents can also access this from their portal!
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
     // Thank you
     else if (/thank|thanks|appreciate/i.test(lowerMsg)) {
-      autoResponse = `You're very welcome! 🎉
+      autoResponse = `🤖 *Auto-Response* - Rillcod Technologies
+
+You're very welcome! 🎉
 
 We're always here to help. Feel free to reach out anytime.
 
-Have a great day! 🚀`;
+Have a great day! 🚀
+
+_Reply STOP to unsubscribe_`;
       shouldRespond = true;
     }
 
