@@ -107,16 +107,18 @@ export default function DashboardNavigation() {
           { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Academics' },
+          { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
+          { name: 'Curriculum Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
           { name: 'Programs', href: '/dashboard/programs', icon: AcademicCapIcon },
-          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Courses', href: '/dashboard/courses', icon: PresentationChartLineIcon },
+          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'WAEC Grading', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { divider: true, label: 'Content' },
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
@@ -135,7 +137,6 @@ export default function DashboardNavigation() {
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
           { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftRightIcon },
-          { name: 'School-Teacher Messages', href: '/dashboard/school-teacher-messages', icon: EnvelopeIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
@@ -148,8 +149,11 @@ export default function DashboardNavigation() {
         return [
           ...base,
           { divider: true, label: 'Teaching' },
-          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+          { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
+          { name: 'Curriculum Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
+          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
@@ -159,6 +163,7 @@ export default function DashboardNavigation() {
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Parents & Feedback', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'WAEC Grading', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
           { name: 'Gamification', href: '/dashboard/gamification', icon: TrophyIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
@@ -169,8 +174,6 @@ export default function DashboardNavigation() {
           { name: 'Flashcard Decks', href: '/dashboard/flashcards', icon: BookOpenIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
-          { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
@@ -178,7 +181,6 @@ export default function DashboardNavigation() {
           { name: 'Activity Hub', href: '/dashboard/activity-hub', icon: SparklesIcon },
           { divider: true, label: 'More' },
           { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
-          { name: 'Messages', href: '/dashboard/school-teacher-messages', icon: EnvelopeIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -241,7 +243,6 @@ export default function DashboardNavigation() {
           { divider: true, label: 'More' },
           { name: 'Curriculum', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
@@ -285,11 +286,11 @@ export default function DashboardNavigation() {
         ? ['Dashboard', 'Learning Center', 'My Payments', 'My Report Card', 'Messages']
         : ['Dashboard', 'Learning Center', 'My Report Card', 'Messages']
       : profile?.role === 'school'
-        ? ['Dashboard', 'My Students', 'My Billing', 'Student Reports', 'Messages']
+        ? ['Dashboard', 'My Students', 'My Billing', 'Student Reports', 'WhatsApp Inbox']
         : profile?.role === 'admin'
-          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'School-Teacher Messages']
+          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'WhatsApp Inbox']
           : profile?.role === 'teacher'
-            ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
+            ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'WhatsApp Inbox']
             : profile?.role === 'parent'
               ? ['Dashboard', 'My Children', 'Report Cards', 'Messages']
               : ['Dashboard']
@@ -470,6 +471,7 @@ export default function DashboardNavigation() {
             name === 'My Students' ? 'Students' :
             name === 'School Overview' ? 'Overview' :
             name === 'Learning Center' ? 'Learn' :
+            name === 'WhatsApp Inbox' ? 'WhatsApp' :
             name === 'My Children' ? 'Children' :
             name === 'Report Cards' ? 'Reports' :
             name;

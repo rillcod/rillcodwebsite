@@ -769,52 +769,197 @@ Requirements:
       const gradeLevel = req.grade_level ?? req.gradeLevel ?? 'JSS1';
       const subjectArea = req.subject_area ?? req.subject ?? 'STEM / Coding';
       const termCount = req.term_count ?? 3;
-      const weeksPerTerm = req.weeks_per_term ?? 12;
+      const weeksPerTerm = req.weeks_per_term ?? 8;
 
-      return `You are an expert curriculum designer for Rillcod Technologies, a STEM/Coding academy serving Nigerian schools (KG to SS3).
+      // Standard assessment schedule — fixed for all schools
+      const assessWeek1 = 3;
+      const assessWeek2 = 6;
+      const examWeek = 8;
 
-Design a complete, progressive academic curriculum for the following:
+      return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy serving Nigerian partner schools (KG to SS3).
+
+Your task: Design a COMPLETE, INNOVATIVE, and READY-TO-TEACH school curriculum for the following course.
+
 Course: "${courseName}"
 Grade Level: ${gradeLevel}
 Subject Area: ${subjectArea}
 Academic Terms: ${termCount}
 Weeks Per Term: ${weeksPerTerm}
+Target: Nigerian secondary/primary school students (school-partner programme)
 ${req.notes ? `Special Notes: ${req.notes}` : ''}
 
-Return ONLY a valid JSON object with this exact shape:
+━━━ MANDATORY ASSESSMENT SCHEDULE (NEVER DEVIATE) ━━━
+Every term follows this EXACT weekly structure (adapt proportionally if weeks_per_term > 8):
+- Week 1: Lesson (foundations)
+- Week 2: Lesson (core concepts)
+- Week 3: FIRST ASSESSMENT — covers weeks 1–2 (type: "assessment")
+- Week 4: Lesson (new application)
+- Week 5: Lesson (advanced/project work)
+- Week 6: SECOND ASSESSMENT — covers weeks 4–5 (type: "assessment")
+- Week 7: Lesson (revision + consolidation)
+- Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")
+
+━━━ WEEK TYPES ━━━
+"lesson" — A full, teacher-ready lesson with complete lesson plan
+"assessment" — A formative assessment (written test / practical)
+"examination" — Summative end-of-term examination
+
+━━━ CREATIVITY RULES ━━━
+- Topics MUST build progressively across all 3 terms — NEVER repeat a project or topic
+- Each term's lessons must feel like a new adventure that builds on prior knowledge
+- Use DIFFERENT project themes per term (e.g. Term 1: build a calculator → Term 2: build a quiz game → Term 3: build a smart home app)
+- For Nigerian relevance: weave in local contexts — agritech, fintech, healthcare, entertainment, traffic systems, market pricing
+- Engagement is CRITICAL: these students stay with Rillcod for 3 years — every lesson must feel fresh and innovative
+- Tools/platforms should vary across terms where possible (e.g. Scratch → Python → Web → Arduino)
+- Term 1 = Foundations, Term 2 = Application, Term 3 = Innovation & Real-World Projects
+
+━━━ LESSON_PLAN STRUCTURE (for every lesson week) ━━━
+Each lesson week MUST include a "lesson_plan" object with:
+- duration_minutes: 40 (standard school period)
+- objectives: 3–4 specific, measurable learning outcomes (Bloom's Taxonomy — Remember, Understand, Apply, Analyse)
+- teacher_activities: array of 5 step-by-step teacher instructions:
+    [0] "Introduction/Hook (5 min): Open with a surprising question or real Nigerian example..."
+    [1] "Direct Instruction (10 min): Explain core concept step by step..."
+    [2] "Live Demo (10 min): Show in action — code live, build, draw diagram..."
+    [3] "Guided Practice (10 min): Walk students through the classwork exercise..."
+    [4] "Wrap-Up (5 min): Quick review, 3 key takeaways, preview next lesson..."
+- student_activities: array of what students DO at each stage (mirrors teacher_activities)
+- classwork: { title, instructions, materials[] } — in-class exercise completable in one period
+- assignment: { title, instructions, due: "Next class" } — one take-home task
+- project: null (most weeks) OR { title, description, deliverables[] } (at project milestone weeks)
+- resources: array of tools, platforms, materials, links needed
+- engagement_tips: array of 3 specific tips to keep THIS lesson engaging (local examples, common pitfalls, wow moments)
+
+━━━ ASSESSMENT_PLAN STRUCTURE (for assessment + examination weeks) ━━━
+Assessment weeks (week 3 and 6) use:
 {
-  "course_title": "string — official course title",
-  "overview": "string — 2-3 paragraph course overview explaining what students will learn and why it matters for Nigerian students",
-  "learning_outcomes": ["string — 6-8 measurable outcomes students will achieve by end of course"],
+  "type": "written" | "practical" | "mixed",
+  "title": "string",
+  "coverage": ["topic from week N", "topic from week N"],
+  "format": "string — e.g. 10 MCQ (2 marks each) + 2 short-answer (5 marks each) = 30 marks",
+  "duration_minutes": 40,
+  "scoring_guide": "string — mark allocation and conversion to 100",
+  "teacher_prep": ["step 1", "step 2", "step 3"],
+  "sample_questions": ["3 example questions from the coverage topics"]
+}
+
+Examination week (week 8) uses the same structure but:
+- coverage: ALL topics from weeks 1–7
+- format: "Section A: 20 MCQ (2 marks = 40 marks) + Section B: 5 short-answer (4 marks = 20 marks) + Section C: 1 practical task (20 marks) = 80 marks total"
+- duration_minutes: 80
+- teacher_prep: includes invigilator instructions, paper sealing, mark scheme preparation
+
+━━━ OUTPUT FORMAT ━━━
+Return ONLY a valid JSON object with this exact shape (no preamble, no markdown fences):
+
+{
+  "course_title": "string — official, professional course title",
+  "overview": "string — 3 paragraphs: (1) what the course is, (2) why it matters for Nigerian students, (3) what students will be capable of after completing all 3 terms",
+  "learning_outcomes": ["string — 8 measurable outcomes across all ${termCount} terms"],
   "terms": [
     {
       "term": 1,
-      "title": "string — term theme (e.g. 'Foundations of Coding')",
-      "objectives": ["string — 3-4 term-level objectives"],
+      "title": "string — term theme title (e.g. 'Foundations & First Steps')",
+      "objectives": ["string — 4 term-level objectives"],
       "weeks": [
         {
           "week": 1,
+          "type": "lesson",
           "topic": "string — main topic title",
-          "subtopics": ["string — 2-4 subtopics"],
-          "activities": ["string — 2-3 classroom/lab activities"],
-          "assessment": "string — how learning is assessed this week"
+          "subtopics": ["string — 3 subtopics covered"],
+          "lesson_plan": {
+            "duration_minutes": 40,
+            "objectives": ["string — 3-4 learning outcomes"],
+            "teacher_activities": ["Introduction/Hook (5 min): ...", "Direct Instruction (10 min): ...", "Live Demo (10 min): ...", "Guided Practice (10 min): ...", "Wrap-Up (5 min): ..."],
+            "student_activities": ["string — what students DO at each stage"],
+            "classwork": { "title": "string", "instructions": "string", "materials": ["string"] },
+            "assignment": { "title": "string", "instructions": "string", "due": "Next class" },
+            "project": null,
+            "resources": ["string"],
+            "engagement_tips": ["string", "string", "string"]
+          }
+        },
+        {
+          "week": 2,
+          "type": "lesson",
+          "topic": "string",
+          "subtopics": ["string"],
+          "lesson_plan": { "duration_minutes": 40, "objectives": [], "teacher_activities": [], "student_activities": [], "classwork": {}, "assignment": {}, "project": null, "resources": [], "engagement_tips": [] }
+        },
+        {
+          "week": 3,
+          "type": "assessment",
+          "topic": "First Term Assessment",
+          "assessment_plan": {
+            "type": "written",
+            "title": "string",
+            "coverage": ["string"],
+            "format": "string",
+            "duration_minutes": 40,
+            "scoring_guide": "string",
+            "teacher_prep": ["string"],
+            "sample_questions": ["string", "string", "string"]
+          }
+        },
+        {
+          "week": 4,
+          "type": "lesson",
+          "topic": "string",
+          "subtopics": [],
+          "lesson_plan": {}
+        },
+        {
+          "week": 5,
+          "type": "lesson",
+          "topic": "string",
+          "subtopics": [],
+          "lesson_plan": {}
+        },
+        {
+          "week": 6,
+          "type": "assessment",
+          "topic": "Second Assessment",
+          "assessment_plan": {}
+        },
+        {
+          "week": 7,
+          "type": "lesson",
+          "topic": "Revision & Consolidation",
+          "subtopics": [],
+          "lesson_plan": {}
+        },
+        {
+          "week": 8,
+          "type": "examination",
+          "topic": "First Term Examination",
+          "assessment_plan": {
+            "type": "mixed",
+            "title": "string",
+            "coverage": ["All topics from Weeks 1–7"],
+            "format": "Section A: 20 MCQ (40 marks) + Section B: 5 short-answer (20 marks) + Section C: 1 practical (20 marks) = 80 marks",
+            "duration_minutes": 80,
+            "scoring_guide": "string",
+            "teacher_prep": ["string"],
+            "sample_questions": []
+          }
         }
       ]
     }
   ],
-  "assessment_strategy": "string — overall assessment approach including formative and summative",
-  "materials_required": ["string — list of physical/digital materials"],
-  "recommended_tools": ["string — software, platforms, or hardware"]
+  "assessment_strategy": "string — overall formative + summative approach for the full year",
+  "materials_required": ["string — physical materials"],
+  "recommended_tools": ["string — digital tools, platforms, software"]
 }
 
-CURRICULUM DESIGN RULES:
-- Generate EXACTLY ${termCount} term objects in the "terms" array.
-- Each term MUST have EXACTLY ${weeksPerTerm} week objects.
-- Topics MUST build progressively: early weeks = foundations, middle weeks = core application, final weeks = projects + review.
-- For coding/tech courses: specify the exact language, tool, or platform each week (e.g. Python, Scratch, Arduino, Figma).
-- For Nigerian context: include locally relevant projects (smart traffic systems, agriculture tech, fintech, Afrotech startups, etc.).
-- Each term should end with a capstone project or revision/exam week.
-- Tone: professional, practical, aligned with Nigerian secondary school curriculum standards (NERDC/WAEC scope).`;
+CRITICAL RULES:
+- Generate EXACTLY ${termCount} term objects.
+- Each term MUST have EXACTLY ${weeksPerTerm} week objects in the order: 1, 2, 3(assessment), 4, 5, 6(assessment), 7, 8(examination).
+- ALL lesson_plan fields must be FULLY populated — no empty arrays, no placeholder text.
+- Topics MUST progress logically: Term 1 foundations → Term 2 application → Term 3 advanced/real-world.
+- NEVER repeat the same project theme, topic, or classwork across terms.
+- Nigerian context MUST appear in at least 1 teacher_activity, 1 engagement_tip, and 1 classwork per lesson week.
+- Assessment coverage must explicitly name the topics tested from prior weeks.
+- Tone: professional, warm, practical. British English throughout.`;
     }
 
     default:
@@ -1016,15 +1161,15 @@ export async function POST(req: NextRequest) {
 
       case 'curriculum':
         modelQueue = [
-          "google/gemini-2.0-flash-001",
-          "qwen/qwen3-235b-a22b:free",
-          "moonshotai/kimi-k2.5",
-          "deepseek/deepseek-chat-v3-5",
-          "meta-llama/llama-3.3-70b-instruct",
-          "google/gemini-2.0-flash-lite-001",
+          "google/gemini-2.0-flash-001",       // 1M ctx — handles massive curriculum JSON
+          "moonshotai/kimi-k2.5",               // High intelligence, great at structured plans
+          "qwen/qwen3-235b-a22b:free",          // 235B free — thorough but may truncate
+          "deepseek/deepseek-chat-v3-5",        // Strong structured output
+          "meta-llama/llama-3.3-70b-instruct",  // Reliable fallback
+          "google/gemini-2.0-flash-lite-001",   // Emergency fallback
         ];
-        adaptiveTemperature = 0.4;
-        adaptiveMaxTokens = 8000;
+        adaptiveTemperature = 0.55; // Creative enough for fresh topics, structured enough for JSON
+        adaptiveMaxTokens = 16000;  // Full lesson plans per week need many tokens
         break;
 
       default:
