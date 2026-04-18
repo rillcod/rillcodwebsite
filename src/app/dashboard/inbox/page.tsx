@@ -209,6 +209,10 @@ export default function UnifiedInbox() {
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
 
+  // Staff assignment (Multi-user)
+  const [staff, setStaff] = useState<any[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+
   // Subject dialog (replaces window.prompt for school/teacher convs)
   const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
 
@@ -232,6 +236,8 @@ export default function UnifiedInbox() {
   useEffect(() => {
     if (!profile) return;
     fetchConversations(activeTab);
+    if (isAdmin || isSchool) fetchStaff();
+    
     const ch = supabase.channel('wa_inbox')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
         p => handleRealtime('students', p.new as any))
@@ -354,6 +360,16 @@ export default function UnifiedInbox() {
       }
     } catch (err) { console.error('fetchConversations error:', err); }
     finally { if (setLoad) setIsLoading(false); }
+  };
+
+  // ── Fetch Staff for assignment ───────────────────────────────────────────
+  const fetchStaff = async () => {
+    const { data } = await supabase
+      .from('portal_users')
+      .select('id, full_name, role, avatar_url')
+      .in('role', ['admin', 'teacher', 'school'])
+      .eq('is_active', true);
+    if (data) setStaff(data);
   };
 
   // ── Filter conversations ───────────────────────────────────────────────────
@@ -969,22 +985,29 @@ export default function UnifiedInbox() {
     } finally { setSavingContact(false); }
   };
 
-  const assignToMe = async (convId: string) => {
-    if (!profile) return;
+  const assignConversation = async (convId: string, staffId: string | null) => {
+    setAssigningId(convId);
     try {
       const { error } = await supabase
         .from('whatsapp_conversations')
-        .update({ assigned_staff_id: profile.id })
+        .update({ assigned_staff_id: staffId })
         .eq('id', convId);
       
       if (error) throw error;
-      setConversations(prev => prev.map(c => c.id === convId ? { ...c, assigned_staff_id: profile.id } : c));
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, assigned_staff_id: staffId } : c));
       if (activeConv?.id === convId) {
-        setActiveConv(prev => prev ? { ...prev, assigned_staff_id: profile.id } : null);
+        setActiveConv(prev => prev ? { ...prev, assigned_staff_id: staffId } : null);
       }
     } catch (err) {
-      console.error('assignToMe error:', err);
+      console.error('assignConversation error:', err);
+    } finally {
+      setAssigningId(null);
     }
+  };
+
+  const assignToMe = async (convId: string) => {
+    if (!profile) return;
+    await assignConversation(convId, profile.id);
   };
 
   const openEditContact = (c: Contact) => {
@@ -1119,35 +1142,60 @@ export default function UnifiedInbox() {
                   )}
                 </div>
               ) : (
-                filteredConvs.map(conv => (
-                  <div key={conv.id} onClick={() => { setActiveConv(conv); setShowSidebar(false); setShowInfo(false); }}
-                    className={`flex items-center px-3 py-3 cursor-pointer transition-colors border-b border-white/[0.04] group ${activeConv?.id === conv.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-[15px] text-white shrink-0 mr-3 ${AVATAR_COLORS[conv.type]}`}>
-                      {initials(conv.contact_name)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
-                        <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-orange-400' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
-                      </div>
-                      {(conv.subject || conv.student_name) && (
-                        <p className="text-[11px] text-orange-400/80 font-bold truncate">{conv.subject || `Re: ${conv.student_name}`}</p>
-                      )}
-                      {/* Meta pills */}
-                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                        {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
-                        {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 truncate max-w-[90px]">{conv.school_name}</span>}
-                        {conv.class_name  && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400">{conv.class_name}</span>}
-                      </div>
-                      <div className="flex justify-between items-center mt-0.5">
-                        <p className="text-[13px] text-white/40 truncate mr-2">{conv.last_message_preview || 'No messages yet'}</p>
-                        {conv.unread_count > 0 && (
-                          <span className="bg-orange-500 text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0">{conv.unread_count}</span>
+                filteredConvs.map(conv => {
+                  const assignedStaff = staff.find(s => s.id === conv.assigned_staff_id);
+                  const isAssignedToMe = conv.assigned_staff_id === profile?.id;
+
+                  return (
+                    <div key={conv.id} onClick={() => { setActiveConv(conv); setShowSidebar(false); setShowInfo(false); }}
+                      className={`flex items-center px-3 py-3 cursor-pointer transition-all border-b border-white/[0.04] group relative ${activeConv?.id === conv.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
+                      
+                      <div className="relative shrink-0 mr-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-[15px] text-white ${AVATAR_COLORS[conv.type]}`}>
+                          {initials(conv.contact_name)}
+                        </div>
+                        {/* Status dot or assigned staff avatar */}
+                        {assignedStaff ? (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#111b21] overflow-hidden bg-white/10 shrink-0" title={`Assigned to ${assignedStaff.full_name}`}>
+                            {assignedStaff.avatar_url ? (
+                              <img src={assignedStaff.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-violet-600 text-[8px] font-black text-white">
+                                {initials(assignedStaff.full_name)}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#111b21] bg-white/10" title="Unassigned" />
                         )}
                       </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
+                          <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-orange-400' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-orange-500 text-white shadow-sm shadow-orange-900/40">You</span>}
+                          {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
+                          {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 truncate max-w-[80px]">{conv.school_name}</span>}
+                        </div>
+
+                        <div className="flex justify-between items-center mt-1">
+                          <p className={`text-[13px] truncate mr-2 ${conv.unread_count > 0 ? 'text-white/90 font-medium' : 'text-white/40'}`}>
+                            {conv.last_message_preview || 'No messages yet'}
+                          </p>
+                          {conv.unread_count > 0 && (
+                            <span className="bg-orange-500 text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-orange-950/50">
+                              {conv.unread_count}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </>
@@ -1305,23 +1353,105 @@ export default function UnifiedInbox() {
                 <button onClick={() => { setShowSidebar(true); setActiveConv(null); setShowInfo(false); }} className="md:hidden text-white/50 hover:text-white">
                   <ChevronLeft className="w-6 h-6" />
                 </button>
-                <button onClick={() => setShowInfo(v => !v)} className="flex items-center gap-2 flex-1 min-w-0 text-left group">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${AVATAR_COLORS[activeConv.type]}`}>
-                    {initials(activeConv.contact_name)}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-white text-[15px] truncate group-hover:text-orange-300 transition-colors">{activeConv.contact_name}</h3>
-                    <p className="text-[11px] text-white/40 truncate">
-                      {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
-                       activeConv.subject ? activeConv.subject :
-                       activeConv.student_name ? `Re: ${activeConv.student_name}` :
-                       activeConv.type === 'school' && isSchool ? 'Teacher' : activeConv.type}
-                    </p>
-                  </div>
-                </button>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <button onClick={() => setShowInfo(v => !v)} className="flex items-center gap-2 min-w-0 text-left group">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-lg ${AVATAR_COLORS[activeConv.type]}`}>
+                      {initials(activeConv.contact_name)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-white text-[15px] truncate group-hover:text-orange-300 transition-colors">{activeConv.contact_name}</h3>
+                      <p className="text-[11px] text-white/40 truncate flex items-center gap-1.5">
+                        {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
+                         activeConv.subject ? activeConv.subject :
+                         activeConv.student_name ? `Re: ${activeConv.student_name}` :
+                         activeConv.role || 'Chat'}
+                        
+                        {/* Assignment Status Pill */}
+                        {activeConv.type === 'students' && (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            activeConv.assigned_staff_id === profile?.id ? 'bg-orange-500/20 text-orange-400' :
+                            activeConv.assigned_staff_id ? 'bg-violet-500/20 text-violet-400' : 'bg-white/5 text-white/30'
+                          }`}>
+                            {activeConv.assigned_staff_id === profile?.id ? 'Assigned to you' :
+                             activeConv.assigned_staff_id ? `Assigned to ${staff.find(s => s.id === activeConv.assigned_staff_id)?.full_name || 'Staff'}` : 'Unassigned'}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                {/* Compose email button — shown when contact has email */}
+
+              <div className="flex items-center gap-2">
+                {/* Assignment Dropdown (Multi-user) */}
+                {activeConv.type === 'students' && (isAdmin || isSchool) && (
+                  <div className="relative group/assign">
+                    <button 
+                      disabled={!!assigningId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
+                    >
+                      {assigningId === activeConv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      <span className="hidden lg:inline">{activeConv.assigned_staff_id ? 'Reassign' : 'Assign'}</span>
+                    </button>
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#233138] rounded-xl shadow-2xl border border-white/[0.08] hidden group-hover/assign:block z-50 overflow-hidden">
+                      <div className="p-2 border-b border-white/5">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-2 py-1">Assign to Staff</p>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <button 
+                          onClick={() => assignConversation(activeConv.id, profile!.id)}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-orange-600 flex items-center justify-center text-[10px] font-black text-white">ME</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-bold text-white truncate">Assign to myself</p>
+                            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">You</p>
+                          </div>
+                          {activeConv.assigned_staff_id === profile?.id && <Check className="w-4 h-4 text-orange-500" />}
+                        </button>
+                        {staff.filter(s => s.id !== profile?.id).map(s => (
+                          <button 
+                            key={s.id}
+                            onClick={() => assignConversation(activeConv.id, s.id)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white overflow-hidden">
+                              {s.avatar_url ? <img src={s.avatar_url} alt="" className="w-full h-full object-cover" /> : initials(s.full_name)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-bold text-white truncate">{s.full_name}</p>
+                              <p className="text-[10px] text-white/30 font-bold uppercase tracking-tight">{s.role}</p>
+                            </div>
+                            {activeConv.assigned_staff_id === s.id && <Check className="w-4 h-4 text-violet-500" />}
+                          </button>
+                        ))}
+                        <button 
+                          onClick={() => assignConversation(activeConv.id, null)}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-rose-500/10 transition-colors text-white/40 hover:text-rose-400 group/unassign"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover/unassign:bg-rose-500/20">
+                            <X className="w-4 h-4" />
+                          </div>
+                          <span className="text-[12px] font-bold">Unassign</span>
+                          {!activeConv.assigned_staff_id && <Check className="w-4 h-4 text-white/20" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Self-assign Quick Action for Teachers */}
+                {activeConv.type === 'students' && isTeacher && !activeConv.assigned_staff_id && (
+                  <button 
+                    onClick={() => assignToMe(activeConv.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Claim Chat
+                  </button>
+                )}
+
                 <button
                   onClick={() => openEmailCompose(activeConv)}
                   title="Send email via SendPulse"
