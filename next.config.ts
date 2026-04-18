@@ -65,11 +65,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/og-image.jpg',
-        destination: '/opengraph-image',
+        destination: '/api/social/og',
       },
       {
         source: '/twitter-image.png',
-        destination: '/twitter-image',
+        destination: '/api/social/twitter',
       },
     ];
   },
