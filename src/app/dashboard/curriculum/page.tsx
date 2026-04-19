@@ -146,8 +146,8 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
   skipped:     { label: 'Skipped',     color: 'text-zinc-500',         icon: ExclamationTriangleIcon },
 };
 
-const INPUT_CLS = 'w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 transition-colors';
-const SELECT_CLS = 'w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 transition-colors';
+const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
+const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
