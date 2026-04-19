@@ -203,8 +203,6 @@ export default function DashboardNavigation() {
           { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { divider: true, label: 'Activities' },
-          { name: 'AI Homework Helper', href: '/dashboard/homework-helper', icon: AcademicCapIcon },
-          { name: 'Flashcard Decks', href: '/dashboard/flashcards', icon: BookOpenIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
