@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
+import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
   Bronze:   { label: 'Bronze',   emoji: '🥉', bar: 'bg-amber-700',  text: 'text-amber-700',  border: 'border-amber-700/40' },
@@ -236,11 +237,15 @@ export default function StudentDashboard() {
                   {levelConf.label}
                 </div>
               </div>
-              {/* Score */}
-              <div className="text-right">
-                <p className="text-3xl font-black text-foreground tabular-nums leading-none">{data.avgScore}%</p>
-                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg Score</p>
-              </div>
+              {/* Score ring */}
+              <RadialRing
+                value={data.avgScore}
+                max={100}
+                size={72}
+                strokeWidth={7}
+                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose}
+                label="Score"
+              />
             </div>
             <h1 className="text-xl font-black text-foreground tracking-tight leading-tight">
               Welcome back, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
@@ -302,28 +307,28 @@ export default function StudentDashboard() {
                 )}
               </div>
             </div>
-            <div className="shrink-0 text-center p-4 bg-card border border-border shadow-sm min-w-[80px]">
-              <p className="text-3xl font-black text-foreground tabular-nums">{data.avgScore}%</p>
-              <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg Score</p>
+            <div className="shrink-0">
+              <RadialRing
+                value={data.avgScore}
+                max={100}
+                size={88}
+                strokeWidth={8}
+                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose}
+                label="Avg Score"
+              />
             </div>
           </div>
 
         </div>
 
-        {/* XP Progress Bar */}
+        {/* XP Progress */}
         <div className="mt-6 relative z-10">
-          <div className="flex justify-between text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
-            <span>{levelConf.label}</span>
-            <span>{data.level !== 'Platinum' ? `${(nextThreshold - data.xp).toLocaleString()} XP to ${nextLevelName}` : 'Max Level!'}</span>
-          </div>
-          <div className="h-1.5 bg-muted overflow-hidden">
-            <motion.div
-              className={`h-full ${levelConf.bar}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${xpPct}%` }}
-              transition={{ duration: 1.4, ease: 'easeOut' }}
-            />
-          </div>
+          <GaugeBar
+            value={Math.round(xpPct)}
+            label={`${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`}
+            color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.orange}
+            height={6}
+          />
         </div>
       </div>
 

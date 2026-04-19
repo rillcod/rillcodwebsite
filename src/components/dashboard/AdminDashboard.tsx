@@ -7,6 +7,7 @@ import {
   ArrowPathIcon, TrophyIcon, CogIcon
 } from '@/lib/icons';
 import Link from 'next/link';
+import { DonutChart, SparkCard, CHART_COLORS } from '@/components/charts';
 
 interface DashStats { label: string; value: string | number; icon: any; gradient: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
@@ -65,6 +66,27 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
             ))}
         </div>
       </div>
+
+      {/* At-a-Glance Overview Charts */}
+      {!dataLoading && stats.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {stats.slice(0, 4).map((s, i) => {
+            const colors = [CHART_COLORS.orange, CHART_COLORS.violet, CHART_COLORS.emerald, CHART_COLORS.blue];
+            const num = typeof s.value === 'number' ? s.value : parseInt(String(s.value).replace(/[^0-9]/g, '')) || 0;
+            const spark = Array.from({ length: 6 }, (_, j) => Math.max(0, num - Math.round((5 - j) * num * 0.08)));
+            return (
+              <SparkCard
+                key={s.label}
+                label={s.label}
+                value={s.value}
+                sparkData={spark}
+                color={colors[i % colors.length]}
+                icon={s.icon}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* School Billing Records */}
       <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
