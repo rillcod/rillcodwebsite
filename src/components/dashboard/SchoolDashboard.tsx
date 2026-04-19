@@ -62,26 +62,6 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
         </div>
       </div>
 
-      {/* At-a-Glance SparkCards */}
-      {!dataLoading && stats.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.slice(0, 4).map((s, i) => {
-            const colors = [CHART_COLORS.orange, CHART_COLORS.emerald, CHART_COLORS.violet, CHART_COLORS.blue];
-            const num = typeof s.value === 'number' ? s.value : parseInt(String(s.value).replace(/[^0-9]/g, '')) || 0;
-            const spark = Array.from({ length: 5 }, (_, j) => Math.max(0, num - Math.round((4 - j) * num * 0.1)));
-            return (
-              <SparkCard
-                key={s.label}
-                label={s.label}
-                value={s.value}
-                sparkData={spark}
-                color={colors[i % colors.length]}
-                icon={s.icon}
-              />
-            );
-          })}
-        </div>
-      )}
 
       {/* Main Grid: Quick Actions + Activity + Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

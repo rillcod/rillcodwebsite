@@ -64,19 +64,6 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
         </div>
       </div>
 
-      {/* SparkCard KPIs */}
-      {!dataLoading && stats.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.slice(0, 4).map((s, i) => {
-            const colors = [CHART_COLORS.orange, CHART_COLORS.violet, CHART_COLORS.emerald, CHART_COLORS.blue];
-            const num = typeof s.value === 'number' ? s.value : parseFloat(String(s.value).replace(/[^0-9.]/g, '')) || 0;
-            const spark = Array.from({ length: 5 }, (_, j) => Math.max(0, Math.round(num * (0.6 + (j / 4) * 0.4))));
-            return (
-              <SparkCard key={s.label} label={s.label} value={s.value} sparkData={spark} color={colors[i % colors.length]} icon={s.icon} />
-            );
-          })}
-        </div>
-      )}
 
       {/* Grading Queue */}
       {teacherActionCenter !== null && (

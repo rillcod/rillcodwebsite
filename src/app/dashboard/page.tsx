@@ -284,7 +284,6 @@ function transformStatsForAdmin(stats: any) {
   if (!stats) return [];
   return [
     { label: 'Partner Schools', value: stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Partner Accounts', value: stats.totalPartners || 0, icon: ShieldCheckIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
