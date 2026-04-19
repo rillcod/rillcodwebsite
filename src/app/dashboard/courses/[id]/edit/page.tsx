@@ -28,6 +28,8 @@ export default function EditCoursePage() {
     duration_hours: '',
     content: '',
     is_published: false,
+    level_order: '1',
+    next_course_id: '',
   });
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -49,6 +51,8 @@ export default function EditCoursePage() {
           duration_hours: c.duration_hours ? String(c.duration_hours) : '',
           content: c.content ?? '',
           is_published: c.is_published ?? false,
+          level_order: String(c.level_order ?? 1),
+          next_course_id: c.next_course_id ?? '',
         });
       }
       setPrograms(programsJson.data ?? []);
@@ -58,6 +62,10 @@ export default function EditCoursePage() {
       setLoading(false);
     });
   }, [profile?.id, authLoading, id]);
+
+  const siblingCourses: any[] = programs
+    .find((p: any) => p.id === form.program_id)
+    ?.courses?.filter((c: any) => c.id !== id) ?? [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +82,8 @@ export default function EditCoursePage() {
         program_id: form.program_id,
         content: form.content.trim() || undefined,
         is_published: form.is_published,
+        level_order: parseInt(form.level_order) || 1,
+        next_course_id: form.next_course_id || null,
       };
       if (form.duration_hours) payload.duration_hours = parseInt(form.duration_hours);
 
@@ -153,6 +163,28 @@ export default function EditCoursePage() {
                 <option key={p.id} value={p.id}>{p.name} — {p.difficulty_level}</option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Level Order</label>
+              <input type="number" min="1" value={form.level_order}
+                onChange={e => setForm(f => ({ ...f, level_order: e.target.value }))}
+                placeholder="1"
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Next Course (promotes to)</label>
+              <select value={form.next_course_id}
+                onChange={e => setForm(f => ({ ...f, next_course_id: e.target.value }))}
+                disabled={siblingCourses.length === 0}
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 cursor-pointer disabled:opacity-40">
+                <option value="">— End of track —</option>
+                {siblingCourses.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

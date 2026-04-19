@@ -13,6 +13,8 @@ export interface CourseInput {
     end_date?: string;
     /** Maps to `courses.is_active` — active courses must have a programme with a positive `price` for checkout. */
     is_published?: boolean;
+    level_order?: number;
+    next_course_id?: string | null;
 }
 
 export interface CourseFilters {

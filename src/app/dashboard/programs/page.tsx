@@ -31,7 +31,8 @@ export default function ProgramsPage() {
     difficulty_level: 'beginner',
     price: '',
     max_students: '',
-    is_active: true
+    is_active: true,
+    delivery_type: 'compulsory',
   });
   const [saving, setSaving] = useState(false);
 
@@ -76,6 +77,7 @@ export default function ProgramsPage() {
         price: form.price ? parseFloat(form.price) : null,
         max_students: form.max_students ? parseInt(form.max_students) : null,
         is_active: form.is_active,
+        delivery_type: form.delivery_type,
       };
 
       if (editing) {
@@ -111,7 +113,8 @@ export default function ProgramsPage() {
       difficulty_level: p.difficulty_level ?? 'beginner',
       price: p.price?.toString() ?? '',
       max_students: p.max_students?.toString() ?? '',
-      is_active: p.is_active
+      is_active: p.is_active,
+      delivery_type: p.delivery_type ?? 'compulsory',
     });
     setShowForm(true);
   };
@@ -166,7 +169,7 @@ export default function ProgramsPage() {
             <p className="text-muted-foreground text-sm mt-1">Configure high-level learning programs and their settings</p>
           </div>
           {isAdmin && (
-            <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true }); setShowForm(true); }}
+            <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory' }); setShowForm(true); }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> New Program
             </button>
@@ -237,6 +240,9 @@ export default function ProgramsPage() {
                       </span>
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {p.difficulty_level}
+                      </span>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.delivery_type === 'optional' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                        {p.delivery_type === 'optional' ? 'Elective' : 'Compulsory'}
                       </span>
                     </div>
                     {isAdmin && (
@@ -335,8 +341,17 @@ export default function ProgramsPage() {
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Delivery Type</label>
+                <select value={form.delivery_type} onChange={e => setForm(s => ({ ...s, delivery_type: e.target.value }))}
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-orange-500 outline-none">
+                  <option value="compulsory">Compulsory — structured lessons &amp; assessments</option>
+                  <option value="optional">Elective / Optional — project-based, self-directed modules</option>
+                </select>
+              </div>
+
               <label className="flex items-center gap-3 cursor-pointer pt-2">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm(s => ({ ...s, is_active: e.target.checked }))} 
+                <input type="checkbox" checked={form.is_active} onChange={e => setForm(s => ({ ...s, is_active: e.target.checked }))}
                         className="w-5 h-5 rounded border-border bg-card shadow-sm text-orange-600 focus:ring-orange-500" />
                 <span className="text-sm font-semibold text-muted-foreground border-orange-500">Program is active currently</span>
               </label>
