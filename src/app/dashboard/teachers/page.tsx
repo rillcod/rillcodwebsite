@@ -76,10 +76,13 @@ export default function TeacherDashboardPage() {
    TEACHER PERSONAL DASHBOARD — For individual staff
 ════════════════════════════════════════════════════════════ */
 function TeacherPersonalDashboard() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<TeacherStats>({
     myClasses: 0, totalStudents: 0, pendingGrades: 0, avgPerformance: 0,
   });
+
+  if (authLoading) return null;
+  if (!profile) return null;
   const [upcomingClasses, setUpcomingClasses] = useState<UpcomingClass[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [recentStudents, setRecentStudents] = useState<any[]>([]);
@@ -270,7 +273,7 @@ function TeacherPersonalDashboard() {
 
             <div className="hidden lg:block relative">
                <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
-                 {profile?.full_name?.[0].toUpperCase()}
+                 {profile?.full_name?.[0]?.toUpperCase() || '?'}
                </div>
                <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-none flex items-center justify-center text-black shadow-2xl rotate-12">
                  <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
@@ -461,9 +464,12 @@ function TeacherPersonalDashboard() {
    ADMIN VIEW — Full teacher roster
 ════════════════════════════════════════════════════════════ */
 function AdminTeacherView({ schoolId }: { schoolId?: string }) {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  if (authLoading) return null;
+  if (!profile) return null;
   const [search, setSearch] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', phone: '', subject: '', password: '' });
