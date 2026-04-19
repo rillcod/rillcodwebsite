@@ -7,7 +7,7 @@
 create table if not exists public.course_curricula (
   id          uuid        primary key default gen_random_uuid(),
   course_id   uuid        not null references public.courses(id),
-  school_id   uuid        not null references public.schools(id),
+  school_id   uuid        references public.schools(id), -- Nullable for global/master curricula
   content     jsonb       not null default '{}',
   version     int         not null default 1,
   created_by  uuid        not null references public.portal_users(id),
@@ -28,9 +28,9 @@ alter table public.lesson_plans
 
 alter table public.course_curricula enable row level security;
 
--- staff can select curricula for their school or global admins can select any
+-- select curricula: admins all, teachers own school or global
 drop policy if exists "staff select curricula for their school" on public.course_curricula;
-create policy "staff select curricula for their school"
+create policy "select_curricula"
   on public.course_curricula
   for select
   using (
@@ -39,13 +39,17 @@ create policy "staff select curricula for their school"
       from public.portal_users pu
       where pu.id = auth.uid()
         and pu.role in ('admin', 'teacher')
-        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
+        and (
+          pu.role = 'admin' 
+          or course_curricula.school_id is null 
+          or pu.school_id = course_curricula.school_id
+        )
     )
   );
 
--- staff can insert curricula for their school or global admins can insert any
+-- insert curricula: admins all, teachers own school only
 drop policy if exists "staff insert curricula for their school" on public.course_curricula;
-create policy "staff insert curricula for their school"
+create policy "insert_curricula"
   on public.course_curricula
   for insert
   with check (
@@ -54,13 +58,16 @@ create policy "staff insert curricula for their school"
       from public.portal_users pu
       where pu.id = auth.uid()
         and pu.role in ('admin', 'teacher')
-        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
+        and (
+          pu.role = 'admin' 
+          or (pu.school_id is not null and pu.school_id = course_curricula.school_id)
+        )
     )
   );
 
--- staff can update curricula for their school or global admins can update any
+-- update curricula: admins all, teachers own school only
 drop policy if exists "staff update curricula for their school" on public.course_curricula;
-create policy "staff update curricula for their school"
+create policy "update_curricula"
   on public.course_curricula
   for update
   using (
@@ -69,13 +76,16 @@ create policy "staff update curricula for their school"
       from public.portal_users pu
       where pu.id = auth.uid()
         and pu.role in ('admin', 'teacher')
-        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
+        and (
+          pu.role = 'admin' 
+          or (pu.school_id is not null and pu.school_id = course_curricula.school_id)
+        )
     )
   );
 
--- admins can delete curricula
-drop policy if exists "school admins delete curricula for their school" on public.course_curricula;
-create policy "admins delete curricula for their school"
+-- delete curricula: admins only
+drop policy if exists "admins delete curricula for their school" on public.course_curricula;
+create policy "delete_curricula"
   on public.course_curricula
   for delete
   using (
