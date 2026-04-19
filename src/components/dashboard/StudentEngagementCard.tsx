@@ -7,6 +7,7 @@ import {
   ArrowRightIcon, StarIcon, ChartBarIcon,
 } from '@/lib/icons';
 import { getWAECGrade, getMotivationMessage, ACTIVITY_CAPS } from '@/lib/grading';
+import { BadgePill } from '@/components/badges/BadgeCard';
 
 interface XPSummary {
   total_xp: number;
@@ -193,14 +194,12 @@ export default function StudentEngagementCard({ studentId }: Props) {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Badges Earned</p>
             <div className="flex flex-wrap gap-2">
               {badges.slice(0, 6).map(b => (
-                <div
+                <BadgePill
                   key={b.badge_key}
-                  title={b.badge_label}
-                  className="flex items-center gap-1.5 px-2 py-1 bg-muted/40 border border-border text-[10px] font-bold text-foreground"
-                >
-                  <span>{b.badge_icon}</span>
-                  <span className="hidden sm:inline truncate max-w-[80px]">{b.badge_label}</span>
-                </div>
+                  badgeKey={b.badge_key}
+                  badgeIcon={b.badge_icon}
+                  badgeLabel={b.badge_label}
+                />
               ))}
               {badges.length > 6 && (
                 <div className="flex items-center px-2 py-1 bg-muted/40 border border-border text-[10px] font-bold text-muted-foreground">

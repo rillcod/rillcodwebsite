@@ -11,6 +11,7 @@ import {
 } from '@/lib/icons';
 import { getWAECGrade, ACTIVITY_CAPS, getMotivationMessage } from '@/lib/grading';
 import { engagementTables } from '@/types/engagement';
+import { DonutChart, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface StudentEngagementRow {
@@ -281,25 +282,52 @@ export default function EngagementPage() {
         </div>
       </div>
 
-      {/* Risk summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {([
-          { key: 'safe',     label: 'Active',   count: counts.safe,     color: 'text-emerald-400', bg: 'bg-emerald-500/5  border-emerald-500/20' },
-          { key: 'watch',    label: 'Watch',    count: counts.watch,    color: 'text-amber-400',   bg: 'bg-amber-500/5   border-amber-500/20'   },
-          { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-orange-400',  bg: 'bg-orange-500/5  border-orange-500/20'  },
-          { key: 'critical', label: 'Critical', count: counts.critical, color: 'text-rose-400',    bg: 'bg-rose-500/5    border-rose-500/20'    },
-        ] as const).map(s => (
-          <button
-            key={s.key}
-            onClick={() => setRiskFilter(riskFilter === s.key ? 'all' : s.key)}
-            className={`border p-4 text-left transition-all ${s.bg} ${
-              riskFilter === s.key ? 'ring-2 ring-offset-1 ring-orange-500' : ''
-            }`}
-          >
-            <p className={`text-3xl font-black ${s.color}`}>{s.count}</p>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-1">{s.label}</p>
-          </button>
-        ))}
+      {/* Risk overview — donut + tap-to-filter cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+        {/* Donut chart */}
+        <div className="sm:col-span-2 bg-card border border-border p-5 flex flex-col items-center justify-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Class Breakdown</p>
+          <DonutChart
+            data={[
+              { label: 'Active',   value: counts.safe,     color: CHART_COLORS.emerald },
+              { label: 'Watch',    value: counts.watch,    color: CHART_COLORS.amber   },
+              { label: 'At Risk',  value: counts.at_risk,  color: CHART_COLORS.orange  },
+              { label: 'Critical', value: counts.critical, color: CHART_COLORS.rose    },
+            ]}
+            centerLabel="Students"
+            centerValue={students.length}
+            height={180}
+            innerRadius={52}
+            outerRadius={80}
+          />
+        </div>
+
+        {/* Filter cards */}
+        <div className="sm:col-span-3 grid grid-cols-2 gap-3">
+          {([
+            { key: 'safe',     label: 'Active',   count: counts.safe,     color: 'text-emerald-400', bg: 'bg-emerald-500/5  border-emerald-500/20', barColor: CHART_COLORS.emerald },
+            { key: 'watch',    label: 'Watch',    count: counts.watch,    color: 'text-amber-400',   bg: 'bg-amber-500/5   border-amber-500/20',   barColor: CHART_COLORS.amber   },
+            { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-orange-400',  bg: 'bg-orange-500/5  border-orange-500/20',  barColor: CHART_COLORS.orange  },
+            { key: 'critical', label: 'Critical', count: counts.critical, color: 'text-rose-400',    bg: 'bg-rose-500/5    border-rose-500/20',    barColor: CHART_COLORS.rose    },
+          ] as const).map(s => (
+            <button
+              key={s.key}
+              onClick={() => setRiskFilter(riskFilter === s.key ? 'all' : s.key)}
+              className={`border p-4 text-left transition-all space-y-2 ${s.bg} ${
+                riskFilter === s.key ? 'ring-2 ring-offset-1 ring-orange-500' : ''
+              }`}
+            >
+              <p className={`text-3xl font-black leading-none ${s.color}`}>{s.count}</p>
+              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">{s.label}</p>
+              <GaugeBar
+                value={students.length > 0 ? Math.round((s.count / students.length) * 100) : 0}
+                color={s.barColor}
+                showValue={false}
+                height={3}
+              />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* At-risk alert bar */}

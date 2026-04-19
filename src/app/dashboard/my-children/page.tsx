@@ -8,7 +8,9 @@ import {
   AcademicCapIcon, DocumentChartBarIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, BanknotesIcon, TrophyIcon,
   BuildingOfficeIcon, UserIcon, ArrowRightIcon, HeartIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
+import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 interface Child {
   id: string;
@@ -103,17 +105,26 @@ export default function MyChildrenPage() {
               You are an essential part of your child's learning journey. Your involvement, encouragement,
               and support make a real difference in their success at Rillcod Academy.
             </p>
-            <div className="flex flex-wrap gap-4 mt-4">
-              {[
-                { label: 'Children Enrolled', value: children.length },
-                { label: 'Average Attendance', value: (() => { const p = Object.values(statsMap).filter(s => s.attendancePct != null); return p.length > 0 ? `${Math.round(p.reduce((a, s) => a + (s.attendancePct ?? 0), 0) / p.length)}%` : '—'; })() },
-                { label: 'Unpaid Invoices', value: Object.values(statsMap).reduce((a, s) => a + s.unpaidInvoices, 0) },
-              ].map(({ label, value }) => (
-                <div key={label} className="text-center min-w-[80px]">
-                  <p className="text-xl font-black text-orange-400">{value}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{label}</p>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-6 mt-5">
+              {(() => {
+                const attVals = Object.values(statsMap).filter(s => s.attendancePct != null);
+                const avgAtt = attVals.length > 0 ? Math.round(attVals.reduce((a, s) => a + (s.attendancePct ?? 0), 0) / attVals.length) : null;
+                const unpaid = Object.values(statsMap).reduce((a, s) => a + s.unpaidInvoices, 0);
+                return (
+                  <>
+                    <RadialRing value={children.length} max={Math.max(children.length, 5)} size={64} strokeWidth={6} color={CHART_COLORS.orange} label="Enrolled" subLabel="children" />
+                    {avgAtt != null && <RadialRing value={avgAtt} max={100} size={64} strokeWidth={6} color={avgAtt >= 70 ? CHART_COLORS.emerald : CHART_COLORS.rose} label={`${avgAtt}%`} subLabel="avg attendance" />}
+                    {unpaid > 0 && (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-16 h-16 border-2 border-rose-500/40 bg-rose-500/10 flex items-center justify-center">
+                          <span className="text-2xl font-black text-rose-400">{unpaid}</span>
+                        </div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-rose-400">Unpaid</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -195,36 +206,61 @@ export default function MyChildrenPage() {
                   </div>
                 </div>
 
-                {/* Stats strip */}
+                {/* Stats strip — visual ring charts */}
                 {s && (
-                  <div className="grid grid-cols-4 border-t border-border">
-                    {[
-                      {
-                        label: 'Attendance',
-                        value: s.attendancePct != null ? `${s.attendancePct}%` : '—',
-                        color: s.attendancePct != null && s.attendancePct >= 70 ? 'text-emerald-400' : s.attendancePct != null ? 'text-rose-400' : 'text-muted-foreground',
-                      },
-                      {
-                        label: 'Last Grade',
-                        value: s.lastGrade ?? '—',
-                        color: s.lastGrade?.startsWith('A') ? 'text-emerald-400' : s.lastGrade?.startsWith('B') ? 'text-blue-400' : s.lastGrade?.startsWith('C') ? 'text-amber-400' : 'text-muted-foreground',
-                      },
-                      {
-                        label: 'Unpaid',
-                        value: s.unpaidInvoices > 0 ? `${s.unpaidInvoices}` : '0',
-                        color: s.unpaidInvoices > 0 ? 'text-rose-400' : 'text-muted-foreground',
-                      },
-                      {
-                        label: 'Certs',
-                        value: `${s.certificates}`,
-                        color: s.certificates > 0 ? 'text-amber-400' : 'text-muted-foreground',
-                      },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="py-3 text-center border-r border-border last:border-r-0">
-                        <p className={`text-lg font-black ${color}`}>{value}</p>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{label}</p>
+                  <div className="border-t border-border p-4 space-y-4">
+                    {/* Radial rings row */}
+                    <div className="flex items-center justify-around">
+                      <RadialRing
+                        value={s.attendancePct ?? 0}
+                        max={100}
+                        size={72}
+                        strokeWidth={7}
+                        color={s.attendancePct != null && s.attendancePct >= 70 ? CHART_COLORS.emerald : CHART_COLORS.rose}
+                        label="Attendance"
+                      />
+                      <RadialRing
+                        value={
+                          s.lastGrade?.startsWith('A') ? 90 :
+                          s.lastGrade?.startsWith('B') ? 75 :
+                          s.lastGrade?.startsWith('C') ? 60 :
+                          s.lastGrade?.startsWith('D') ? 45 : 0
+                        }
+                        max={100}
+                        size={72}
+                        strokeWidth={7}
+                        color={
+                          s.lastGrade?.startsWith('A') ? CHART_COLORS.emerald :
+                          s.lastGrade?.startsWith('B') ? CHART_COLORS.blue :
+                          s.lastGrade?.startsWith('C') ? CHART_COLORS.amber :
+                          CHART_COLORS.rose
+                        }
+                        label={s.lastGrade ?? 'Grade'}
+                        subLabel="Last result"
+                      />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={`text-2xl font-black ${s.certificates > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                          {s.certificates}
+                        </div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Certs</p>
+                        {s.unpaidInvoices > 0 && (
+                          <div className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/20 px-2 py-1">
+                            <ExclamationTriangleIcon className="w-3 h-3 text-rose-400" />
+                            <span className="text-[9px] font-black text-rose-400">{s.unpaidInvoices} unpaid</span>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Attendance gauge bar */}
+                    {s.attendancePct != null && (
+                      <GaugeBar
+                        value={s.attendancePct}
+                        label="Attendance rate"
+                        color={s.attendancePct >= 75 ? CHART_COLORS.emerald : s.attendancePct >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose}
+                        height={4}
+                      />
+                    )}
                   </div>
                 )}
 

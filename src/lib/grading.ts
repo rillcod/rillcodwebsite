@@ -150,17 +150,32 @@ export interface Badge {
   unlockCondition: string;
 }
 
+// Badge visual metadata — tier: 'bronze' | 'silver' | 'gold' | 'platinum'
+// color: solid accent hex used in SVG + gradient background
+export const BADGE_VISUAL: Record<string, { tier: string; color: string; bg: string; borderColor: string }> = {
+  first_assignment: { tier: 'bronze',   color: '#f97316', bg: 'from-orange-600/20 to-orange-400/5',   borderColor: 'border-orange-500/40' },
+  consistent_10:    { tier: 'silver',   color: '#8b5cf6', bg: 'from-violet-600/20 to-violet-400/5',   borderColor: 'border-violet-500/40' },
+  project_master:   { tier: 'silver',   color: '#06b6d4', bg: 'from-cyan-600/20 to-cyan-400/5',       borderColor: 'border-cyan-500/40'   },
+  term_champion:    { tier: 'gold',     color: '#f59e0b', bg: 'from-amber-600/20 to-amber-400/5',     borderColor: 'border-amber-500/40'  },
+  ai_explorer:      { tier: 'silver',   color: '#10b981', bg: 'from-emerald-600/20 to-emerald-400/5', borderColor: 'border-emerald-500/40'},
+  streak_hero:      { tier: 'gold',     color: '#f97316', bg: 'from-orange-600/25 to-rose-600/5',     borderColor: 'border-orange-500/50' },
+  top_of_class:     { tier: 'platinum', color: '#06b6d4', bg: 'from-cyan-600/25 to-blue-600/5',       borderColor: 'border-cyan-400/60'   },
+  showcase_ready:   { tier: 'gold',     color: '#ec4899', bg: 'from-pink-600/20 to-pink-400/5',       borderColor: 'border-pink-500/40'   },
+  never_late:       { tier: 'silver',   color: '#3b82f6', bg: 'from-blue-600/20 to-blue-400/5',       borderColor: 'border-blue-500/40'   },
+  nigeria_proud:    { tier: 'platinum', color: '#10b981', bg: 'from-emerald-600/25 to-green-600/5',   borderColor: 'border-emerald-400/60'},
+};
+
 export const BADGES: Badge[] = [
-  { key: 'first_assignment',    label: 'First Step',        icon: '🎯', description: 'Submitted your very first assignment',    unlockCondition: 'assignment_submitted (count: 1)' },
-  { key: 'consistent_10',       label: 'Consistent',        icon: '🔥', description: '10 assignments submitted',               unlockCondition: 'assignment_submitted (count: 10)' },
-  { key: 'project_master',      label: 'Builder',           icon: '🏗️', description: 'Delivered 3 projects',                   unlockCondition: 'project_submitted (count: 3)' },
-  { key: 'term_champion',       label: 'Term Champion',     icon: '🏆', description: 'Zero missed tasks in a term',            unlockCondition: 'full_term' },
-  { key: 'ai_explorer',         label: 'AI Explorer',       icon: '🤖', description: 'Used AI tools in 5 projects',            unlockCondition: 'project_submitted with AI tag (count: 5)' },
-  { key: 'streak_hero',         label: 'Streak Hero',       icon: '⚡', description: '6-week submission streak',               unlockCondition: 'week_streak_6' },
-  { key: 'top_of_class',        label: 'Top of Class',      icon: '🌟', description: 'Highest scorer in any term assessment',  unlockCondition: 'highest assessment score in cohort' },
-  { key: 'showcase_ready',      label: 'Showcase Ready',    icon: '🎨', description: 'Project selected for school showcase',   unlockCondition: 'project marked showcase_ready by teacher' },
-  { key: 'never_late',          label: 'Always On Time',    icon: '⏰', description: 'Every assignment submitted on or before due date for a full term', unlockCondition: 'no late submissions in a term' },
-  { key: 'nigeria_proud',       label: 'Nigeria Proud',     icon: '🇳🇬', description: 'Nigerian tech context used in 3 projects', unlockCondition: 'project with nigeria_context tag (count: 3)' },
+  { key: 'first_assignment', label: 'Initiator',       icon: 'INIT', description: 'First assignment submitted — the journey begins', unlockCondition: 'assignment_submitted (count: 1)' },
+  { key: 'consistent_10',   label: 'Relentless',       icon: 'RLNT', description: '10 assignments completed — no shortcuts taken',   unlockCondition: 'assignment_submitted (count: 10)' },
+  { key: 'project_master',  label: 'Architect',        icon: 'ARCH', description: '3 projects delivered — builder mindset proven',   unlockCondition: 'project_submitted (count: 3)' },
+  { key: 'term_champion',   label: 'Flawless',         icon: 'FLWS', description: 'Perfect term — zero missed tasks',                unlockCondition: 'full_term' },
+  { key: 'ai_explorer',     label: 'AI Native',        icon: 'AINV', description: 'AI integrated into 5 projects — future-ready',    unlockCondition: 'project_submitted with AI tag (count: 5)' },
+  { key: 'streak_hero',     label: 'Iron Streak',      icon: 'IRON', description: '6 consecutive active weeks — unbreakable',        unlockCondition: 'week_streak_6' },
+  { key: 'top_of_class',    label: 'Apex',             icon: 'APEX', description: 'Highest assessment score in cohort',              unlockCondition: 'highest assessment score in cohort' },
+  { key: 'showcase_ready',  label: 'Showcase',         icon: 'SHWC', description: 'Project selected for school showcase display',    unlockCondition: 'project marked showcase_ready by teacher' },
+  { key: 'never_late',      label: 'Punctual',         icon: 'PNCT', description: 'Full term — every submission on or before due',   unlockCondition: 'no late submissions in a term' },
+  { key: 'nigeria_proud',   label: 'Naija Built',      icon: 'NAIJ', description: 'Nigerian real-world context in 3 projects',       unlockCondition: 'project with nigeria_context tag (count: 3)' },
 ];
 
 // ── Calculation Functions ─────────────────────────────────────────────────────

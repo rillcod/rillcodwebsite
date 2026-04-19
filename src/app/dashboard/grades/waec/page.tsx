@@ -16,6 +16,7 @@ import {
   getMotivationMessage, formatScore,
   type ScoreComponents, type WAECGrade,
 } from '@/lib/grading';
+import { BadgeCardFull } from '@/components/badges/BadgeCard';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function ScoreSlider({
@@ -380,14 +381,14 @@ export default function WAECGradingPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {BADGES.map(badge => (
-                <div key={badge.key} className="flex items-start gap-3 p-3 bg-muted/30 border border-border">
-                  <span className="text-2xl">{badge.icon}</span>
-                  <div>
-                    <p className="text-xs font-black text-foreground">{badge.label}</p>
-                    <p className="text-[10px] text-muted-foreground mb-1">{badge.description}</p>
-                    <p className="text-[9px] text-orange-400 font-bold uppercase tracking-wider">{badge.unlockCondition}</p>
-                  </div>
-                </div>
+                <BadgeCardFull
+                  key={badge.key}
+                  badgeKey={badge.key}
+                  label={badge.label}
+                  icon={badge.icon}
+                  description={badge.description}
+                  unlockCondition={badge.unlockCondition}
+                />
               ))}
             </div>
           </div>

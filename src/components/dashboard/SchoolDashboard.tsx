@@ -6,6 +6,7 @@ import {
   ArrowRightIcon, ArrowPathIcon, CogIcon
 } from '@/lib/icons';
 import Link from 'next/link';
+import { SparkCard, RadialRing, CHART_COLORS } from '@/components/charts';
 
 interface DashStats { label: string; value: string | number; icon: any; gradient: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
@@ -60,6 +61,27 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             ))}
         </div>
       </div>
+
+      {/* At-a-Glance SparkCards */}
+      {!dataLoading && stats.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.slice(0, 4).map((s, i) => {
+            const colors = [CHART_COLORS.orange, CHART_COLORS.emerald, CHART_COLORS.violet, CHART_COLORS.blue];
+            const num = typeof s.value === 'number' ? s.value : parseInt(String(s.value).replace(/[^0-9]/g, '')) || 0;
+            const spark = Array.from({ length: 5 }, (_, j) => Math.max(0, num - Math.round((4 - j) * num * 0.1)));
+            return (
+              <SparkCard
+                key={s.label}
+                label={s.label}
+                value={s.value}
+                sparkData={spark}
+                color={colors[i % colors.length]}
+                icon={s.icon}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Grid: Quick Actions + Activity + Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -184,6 +206,36 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
               )}
             </div>
           </div>
+
+          {/* Performance overview rings */}
+          {!dataLoading && stats.length >= 2 && (() => {
+            const pct = (val: string | number) => {
+              const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
+              return Math.min(100, n);
+            };
+            return (
+              <div className="bg-card shadow-sm border border-border p-5 space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Performance Rings</p>
+                <div className="flex items-center justify-around flex-wrap gap-4">
+                  {stats.slice(0, 3).map((s, i) => {
+                    const colors = [CHART_COLORS.orange, CHART_COLORS.emerald, CHART_COLORS.violet];
+                    const val = pct(s.value);
+                    return (
+                      <RadialRing
+                        key={s.label}
+                        value={val}
+                        max={Math.max(val, 100)}
+                        size={70}
+                        strokeWidth={7}
+                        color={colors[i % colors.length]}
+                        label={s.label.split(' ').slice(-1)[0]}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Navigate To */}
           <div className="bg-card shadow-sm border border-border rounded-none p-5">

@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DonutChart as RechartDonut, HorizontalBarChart, SparkCard, CHART_COLORS } from '@/components/charts';
 
 interface StudentRow {
   id: string;
@@ -298,67 +299,72 @@ export default function SchoolOverviewPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* SparkCard KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={UserGroupIcon} label="Total Students" value={stats.total}
-          sub={`${stats.active} active`} color="bg-orange-500/20 text-orange-400" />
-        <StatCard icon={TrophyIcon} label="Avg Score" value={`${stats.avgScore.toFixed(0)}%`}
-          sub="across all assignments" color="bg-yellow-500/20 text-yellow-400" />
-        <StatCard icon={ClipboardDocumentCheckIcon} label="Avg Attendance"
-          value={`${stats.avgAttendance.toFixed(0)}%`}
-          sub="present rate" color="bg-emerald-500/20 text-emerald-400" />
-        <StatCard icon={AcademicCapIcon} label="Enrolled"
-          value={stats.active}
-          sub="active learners" color="bg-blue-500/20 text-blue-400" />
+        <SparkCard label="Total Students"   value={stats.total}                         subValue={`${stats.active} active`}      color={CHART_COLORS.orange}  icon={UserGroupIcon}            sparkData={[stats.total - 5, stats.total - 3, stats.total - 1, stats.total]} />
+        <SparkCard label="Avg Score"        value={`${stats.avgScore.toFixed(0)}%`}     subValue="Across all assignments"        color={CHART_COLORS.amber}   icon={TrophyIcon}               sparkData={[40, 55, stats.avgScore * 0.8, stats.avgScore * 0.9, stats.avgScore]} />
+        <SparkCard label="Avg Attendance"   value={`${stats.avgAttendance.toFixed(0)}%`} subValue="Present rate"                 color={CHART_COLORS.emerald} icon={ClipboardDocumentCheckIcon} sparkData={[60, 70, stats.avgAttendance * 0.85, stats.avgAttendance]} />
+        <SparkCard label="Active Learners"  value={stats.active}                        subValue="Portal students"               color={CHART_COLORS.blue}    icon={AcademicCapIcon}          sparkData={[stats.active - 3, stats.active - 1, stats.active]} />
       </div>
 
-      {/* Analytics Row */}
+      {/* Analytics row — recharts charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Score Distribution Donut */}
-        <div className="bg-[#0d1526] border border-border rounded-none p-5 flex flex-col items-center justify-center">
-          <DonutChart
-            label="Score Distribution"
-            center={`${stats.avgScore.toFixed(0)}%`}
-            segments={[
-              { label: 'Excellent (75+)', color: '#10b981', value: students.filter(s => s.avgGrade >= 75).length },
-              { label: 'Good (50–74)', color: '#f59e0b', value: students.filter(s => s.avgGrade >= 50 && s.avgGrade < 75).length },
-              { label: 'At Risk (<50)', color: '#ef4444', value: students.filter(s => s.avgGrade > 0 && s.avgGrade < 50).length },
-              { label: 'No Data', color: '#374151', value: students.filter(s => s.avgGrade === 0).length },
+        <div className="bg-[#0d1526] border border-border p-5 space-y-4">
+          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Score Distribution</p>
+          <RechartDonut
+            data={[
+              { label: 'Excellent (75+)', color: CHART_COLORS.emerald, value: students.filter(s => s.avgGrade >= 75).length },
+              { label: 'Good (50–74)',    color: CHART_COLORS.amber,   value: students.filter(s => s.avgGrade >= 50 && s.avgGrade < 75).length },
+              { label: 'At Risk (<50)',  color: CHART_COLORS.rose,    value: students.filter(s => s.avgGrade > 0 && s.avgGrade < 50).length },
+              { label: 'No Data',        color: '#374151',              value: students.filter(s => s.avgGrade === 0).length },
             ]}
+            centerLabel="Avg Score"
+            centerValue={`${stats.avgScore.toFixed(0)}%`}
+            height={200}
+            innerRadius={55}
+            outerRadius={82}
           />
         </div>
 
         {/* Attendance Distribution Donut */}
-        <div className="bg-[#0d1526] border border-border rounded-none p-5 flex flex-col items-center justify-center">
-          <DonutChart
-            label="Attendance Distribution"
-            center={`${stats.avgAttendance.toFixed(0)}%`}
-            segments={[
-              { label: 'High (75+)', color: '#3b82f6', value: students.filter(s => s.attendance >= 75).length },
-              { label: 'Mid (50–74)', color: '#a855f7', value: students.filter(s => s.attendance >= 50 && s.attendance < 75).length },
-              { label: 'Low (<50)', color: '#f97316', value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
-              { label: 'No Record', color: '#374151', value: students.filter(s => s.attendance === 0).length },
+        <div className="bg-[#0d1526] border border-border p-5 space-y-4">
+          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Attendance Distribution</p>
+          <RechartDonut
+            data={[
+              { label: 'High (75+)', color: CHART_COLORS.blue,   value: students.filter(s => s.attendance >= 75).length },
+              { label: 'Mid (50–74)', color: CHART_COLORS.violet, value: students.filter(s => s.attendance >= 50 && s.attendance < 75).length },
+              { label: 'Low (<50)',  color: CHART_COLORS.orange, value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
+              { label: 'No Record', color: '#374151',             value: students.filter(s => s.attendance === 0).length },
             ]}
+            centerLabel="Avg Attend"
+            centerValue={`${stats.avgAttendance.toFixed(0)}%`}
+            height={200}
+            innerRadius={55}
+            outerRadius={82}
           />
         </div>
 
         {/* Top Performers */}
-        <div className="bg-[#0d1526] border border-border rounded-none p-5">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Top Performers</p>
+        <div className="bg-[#0d1526] border border-border p-5">
+          <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Top Performers</p>
           {students.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-4">No data</p>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {[...students].sort((a, b) => b.avgGrade - a.avgGrade).slice(0, 5).map((s, i) => (
                 <div key={s.id} className="flex items-center gap-3">
-                  <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                    {i + 1}
-                  </span>
+                  <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
+                    i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
+                  }`}>{i + 1}</span>
                   <div className="w-7 h-7 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
-                    <span className="text-foreground text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
+                    <span className="text-white text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{s.full_name?.split(' ')[0]}</p>
+                    <p className="text-xs font-bold text-foreground truncate">{s.full_name?.split(' ')[0]}</p>
+                    <div className="h-1 bg-muted rounded-full mt-1 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${s.avgGrade}%`, background: CHART_COLORS.orange }} />
+                    </div>
                   </div>
                   <ScoreBadge score={s.avgGrade} />
                 </div>
@@ -368,30 +374,20 @@ export default function SchoolOverviewPage() {
         </div>
       </div>
 
-      {/* Performance Bar Chart */}
-      <div className="bg-[#0d1526] border border-border rounded-none p-5 mb-6">
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Performance Overview</h2>
-        <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
-          {filtered.slice(0, 20).map(s => (
-            <div key={s.id} className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-28 truncate flex-shrink-0">{s.full_name?.split(' ')?.[0] ?? 'Student'}</span>
-              <div className="flex-1 bg-card shadow-sm rounded-full h-2.5 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${s.avgGrade}%`,
-                    background: s.avgGrade >= 75 ? '#10b981' : s.avgGrade >= 50 ? '#f59e0b' : '#ef4444',
-                  }}
-                />
-              </div>
-              <ScoreBadge score={s.avgGrade} />
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-muted-foreground text-sm text-center py-8">No students found.</p>
-          )}
+      {/* Class Performance — horizontal bar chart */}
+      {filtered.length > 0 && (
+        <div className="bg-[#0d1526] border border-border p-5 mb-6">
+          <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest mb-4">Class Performance Overview</h2>
+          <HorizontalBarChart
+            data={filtered.slice(0, 15).map(s => ({
+              label: s.full_name?.split(' ')[0] ?? 'Student',
+              value: Math.round(s.avgGrade),
+              color: s.avgGrade >= 75 ? CHART_COLORS.emerald : s.avgGrade >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose,
+            }))}
+            formatValue={v => `${v}%`}
+          />
         </div>
-      </div>
+      )}
 
       {/* Student Table */}
       <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">

@@ -5,10 +5,11 @@ import {
   UserGroupIcon, DocumentChartBarIcon, ClipboardDocumentCheckIcon,
   ArrowRightIcon, ArrowPathIcon, AcademicCapIcon, EnvelopeIcon,
   ClipboardDocumentListIcon, TrophyIcon, BanknotesIcon, BellIcon,
-  ExclamationTriangleIcon, CheckCircleIcon,
+  ExclamationTriangleIcon, CheckCircleIcon, BookOpenIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 interface ChildSummary {
   id: string;
@@ -42,44 +43,87 @@ const QUICK_ACTIONS = [
   { name: 'Messages',       href: '/dashboard/messages',           icon: EnvelopeIcon,               desc: 'Contact teachers & staff',      bg: 'from-cyan-600 to-cyan-400',       ring: 'border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10' },
 ];
 
+interface CurriculumMilestone {
+  child_id: string;
+  child_name: string;
+  school_name: string | null;
+  course_name: string;
+  current_term: number;
+  current_week: number;
+  total_weeks: number;
+  last_topic: string;
+  progress_pct: number;
+}
+
 export default function ParentDashboard({ profile, children, dataLoading, onRefresh }: ParentDashboardProps) {
   const firstName = profile.full_name?.split(' ')[0] ?? 'Parent';
   const [stats, setStats] = useState<DashStats | null>(null);
+  const [milestones, setMilestones] = useState<CurriculumMilestone[]>([]);
 
   useEffect(() => {
     if (!profile?.id || children.length === 0) return;
     const supabase = createClient();
-    // Map children to their user IDs - children have 'id' field which is their user_id
     const childUserIds = children.map(c => c.id).filter(Boolean);
 
+    // ── Invoice + notification stats ──────────────────────────────────────────
     Promise.all([
-      // Outstanding + overdue invoices for all children
       childUserIds.length > 0
-        ? supabase
-            .from('invoices')
-            .select('amount, currency, status')
-            .in('portal_user_id', childUserIds)
-            .in('status', ['pending', 'overdue'])
+        ? supabase.from('invoices').select('amount, currency, status')
+            .in('portal_user_id', childUserIds).in('status', ['pending', 'overdue'])
         : Promise.resolve({ data: [] }),
-
-      // Unread notifications
-      supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', profile.id)
-        .eq('is_read', false),
+      supabase.from('notifications').select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id).eq('is_read', false),
     ]).then(([invRes, notifRes]) => {
       const invoices = (invRes as any).data ?? [];
       const total = invoices.reduce((sum: number, inv: any) => sum + Number(inv.amount), 0);
       const overdue = invoices.filter((inv: any) => inv.status === 'overdue').length;
       const currency = invoices[0]?.currency ?? 'NGN';
-      setStats({
-        outstandingBalance: total,
-        currency,
-        unreadNotifications: (notifRes as any).count ?? 0,
-        overdueinvoices: overdue,
-      });
+      setStats({ outstandingBalance: total, currency, unreadNotifications: (notifRes as any).count ?? 0, overdueinvoices: overdue });
     });
+
+    // ── Curriculum milestone fetch ─────────────────────────────────────────────
+    ;(async () => {
+      try {
+        const { data } = await supabase
+          .from('enrollments')
+          .select('user_id, programs(courses(id, title, course_curricula(id, content, curriculum_week_tracking(term_number, week_number, status))))')
+          .in('user_id', childUserIds)
+          .limit(10);
+        if (!data) return;
+        const ms: CurriculumMilestone[] = [];
+        for (const enr of data) {
+          const child = children.find(c => c.id === enr.user_id);
+          if (!child) continue;
+          const courses = (enr as any).programs?.courses ?? [];
+          for (const course of courses) {
+            const curric = (course.course_curricula ?? [])[0];
+            if (!curric?.content) continue;
+            const tracking: any[] = curric.curriculum_week_tracking ?? [];
+            const completed = tracking
+              .filter((t: any) => t.status === 'completed')
+              .sort((a: any, b: any) => b.term_number - a.term_number || b.week_number - a.week_number);
+            const latest = completed[0];
+            const currentTerm = latest?.term_number ?? 1;
+            const currentWeek = latest?.week_number ?? 0;
+            const terms = (curric.content as any)?.terms ?? [];
+            const weekObj = (terms.find((t: any) => t.term === currentTerm)?.weeks ?? [])
+              .find((w: any) => w.week === currentWeek);
+            ms.push({
+              child_id: child.id,
+              child_name: child.full_name,
+              school_name: child.school_name,
+              course_name: course.title ?? 'Course',
+              current_term: currentTerm,
+              current_week: currentWeek,
+              total_weeks: 8,
+              last_topic: weekObj?.topic ?? 'In progress',
+              progress_pct: Math.round((completed.length / 24) * 100),
+            });
+          }
+        }
+        setMilestones(ms);
+      } catch { /* silent */ }
+    })();
   }, [profile?.id, children.length]); // eslint-disable-line
 
   const formatCurrency = (amount: number, currency: string) =>
@@ -122,31 +166,70 @@ export default function ParentDashboard({ profile, children, dataLoading, onRefr
         )}
       </div>
 
-      {/* Stats row */}
+      {/* Stats row with visual rings */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="bg-card border border-border p-4">
-            <p className={`text-xl font-black ${stats.outstandingBalance > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {stats.outstandingBalance > 0 ? formatCurrency(stats.outstandingBalance, stats.currency) : 'All Clear'}
-            </p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Outstanding Balance</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Outstanding Balance */}
+          <div className={`bg-card border p-5 flex items-center gap-4 ${stats.outstandingBalance > 0 ? 'border-rose-500/30' : 'border-border'}`}>
+            <RadialRing
+              value={stats.overdueinvoices > 0 ? 100 : stats.outstandingBalance > 0 ? 50 : 0}
+              max={100}
+              size={64}
+              strokeWidth={6}
+              color={stats.outstandingBalance > 0 ? CHART_COLORS.rose : CHART_COLORS.emerald}
+              label="Balance"
+            />
+            <div>
+              <p className={`text-lg font-black leading-none ${stats.outstandingBalance > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                {stats.outstandingBalance > 0 ? formatCurrency(stats.outstandingBalance, stats.currency) : 'All Clear'}
+              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Outstanding Balance</p>
+              {stats.overdueinvoices > 0 && (
+                <Link href="/dashboard/parent-invoices" className="text-[9px] text-rose-400 font-black mt-1 inline-flex items-center gap-1 hover:underline">
+                  {stats.overdueinvoices} overdue → Pay now
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="bg-card border border-border p-4">
-            <p className="text-xl font-black text-foreground">{children.length}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children Enrolled</p>
+
+          {/* Children Enrolled */}
+          <div className="bg-card border border-border p-5 flex items-center gap-4">
+            <RadialRing
+              value={children.length}
+              max={Math.max(children.length, 5)}
+              size={64}
+              strokeWidth={6}
+              color={CHART_COLORS.orange}
+              label="Children"
+            />
+            <div>
+              <p className="text-lg font-black text-foreground leading-none">{children.length}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children Enrolled</p>
+              <Link href="/dashboard/my-children" className="text-[9px] text-orange-400 font-black mt-1 inline-flex items-center gap-1 hover:underline">
+                View all children →
+              </Link>
+            </div>
           </div>
-          <div className="bg-card border border-border p-4 col-span-2 sm:col-span-1">
-            <Link href="/dashboard/messages" className="flex items-start gap-2 group">
-              <div>
-                <p className={`text-xl font-black ${stats.unreadNotifications > 0 ? 'text-orange-400' : 'text-foreground'}`}>
+
+          {/* Notifications */}
+          <div className="bg-card border border-border p-5 flex items-center gap-4">
+            <RadialRing
+              value={Math.min(stats.unreadNotifications * 10, 100)}
+              max={100}
+              size={64}
+              strokeWidth={6}
+              color={stats.unreadNotifications > 0 ? CHART_COLORS.amber : CHART_COLORS.emerald}
+              label="Alerts"
+            />
+            <div>
+              <Link href="/dashboard/messages" className="flex items-center gap-2 group">
+                <p className={`text-lg font-black leading-none ${stats.unreadNotifications > 0 ? 'text-amber-400' : 'text-foreground'}`}>
                   {stats.unreadNotifications}
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Unread Notifications</p>
-              </div>
-              {stats.unreadNotifications > 0 && (
-                <BellIcon className="w-4 h-4 text-orange-400 mt-1 animate-pulse" />
-              )}
-            </Link>
+                {stats.unreadNotifications > 0 && <BellIcon className="w-4 h-4 text-amber-400 animate-pulse" />}
+              </Link>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Unread Notifications</p>
+            </div>
           </div>
         </div>
       )}
@@ -221,6 +304,57 @@ export default function ParentDashboard({ profile, children, dataLoading, onRefr
                     <div className="h-3 bg-muted rounded w-1/2" />
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Curriculum Milestone — "Your child is on Week X of Term Y" */}
+      {milestones.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpenIcon className="w-4 h-4 text-violet-400" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class Learning Progress</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {milestones.map((m, i) => (
+              <div key={i} className="bg-card border border-border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-foreground truncate">{m.child_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{m.course_name}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                      Term {m.current_term}
+                    </p>
+                    <p className="text-sm font-black text-foreground">
+                      Week {m.current_week}/{m.total_weeks}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div>
+                  <div className="flex justify-between text-[9px] font-bold mb-1">
+                    <span className="text-muted-foreground truncate max-w-[70%]">{m.last_topic}</span>
+                    <span className="text-violet-400">{m.progress_pct}% done</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full transition-all duration-700"
+                      style={{ width: `${Math.max(m.progress_pct, 3)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <Link
+                  href="/dashboard/parent-results"
+                  className="text-[9px] font-black text-violet-400 uppercase tracking-widest hover:underline flex items-center gap-1"
+                >
+                  View full report <ArrowRightIcon className="w-3 h-3" />
+                </Link>
               </div>
             ))}
           </div>

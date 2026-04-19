@@ -183,7 +183,7 @@ export function DonutChart({
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const p = payload[0];
-              const pct = total > 0 ? Math.round((p.value / total) * 100) : 0;
+              const pct = total > 0 ? Math.round(((p.value as number) / total) * 100) : 0;
               return (
                 <div style={TOOLTIP_STYLE}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

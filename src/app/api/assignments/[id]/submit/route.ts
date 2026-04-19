@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { queueService } from '@/services/queue.service';
+import { XP_EVENTS } from '@/lib/grading';
+import { engagementTables } from '@/types/engagement';
 
 export const dynamic = 'force-dynamic';
 
@@ -198,8 +201,115 @@ export async function POST(
       }).catch(console.error);
     }
 
+    // ── Auto-award XP on student submission ───────────────────────────────────
+    if (!isStaff) {
+      const engAdmin = createEngagementAdminClient();
+      awardSubmissionXP(engAdmin, effectiveUserId, assignment_id, assignment).catch(console.error);
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
+}
+
+// ── XP Automation ─────────────────────────────────────────────────────────────
+// Called fire-and-forget after successful student submission.
+// Awards assignment_submitted XP + bonus if submitted early.
+async function awardSubmissionXP(
+  admin: ReturnType<typeof createEngagementAdminClient>,
+  studentId: string,
+  assignmentId: string,
+  assignment: { due_date?: string | null; title?: string | null; school_id?: string | null },
+) {
+  const et = engagementTables;
+  const now = new Date();
+
+  // Base XP event
+  const baseEvent = XP_EVENTS.find(e => e.key === 'assignment_submitted');
+  if (!baseEvent) return;
+
+  await et.xpLedger(admin).insert({
+    student_id:  studentId,
+    event_key:   baseEvent.key,
+    event_label: baseEvent.label,
+    xp:          baseEvent.xp,
+    ref_id:      assignmentId,
+    ref_type:    'assignment',
+    school_id:   assignment.school_id ?? null,
+    metadata:    { title: assignment.title ?? '' },
+  });
+
+  // Bonus XP if submitted 2+ days early
+  if (assignment.due_date) {
+    const due = new Date(assignment.due_date);
+    const daysEarly = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysEarly >= 2) {
+      const earlyEvent = XP_EVENTS.find(e => e.key === 'assignment_early');
+      if (earlyEvent) {
+        await et.xpLedger(admin).insert({
+          student_id:  studentId,
+          event_key:   earlyEvent.key,
+          event_label: earlyEvent.label,
+          xp:          earlyEvent.xp,
+          ref_id:      assignmentId,
+          ref_type:    'assignment',
+          school_id:   assignment.school_id ?? null,
+          metadata:    { days_early: Math.floor(daysEarly) },
+        });
+      }
+    }
+  }
+
+  // Update weekly streak
+  await updateWeekStreak(admin, et, studentId);
+}
+
+function getMondayStr(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().split('T')[0];
+}
+
+function shiftDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+async function updateWeekStreak(
+  admin: ReturnType<typeof createEngagementAdminClient>,
+  et: typeof engagementTables,
+  studentId: string,
+) {
+  const thisMonday = getMondayStr(new Date());
+  const { data: existing } = await et.streaks(admin)
+    .select('current_streak, longest_streak, last_active_week, total_active_weeks')
+    .eq('student_id', studentId)
+    .single();
+
+  if (!existing) {
+    await et.streaks(admin).insert({
+      student_id: studentId, current_streak: 1, longest_streak: 1,
+      last_active_week: thisMonday, total_active_weeks: 1,
+    });
+    return;
+  }
+
+  const lastMondayStr = existing.last_active_week
+    ? getMondayStr(new Date(String(existing.last_active_week)))
+    : null;
+
+  if (lastMondayStr === thisMonday) return; // already counted this week
+
+  const prevMonday = shiftDays(thisMonday, -7);
+  const newStreak = lastMondayStr === prevMonday ? (existing.current_streak ?? 0) + 1 : 1;
+
+  await et.streaks(admin).update({
+    current_streak: newStreak,
+    longest_streak: Math.max(newStreak, existing.longest_streak ?? 0),
+    last_active_week: thisMonday,
+    total_active_weeks: (existing.total_active_weeks ?? 0) + 1,
+  }).eq('student_id', studentId);
 }
