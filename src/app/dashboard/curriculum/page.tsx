@@ -9,7 +9,7 @@ import {
   ClipboardDocumentListIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon,
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
-  RocketLaunchIcon, ArrowRightIcon,
+  RocketLaunchIcon, ArrowRightIcon, StarIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,6 +53,14 @@ const CONTENT_TYPES = [
     active: 'text-rose-400 border-rose-500/40 bg-rose-500/10 ring-1 ring-rose-500/40',
     idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
     desc: 'Computer-based quiz or exam — opens CBT builder pre-filled with week topic',
+  },
+  {
+    key: 'flashcard' as const,
+    label: 'Flashcards',
+    icon: StarIcon,
+    active: 'text-yellow-400 border-yellow-500/40 bg-yellow-500/10 ring-1 ring-yellow-500/40',
+    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
+    desc: 'Interactive study cards with AI generated Q&A — opens Flashcard Studio',
   },
 ] as const;
 type ContentKey = typeof CONTENT_TYPES[number]['key'];
@@ -443,6 +451,35 @@ export default function CurriculumPage() {
     }
   }
 
+  // ── Create Flashcards from curriculum week ───────────────────────────────
+  async function createFlashcardsFromWeek(week: CurriculumWeek) {
+    if (!canTrack || !selectedCourse || !curriculum) return;
+    setCreatingLesson(true); // Reusing creatingLesson state or add new one
+    try {
+      const weekTag = `W${week.week}: ${week.topic}`;
+      const res = await fetch('/api/flashcards/decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: weekTag,
+          description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
+          course_id: selectedCourse.id,
+          tags: ['curriculum', week.topic]
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        router.push(`/dashboard/flashcards?deckId=${json.data.id}&topic=${encodeURIComponent(week.topic)}&autoGenerate=true`);
+      } else {
+        throw new Error(json.error || 'Failed to create deck');
+      }
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to create flashcards deck');
+    } finally {
+      setCreatingLesson(false);
+    }
+  }
+
   // ── Create CBT quiz from curriculum week ─────────────────────────────────
   function createCbtFromWeek(week: CurriculumWeek) {
     if (!curriculum || !selectedCourse) return;
@@ -513,15 +550,23 @@ export default function CurriculumPage() {
         router.push(`/dashboard/assignments/${json.data.id}`);
         return;
       }
-      if (genContentType === 'project') {
-        const proj = plan?.project;
-        const res  = await fetch('/api/assignments', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: proj?.title || `${weekTag} — Project`, description: proj?.description || genWeek.topic, instructions: proj ? `${proj.description}\n\nDeliverables:\n${(proj.deliverables ?? []).map((d, i) => `${i + 1}. ${d}`).join('\n')}` : genWeek.topic, assignment_type: 'project', due_date: projDue, max_points: 100, is_active: true, course_id: selectedCourse.id, metadata: { source: 'generate-content', curriculum_id: curriculum?.id, week: genWeek.week, deliverables: proj?.deliverables ?? [] } }),
+        router.push(`/dashboard/assignments/${json.data.id}`);
+        return;
+      }
+      if (genContentType === 'flashcard') {
+        const res = await fetch('/api/flashcards/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: weekTag,
+            description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
+            course_id: selectedCourse.id,
+            tags: ['curriculum', genWeek.topic]
+          }),
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to create project');
-        router.push(`/dashboard/assignments/${json.data.id}`);
+        if (!res.ok) throw new Error(json.error || 'Failed to create flashcard deck');
+        router.push(`/dashboard/flashcards?deckId=${json.data.id}&topic=${encodeURIComponent(genWeek.topic)}&autoGenerate=true`);
         return;
       }
     } catch (e: any) {
@@ -719,7 +764,7 @@ export default function CurriculumPage() {
                         setGenWeek(found ?? null);
                         setGenContentType(null);
                       }}
-                      className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                      className={SELECT_CLS}
                     >
                       <option value="">— Select Week —</option>
                       {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => (
@@ -1179,6 +1224,13 @@ export default function CurriculumPage() {
                     >
                       <BoltIcon className="w-3.5 h-3.5" />
                       Create CBT Quiz
+                    </button>
+                    <button
+                      onClick={() => createFlashcardsFromWeek(activeWeek)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                    >
+                      <StarIcon className="w-3.5 h-3.5" />
+                      Create Flashcards
                     </button>
                     <button
                       onClick={printWeek}

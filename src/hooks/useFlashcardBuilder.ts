@@ -94,6 +94,19 @@ export function useFlashcardBuilder(
   const clearError = useCallback(() => setError(null), []);
   const clearSuccess = useCallback(() => setSuccess(null), []);
 
+  const importCards = useCallback((newCards: { front: string; back: string }[]) => {
+    setCards(prev => {
+      // Filter out empty cards first if we're importing a bunch
+      const existing = prev.filter(c => c.front.trim() || c.back.trim());
+      const formatted = newCards.map((c, i) => ({
+        id: Date.now() + i + Math.random(),
+        front: c.front,
+        back: c.back
+      }));
+      return [...existing, ...formatted];
+    });
+  }, []);
+
   return {
     cards,
     selectedTemplate,
@@ -105,6 +118,7 @@ export function useFlashcardBuilder(
     addCard,
     removeCard,
     updateCard,
+    importCards,
     setSelectedTemplate,
     setPreviewDevice,
     setShowPreview,

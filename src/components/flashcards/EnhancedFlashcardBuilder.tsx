@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { XMarkIcon, CheckIcon, EyeIcon, SparklesIcon } from '@/lib/icons';
 import type { CardTemplate, CreateCardRequest } from '@/types/flashcards';
 import { CARD_TEMPLATES } from './templates';
@@ -36,6 +37,7 @@ export default function EnhancedFlashcardBuilder({
     addCard,
     removeCard,
     updateCard,
+    importCards,
     setSelectedTemplate,
     setPreviewDevice,
     setShowPreview,
@@ -44,8 +46,16 @@ export default function EnhancedFlashcardBuilder({
     clearSuccess
   } = useFlashcardBuilder(deckId, onCardCreated, onClose);
 
+  const searchParams = useSearchParams();
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showImportPanel, setShowImportPanel] = useState(false);
+
+  useEffect(() => {
+    const autoGen = searchParams.get('autoGenerate') === 'true';
+    if (autoGen) {
+      setShowAiPanel(true);
+    }
+  }, [searchParams]);
 
   const validCardCount = cards.filter(c => c.front.trim() && c.back.trim()).length;
 
@@ -119,17 +129,10 @@ export default function EnhancedFlashcardBuilder({
           <AIGenerationPanel
             deckId={deckId}
             selectedTemplate={selectedTemplate}
+            initialTopic={searchParams.get('topic') || ''}
             onClose={() => setShowAiPanel(false)}
             onCardsGenerated={(newCards) => {
-              newCards.forEach(card => {
-                const id = Date.now() + Math.random();
-                addCard();
-                const lastCard = cards[cards.length - 1];
-                if (lastCard) {
-                  updateCard(lastCard.id, 'front', card.front);
-                  updateCard(lastCard.id, 'back', card.back);
-                }
-              });
+              importCards(newCards);
             }}
           />
         )}

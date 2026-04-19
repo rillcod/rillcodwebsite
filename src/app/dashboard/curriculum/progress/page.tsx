@@ -166,7 +166,7 @@ export default function CurriculumProgressPage() {
             <select
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              className="select-premium px-3 py-2 text-sm focus:border-orange-500"
             >
               <option value="">All Schools</option>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -174,7 +174,7 @@ export default function CurriculumProgressPage() {
             <select
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              className="select-premium px-3 py-2 text-sm focus:border-orange-500"
             >
               <option value="">All Terms</option>
               <option value="1">First Term</option>
