@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
-@variant dark (&:is(.dark *));
-
 @theme {
+  --color-scheme-dark: class;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
@@ -443,8 +443,13 @@ img[alt="Official Signature"] {
 }
 
 /* ── Global Select & Select Premium ── */
+select, .select-premium, input, textarea {
+  @apply bg-card border border-border transition-colors outline-none;
+  color: var(--foreground) !important;
+}
+
 select, .select-premium {
-  @apply bg-card border border-border text-foreground transition-colors outline-none cursor-pointer;
+  @apply cursor-pointer;
 }
 
 /* Force dropdown menu styles */
@@ -454,13 +459,15 @@ select option, .select-premium option {
 }
 
 .dark select, .dark .select-premium, 
-.dark select option, .dark .select-premium option {
+.dark select option, .dark .select-premium option,
+.dark input, .dark textarea {
   background-color: #121320 !important;
   color: #DDE1EE !important;
 }
 
 .light select, .light .select-premium,
-.light select option, .light .select-premium option {
+.light select option, .light .select-premium option,
+.light input, .light textarea {
   background-color: #FFFFFF !important;
   color: #0A0A0C !important;
 }
@@ -476,15 +483,7 @@ select option, .select-premium option {
 }
 
 select {
-  color-scheme: dark light;
-}
-
-.dark select {
-  color-scheme: dark;
-}
-
-.light select {
-  color-scheme: light;
+  color-scheme: dark light !important;
 }
 
 /* Mobile touch targets */
