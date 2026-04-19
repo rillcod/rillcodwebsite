@@ -216,23 +216,6 @@ export default function AnalyticsPage() {
         {/* ── Main charts grid ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-          {/* Program enrollment — horizontal bar chart */}
-          <div className="xl:col-span-2 bg-card border border-border p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AcademicCapIcon className="w-5 h-5 text-blue-400" />
-                <h3 className="text-base font-black">Program Enrollment</h3>
-              </div>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {programs.length} programs
-              </span>
-            </div>
-            {programBarData.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-8 text-center">No programs in the database.</p>
-            ) : (
-              <HorizontalBarChart data={programBarData} formatValue={v => `${v} enrolled`} />
-            )}
-          </div>
 
           {/* Student status donut */}
           <div className="bg-card border border-border p-6 space-y-5">
