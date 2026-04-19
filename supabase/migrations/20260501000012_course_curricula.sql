@@ -28,9 +28,7 @@ alter table public.lesson_plans
 
 alter table public.course_curricula enable row level security;
 
--- staff can select curricula for their school
-drop policy if exists "school admins select curricula for their school" on public.course_curricula;
-drop policy if exists "teachers select curricula for their school" on public.course_curricula;
+-- staff can select curricula for their school or global admins can select any
 drop policy if exists "staff select curricula for their school" on public.course_curricula;
 create policy "staff select curricula for their school"
   on public.course_curricula
@@ -39,14 +37,13 @@ create policy "staff select curricula for their school"
     exists (
       select 1
       from public.portal_users pu
-      where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
-        and pu.school_id = course_curricula.school_id
+      where pu.id = auth.uid()
+        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
 
--- staff can insert curricula for their school
-drop policy if exists "school admins insert curricula for their school" on public.course_curricula;
+-- staff can insert curricula for their school or global admins can insert any
 drop policy if exists "staff insert curricula for their school" on public.course_curricula;
 create policy "staff insert curricula for their school"
   on public.course_curricula
@@ -55,14 +52,13 @@ create policy "staff insert curricula for their school"
     exists (
       select 1
       from public.portal_users pu
-      where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
-        and pu.school_id = course_curricula.school_id
-      )
+      where pu.id = auth.uid()
+        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
+    )
   );
 
--- staff can update curricula for their school
-drop policy if exists "school admins update curricula for their school" on public.course_curricula;
+-- staff can update curricula for their school or global admins can update any
 drop policy if exists "staff update curricula for their school" on public.course_curricula;
 create policy "staff update curricula for their school"
   on public.course_curricula
@@ -71,9 +67,9 @@ create policy "staff update curricula for their school"
     exists (
       select 1
       from public.portal_users pu
-      where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
-        and pu.school_id = course_curricula.school_id
+      where pu.id = auth.uid()
+        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
 
@@ -86,8 +82,8 @@ create policy "school admins delete curricula for their school"
     exists (
       select 1
       from public.portal_users pu
-      where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school')
-        and pu.school_id = course_curricula.school_id
+      where pu.id = auth.uid()
+        and pu.role in ('admin', 'school_admin', 'school')
+        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
