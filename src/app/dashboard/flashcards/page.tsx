@@ -50,6 +50,8 @@ export default function FlashcardsPage() {
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const [dueCount, setDueCount] = useState<number>(0);
+
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
   useEffect(() => { loadDecks(); }, []);
@@ -60,6 +62,12 @@ export default function FlashcardsPage() {
       const res = await fetch('/api/flashcards/decks');
       const json = await res.json();
       setDecks(json.data ?? []);
+
+      if (profile?.role === 'student') {
+        const statsRes = await fetch('/api/flashcards/stats');
+        const statsJson = await statsRes.json();
+        setDueCount(statsJson.data?.due_today ?? 0);
+      }
     } catch (error) {
       console.error('Failed to load decks:', error);
     } finally {
@@ -202,8 +210,12 @@ export default function FlashcardsPage() {
                   <SparklesIcon className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-foreground">AI</p>
-                  <p className="text-xs text-muted-foreground">Powered</p>
+                  <p className="text-2xl font-black text-foreground">
+                    {profile?.role === 'student' ? dueCount : 'AI'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {profile?.role === 'student' ? 'Due Today' : 'Powered'}
+                  </p>
                 </div>
               </div>
             </motion.div>
