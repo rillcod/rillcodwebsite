@@ -79,16 +79,6 @@ export default function WAECGradingPage() {
   const result = computeFinalScore(scores, assignmentPct);
   const motivation = getMotivationMessage(result.capped, assignmentPct, 0);
 
-  if (!isStaff) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <ExclamationTriangleIcon className="w-12 h-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground text-sm">Access restricted to staff members.</p>
-        <Link href="/dashboard" className="mt-4 text-orange-400 text-sm font-bold hover:underline">← Back to Dashboard</Link>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
 
