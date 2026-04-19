@@ -464,85 +464,6 @@ export default function StudentLearningPage() {
           </div>
         </div>
 
-        {/* AI Performance Insights Component */}
-        <section className="bg-indigo-600/5 border border-indigo-500/20 p-8 sm:p-12 overflow-hidden relative group">
-          <div className="absolute -right-24 -top-24 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full group-hover:bg-indigo-500/20 transition-all duration-700" />
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-            <div className="shrink-0">
-               <div className="w-20 h-20 bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 relative">
-                  <SparklesIcon className="w-10 h-10" />
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-               </div>
-            </div>
-            <div className="flex-1 space-y-4 text-center md:text-left">
-               <div className="flex flex-col gap-1">
-                 <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em]">AI Feedback</p>
-                 <h3 className="text-2xl font-black tracking-tight text-foreground uppercase italic">
-                   {isKids ? 'My AI Tutor 🤖' : 'Performance Feedback'}
-                 </h3>
-               </div>
-               <p className="text-sm text-muted-foreground font-medium max-w-2xl leading-relaxed">
-                 {isKids
-                   ? 'Ask our AI to see how you\'re doing and get tips on what to learn next! 🌟'
-                   : 'Our AI will review your recent activity and suggest what to focus on next.'}
-               </p>
-               <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 justify-center md:justify-start pt-2">
-                  <button 
-                    disabled={generatingInsight}
-                    onClick={async () => {
-                      setGeneratingInsight(true);
-                      try {
-                        const res = await fetch('/api/ai/generate', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            type: 'report-feedback',
-                            studentName: profile?.full_name,
-                            topic: programs[0]?.name || 'STEM Curriculum',
-                            attendance: 'Stable',
-                            assignments: `${stats.lessonsDone} Labs Synced`
-                          })
-                        });
-                        const d = await res.json();
-                        if (d.data) {
-                          setAiInsight({
-                            strengths: d.data.key_strengths,
-                            growth: d.data.areas_for_growth
-                          });
-                        }
-                      } finally {
-                        setGeneratingInsight(false);
-                      }
-                    }}
-                    className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-indigo-600 disabled:bg-indigo-900/50 hover:bg-indigo-500 text-foreground font-black uppercase text-[10px] tracking-[0.2em] transition-all min-h-[48px] sm:min-h-0"
-                  >
-                    {generatingInsight ? 'Generating feedback...' : 'Get my feedback'}
-                  </button>
-                  <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest italic flex items-center gap-2">
-                    <ShieldCheckIcon className="w-3.5 h-3.5" /> 
-                  </span>
-               </div>
-
-               {aiInsight && (
-                 <motion.div 
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 bg-background border border-border"
-                 >
-                   <div>
-                     <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-2">Strengths</p>
-                     <p className="text-xs text-foreground/60 leading-relaxed italic">"{aiInsight.strengths}"</p>
-                   </div>
-                   <div>
-                     <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest mb-2">Roadmap</p>
-                     <p className="text-xs text-foreground/60 leading-relaxed italic">"{aiInsight.growth}"</p>
-                   </div>
-                 </motion.div>
-               )}
-            </div>
-          </div>
-        </section>
-
         {/* Today's Tasks */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
@@ -1012,7 +933,295 @@ export default function StudentLearningPage() {
 
         </div>
 
+        {/* Flashcards Section - Integrated into Learning Center */}
+        <section className="space-y-6 bg-gradient-to-br from-violet-600/5 via-card to-orange-500/5 border border-violet-500/20 p-8">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-2xl font-black uppercase italic flex items-center gap-3">
+                {isKids ? '🎴 Smart Flashcards' : 'Spaced Repetition Cards'}
+                <span className="text-violet-500 text-lg">{isKids ? '✨' : '🧠'}</span>
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {isKids 
+                  ? 'Review what you learned with fun flashcards that help you remember better!'
+                  : 'AI-powered spaced repetition system to reinforce learning and improve retention'}
+              </p>
+            </div>
+            <Link href="/dashboard/flashcards" className="text-[9px] font-black text-violet-500 hover:text-foreground uppercase tracking-[0.2em] transition-colors">
+              All Decks →
+            </Link>
+          </div>
+
+          <FlashcardWidget />
+        </section>
+
       </div>
+    </div>
+  );
+}
+
+// Enhanced Flashcard Widget Component
+function FlashcardWidget() {
+  const { profile } = useAuth();
+  const [decks, setDecks] = useState<any[]>([]);
+  const [currentDeck, setCurrentDeck] = useState<any>(null);
+  const [currentCard, setCurrentCard] = useState<any>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [studyMode, setStudyMode] = useState(false);
+  const [cardIndex, setCardIndex] = useState(0);
+  const [deckCards, setDeckCards] = useState<any[]>([]);
+
+  const isKids = profile?.grade_level && ['nursery', 'kg', 'kindergarten', 'primary', 'basic'].some(k => 
+    profile.grade_level?.toLowerCase().includes(k)
+  );
+
+  useEffect(() => {
+    loadDecks();
+  }, []);
+
+  async function loadDecks() {
+    try {
+      const res = await fetch('/api/flashcards/decks');
+      const json = await res.json();
+      const availableDecks = (json.data ?? []).filter((deck: any) => 
+        (deck.flashcard_cards?.[0]?.count ?? 0) > 0
+      );
+      setDecks(availableDecks);
+      
+      // Auto-select first deck with cards
+      if (availableDecks.length > 0) {
+        setCurrentDeck(availableDecks[0]);
+      }
+    } catch (error) {
+      console.error('Failed to load flashcard decks:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startStudySession(deck: any) {
+    try {
+      const res = await fetch(`/api/flashcards/decks/${deck.id}/cards`);
+      const json = await res.json();
+      const cards = json.data ?? [];
+      
+      if (cards.length > 0) {
+        setDeckCards(cards);
+        setCurrentCard(cards[0]);
+        setCardIndex(0);
+        setShowAnswer(false);
+        setStudyMode(true);
+      }
+    } catch (error) {
+      console.error('Failed to load cards:', error);
+    }
+  }
+
+  function nextCard() {
+    if (cardIndex < deckCards.length - 1) {
+      const nextIndex = cardIndex + 1;
+      setCardIndex(nextIndex);
+      setCurrentCard(deckCards[nextIndex]);
+      setShowAnswer(false);
+    } else {
+      // End of deck
+      setStudyMode(false);
+      setCurrentCard(null);
+    }
+  }
+
+  function previousCard() {
+    if (cardIndex > 0) {
+      const prevIndex = cardIndex - 1;
+      setCardIndex(prevIndex);
+      setCurrentCard(deckCards[prevIndex]);
+      setShowAnswer(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-6 h-6 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (decks.length === 0) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <div className="w-16 h-16 bg-violet-500/10 border border-violet-500/30 flex items-center justify-center mx-auto">
+          <span className="text-2xl">{isKids ? '🎴' : '📚'}</span>
+        </div>
+        <div>
+          <p className="text-muted-foreground font-medium">
+            {isKids ? 'No flashcards yet! Ask your teacher to create some.' : 'No flashcard decks available yet.'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Flashcards help you remember what you learned through spaced repetition.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (studyMode && currentCard) {
+    return (
+      <div className="space-y-6">
+        {/* Study Mode Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setStudyMode(false)}
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              <ArrowRightIcon className="w-4 h-4 rotate-180" />
+            </button>
+            <div>
+              <h3 className="font-bold text-foreground">{currentDeck?.title}</h3>
+              <p className="text-xs text-muted-foreground">
+                Card {cardIndex + 1} of {deckCards.length}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={previousCard}
+              disabled={cardIndex === 0}
+              className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
+            >
+              <ArrowRightIcon className="w-4 h-4 rotate-180" />
+            </button>
+            <button
+              onClick={nextCard}
+              className="p-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              <ArrowRightIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Flashcard */}
+        <motion.div
+          key={currentCard.id}
+          initial={{ rotateY: 0 }}
+          animate={{ rotateY: showAnswer ? 180 : 0 }}
+          transition={{ duration: 0.6, type: "spring" }}
+          className="relative w-full h-64 cursor-pointer"
+          onClick={() => setShowAnswer(!showAnswer)}
+          style={{ transformStyle: 'preserve-3d' }}
+        >
+          {/* Front of card */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-violet-400/5 border border-violet-500/30 p-8 flex items-center justify-center text-center"
+            style={{ backfaceVisibility: 'hidden' }}
+          >
+            <div className="space-y-4">
+              <div className="w-8 h-8 bg-violet-500/20 border border-violet-500/40 flex items-center justify-center mx-auto">
+                <span className="text-violet-400 text-sm">?</span>
+              </div>
+              <p className="text-lg font-bold text-foreground leading-relaxed">
+                {currentCard.front}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isKids ? 'Tap to see the answer! 🎉' : 'Click to reveal answer'}
+              </p>
+            </div>
+          </div>
+
+          {/* Back of card */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 to-emerald-400/5 border border-emerald-500/30 p-8 flex items-center justify-center text-center"
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+          >
+            <div className="space-y-4">
+              <div className="w-8 h-8 bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto">
+                <CheckBadgeIcon className="w-4 h-4 text-emerald-400" />
+              </div>
+              <p className="text-lg font-bold text-foreground leading-relaxed">
+                {currentCard.back}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isKids ? 'Great job! 🌟' : 'Click to continue'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Progress bar */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Progress</span>
+            <span>{Math.round(((cardIndex + 1) / deckCards.length) * 100)}%</span>
+          </div>
+          <div className="h-2 bg-muted/30 overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-violet-600 to-violet-400"
+              initial={{ width: 0 }}
+              animate={{ width: `${((cardIndex + 1) / deckCards.length) * 100}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Deck Selection */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {decks.slice(0, 6).map((deck) => {
+          const cardCount = deck.flashcard_cards?.[0]?.count ?? 0;
+          return (
+            <motion.div
+              key={deck.id}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="group bg-card border border-border p-6 hover:border-violet-500/40 transition-all cursor-pointer"
+              onClick={() => startStudySession(deck)}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 bg-violet-500/10 border border-violet-500/30 flex items-center justify-center group-hover:bg-violet-500 group-hover:text-white transition-all">
+                  <span className="text-lg">{isKids ? '🎴' : '📚'}</span>
+                </div>
+                <span className="text-xs bg-muted px-2 py-1 font-mono">
+                  {cardCount} cards
+                </span>
+              </div>
+              
+              <h3 className="font-bold text-foreground mb-2 group-hover:text-violet-400 transition-colors">
+                {deck.title}
+              </h3>
+              
+              {deck.lessons?.title && (
+                <p className="text-xs text-blue-400 mb-3">
+                  📖 {deck.lessons.title}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {isKids ? 'Ready to study!' : 'Spaced repetition'}
+                </span>
+                <PlayIcon className="w-4 h-4 text-violet-400 group-hover:text-violet-300 transition-colors" />
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {decks.length > 6 && (
+        <div className="text-center">
+          <Link
+            href="/dashboard/flashcards"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition-colors"
+          >
+            View All {decks.length} Decks
+            <ArrowRightIcon className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

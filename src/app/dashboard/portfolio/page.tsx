@@ -20,10 +20,22 @@ interface Project {
   description: string;
   tags: string[];
   project_url?: string;
+  github_url?: string;
   image_url?: string;
   category: string;
   is_featured: boolean;
   created_at: string;
+  source_type?: 'manual' | 'assignment' | 'lesson' | 'project';
+  source_id?: string;
+}
+
+interface CompletedWork {
+  id: string;
+  title: string;
+  type: 'assignment' | 'lesson' | 'project';
+  completed_at: string;
+  description?: string;
+  files?: any[];
 }
 
 type FormData = {
@@ -31,6 +43,7 @@ type FormData = {
   description: string;
   category: string;
   project_url: string;
+  github_url: string;
   image_url: string;
   tags: string;
 };
@@ -46,7 +59,184 @@ const CAT_COLORS: Record<string, string> = {
   Art: 'bg-rose-500/20 text-rose-400',
 };
 
-// ─── Canvas Drawing Component ──────────────────────────────
+// ─── Auto-Transfer Component ──────────────────────────────
+function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfer: () => void }) {
+  const [completedWork, setCompletedWork] = useState<CompletedWork[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [transferring, setTransferring] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCompletedWork();
+  }, []);
+
+  async function loadCompletedWork() {
+    setLoading(true);
+    try {
+      const db = createClient();
+      
+      // Get completed assignments, lessons, and projects not yet in portfolio
+      const [assignmentsRes, lessonsRes, projectsRes] = await Promise.all([
+        db.from('assignment_submissions')
+          .select('id, assignments(id, title, description), submitted_at, grade')
+          .eq('portal_user_id', userId)
+          .eq('status', 'graded')
+          .gte('grade', 70), // Only good grades
+        
+        db.from('lesson_progress')
+          .select('id, lessons(id, title, description), completed_at')
+          .eq('portal_user_id', userId)
+          .eq('status', 'completed'),
+        
+        db.from('project_submissions')
+          .select('id, projects(id, title, description), submitted_at, grade')
+          .eq('portal_user_id', userId)
+          .eq('status', 'graded')
+          .gte('grade', 70)
+      ]);
+
+      const work: CompletedWork[] = [
+        ...(assignmentsRes.data || []).map((a: any) => ({
+          id: a.assignments.id,
+          title: a.assignments.title,
+          type: 'assignment' as const,
+          completed_at: a.submitted_at,
+          description: a.assignments.description
+        })),
+        ...(lessonsRes.data || []).map((l: any) => ({
+          id: l.lessons.id,
+          title: l.lessons.title,
+          type: 'lesson' as const,
+          completed_at: l.completed_at,
+          description: l.lessons.description
+        })),
+        ...(projectsRes.data || []).map((p: any) => ({
+          id: p.projects.id,
+          title: p.projects.title,
+          type: 'project' as const,
+          completed_at: p.submitted_at,
+          description: p.projects.description
+        }))
+      ];
+
+      // Filter out items already in portfolio
+      const { data: existingProjects } = await db.from('portfolio_projects')
+        .select('source_id, source_type')
+        .eq('user_id', userId)
+        .not('source_id', 'is', null);
+
+      const existingIds = new Set(existingProjects?.map(p => `${p.source_type}-${p.source_id}`) || []);
+      const availableWork = work.filter(w => !existingIds.has(`${w.type}-${w.id}`));
+
+      setCompletedWork(availableWork.sort((a, b) => 
+        new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
+      ));
+    } catch (error) {
+      console.error('Failed to load completed work:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function transferToPortfolio(work: CompletedWork) {
+    setTransferring(work.id);
+    try {
+      const res = await fetch('/api/portfolio-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: work.title,
+          description: work.description || `Completed ${work.type} from my coursework`,
+          category: work.type === 'project' ? 'Projects' : work.type === 'assignment' ? 'Coding' : 'Learning',
+          tags: [work.type, 'coursework', 'completed'],
+          source_type: work.type,
+          source_id: work.id
+        })
+      });
+
+      if (res.ok) {
+        setCompletedWork(prev => prev.filter(w => w.id !== work.id));
+        onTransfer();
+      } else {
+        alert('Failed to transfer to portfolio');
+      }
+    } catch (error) {
+      alert('Failed to transfer to portfolio');
+    } finally {
+      setTransferring(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-card border border-border rounded-none p-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (completedWork.length === 0) {
+    return (
+      <div className="bg-card border border-border rounded-none p-6 text-center">
+        <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
+        <p className="text-foreground font-bold mb-1">All caught up!</p>
+        <p className="text-muted-foreground text-sm">Complete assignments and lessons to auto-add them here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-none overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <SparklesIcon className="w-4 h-4 text-orange-400" />
+          <h3 className="font-bold text-foreground">Auto-Transfer Available</h3>
+          <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full font-bold">
+            {completedWork.length} item{completedWork.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <p className="text-muted-foreground text-xs mt-1">
+          Add your completed coursework to your portfolio with one click
+        </p>
+      </div>
+      
+      <div className="p-6 space-y-3 max-h-80 overflow-y-auto">
+        {completedWork.map(work => (
+          <div key={`${work.type}-${work.id}`} className="flex items-center justify-between p-4 bg-background border border-border rounded-none">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold ${
+                work.type === 'assignment' ? 'bg-blue-500/20 text-blue-400' :
+                work.type === 'lesson' ? 'bg-emerald-500/20 text-emerald-400' :
+                'bg-violet-500/20 text-violet-400'
+              }`}>
+                {work.type === 'assignment' ? '📝' : work.type === 'lesson' ? '📖' : '🚀'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-foreground font-bold text-sm truncate">{work.title}</p>
+                <p className="text-muted-foreground text-xs">
+                  {work.type} • {new Date(work.completed_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => transferToPortfolio(work)}
+              disabled={transferring === work.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded-none transition-colors"
+            >
+              {transferring === work.id ? (
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <PlusIcon className="w-3.5 h-3.5" />
+              )}
+              Add
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 const PALETTE = ['#ffffff', '#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#000000'];
 const BRUSHES = [2, 6, 12, 20];
 
@@ -256,10 +446,11 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
     description: editing.description,
     category: editing.category,
     project_url: editing.project_url ?? '',
+    github_url: editing.github_url ?? '',
     image_url: editing.image_url ?? '',
     tags: editing.tags.join(', '),
   } : {
-    title: '', description: '', category: 'Coding', project_url: '', image_url: '', tags: '',
+    title: '', description: '', category: 'Coding', project_url: '', github_url: '', image_url: '', tags: '',
   });
 
   async function handleSave() {
@@ -269,6 +460,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
       description: form.description.trim(),
       category: form.category,
       project_url: form.project_url.trim() || undefined,
+      github_url: form.github_url.trim() || undefined,
       image_url: form.image_url.trim() || undefined,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       is_featured: editing?.is_featured ?? false,
@@ -334,6 +526,16 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="https://github.com/… or demo link"
               value={form.project_url}
               onChange={e => setForm(f => ({ ...f, project_url: e.target.value }))}
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">GitHub Repository</label>
+            <input
+              placeholder="https://github.com/username/repo"
+              value={form.github_url}
+              onChange={e => setForm(f => ({ ...f, github_url: e.target.value }))}
               className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
             />
           </div>
@@ -440,16 +642,26 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
           <span className="flex items-center gap-1 text-muted-foreground text-[10px]">
             <CalendarIcon className="w-3 h-3" /> {date}
           </span>
-          {project.project_url && (
-            <a
-              href={project.project_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-orange-400 text-xs hover:text-orange-500 transition-colors"
-            >
-              <LinkIcon className="w-3.5 h-3.5" /> View
-            </a>
-          )}
+                  {project.project_url && (
+                    <a
+                      href={project.project_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-orange-400 text-xs hover:text-orange-500 transition-colors"
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" /> Demo
+                    </a>
+                  )}
+                  {project.github_url && (
+                    <a
+                      href={project.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-blue-400 text-xs hover:text-blue-500 transition-colors"
+                    >
+                      <CodeBracketIcon className="w-3.5 h-3.5" /> Code
+                    </a>
+                  )}
         </div>
       </div>
     </div>
@@ -816,6 +1028,35 @@ export default function PortfolioPage() {
 
         {tab === 'projects' && (
           <>
+            {/* Auto-Transfer Section */}
+            <AutoTransferSection userId={profile.id} onTransfer={() => {
+              // Reload projects after transfer
+              const db = createClient();
+              db.from('portfolio_projects')
+                .select('*')
+                .eq('user_id', profile.id)
+                .order('is_featured', { ascending: false })
+                .order('created_at', { ascending: false })
+                .then(({ data }) => {
+                  if (data) {
+                    setProjects(data.map((r: any) => ({
+                      id: r.id,
+                      title: r.title,
+                      description: r.description ?? '',
+                      tags: r.tags ?? [],
+                      project_url: r.project_url ?? '',
+                      github_url: r.github_url ?? '',
+                      image_url: r.image_url ?? '',
+                      category: r.category,
+                      is_featured: r.is_featured ?? false,
+                      created_at: r.created_at,
+                      source_type: r.source_type,
+                      source_id: r.source_id,
+                    })));
+                  }
+                });
+            }} />
+
             {/* Featured banner */}
             {featuredProjects.length > 0 && (
               <div>
