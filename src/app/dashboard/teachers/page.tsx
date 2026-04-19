@@ -102,10 +102,12 @@ function TeacherPersonalDashboard() {
     let cancelled = false;
 
     async function loadStats() {
+      if (!profile?.id) return;
+      const teacherId = profile.id;
       setLoading(true);
       try {
         // Step 1: get teacher's own assignment IDs
-        const { data: myAsgns, error: asgnErr } = await supabase.from('assignments').select('id, title').eq('created_by', profile.id);
+        const { data: myAsgns, error: asgnErr } = await supabase.from('assignments').select('id, title').eq('created_by', teacherId);
         if (asgnErr) throw asgnErr;
 
         const aIds = (myAsgns || []).map((a: any) => a.id);
@@ -113,19 +115,19 @@ function TeacherPersonalDashboard() {
         (myAsgns || []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
 
         // Get schools this teacher is assigned to
-        const { data: schools, error: schErr } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+        const { data: schools, error: schErr } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
         if (schErr) throw schErr;
         const schoolIds = (schools || []).map(s => s.school_id).filter((sid): sid is string => !!sid);
 
         let studentCountQuery = supabase.from('students').select('id', { count: 'exact', head: true });
         if (schoolIds.length > 0) {
-          studentCountQuery = studentCountQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${profile.id}`);
+          studentCountQuery = studentCountQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${teacherId}`);
         } else {
-          studentCountQuery = studentCountQuery.eq('created_by', profile.id);
+          studentCountQuery = studentCountQuery.eq('created_by', teacherId);
         }
 
         const [classesRes, pendingRes, studentsHead, gradesRes, recentStudentsRes] = await Promise.allSettled([
-          supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', profile.id),
+          supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', teacherId),
           aIds.length > 0
             ? supabase.from('assignment_submissions').select('id', { count: 'exact' }).eq('status', 'submitted').in('assignment_id', aIds)
             : Promise.resolve({ count: 0, data: [] }),
@@ -133,7 +135,7 @@ function TeacherPersonalDashboard() {
           aIds.length > 0
             ? supabase.from('assignment_submissions').select('grade').eq('status', 'graded').in('assignment_id', aIds)
             : Promise.resolve({ data: [] }),
-          supabase.from('students').select('*').eq('created_by', profile.id).order('created_at', { ascending: false }).limit(5),
+          supabase.from('students').select('*').eq('created_by', teacherId).order('created_at', { ascending: false }).limit(5),
         ]);
 
         // Fetch student names via API (bypasses RLS) then enrich recent submissions
