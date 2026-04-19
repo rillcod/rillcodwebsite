@@ -82,9 +82,9 @@ export default function StudentLearningPage() {
       setStats({
         avgScore,
         lessonsDone: progressRes.count || 0,
-        streak: streakRes.data?.current_streak || 0,
-        xp: xpRes.data?.total_xp || 0,
-        level: xpRes.data?.level || 1
+        streak: (streakRes.data as any)?.current_streak || 0,
+        xp: (xpRes.data as any)?.total_xp || 0,
+        level: (xpRes.data as any)?.level || 1
       });
 
       // 2. Fetch Badges
@@ -104,18 +104,18 @@ export default function StudentLearningPage() {
         .eq('status', 'submitted');
       setPendingAssignments(pendingCount || 0);
 
-      // 4. Fetch Enrollments and Programs (using sequential level enrollments if available)
+      // 4. Fetch Enrollments and Programs (sequential levels first)
       const { data: levelEnr } = await db.from('student_level_enrollments')
-        .select('*, courses(*, programs(*))')
+        .select('*, courses!course_id(*, programs(*))')
         .eq('student_id', profile.id)
         .eq('status', 'active');
       
       let enrolledPrograms = [];
       if (levelEnr?.length) {
         enrolledPrograms = levelEnr.map(le => ({
-          ...(le.courses?.programs as any || {}),
+          ...((le as any).courses?.programs || {}),
           status: le.status,
-          current_course: le.courses
+          current_course: (le as any).courses
         }));
       } else {
         const { data: fallbackEnr } = await db.from('enrollments')
@@ -126,9 +126,10 @@ export default function StudentLearningPage() {
           status: e.status
         })) || [];
       }
+      
       setPrograms(enrolledPrograms);
 
-      const pIds = Array.from(new Set(enrolledPrograms.map(p => p.id)));
+      const pIds = Array.from(new Set(enrolledPrograms.map((p: any) => p.id).filter((id: any) => id !== null)));
 
       // 5. Fetch Courses & Lessons
       if (pIds.length) {
@@ -139,9 +140,9 @@ export default function StudentLearningPage() {
           .order('level_order', { ascending: true });
         
         const cmap: Record<string, any[]> = {};
-        (rawCourses || []).forEach(c => {
-          if (!cmap[c.program_id]) cmap[c.program_id] = [];
-          cmap[c.program_id].push(c);
+        (rawCourses || []).forEach((c: any) => {
+          if (c.program_id && !cmap[c.program_id]) cmap[c.program_id] = [];
+          if (c.program_id) cmap[c.program_id].push(c);
         });
         setCoursesByProgram(cmap);
 
@@ -160,7 +161,7 @@ export default function StudentLearningPage() {
           .eq('portal_user_id', profile.id)
           .eq('status', 'completed');
         
-        const doneSet = new Set(completedIds?.map(c => c.lesson_id));
+        const doneSet = new Set(completedIds?.map(c => c.lesson_id).filter((id): id is string => id !== null) || []);
         setCompletedLessonIds(doneSet);
 
         // Find the first lesson in the first program that isn't done
@@ -201,8 +202,8 @@ export default function StudentLearningPage() {
         if (payload.new) {
           setStats(prev => ({
             ...prev,
-            xp: payload.new.total_xp,
-            level: payload.new.level
+            xp: (payload.new as any).total_xp,
+            level: (payload.new as any).level
           }));
         }
       })
@@ -215,7 +216,7 @@ export default function StudentLearningPage() {
         if (payload.new) {
           setStats(prev => ({
             ...prev,
-            streak: payload.new.current_streak
+            streak: (payload.new as any).current_streak
           }));
         }
       })
@@ -293,7 +294,7 @@ export default function StudentLearningPage() {
     { name: 'Platinum', min: 5000, max: 9999, color: 'text-cyan-400', bar: 'bg-cyan-400', bg: 'bg-cyan-500/10' },
   ], []);
 
-  const currentLevelConfig = LEVEL_CONFIG.find(l => stats.xp >= l.min && stats.xp <= l.max) || LEVEL_CONFIG[0];
+  const currentLevelConfig = LEVEL_CONFIG.find((l: any) => stats.xp >= l.min && stats.xp <= l.max) || LEVEL_CONFIG[0];
   const nextLevelConfig = LEVEL_CONFIG[LEVEL_CONFIG.indexOf(currentLevelConfig) + 1];
   const xpProgress = nextLevelConfig
     ? Math.min(100, ((stats.xp - currentLevelConfig.min) / (nextLevelConfig.min - currentLevelConfig.min)) * 100)
@@ -676,7 +677,7 @@ export default function StudentLearningPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                           {courses.map((c) => {
                             const total = c.lessons?.length || 0;
-                            const done = (c.lessons || []).filter(l => completedLessonIds.has(l.id)).length;
+                            const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
                             const pct = total > 0 ? Math.round((done/total)*100) : 0;
                             
                             return (
