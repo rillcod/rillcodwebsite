@@ -550,9 +550,6 @@ export default function CurriculumPage() {
         router.push(`/dashboard/assignments/${json.data.id}`);
         return;
       }
-        router.push(`/dashboard/assignments/${json.data.id}`);
-        return;
-      }
       if (genContentType === 'flashcard') {
         const res = await fetch('/api/flashcards/decks', {
           method: 'POST',

@@ -145,6 +145,7 @@ interface GenerateRequest {
   courseName?: string;
   programName?: string;
   prompt?: string;
+  difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
   // Curriculum generation specific fields
@@ -797,7 +798,8 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
 - Week 5: Lesson (advanced/project work)
 - Week 6: SECOND ASSESSMENT — covers weeks 4–5 (type: "assessment")
 - Week 7: Lesson (revision + consolidation)
-- Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")
+- Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")`;
+    }
 
     case 'flashcard': {
       const count = req.questionCount ?? 10;
@@ -825,169 +827,6 @@ Return a JSON object with this exact shape:
     }
   ]
 }`; }
-
-━━━ WEEK TYPES ━━━
-"lesson" — A full, teacher-ready lesson with complete lesson plan
-"assessment" — A formative assessment (written test / practical)
-"examination" — Summative end-of-term examination
-
-━━━ CREATIVITY RULES ━━━
-- Topics MUST build progressively across all 3 terms — NEVER repeat a project or topic
-- Each term's lessons must feel like a new adventure that builds on prior knowledge
-- Use DIFFERENT project themes per term (e.g. Term 1: build a calculator → Term 2: build a quiz game → Term 3: build a smart home app)
-- For Nigerian relevance: weave in local contexts — agritech, fintech, healthcare, entertainment, traffic systems, market pricing
-- Engagement is CRITICAL: these students stay with Rillcod for 3 years — every lesson must feel fresh and innovative
-- Tools/platforms should vary across terms where possible (e.g. Scratch → Python → Web → Arduino)
-- Term 1 = Foundations, Term 2 = Application, Term 3 = Innovation & Real-World Projects
-
-━━━ LESSON_PLAN STRUCTURE (for every lesson week) ━━━
-Each lesson week MUST include a "lesson_plan" object with:
-- duration_minutes: 40 (standard school period)
-- objectives: 3–4 specific, measurable learning outcomes (Bloom's Taxonomy — Remember, Understand, Apply, Analyse)
-- teacher_activities: array of 5 step-by-step teacher instructions:
-    [0] "Introduction/Hook (5 min): Open with a surprising question or real Nigerian example..."
-    [1] "Direct Instruction (10 min): Explain core concept step by step..."
-    [2] "Live Demo (10 min): Show in action — code live, build, draw diagram..."
-    [3] "Guided Practice (10 min): Walk students through the classwork exercise..."
-    [4] "Wrap-Up (5 min): Quick review, 3 key takeaways, preview next lesson..."
-- student_activities: array of what students DO at each stage (mirrors teacher_activities)
-- classwork: { title, instructions, materials[] } — in-class exercise completable in one period
-- assignment: { title, instructions, due: "Next class" } — one take-home task
-- project: null (most weeks) OR { title, description, deliverables[] } (at project milestone weeks)
-- resources: array of tools, platforms, materials, links needed
-- engagement_tips: array of 3 specific tips to keep THIS lesson engaging (local examples, common pitfalls, wow moments)
-
-━━━ ASSESSMENT_PLAN STRUCTURE (for assessment + examination weeks) ━━━
-Assessment weeks (week 3 and 6) use:
-{
-  "type": "written" | "practical" | "mixed",
-  "title": "string",
-  "coverage": ["topic from week N", "topic from week N"],
-  "format": "string — e.g. 10 MCQ (2 marks each) + 2 short-answer (5 marks each) = 30 marks",
-  "duration_minutes": 40,
-  "scoring_guide": "string — mark allocation and conversion to 100",
-  "teacher_prep": ["step 1", "step 2", "step 3"],
-  "sample_questions": ["3 example questions from the coverage topics"]
-}
-
-Examination week (week 8) uses the same structure but:
-- coverage: ALL topics from weeks 1–7
-- format: "Section A: 20 MCQ (2 marks = 40 marks) + Section B: 5 short-answer (4 marks = 20 marks) + Section C: 1 practical task (20 marks) = 80 marks total"
-- duration_minutes: 80
-- teacher_prep: includes invigilator instructions, paper sealing, mark scheme preparation
-
-━━━ OUTPUT FORMAT ━━━
-Return ONLY a valid JSON object with this exact shape (no preamble, no markdown fences):
-
-{
-  "course_title": "string — official, professional course title",
-  "overview": "string — 3 paragraphs: (1) what the course is, (2) why it matters for Nigerian students, (3) what students will be capable of after completing all 3 terms",
-  "learning_outcomes": ["string — 8 measurable outcomes across all ${termCount} terms"],
-  "terms": [
-    {
-      "term": 1,
-      "title": "string — term theme title (e.g. 'Foundations & First Steps')",
-      "objectives": ["string — 4 term-level objectives"],
-      "weeks": [
-        {
-          "week": 1,
-          "type": "lesson",
-          "topic": "string — main topic title",
-          "subtopics": ["string — 3 subtopics covered"],
-          "lesson_plan": {
-            "duration_minutes": 40,
-            "objectives": ["string — 3-4 learning outcomes"],
-            "teacher_activities": ["Introduction/Hook (5 min): ...", "Direct Instruction (10 min): ...", "Live Demo (10 min): ...", "Guided Practice (10 min): ...", "Wrap-Up (5 min): ..."],
-            "student_activities": ["string — what students DO at each stage"],
-            "classwork": { "title": "string", "instructions": "string", "materials": ["string"] },
-            "assignment": { "title": "string", "instructions": "string", "due": "Next class" },
-            "project": null,
-            "resources": ["string"],
-            "engagement_tips": ["string", "string", "string"]
-          }
-        },
-        {
-          "week": 2,
-          "type": "lesson",
-          "topic": "string",
-          "subtopics": ["string"],
-          "lesson_plan": { "duration_minutes": 40, "objectives": [], "teacher_activities": [], "student_activities": [], "classwork": {}, "assignment": {}, "project": null, "resources": [], "engagement_tips": [] }
-        },
-        {
-          "week": 3,
-          "type": "assessment",
-          "topic": "First Term Assessment",
-          "assessment_plan": {
-            "type": "written",
-            "title": "string",
-            "coverage": ["string"],
-            "format": "string",
-            "duration_minutes": 40,
-            "scoring_guide": "string",
-            "teacher_prep": ["string"],
-            "sample_questions": ["string", "string", "string"]
-          }
-        },
-        {
-          "week": 4,
-          "type": "lesson",
-          "topic": "string",
-          "subtopics": [],
-          "lesson_plan": {}
-        },
-        {
-          "week": 5,
-          "type": "lesson",
-          "topic": "string",
-          "subtopics": [],
-          "lesson_plan": {}
-        },
-        {
-          "week": 6,
-          "type": "assessment",
-          "topic": "Second Assessment",
-          "assessment_plan": {}
-        },
-        {
-          "week": 7,
-          "type": "lesson",
-          "topic": "Revision & Consolidation",
-          "subtopics": [],
-          "lesson_plan": {}
-        },
-        {
-          "week": 8,
-          "type": "examination",
-          "topic": "First Term Examination",
-          "assessment_plan": {
-            "type": "mixed",
-            "title": "string",
-            "coverage": ["All topics from Weeks 1–7"],
-            "format": "Section A: 20 MCQ (40 marks) + Section B: 5 short-answer (20 marks) + Section C: 1 practical (20 marks) = 80 marks",
-            "duration_minutes": 80,
-            "scoring_guide": "string",
-            "teacher_prep": ["string"],
-            "sample_questions": []
-          }
-        }
-      ]
-    }
-  ],
-  "assessment_strategy": "string — overall formative + summative approach for the full year",
-  "materials_required": ["string — physical materials"],
-  "recommended_tools": ["string — digital tools, platforms, software"]
-}
-
-CRITICAL RULES:
-- Generate EXACTLY ${termCount} term objects.
-- Each term MUST have EXACTLY ${weeksPerTerm} week objects in the order: 1, 2, 3(assessment), 4, 5, 6(assessment), 7, 8(examination).
-- ALL lesson_plan fields must be FULLY populated — no empty arrays, no placeholder text.
-- Topics MUST progress logically: Term 1 foundations → Term 2 application → Term 3 advanced/real-world.
-- NEVER repeat the same project theme, topic, or classwork across terms.
-- Nigerian context MUST appear in at least 1 teacher_activity, 1 engagement_tip, and 1 classwork per lesson week.
-- Assessment coverage must explicitly name the topics tested from prior weeks.
-- Tone: professional, warm, practical. British English throughout.`;
-    }
 
     default:
       throw new Error(`Unknown generate type: ${req.type}`);
