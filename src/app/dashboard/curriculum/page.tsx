@@ -541,7 +541,7 @@ export default function CurriculumPage() {
                 <SparklesIcon className="w-4 h-4" /> Generate Syllabus
               </button>
             ) : (
-              <p className="text-xs text-muted-foreground">Contact your administrator to generate a curriculum for this course.</p>
+              <p className="text-xs text-muted-foreground">Contact your administrator to generate a course syllabus.</p>
             )}
           </div>
         ) : (

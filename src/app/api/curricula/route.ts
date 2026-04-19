@@ -1,7 +1,150 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120; // extend to 2 min for AI generation
+
+const openRouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY ?? '',
+  defaultHeaders: {
+    'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
+    'X-Title': 'Rillcod Technologies',
+  },
+});
+
+const CURRICULUM_MODELS = [
+  'google/gemini-2.0-flash-001',
+  'moonshotai/kimi-k2.5',
+  'deepseek/deepseek-chat-v3-5',
+  'meta-llama/llama-3.3-70b-instruct',
+  'google/gemini-2.0-flash-lite-001',
+];
+
+function buildCurriculumPrompt(
+  courseName: string,
+  gradeLevel: string,
+  subjectArea: string,
+  termCount: number,
+  weeksPerTerm: number,
+  notes?: string,
+): string {
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy serving Nigerian partner schools (KG to SS3).
+
+Your task: Design a COMPLETE, INNOVATIVE, and READY-TO-TEACH school curriculum.
+
+Course: "${courseName}"
+Grade Level: ${gradeLevel}
+Subject Area: ${subjectArea}
+Academic Terms: ${termCount}
+Weeks Per Term: ${weeksPerTerm}
+${notes ? `Special Notes: ${notes}` : ''}
+
+ASSESSMENT SCHEDULE (mandatory every term):
+- Week 3: First Assessment (type: "assessment")
+- Week 6: Second Assessment (type: "assessment")
+- Week ${weeksPerTerm}: End-of-Term Examination (type: "examination")
+All other weeks: Lesson (type: "lesson")
+
+WEEK TYPES: "lesson" | "assessment" | "examination"
+
+LESSON_PLAN required for every lesson week:
+{
+  duration_minutes: 40,
+  objectives: [3-4 measurable outcomes],
+  teacher_activities: [5 steps: Hook(5min), Instruction(10min), Demo(10min), Practice(10min), Wrap-Up(5min)],
+  student_activities: [mirroring teacher_activities],
+  classwork: { title, instructions, materials[] },
+  assignment: { title, instructions, due: "Next class" },
+  project: null | { title, description, deliverables[] },
+  resources: [string],
+  engagement_tips: [3 tips with Nigerian/local context]
+}
+
+ASSESSMENT_PLAN required for assessment + examination weeks:
+{
+  type: "written"|"practical"|"mixed",
+  title: string,
+  coverage: [topic strings],
+  format: string,
+  duration_minutes: 40 (80 for exam),
+  scoring_guide: string,
+  teacher_prep: [steps],
+  sample_questions: [3 examples]
+}
+
+CREATIVITY RULES:
+- Topics must build progressively — NEVER repeat a project or topic
+- Term 1 = Foundations, Term 2 = Application, Term 3 = Innovation & Real-World Projects
+- Use Nigerian contexts: agritech, fintech, healthcare, entertainment, traffic, market pricing
+- Vary tools across terms where possible (e.g. Scratch → Python → Web → Arduino)
+
+Return ONLY valid JSON with this shape (no preamble, no markdown fences):
+{
+  "course_title": "string",
+  "overview": "string (3 paragraphs)",
+  "learning_outcomes": ["8 measurable outcomes"],
+  "assessment_strategy": "string",
+  "materials_required": ["string"],
+  "recommended_tools": ["string"],
+  "terms": [
+    {
+      "term": 1,
+      "title": "string",
+      "objectives": ["4 term objectives"],
+      "weeks": [
+        {
+          "week": 1,
+          "type": "lesson",
+          "topic": "string",
+          "subtopics": ["string"],
+          "lesson_plan": { ... full lesson_plan object ... }
+        },
+        {
+          "week": 3,
+          "type": "assessment",
+          "topic": "Mid-Term Assessment",
+          "assessment_plan": { ... }
+        }
+      ]
+    }
+  ]
+}`;
+}
+
+function safeParseJSON(raw: string): any {
+  try { return JSON.parse(raw); } catch {}
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  const brace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (brace !== -1 && lastBrace !== -1) {
+    try { return JSON.parse(raw.slice(brace, lastBrace + 1)); } catch {}
+  }
+  return null;
+}
+
+async function generateCurriculum(prompt: string): Promise<any> {
+  for (const model of CURRICULUM_MODELS) {
+    try {
+      const response = await openRouter.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 16000,
+        temperature: 0.55,
+        response_format: { type: 'json_object' },
+      });
+      const content = response.choices[0]?.message?.content;
+      if (!content) continue;
+      const parsed = safeParseJSON(content);
+      if (parsed?.terms?.length) return parsed;
+    } catch {
+      // try next model
+    }
+  }
+  return null;
+}
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -32,43 +175,27 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   if (!profile || !['admin', 'school', 'teacher'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Only staff can create curricula' }, { status: 403 });
+    return NextResponse.json({ error: 'Only staff can create syllabi' }, { status: 403 });
   }
 
   const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = await req.json();
-  if (!course_name) {
-    return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
-  }
+  if (!course_name) return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
 
-  // Call AI generation
-  let aiContent: any = null;
-  try {
-    const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: req.headers.get('cookie') ?? '' },
-      body: JSON.stringify({
-        type: 'curriculum',
-        topic: course_name,
-        course_name,
-        grade_level,
-        term_count: term_count ?? 3,
-        weeks_per_term: weeks_per_term ?? 12,
-        subject_area,
-        notes,
-      }),
-    });
-    if (!aiRes.ok) throw new Error('AI generation failed');
-    const aiJson = await aiRes.json();
-    aiContent = aiJson.content ?? aiJson.data;
-  } catch (err) {
-    return NextResponse.json({ error: 'AI curriculum generation failed. Please try again.' }, { status: 502 });
-  }
+  const prompt = buildCurriculumPrompt(
+    course_name,
+    grade_level ?? 'JSS1',
+    subject_area ?? 'STEM / Coding',
+    term_count ?? 3,
+    weeks_per_term ?? 8,
+    notes,
+  );
 
+  const aiContent = await generateCurriculum(prompt);
   if (!aiContent) {
-    return NextResponse.json({ error: 'AI returned no content' }, { status: 502 });
+    return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
-  // Check existing curriculum (only if course_id provided)
+  // Update existing or insert new
   if (course_id) {
     const existingQuery = (supabase as any)
       .from('course_curricula')
@@ -78,7 +205,6 @@ export async function POST(req: NextRequest) {
     const { data: existing } = await existingQuery.single();
 
     if (existing) {
-      // Increment version
       const { data, error } = await supabase
         .from('course_curricula')
         .update({ content: aiContent, version: existing.version + 1, updated_at: new Date().toISOString() })
@@ -90,11 +216,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const insertPayload: any = {
-    content: aiContent,
-    version: 1,
-    created_by: user.id,
-  };
+  const insertPayload: any = { content: aiContent, version: 1, created_by: user.id };
   if (course_id) insertPayload.course_id = course_id;
   if (profile.school_id) insertPayload.school_id = profile.school_id;
 
