@@ -7,7 +7,7 @@
 create table if not exists public.course_curricula (
   id          uuid        primary key default gen_random_uuid(),
   course_id   uuid        not null references public.courses(id),
-  school_id   uuid        references public.schools(id), -- Nullable for global/master curricula
+  school_id   uuid        not null references public.schools(id),
   content     jsonb       not null default '{}',
   version     int         not null default 1,
   created_by  uuid        not null references public.portal_users(id),
@@ -28,71 +28,66 @@ alter table public.lesson_plans
 
 alter table public.course_curricula enable row level security;
 
--- select curricula: admins all, teachers own school or global
+-- staff can select curricula for their school
+drop policy if exists "school admins select curricula for their school" on public.course_curricula;
+drop policy if exists "teachers select curricula for their school" on public.course_curricula;
 drop policy if exists "staff select curricula for their school" on public.course_curricula;
-create policy "select_curricula"
+create policy "staff select curricula for their school"
   on public.course_curricula
   for select
   using (
     exists (
       select 1
       from public.portal_users pu
-      where pu.id = auth.uid()
-        and pu.role in ('admin', 'teacher')
-        and (
-          pu.role = 'admin' 
-          or course_curricula.school_id is null 
-          or pu.school_id = course_curricula.school_id
-        )
+      where pu.id        = auth.uid()
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.school_id = course_curricula.school_id
     )
   );
 
--- insert curricula: admins all, teachers own school only
+-- staff can insert curricula for their school
+drop policy if exists "school admins insert curricula for their school" on public.course_curricula;
 drop policy if exists "staff insert curricula for their school" on public.course_curricula;
-create policy "insert_curricula"
+create policy "staff insert curricula for their school"
   on public.course_curricula
   for insert
   with check (
     exists (
       select 1
       from public.portal_users pu
-      where pu.id = auth.uid()
-        and pu.role in ('admin', 'teacher')
-        and (
-          pu.role = 'admin' 
-          or (pu.school_id is not null and pu.school_id = course_curricula.school_id)
-        )
-    )
+      where pu.id        = auth.uid()
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.school_id = course_curricula.school_id
+      )
   );
 
--- update curricula: admins all, teachers own school only
+-- staff can update curricula for their school
+drop policy if exists "school admins update curricula for their school" on public.course_curricula;
 drop policy if exists "staff update curricula for their school" on public.course_curricula;
-create policy "update_curricula"
+create policy "staff update curricula for their school"
   on public.course_curricula
   for update
   using (
     exists (
       select 1
       from public.portal_users pu
-      where pu.id = auth.uid()
-        and pu.role in ('admin', 'teacher')
-        and (
-          pu.role = 'admin' 
-          or (pu.school_id is not null and pu.school_id = course_curricula.school_id)
-        )
+      where pu.id        = auth.uid()
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.school_id = course_curricula.school_id
     )
   );
 
--- delete curricula: admins only
-drop policy if exists "admins delete curricula for their school" on public.course_curricula;
-create policy "delete_curricula"
+-- school admins can delete curricula for their school (admins only for safety)
+drop policy if exists "school admins delete curricula for their school" on public.course_curricula;
+create policy "school admins delete curricula for their school"
   on public.course_curricula
   for delete
   using (
     exists (
       select 1
       from public.portal_users pu
-      where pu.id = auth.uid()
-        and pu.role = 'admin'
+      where pu.id        = auth.uid()
+        and pu.role      in ('admin', 'school_admin', 'school')
+        and pu.school_id = course_curricula.school_id
     )
   );
