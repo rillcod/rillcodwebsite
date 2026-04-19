@@ -67,12 +67,18 @@ const FEE_STATUS_STYLE: Record<string, { bg: string; text: string; label: string
     waived:      { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
 };
 
-function letterGrade(pct: number) {
-    if (pct >= 85) return { g: 'A', label: 'EXCELLENT', color: '#059669' };
-    if (pct >= 70) return { g: 'B', label: 'VERY GOOD', color: '#4f46e5' };
-    if (pct >= 55) return { g: 'C', label: 'GOOD',      color: '#d97706' };
-    if (pct >= 45) return { g: 'D', label: 'PASS',      color: '#7c3aed' };
-    return             { g: 'E', label: 'FAIL',      color: '#e11d48' };
+// WAEC-aligned grade scale (replaces generic A/B/C system)
+function waecGrade(score: number): { code: string; label: string; remark: string; color: string } {
+    const s = Math.max(0, Math.min(100, Math.round(score)));
+    if (s >= 75) return { code: 'A1', label: 'DISTINCTION',  remark: 'Excellent — Outstanding performance', color: '#059669' };
+    if (s >= 70) return { code: 'B2', label: 'VERY GOOD',    remark: 'Very Good — Above average',           color: '#0891b2' };
+    if (s >= 65) return { code: 'B3', label: 'GOOD',         remark: 'Good — Solid understanding',          color: '#4f46e5' };
+    if (s >= 60) return { code: 'C4', label: 'CREDIT',       remark: 'Credit — Satisfactory',               color: '#0284c7' };
+    if (s >= 55) return { code: 'C5', label: 'CREDIT',       remark: 'Credit — Satisfactory',               color: '#0284c7' };
+    if (s >= 50) return { code: 'C6', label: 'CREDIT',       remark: 'Credit — Minimum credit pass',        color: '#0369a1' };
+    if (s >= 45) return { code: 'D7', label: 'PASS',         remark: 'Pass — Below average',                color: '#d97706' };
+    if (s >= 40) return { code: 'E8', label: 'MARGINAL',     remark: 'Marginal Pass — Needs improvement',   color: '#ea580c' };
+    return              { code: 'F9', label: 'FAIL',         remark: 'Fail — Must retake',                  color: '#dc2626' };
 }
 
 export default function ModernReportCard({ report, orgSettings }: {
@@ -97,14 +103,21 @@ export default function ModernReportCard({ report, orgSettings }: {
         ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
         : '—';
 
-    // ── Scores (Exam 40% · Test 20% · Assignment 20% · Participation 20%) ──
-    const theory      = Number(report.theory_score)       || 0;
-    const practical   = Number(report.practical_score)    || 0;
-    const attendance  = Number(report.attendance_score)   || 0;
-    const participation = Number(report.participation_score) || 0;
-    const computed    = Math.round(theory * 0.4 + practical * 0.2 + attendance * 0.2 + participation * 0.2);
-    const overall     = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
-    const grade       = letterGrade(overall);
+    // ── WAEC 6-component scoring ─────────────────────────────────────────
+    // Theory 20% · Classwork 10% · Practical 25% · Assignments 20% · Attendance 10% · Assessment 15%
+    const em           = (report.engagement_metrics as any) ?? {};
+    const theory       = Number(report.theory_score)          || 0;   // 20%
+    const classwork    = Number(em.classwork_score)           || 0;   // 10%
+    const practical    = Number(report.practical_score)       || 0;   // 25%
+    const assignments  = Number(report.attendance_score)      || 0;   // 20% (assignment completion %)
+    const attendance   = Number(report.participation_score)   || 0;   // 10% (class attendance %)
+    const assessment   = Number(em.assessment_score)          || 0;   // 15% (mid-term)
+    const computed     = Math.round(
+        theory * 0.20 + classwork * 0.10 + practical * 0.25 +
+        assignments * 0.20 + attendance * 0.10 + assessment * 0.15
+    );
+    const overall      = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
+    const grade        = waecGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
 
     const hasPayment = !!report.fee_status;
@@ -121,11 +134,17 @@ export default function ModernReportCard({ report, orgSettings }: {
     const radiusSm    = isIndustrial || isExecutive ? 0 : 10;
     const radiusPill  = isIndustrial ? 0 : 999;
 
+    // ── WAEC 6-component metrics (all hex-safe for html2canvas) ──────────
+    const M_INDUST = '#000000';
+    const M_EXEC   = ['#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E'];
+    const M_FUT    = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#f59e0b', '#8b5cf6'];
     const metrics = [
-        { label: 'Examination',       weight: '40%', value: theory,       color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#4f46e5' },
-        { label: 'Evaluation',        weight: '20%', value: practical,    color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#06b6d4' },
-        { label: 'Assignment',        weight: '20%', value: attendance,   color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#10b981' },
-        { label: 'Project Engagement',weight: '20%', value: participation,color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#8b5cf6' },
+        { label: 'Theory / Written',    weight: '20%', value: theory,      color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
+        { label: 'Classwork',           weight: '10%', value: classwork,   color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
+        { label: 'Practical / Projects',weight: '25%', value: practical,   color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
+        { label: 'Assignments',         weight: '20%', value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
+        { label: 'Attendance',          weight: '10%', value: attendance,  color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
+        { label: 'Mid-term Assessment', weight: '15%', value: assessment,  color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
     ];
 
     return (
@@ -319,13 +338,13 @@ export default function ModernReportCard({ report, orgSettings }: {
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
                                 {[
-                                    { l: 'Project Work', v: report.projects_grade },
-                                    { l: 'Homework',     v: report.homework_grade },
-                                    { l: 'Participation',v: report.participation_grade },
+                                    { l: 'Practical / Projects', v: report.projects_grade },
+                                    { l: 'Assignments',          v: report.homework_grade },
+                                    { l: 'Classwork',            v: report.participation_grade },
                                 ].map(g => (
                                     <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
                                         <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
-                                        <p style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1 }}>{g.v || '—'}</p>
+                                        <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1.25 }}>{g.v || '—'}</p>
                                     </div>
                                 ))}
                             </div>
@@ -340,13 +359,14 @@ export default function ModernReportCard({ report, orgSettings }: {
                             position: 'relative', overflow: 'hidden',
                         }}>
                             {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
-                            <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 4 }}><TrophyIcon className="w-6 h-6" /></span>
-                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 4 }}>Composite</p>
-                            <h3 style={{ fontSize: 76, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 6 }}>{grade.g}</h3>
-                            <div style={{ padding: '4px 12px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 6 }}>
-                                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
+                            <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 2 }}><TrophyIcon className="w-5 h-5" /></span>
+                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>Grade</p>
+                            <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{grade.code}</h3>
+                            <div style={{ padding: '3px 10px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 4 }}>
+                                <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
                             </div>
-                            <p style={{ fontSize: 15, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{overall}%</p>
+                            <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{overall}%</p>
+                            <p style={{ fontSize: 6, fontWeight: 700, color: isExecutive ? 'rgba(197,160,89,0.5)' : 'rgba(255,255,255,0.35)', marginTop: 2, textAlign: 'center', letterSpacing: '0.05em' }}>{grade.remark}</p>
                         </div>
                     </div>
                 </div>

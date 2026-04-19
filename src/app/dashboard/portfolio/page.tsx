@@ -9,7 +9,8 @@ import {
   XMarkIcon, PaintBrushIcon, ArrowDownTrayIcon,
   CloudArrowUpIcon, PencilIcon, MagnifyingGlassIcon,
   PhotoIcon, UserGroupIcon, StarIcon, CalendarIcon,
-  ExclamationTriangleIcon, StarIconSolid as StarSolid
+  ExclamationTriangleIcon, StarIconSolid as StarSolid,
+  CheckCircleIcon, ArrowPathIcon, SparklesIcon
 } from '@/lib/icons';
 import Link from 'next/link';
 
@@ -74,13 +75,12 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
     try {
       const db = createClient();
       
-      // Get completed assignments, lessons, and projects not yet in portfolio
       const [assignmentsRes, lessonsRes, projectsRes] = await Promise.all([
         db.from('assignment_submissions' as any)
           .select('id, assignments(id, title, description), submitted_at, grade')
           .eq('portal_user_id', userId)
           .eq('status', 'graded')
-          .gte('grade', 70), // Only good grades
+          .gte('grade', 70),
         
         db.from('lesson_progress' as any)
           .select('id, lessons(id, title, description), completed_at')
@@ -118,7 +118,6 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
         }))
       ];
 
-      // Filter out items whose title already exists in the portfolio
       const { data: existingProjects } = await db.from('portfolio_projects')
         .select('title')
         .eq('user_id', userId);
@@ -155,81 +154,77 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
       if (res.ok) {
         setCompletedWork(prev => prev.filter(w => w.id !== work.id));
         onTransfer();
-      } else {
-        alert('Failed to transfer to portfolio');
       }
     } catch (error) {
-      alert('Failed to transfer to portfolio');
+      console.error(error);
     } finally {
       setTransferring(null);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="bg-card border border-border rounded-none p-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="bg-card/30 border border-border/50 p-12 flex items-center justify-center">
+      <ArrowPathIcon className="w-6 h-6 text-orange-500 animate-spin opacity-50" />
+    </div>
+  );
 
-  if (completedWork.length === 0) {
-    return (
-      <div className="bg-card border border-border rounded-none p-6 text-center">
-        <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
-        <p className="text-foreground font-bold mb-1">All caught up!</p>
-        <p className="text-muted-foreground text-sm">Complete assignments and lessons to auto-add them here</p>
-      </div>
-    );
-  }
+  if (completedWork.length === 0) return (
+    <div className="bg-card/30 border border-border/50 p-8 text-center relative overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <CheckCircleIcon className="w-10 h-10 mx-auto text-emerald-500/40 mb-4" />
+      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Archive Synchronized</p>
+      <p className="text-muted-foreground text-xs font-medium">All completed coursework is already in your portfolio.</p>
+    </div>
+  );
 
   return (
-    <div className="bg-card border border-border rounded-none overflow-hidden">
-      <div className="px-6 py-4 border-b border-border bg-muted/30">
-        <div className="flex items-center gap-2">
-          <SparklesIcon className="w-4 h-4 text-orange-400" />
-          <h3 className="font-bold text-foreground">Auto-Transfer Available</h3>
-          <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full font-bold">
-            {completedWork.length} item{completedWork.length !== 1 ? 's' : ''}
-          </span>
+    <div className="bg-card/50 border border-border p-6 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
+      
+      <div className="flex items-center justify-between mb-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <SparklesIcon className="w-4 h-4 text-orange-400" />
+            <h3 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">Ready for Archive</h3>
+          </div>
+          <p className="text-muted-foreground text-[11px]">Deploy your achievements to your public showcase.</p>
         </div>
-        <p className="text-muted-foreground text-xs mt-1">
-          Add your completed coursework to your portfolio with one click
-        </p>
+        <div className="bg-orange-500/10 border border-orange-500/20 px-3 py-1">
+          <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">{completedWork.length} Available</span>
+        </div>
       </div>
       
-      <div className="p-6 space-y-3 max-h-80 overflow-y-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
         {completedWork.map(work => (
-          <div key={`${work.type}-${work.id}`} className="flex items-center justify-between p-4 bg-background border border-border rounded-none">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold ${
-                work.type === 'assignment' ? 'bg-blue-500/20 text-blue-400' :
-                work.type === 'lesson' ? 'bg-emerald-500/20 text-emerald-400' :
-                'bg-violet-500/20 text-violet-400'
-              }`}>
-                {work.type === 'assignment' ? '📝' : work.type === 'lesson' ? '📖' : '🚀'}
-              </div>
+          <div key={`${work.type}-${work.id}`} className="group relative bg-background/50 border border-border p-4 hover:border-orange-500/30 transition-all">
+            <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-foreground font-bold text-sm truncate">{work.title}</p>
-                <p className="text-muted-foreground text-xs">
-                  {work.type} • {new Date(work.completed_at).toLocaleDateString()}
-                </p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 ${
+                    work.type === 'assignment' ? 'bg-blue-500/10 text-blue-400' :
+                    work.type === 'lesson' ? 'bg-emerald-500/10 text-emerald-400' :
+                    'bg-violet-500/10 text-violet-400'
+                  }`}>
+                    {work.type}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-tighter">
+                    {new Date(work.completed_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm font-black text-foreground/90 truncate italic">{work.title}</p>
               </div>
+              <button
+                onClick={() => transferToPortfolio(work)}
+                disabled={transferring === work.id}
+                className="ml-4 p-2 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white transition-all disabled:opacity-50"
+              >
+                {transferring === work.id ? (
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                ) : (
+                  <PlusIcon className="w-4 h-4" />
+                )}
+              </button>
             </div>
-            <button
-              onClick={() => transferToPortfolio(work)}
-              disabled={transferring === work.id}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded-none transition-colors"
-            >
-              {transferring === work.id ? (
-                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <PlusIcon className="w-3.5 h-3.5" />
-              )}
-              Add
-            </button>
           </div>
         ))}
       </div>
@@ -267,7 +262,7 @@ function DrawingCanvas() {
     const ctx = canvas.getContext('2d')!;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, brush / 2, 0, Math.PI * 2);
-    ctx.fillStyle = tool === 'eraser' ? '#1e1e2e' : color;
+    ctx.fillStyle = tool === 'eraser' ? '#0d1526' : color;
     ctx.fill();
   }
 
@@ -281,7 +276,7 @@ function DrawingCanvas() {
       ctx.beginPath();
       ctx.moveTo(lastPos.current.x, lastPos.current.y);
       ctx.lineTo(pos.x, pos.y);
-      ctx.strokeStyle = tool === 'eraser' ? '#1e1e2e' : color;
+      ctx.strokeStyle = tool === 'eraser' ? '#0d1526' : color;
       ctx.lineWidth = brush;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -295,7 +290,7 @@ function DrawingCanvas() {
   function clearCanvas() {
     const canvas = canvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#1e1e2e';
+    ctx.fillStyle = '#0d1526';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -310,58 +305,74 @@ function DrawingCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#1e1e2e';
+    ctx.fillStyle = '#0d1526';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }, []);
 
   return (
-    <div className="bg-card border border-border rounded-none overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <PaintBrushIcon className="w-4 h-4 text-pink-400" />
-          <span className="text-foreground font-bold text-sm">Creative Canvas</span>
+    <div className="bg-card/30 border border-border overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background/50 flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 flex items-center justify-center bg-pink-500/10 text-pink-400 border border-pink-500/20">
+            <PaintBrushIcon className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-[10px] font-black text-pink-400 uppercase tracking-[0.2em]">Creative Studio</h3>
+            <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter opacity-70">Canvas active • {brush}px point</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1">
+        
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex gap-1.5 p-1 bg-background/80 border border-border">
             {PALETTE.map(c => (
               <button key={c} onClick={() => { setColor(c); setTool('pen'); }}
-                className={`w-5 h-5 rounded-full border-2 transition-all ${color === c && tool === 'pen' ? 'border-border scale-125' : 'border-transparent'}`}
-                style={{ background: c }} />
+                className={`w-6 h-6 border transition-all ${color === c && tool === 'pen' ? 'border-foreground scale-110' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                style={{ background: c }} title={c} />
             ))}
           </div>
-          <div className="flex gap-1 items-center">
+          
+          <div className="flex gap-2 items-center bg-background/80 border border-border px-3 py-1">
+            <span className="text-[9px] font-black text-muted-foreground uppercase mr-1">Brush</span>
             {BRUSHES.map(b => (
               <button key={b} onClick={() => setBrush(b)}
-                className={`rounded-full bg-white transition-all ${brush === b ? 'opacity-100 ring-2 ring-orange-400' : 'opacity-30'}`}
-                style={{ width: b + 4, height: b + 4 }} />
+                className={`rounded-none transition-all ${brush === b ? 'bg-orange-500 scale-110' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
+                style={{ width: 8 + (b / 4), height: 8 + (b / 4) }} />
             ))}
           </div>
-          <button onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-            className={`px-2 py-1 rounded-none text-xs font-bold transition-colors ${tool === 'eraser' ? 'bg-rose-500/30 text-rose-400' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}>
-            Eraser
-          </button>
-          <button onClick={clearCanvas} className="px-2 py-1 rounded-none text-xs text-muted-foreground hover:text-foreground bg-card shadow-sm transition-colors">Clear</button>
-          <button onClick={downloadCanvas} className="p-1.5 text-muted-foreground hover:text-emerald-400 transition-colors" title="Download artwork">
-            <ArrowDownTrayIcon className="w-4 h-4" />
-          </button>
+          
+          <div className="flex gap-1">
+            <button onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
+              className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all border ${
+                tool === 'eraser' ? 'bg-rose-500 text-white border-rose-600' : 'bg-background border-border text-muted-foreground hover:text-foreground'
+              }`}>
+              Eraser
+            </button>
+            <button onClick={clearCanvas} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-background border border-border transition-all">Reset</button>
+            <button onClick={downloadCanvas} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all" title="Archive Illustration">
+              <ArrowDownTrayIcon className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
-      <canvas
-        ref={canvasRef}
-        width={800}
-        height={400}
-        className="w-full touch-none cursor-crosshair"
-        style={{ imageRendering: 'pixelated' }}
-        onMouseDown={startDraw}
-        onMouseMove={draw}
-        onMouseUp={stopDraw}
-        onMouseLeave={stopDraw}
-        onTouchStart={startDraw}
-        onTouchMove={draw}
-        onTouchEnd={stopDraw}
-      />
-      <div className="px-4 py-2 border-t border-border">
-        <p className="text-muted-foreground text-[10px]">Draw your ideas, sketches, and robot designs here! 🤖</p>
+      
+      <div className="relative bg-[#0d1526]">
+         <canvas
+          ref={canvasRef}
+          width={1200}
+          height={500}
+          className="w-full touch-none cursor-crosshair opacity-90"
+          style={{ imageRendering: 'pixelated' }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={stopDraw}
+          onMouseLeave={stopDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={stopDraw}
+        />
+        <div className="absolute bottom-4 right-4 text-[9px] font-black text-white/10 uppercase tracking-[0.3em] pointer-events-none select-none">
+          Draft Neural Design v1.0
+        </div>
       </div>
     </div>
   );
@@ -576,91 +587,92 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
   const date = new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <div className={`bg-[#0d1526] border rounded-none overflow-hidden transition-all group ${project.is_featured ? 'border-amber-500/40 shadow-lg shadow-amber-900/10' : 'border-border hover:border-border'}`}>
-      {/* Thumbnail */}
-      <div className="h-40 bg-gradient-to-br from-[#1a2b54] to-[#0d1526] flex items-center justify-center relative overflow-hidden">
-        {project.image_url
-          ? <img src={project.image_url} alt={project.title} className="w-full h-full object-cover" />
-          : <RocketLaunchIcon className="w-14 h-14 text-white/5" />}
+    <div className={`group relative bg-[#090e1a]/80 border transition-all duration-300 ${
+      project.is_featured 
+        ? 'border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
+        : 'border-border hover:border-orange-500/30'
+    }`}>
+      {/* Visual Identity Strip */}
+      <div className={`absolute top-0 left-0 w-full h-[2px] ${
+        project.is_featured ? 'bg-amber-500' : 'bg-orange-500 opacity-0 group-hover:opacity-100'
+      } transition-opacity duration-300`} />
+
+      <div className="h-44 bg-[#0d1526] flex items-center justify-center relative overflow-hidden">
+        {project.image_url ? (
+          <img src={project.image_url} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent flex items-center justify-center">
+             <RocketLaunchIcon className="w-16 h-16 text-white/5 rotate-12" />
+          </div>
+        )}
 
         {project.is_featured && (
-          <div className="absolute top-2 left-2">
-            <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-amber-500/90 text-black px-2 py-0.5 rounded-full">
-              <StarSolid className="w-2.5 h-2.5" /> Featured
-            </span>
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 bg-amber-500 text-black text-[9px] font-black uppercase tracking-widest shadow-lg">
+            <StarSolid className="w-3 h-3" />
+            TOP PRIORITY
           </div>
         )}
 
         {!readonly && (
-          <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-3 right-3 flex gap-2 translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300">
             {onToggleFeatured && (
-              <button
-                onClick={onToggleFeatured}
-                disabled={saving}
-                title={project.is_featured ? 'Unpin' : 'Pin as featured'}
-                className={`p-1.5 rounded-none transition-colors disabled:opacity-40 ${project.is_featured ? 'bg-amber-500/80 text-black hover:bg-amber-400' : 'bg-black/60 text-muted-foreground hover:text-amber-400'}`}
-              >
-                {project.is_featured ? <StarSolid className="w-3.5 h-3.5" /> : <StarIcon className="w-3.5 h-3.5" />}
+              <button onClick={onToggleFeatured} disabled={saving}
+                className={`p-2 backdrop-blur-md transition-colors ${project.is_featured ? 'bg-amber-500 text-black' : 'bg-black/60 text-white/70 hover:text-amber-400'}`}>
+                {project.is_featured ? <StarSolid className="w-4 h-4" /> : <StarIcon className="w-4 h-4" />}
               </button>
             )}
             {onEdit && (
-              <button
-                onClick={onEdit}
-                disabled={saving}
-                className="p-1.5 bg-black/60 rounded-none text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-              >
-                <PencilIcon className="w-3.5 h-3.5" />
+              <button onClick={onEdit} disabled={saving} className="p-2 bg-black/60 backdrop-blur-md text-white/70 hover:text-white transition-colors">
+                <PencilIcon className="w-4 h-4" />
               </button>
             )}
             {onDelete && (
-              <button
-                onClick={onDelete}
-                disabled={saving}
-                className="p-1.5 bg-rose-500/80 rounded-none text-foreground hover:bg-rose-500 transition-colors disabled:opacity-40"
-              >
-                <TrashIcon className="w-3.5 h-3.5" />
+              <button onClick={onDelete} disabled={saving} className="p-2 bg-rose-500/80 backdrop-blur-md text-white hover:bg-rose-500 transition-colors">
+                <TrashIcon className="w-4 h-4" />
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${catColor}`}>{project.category}</span>
-          {project.tags.slice(0, 3).map(t => (
-            <span key={t} className="text-[10px] text-muted-foreground bg-card shadow-sm px-1.5 py-0.5 rounded-full">{t}</span>
+      <div className="p-5 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <span className={`text-[8px] font-black px-2 py-0.5 tracking-widest uppercase border border-current ${catColor.replace('bg-', 'text-').replace('/20', '')}`}>
+            {project.category}
+          </span>
+          {project.tags.slice(0, 2).map(t => (
+            <span key={t} className="text-[8px] text-muted-foreground font-black uppercase tracking-widest border border-border px-2 py-0.5">
+              {t}
+            </span>
           ))}
         </div>
-        <h3 className="text-foreground font-bold text-sm leading-snug">{project.title}</h3>
-        {project.description && (
-          <p className="text-muted-foreground text-xs mt-1 line-clamp-2">{project.description}</p>
-        )}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-          <span className="flex items-center gap-1 text-muted-foreground text-[10px]">
-            <CalendarIcon className="w-3 h-3" /> {date}
-          </span>
-                  {project.project_url && (
-                    <a
-                      href={project.project_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-orange-400 text-xs hover:text-orange-500 transition-colors"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5" /> Demo
-                    </a>
-                  )}
-                  {project.github_url && (
-                    <a
-                      href={project.github_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-blue-400 text-xs hover:text-blue-500 transition-colors"
-                    >
-                      <CodeBracketIcon className="w-3.5 h-3.5" /> Code
-                    </a>
-                  )}
+
+        <div>
+          <h3 className="text-sm font-black text-foreground/90 leading-tight uppercase tracking-tight italic line-clamp-1 mb-1 group-hover:text-orange-400 transition-colors">
+            {project.title}
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 h-8">
+            {project.description || 'System data archive initialized. No further documentation provided.'}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t border-border/50">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold font-mono">
+            <CalendarIcon className="w-3 h-3 text-orange-500/50" />
+            {date}
+          </div>
+          <div className="flex gap-4">
+            {project.project_url && (
+              <a href={project.project_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-orange-400 transition-colors">
+                <LinkIcon className="w-4 h-4" />
+              </a>
+            )}
+            {project.github_url && (
+              <a href={project.github_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-blue-400 transition-colors">
+                <CodeBracketIcon className="w-4 h-4" />
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -718,30 +730,34 @@ function StaffPortfolioView() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Search */}
-      <div className="relative max-w-md">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Search Header */}
+      <div className="relative max-w-xl mx-auto">
+        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500/50" />
         <input
           type="text"
-          placeholder="Search students by name…"
+          placeholder="Search for student missions..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500"
+          className="w-full pl-12 pr-4 py-4 bg-card/50 backdrop-blur-md border border-border hover:border-orange-500/30 transition-all text-sm text-foreground focus:outline-none focus:border-orange-500 shadow-xl"
         />
+        
         {/* Dropdown results */}
         {(students.length > 0 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-none shadow-xl z-20 overflow-hidden">
-            {loading && <p className="text-muted-foreground text-sm px-4 py-3">Searching…</p>}
+          <div className="absolute top-full left-0 right-0 mt-2 bg-[#0d1526] border border-border shadow-2xl z-50 overflow-hidden">
+            <div className="p-2 border-b border-white/5 bg-white/5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2">Top Matches</span>
+            </div>
+            {loading && <div className="p-4 text-center text-xs text-muted-foreground animate-pulse">Scanning Neural Network...</div>}
             {students.map(s => (
               <button key={s.id} onClick={() => selectStudent(s)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-card shadow-sm transition-colors text-left">
-                <div className="w-8 h-8 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-black text-orange-400 flex-shrink-0">
+                className="w-full flex items-center gap-4 px-4 py-3 hover:bg-orange-500/10 transition-all text-left">
+                <div className="w-10 h-10 bg-orange-600/20 border border-orange-500/20 flex items-center justify-center text-sm font-black text-orange-400">
                   {(s.full_name ?? '?')[0]}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{s.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{s.school_name ?? s.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black text-foreground/90 uppercase tracking-tight">{s.full_name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter opacity-60">{s.school_name ?? s.email}</p>
                 </div>
               </button>
             ))}
@@ -749,49 +765,47 @@ function StaffPortfolioView() {
         )}
       </div>
 
-      {/* Selected student portfolio */}
-      {selectedStudent && (
-        <div>
-          <div className="flex flex-wrap items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-primary-foreground shrink-0">
-              {(selectedStudent.full_name ?? '?')[0]}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-foreground font-bold truncate">{selectedStudent.full_name}</p>
-              <p className="text-muted-foreground text-xs truncate">{selectedStudent.school_name ?? selectedStudent.email}</p>
-            </div>
-            <button type="button" onClick={() => { setSelectedStudent(null); setStudentProjects([]); }}
-              className="sm:ml-auto w-full sm:w-auto text-center sm:text-left text-muted-foreground hover:text-foreground text-xs underline py-1">
-              Clear
-            </button>
+      {/* Results View */}
+      {selectedStudent ? (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-4 p-6 bg-card/30 border border-border relative">
+             <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
+             <div className="w-16 h-16 bg-gradient-to-br from-orange-600 to-orange-400 border border-orange-500/40 flex items-center justify-center text-xl font-black text-white shrink-0">
+               {(selectedStudent.full_name ?? '?')[0]}
+             </div>
+             <div className="min-w-0 flex-1">
+               <h2 className="text-lg font-black text-foreground uppercase tracking-tight italic">{selectedStudent.full_name}</h2>
+               <p className="text-xs text-muted-foreground uppercase font-black tracking-[0.2em]">{selectedStudent.school_name || "Academic Profile"}</p>
+             </div>
+             <button onClick={() => { setSelectedStudent(null); setStudentProjects([]); }}
+               className="px-4 py-2 bg-background border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all">
+               Close Profile
+             </button>
           </div>
 
           {projectsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-64 bg-card/20 animate-pulse border border-border" />)}
             </div>
           ) : studentProjects.length === 0 ? (
-            <div className="text-center py-14 bg-card shadow-sm border border-border rounded-none">
-              <RocketLaunchIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">{selectedStudent.full_name} hasn't added any projects yet.</p>
+            <div className="text-center py-20 bg-card/20 border border-dashed border-border">
+              <RocketLaunchIcon className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
+              <p className="text-muted-foreground text-xs uppercase tracking-widest font-black">Archive Empty</p>
+              <p className="text-muted-foreground/60 text-[10px] mt-1">Student has not published any missions to their portfolio.</p>
             </div>
           ) : (
-            <>
-              <p className="text-muted-foreground text-xs mb-4">{studentProjects.length} project{studentProjects.length !== 1 ? 's' : ''}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {studentProjects.map(p => (
-                  <ProjectCard key={p.id} project={p} saving={false} readonly />
-                ))}
-              </div>
-            </>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {studentProjects.map(p => (
+                <ProjectCard key={p.id} project={p} saving={false} readonly />
+              ))}
+            </div>
           )}
         </div>
-      )}
-
-      {!selectedStudent && (
-        <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
-          <UserGroupIcon className="w-14 h-14 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground text-sm">Search for a student above to view their portfolio</p>
+      ) : (
+        <div className="text-center py-24 bg-card/20 border border-dashed border-border opacity-50">
+          <UserGroupIcon className="w-16 h-16 mx-auto text-muted-foreground/20 mb-4" />
+          <h3 className="text-muted-foreground/40 text-xs font-black uppercase tracking-[0.4em]">Ready for Investigation</h3>
+          <p className="text-muted-foreground/30 text-[10px] mt-2">Search for a student to analyze their creative output</p>
         </div>
       )}
     </div>
@@ -940,8 +954,11 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="min-h-screen bg-[#020817] text-foreground relative overflow-hidden">
+      {/* Neural Background Texture */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10 relative z-10">
 
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -981,18 +998,21 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* Stats strip — own projects only */}
+        {/* Stats Strip */}
         {tab !== 'browse' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-orange-400' },
-              { label: 'Featured', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400' },
-              { label: 'Links Shared', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-400' },
+              { label: 'Deployed Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-orange-400', bg: 'bg-orange-400/5' },
+              { label: 'Priority Assets', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400', bg: 'bg-amber-400/5' },
+              { label: 'External Links', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-400', bg: 'bg-emerald-400/5' },
             ].map(s => (
-              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 text-center">
-                <s.icon className={`w-5 h-5 mx-auto mb-1.5 ${s.color}`} />
-                <p className="text-xl font-black text-foreground">{s.value}</p>
-                <p className="text-muted-foreground text-xs">{s.label}</p>
+              <div key={s.label} className="relative bg-card/40 backdrop-blur-md border border-border group overflow-hidden">
+                <div className={`absolute top-0 left-0 w-[2px] h-full ${s.color.replace('text-', 'bg-')} opacity-40`} />
+                <div className="p-6 text-center">
+                  <s.icon className={`w-6 h-6 mx-auto mb-3 ${s.color} opacity-80 group-hover:scale-110 transition-transform`} />
+                  <p className="text-3xl font-black text-foreground tracking-tighter italic">{s.value}</p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">{s.label}</p>
+                </div>
               </div>
             ))}
           </div>

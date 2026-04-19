@@ -1,6 +1,4 @@
-'use client';
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -8,8 +6,10 @@ import {
   BookOpenIcon, SparklesIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon,
   ClipboardDocumentListIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon,
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
-  PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon,
+  PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
+  RocketLaunchIcon,
 } from '@/lib/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -314,6 +314,12 @@ export default function CurriculumPage() {
 
     setAssignResult(result);
     setAssigning(false);
+
+    // Auto-mark as in_progress if currently pending
+    const currentTrack = getTracking(activeTerm, week.week);
+    if (!currentTrack || currentTrack.status === 'pending') {
+      await trackWeek(week, 'in_progress', 'Automatically marked in_progress via content assignment.');
+    }
   }
 
   // ── Create lesson from curriculum week ───────────────────────────────────
@@ -332,14 +338,14 @@ export default function CurriculumPage() {
         duration_minutes: plan?.duration_minutes ?? 60,
         is_active: true,
         course_id: selectedCourse.id,
-        content: plan ? JSON.stringify({
+        content: plan ? {
           objectives: plan.objectives,
           teacher_activities: plan.teacher_activities,
           student_activities: plan.student_activities,
           classwork: plan.classwork,
           resources: plan.resources,
           engagement_tips: plan.engagement_tips,
-        }) : null,
+        } : null,
         lesson_plan: plan ? {
           objectives: plan.objectives,
           activities: plan.teacher_activities,
@@ -364,8 +370,10 @@ export default function CurriculumPage() {
     });
     const json = await res.json();
     setCreatingLesson(false);
-    if (res.ok && json.data?.id) {
-      router.push(`/dashboard/lesson-plans/${json.data.id}`);
+    if (res.ok) {
+      // Use lesson_plan_id (returned by lessons POST) — not the lesson id
+      const planId = json.data?.lesson_plan_id ?? json.data?.id;
+      if (planId) router.push(`/dashboard/lesson-plans/${planId}`);
     }
   }
 
@@ -402,7 +410,7 @@ export default function CurriculumPage() {
       {/* ── Mobile sidebar toggle ── */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Curriculum</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Course & Syllabus</p>
           <p className="text-sm font-black truncate">
             {selectedCourse ? selectedCourse.title : 'Select a course'}
           </p>
@@ -426,56 +434,74 @@ export default function CurriculumPage() {
         <div className="px-4 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">AI Curriculum</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Course & Syllabus</h2>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">Program → Course → Curriculum</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Program → Course → Syllabus</p>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
           {programs.length === 0 ? (
-            <p className="text-xs text-muted-foreground px-4 py-6">No programs found.</p>
+            <div className="px-6 py-12 text-center">
+              <div className="w-8 h-8 border-2 border-dashed border-border flex items-center justify-center mx-auto mb-4">
+                 <AcademicCapIcon className="w-4 h-4 text-muted-foreground/30" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No tracks found</p>
+            </div>
           ) : programs.map(prog => {
             const isExpanded = expandedPrograms.has(prog.id);
             const activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
             return (
-              <div key={prog.id}>
+              <div key={prog.id} className="border-b border-border/50 last:border-0">
                 <button
                   onClick={() => setExpandedPrograms(prev => {
                     const next = new Set(prev);
                     if (next.has(prog.id)) next.delete(prog.id); else next.add(prog.id);
                     return next;
                   })}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                  className={`w-full flex items-center gap-2 px-4 py-4 text-left transition-all ${isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20'}`}
                 >
                   {isExpanded
-                    ? <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    : <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                  <span className="text-[11px] font-black uppercase tracking-wider text-foreground/80 truncate">{prog.title}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{activeCourses.length}</span>
+                    ? <ChevronDownIcon className="w-4 h-4 text-orange-500 shrink-0" />
+                    : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.title}</span>
+                  <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">{activeCourses.length}</span>
                 </button>
 
-                {isExpanded && activeCourses.map(course => {
-                  const isSelected = selectedCourse?.id === course.id;
-                  const hasCurr = isSelected && !!curriculum;
-                  return (
-                    <button
-                      key={course.id}
-                      onClick={() => selectCourse(prog, course)}
-                      className={`w-full flex items-center gap-2.5 pl-8 pr-4 py-2 text-left transition-colors relative ${
-                        isSelected
-                          ? 'bg-orange-500/10 text-foreground'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                      }`}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden bg-muted/10"
                     >
-                      {isSelected && <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-orange-500" />}
-                      <AcademicCapIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-orange-400' : ''}`} />
-                      <span className="text-[12px] font-bold truncate">{course.title}</span>
-                      {hasCurr && (
-                        <span className="ml-auto text-[9px] text-emerald-400 font-black uppercase tracking-wider shrink-0">AI</span>
-                      )}
-                    </button>
-                  );
-                })}
+                      {activeCourses.map(course => {
+                        const isSelected = selectedCourse?.id === course.id;
+                        const hasCurr = isSelected && !!curriculum;
+                        return (
+                          <button
+                            key={course.id}
+                            onClick={() => selectCourse(prog, course)}
+                            className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${
+                              isSelected
+                                ? 'text-orange-500 bg-orange-500/5'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                            }`}
+                          >
+                            {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600" />}
+                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-500' : 'bg-muted-foreground/30'}`} />
+                            <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
+                            {hasCurr && (
+                              <div className="ml-auto w-4 h-4 flex items-center justify-center bg-orange-600/10 border border-orange-500/20">
+                                 <SparklesIcon className="w-2.5 h-2.5 text-orange-400" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
@@ -510,7 +536,7 @@ export default function CurriculumPage() {
                 onClick={() => setShowGenerate(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors"
               >
-                <SparklesIcon className="w-4 h-4" /> Generate Curriculum
+                <SparklesIcon className="w-4 h-4" /> Generate Syllabus
               </button>
             ) : (
               <p className="text-xs text-muted-foreground">Contact your administrator to generate a curriculum for this course.</p>
@@ -577,9 +603,13 @@ export default function CurriculumPage() {
 
             {/* Overview */}
             {curriculum.content.overview && (
-              <div className="bg-card border border-border p-5">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Course Overview</h3>
-                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{curriculum.content.overview}</p>
+              <div className="bg-card border border-border p-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                  <InformationCircleIcon className="w-3 h-3" />
+                  Course Overview
+                </h3>
+                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
               </div>
             )}
 
@@ -919,7 +949,7 @@ export default function CurriculumPage() {
               <div>
                 <h2 className="font-black flex items-center gap-2">
                   <SparklesIcon className="w-4 h-4 text-orange-400" />
-                  {curriculum ? 'Regenerate' : 'Generate'} Curriculum
+                  {curriculum ? 'Regenerate' : 'Generate'} Syllabus
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{selectedCourse?.title}</p>
               </div>
@@ -1007,7 +1037,7 @@ export default function CurriculumPage() {
                 disabled={generating}
                 className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
               >
-                {generating ? 'Generating…' : curriculum ? 'Regenerate' : 'Generate Curriculum'}
+                {generating ? 'Generating…' : curriculum ? 'Regenerate' : 'Generate Syllabus'}
               </button>
             </div>
           </div>
@@ -1017,24 +1047,39 @@ export default function CurriculumPage() {
   );
 }
 
+function Section({ label, color, children, icon: Icon }: { label: string; color: string; children: React.ReactNode, icon?: any }) {
+  return (
+    <div className="bg-card/50 border border-border p-5 space-y-4 hover:border-border/80 transition-colors relative group overflow-hidden">
+      <div className={`absolute top-0 left-0 w-1 h-full ${color.replace('text-', 'bg-')}`} />
+      <div className="flex items-center justify-between">
+        <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${color} flex items-center gap-2`}>
+          {Icon && <Icon className="w-3 h-3" />}
+          {label}
+        </h3>
+      </div>
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
 // ── Lesson Plan View Component ───────────────────────────────────────────────
 function LessonPlanView({ plan }: { plan: LessonPlan }) {
   return (
-    <div className="space-y-5 text-sm">
+    <div className="space-y-6 text-sm">
       {/* Duration badge */}
-      <div className="flex items-center gap-2">
-        <ClockIcon className="w-4 h-4 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground font-bold">{plan.duration_minutes} minute class period</span>
+      <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 border border-border w-fit">
+        <ClockIcon className="w-4 h-4 text-orange-400" />
+        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{plan.duration_minutes} Minute Session</span>
       </div>
 
       {/* Objectives */}
       {plan.objectives?.length > 0 && (
-        <Section label="Learning Objectives" color="text-violet-400">
-          <ol className="space-y-1.5">
+        <Section label="Learning Objectives" color="text-violet-400" icon={BoltIcon}>
+          <ol className="space-y-2">
             {plan.objectives.map((o, i) => (
-              <li key={i} className="flex gap-2 text-sm text-foreground/80">
-                <span className="text-violet-400 font-black shrink-0 w-4">{i+1}.</span>
-                <span>{o}</span>
+              <li key={i} className="flex gap-3 text-sm text-foreground/80">
+                <span className="text-violet-400 font-black shrink-0 w-5 flex items-center justify-center bg-violet-400/10 text-[10px] h-5 border border-violet-400/20">{i+1}</span>
+                <span className="leading-snug">{o}</span>
               </li>
             ))}
           </ol>
@@ -1045,10 +1090,10 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {(plan.teacher_activities?.length > 0 || plan.student_activities?.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {plan.teacher_activities?.length > 0 && (
-            <Section label="Teacher Guide" color="text-orange-400">
-              <ol className="space-y-2">
+            <Section label="Teacher Protocol" color="text-orange-400" icon={UserGroupIcon}>
+              <ol className="space-y-3">
                 {plan.teacher_activities.map((a, i) => (
-                  <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-relaxed">
+                  <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
                     <span className="text-orange-400 font-black shrink-0 w-4">{i+1}.</span>
                     <span>{a}</span>
                   </li>
@@ -1057,11 +1102,11 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
             </Section>
           )}
           {plan.student_activities?.length > 0 && (
-            <Section label="Student Activities" color="text-blue-400">
-              <ul className="space-y-1.5">
+            <Section label="Student Interaction" color="text-blue-400" icon={AcademicCapIcon}>
+              <ul className="space-y-2">
                 {plan.student_activities.map((a, i) => (
-                  <li key={i} className="flex gap-2 text-xs text-foreground/80">
-                    <span className="text-blue-400 shrink-0">•</span>
+                  <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                    <span className="text-blue-400 shrink-0 select-none opacity-50">#</span>
                     <span>{a}</span>
                   </li>
                 ))}
@@ -1073,16 +1118,15 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 
       {/* Classwork */}
       {plan.classwork?.title && (
-        <Section label="Classwork" color="text-emerald-400">
-          <div className="space-y-2">
-            <p className="font-bold text-foreground/90">{plan.classwork.title}</p>
-            <p className="text-xs text-foreground/70 leading-relaxed">{plan.classwork.instructions}</p>
+        <Section label="In-Class Assessment" color="text-emerald-400" icon={ClipboardDocumentListIcon}>
+          <div className="space-y-3">
+            <p className="font-black uppercase tracking-tight text-foreground/90 italic">{plan.classwork.title}</p>
+            <p className="text-xs text-foreground/70 leading-relaxed border-l-2 border-emerald-500/20 pl-3 py-1">{plan.classwork.instructions}</p>
             {plan.classwork.materials?.length > 0 && (
-              <div>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1">Materials needed:</p>
-                <ul className="flex flex-wrap gap-1.5">
+              <div className="pt-2">
+                <ul className="flex flex-wrap gap-2">
                   {plan.classwork.materials.map((m, i) => (
-                    <li key={i} className="text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 font-bold">{m}</li>
+                    <li key={i} className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 font-black uppercase tracking-widest">{m}</li>
                   ))}
                 </ul>
               </div>
@@ -1093,28 +1137,32 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 
       {/* Assignment */}
       {plan.assignment?.title && (
-        <Section label="Assignment (Homework)" color="text-amber-400">
-          <div className="space-y-1">
-            <p className="font-bold text-foreground/90">{plan.assignment.title}</p>
+        <Section label="Post-Session Mission" color="text-amber-400" icon={DocumentTextIcon}>
+          <div className="space-y-2">
+            <p className="font-black uppercase tracking-tight text-foreground/90 italic">{plan.assignment.title}</p>
             <p className="text-xs text-foreground/70 leading-relaxed">{plan.assignment.instructions}</p>
-            <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Due: {plan.assignment.due}</p>
+            <div className="flex items-center gap-2 text-[10px] text-amber-400 font-black uppercase tracking-widest bg-amber-400/5 w-fit px-2 py-1 border border-amber-400/10">
+              <ClockIcon className="w-3 h-3" />
+              Deadline: {plan.assignment.due}
+            </div>
           </div>
         </Section>
       )}
 
       {/* Project */}
       {plan.project && (
-        <Section label="Project Milestone" color="text-rose-400">
-          <div className="space-y-2">
-            <p className="font-bold text-foreground/90">{plan.project.title}</p>
-            <p className="text-xs text-foreground/70 leading-relaxed">{plan.project.description}</p>
+        <Section label="Neural Project: Milestone" color="text-rose-400" icon={RocketLaunchIcon}>
+          <div className="space-y-4">
+            <p className="font-black uppercase tracking-tight text-foreground/90 italic">{plan.project.title}</p>
+            <p className="text-xs text-foreground/70 leading-relaxed border-l-2 border-rose-500/20 pl-3">{plan.project.description}</p>
             {plan.project.deliverables?.length > 0 && (
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Deliverables:</p>
-                <ul className="space-y-0.5">
+              <div className="bg-muted/30 p-3 border border-border">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3">Target Deliverables</p>
+                <ul className="space-y-2">
                   {plan.project.deliverables.map((d, i) => (
                     <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                      <span className="text-rose-400">›</span>{d}
+                      <span className="text-rose-400 font-black">›</span>
+                      <span>{d}</span>
                     </li>
                   ))}
                 </ul>
@@ -1126,10 +1174,10 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 
       {/* Resources */}
       {plan.resources?.length > 0 && (
-        <Section label="Resources & Tools" color="text-cyan-400">
-          <ul className="flex flex-wrap gap-1.5">
+        <Section label="Archives & Tools" color="text-cyan-400" icon={DocumentTextIcon}>
+          <ul className="flex flex-wrap gap-2">
             {plan.resources.map((r, i) => (
-              <li key={i} className="text-[11px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 font-bold">{r}</li>
+              <li key={i} className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 font-black uppercase tracking-widest">{r}</li>
             ))}
           </ul>
         </Section>
@@ -1137,11 +1185,11 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 
       {/* Engagement tips */}
       {plan.engagement_tips?.length > 0 && (
-        <Section label="Engagement Tips for This Lesson" color="text-pink-400">
-          <ul className="space-y-2">
+        <Section label="Delivery Strategies" color="text-pink-400" icon={SparklesIcon}>
+          <ul className="space-y-3">
             {plan.engagement_tips.map((t, i) => (
-              <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-relaxed">
-                <span className="text-pink-400 shrink-0">💡</span>
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                <span className="text-pink-400 shrink-0 select-none">💡</span>
                 <span>{t}</span>
               </li>
             ))}
@@ -1156,42 +1204,49 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekType }) {
   const isExam = type === 'examination';
   const color = isExam ? 'text-rose-400' : 'text-amber-400';
+  const MainIcon = isExam ? DocumentTextIcon : ClipboardDocumentListIcon;
+
   return (
-    <div className="space-y-5 text-sm">
-      <div className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest ${color}`}>
-        <ExclamationTriangleIcon className="w-4 h-4" />
-        <span>{isExam ? 'End-of-Term Examination' : 'Formative Assessment'} · {plan.duration_minutes} minutes</span>
+    <div className="space-y-6 text-sm">
+      <div className={`flex items-center gap-3 px-4 py-2 ${isExam ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'} border w-fit`}>
+        <MainIcon className={`w-4 h-4 ${color}`} />
+        <span className={`text-[10px] ${color} font-black uppercase tracking-widest`}>
+          {isExam ? 'Final Examination' : 'Term Assessment'} · {plan.duration_minutes} Minutes
+        </span>
       </div>
 
       {plan.coverage?.length > 0 && (
-        <Section label="Coverage" color={color}>
-          <ul className="space-y-1">
+        <Section label="Academic Coverage" color={color} icon={InformationCircleIcon}>
+          <ul className="space-y-2">
             {plan.coverage.map((c, i) => (
-              <li key={i} className="flex gap-2 text-xs text-foreground/80">
-                <span className={`${color} shrink-0`}>•</span>{c}
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                <span className={`${color} shrink-0 opacity-50`}>•</span>
+                <span>{c}</span>
               </li>
             ))}
           </ul>
         </Section>
       )}
 
-      {plan.format && (
-        <Section label="Examination Format" color={color}>
-          <p className="text-xs text-foreground/80 leading-relaxed">{plan.format}</p>
-        </Section>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {plan.format && (
+          <Section label="Assessment Format" color={color} icon={ClipboardDocumentListIcon}>
+            <p className="text-xs text-foreground/80 leading-relaxed">{plan.format}</p>
+          </Section>
+        )}
 
-      {plan.scoring_guide && (
-        <Section label="Scoring Guide" color={color}>
-          <p className="text-xs text-foreground/80 leading-relaxed">{plan.scoring_guide}</p>
-        </Section>
-      )}
+        {plan.scoring_guide && (
+          <Section label="Scoring Methodology" color={color} icon={ChartBarIcon}>
+            <p className="text-xs text-foreground/80 leading-relaxed">{plan.scoring_guide}</p>
+          </Section>
+        )}
+      </div>
 
       {plan.teacher_prep?.length > 0 && (
-        <Section label="Teacher Preparation Checklist" color={color}>
-          <ol className="space-y-1.5">
+        <Section label="Invigilation Checklist" color={color} icon={CheckCircleIcon}>
+          <ol className="space-y-3">
             {plan.teacher_prep.map((p, i) => (
-              <li key={i} className="flex gap-2 text-xs text-foreground/80">
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
                 <span className={`${color} font-black shrink-0 w-4`}>{i+1}.</span>
                 <span>{p}</span>
               </li>
@@ -1201,27 +1256,18 @@ function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekTy
       )}
 
       {(plan.sample_questions ?? []).length > 0 && (
-        <Section label="Sample Questions" color={color}>
-          <ul className="space-y-2">
+        <Section label="Reference Questions" color={color} icon={PencilIcon}>
+          <ul className="space-y-4">
             {(plan.sample_questions ?? []).map((q, i) => (
-              <li key={i} className="flex gap-2 text-xs text-foreground/80 p-2 bg-muted/50 border border-border">
-                <span className={`${color} font-black shrink-0`}>Q{i+1}.</span>
-                <span>{q}</span>
+              <li key={i} className="text-xs text-foreground/80 p-5 bg-muted/30 border border-border/50 relative overflow-hidden group">
+                 <div className={`absolute top-0 left-0 w-1 h-full ${color.replace('text-', 'bg-')} opacity-20`} />
+                 <span className={`${color} font-black mr-3 text-[10px] uppercase tracking-tighter`}>Question {i+1}</span>
+                 <p className="mt-2 leading-relaxed">{q}</p>
               </li>
             ))}
           </ul>
         </Section>
       )}
-    </div>
-  );
-}
-
-// ── Shared Section wrapper ───────────────────────────────────────────────────
-function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-card border border-border p-4 space-y-3">
-      <h3 className={`text-[10px] font-black uppercase tracking-widest ${color}`}>{label}</h3>
-      {children}
     </div>
   );
 }

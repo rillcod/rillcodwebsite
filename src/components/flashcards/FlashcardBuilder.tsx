@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SparklesIcon,
@@ -96,6 +96,8 @@ export default function FlashcardBuilder({ deckId, onClose, onCardCreated }: Fla
   const [cards, setCards] = useState([{ front: '', back: '', id: Date.now() }]);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // AI Generation State
   const [aiTopic, setAiTopic] = useState('');
@@ -104,26 +106,29 @@ export default function FlashcardBuilder({ deckId, onClose, onCardCreated }: Fla
   const [aiDifficulty, setAiDifficulty] = useState('medium');
   const [showAiPanel, setShowAiPanel] = useState(false);
 
-  const addCard = () => {
-    setCards([...cards, { front: '', back: '', id: Date.now() }]);
-  };
+  const addCard = useCallback(() => {
+    setCards(prev => [...prev, { front: '', back: '', id: Date.now() }]);
+  }, []);
 
-  const removeCard = (id: number) => {
-    if (cards.length > 1) {
-      setCards(cards.filter(card => card.id !== id));
-    }
-  };
+  const removeCard = useCallback((id: number) => {
+    setCards(prev => prev.length > 1 ? prev.filter(card => card.id !== id) : prev);
+  }, []);
 
-  const updateCard = (id: number, field: 'front' | 'back', value: string) => {
-    setCards(cards.map(card => 
+  const updateCard = useCallback((id: number, field: 'front' | 'back', value: string) => {
+    setCards(prev => prev.map(card => 
       card.id === id ? { ...card, [field]: value } : card
     ));
-  };
+  }, []);
 
-  const generateAICards = async () => {
-    if (!aiTopic.trim() && !aiContent.trim()) return;
+  const generateAICards = useCallback(async () => {
+    if (!aiTopic.trim() && !aiContent.trim()) {
+      setError('Please provide either a topic or content for AI generation');
+      return;
+    }
     
     setAiGenerating(true);
+    setError(null);
+    
     try {
       const res = await fetch(`/api/flashcards/decks/${deckId}/generate`, {
         method: 'POST',
@@ -139,34 +144,37 @@ export default function FlashcardBuilder({ deckId, onClose, onCardCreated }: Fla
       
       const json = await res.json();
       if (res.ok && json.cards) {
-        // Add generated cards to current cards
         const newCards = json.cards.map((card: any, index: number) => ({
           front: card.front,
           back: card.back,
           id: Date.now() + index
         }));
-        setCards([...cards, ...newCards]);
+        setCards(prev => [...prev, ...newCards]);
         setShowAiPanel(false);
         setAiTopic('');
         setAiContent('');
+        setSuccess(`Successfully generated ${newCards.length} cards!`);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        alert(json.error || 'Failed to generate flashcards');
+        setError(json.error || 'Failed to generate flashcards. Please try again.');
       }
     } catch (error) {
-      alert('Failed to generate flashcards');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setAiGenerating(false);
     }
-  };
+  }, [deckId, aiTopic, aiContent, aiCount, aiDifficulty, selectedTemplate.id]);
 
-  const saveCards = async () => {
+  const saveCards = useCallback(async () => {
     const validCards = cards.filter(card => card.front.trim() && card.back.trim());
     if (validCards.length === 0) {
-      alert('Please add at least one complete card');
+      setError('Please add at least one complete card with both front and back content');
       return;
     }
 
     setSaving(true);
+    setError(null);
+    
     try {
       const promises = validCards.map(card =>
         fetch(`/api/flashcards/decks/${deckId}/cards`, {
@@ -180,15 +188,23 @@ export default function FlashcardBuilder({ deckId, onClose, onCardCreated }: Fla
         })
       );
 
-      await Promise.all(promises);
+      const results = await Promise.all(promises);
+      const failedSaves = results.filter(res => !res.ok);
+      
+      if (failedSaves.length > 0) {
+        setError(`Failed to save ${failedSaves.length} cards. Please try again.`);
+        return;
+      }
+
+      setSuccess(`Successfully saved ${validCards.length} cards!`);
       onCardCreated();
-      onClose();
+      setTimeout(() => onClose(), 1500);
     } catch (error) {
-      alert('Failed to save cards');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setSaving(false);
     }
-  };
+  }, [cards, deckId, selectedTemplate.id, onCardCreated, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -239,6 +255,34 @@ export default function FlashcardBuilder({ deckId, onClose, onCardCreated }: Fla
             </button>
           </div>
         </div>
+
+        {/* Error/Success Messages */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 left-4 right-4 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg z-10 flex items-center justify-between"
+            >
+              <span className="text-sm">{error}</span>
+              <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 left-4 right-4 bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-lg z-10 flex items-center justify-between"
+            >
+              <span className="text-sm">{success}</span>
+              <CheckIcon className="w-4 h-4" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex w-full pt-20">
           {/* Left Panel - Templates & Controls */}

@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -72,7 +72,7 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
     setIsFullscreen(!isFullscreen);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       if (isFullscreen) {
         setIsFullscreen(false);
@@ -81,22 +81,30 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
       }
     }
     if (e.key === 'ArrowLeft' && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage(prev => prev - 1);
     }
     if (e.key === 'ArrowRight' && currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage(prev => prev + 1);
     }
-  };
+  }, [currentPage, totalPages, isFullscreen, onClose]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
-    // Set loading to false after component mounts
-    const timer = setTimeout(() => setLoading(false), 1000);
+    // Set loading to false after component mounts with error handling
+    const timer = setTimeout(() => {
+      setLoading(false);
+      // Auto-detect total pages for PDFs
+      if (isPDF && fileUrl) {
+        // This is a simplified approach - in production you'd want proper PDF parsing
+        setTotalPages(10); // Default assumption, could be enhanced with PDF.js
+      }
+    }, 1000);
+    
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timer);
     };
-  }, [currentPage, totalPages, isFullscreen]);
+  }, [handleKeyDown, isPDF, fileUrl]);
 
   return (
     <motion.div
@@ -171,8 +179,11 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
         {/* Content Area */}
         <div className="pt-20 h-full overflow-hidden">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-muted-foreground">Loading content...</p>
+              </div>
             </div>
           )}
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTheme } from '@/contexts/theme-context';
+
 // ─── Token-based syntax highlighter — no external dependencies ───────────────
 // Supports Python (full), JS/TS (basic), HTML/CSS (basic)
 
@@ -180,17 +182,37 @@ function tokenizeJS(line: string): Token[] {
   return tokens;
 }
 
-// ── Token colours (VS Code Dark+ palette) ────────────────────────────────────
-const TOK_COLOR: Record<TokType, string> = {
-  keyword:   '#569cd6',
-  builtin:   '#4ec9b0',
-  string:    '#ce9178',
-  comment:   '#6a9955',
-  number:    '#b5cea8',
-  decorator: '#c586c0',
-  funcname:  '#dcdcaa',
-  operator:  '#d4d4d4',
-  plain:     '#d4d4d4',
+// ── Token colours (theme-aware) ────────────────────────────────────
+const getTokColor = (type: TokType, isDark: boolean): string => {
+  if (isDark) {
+    // VS Code Dark+ palette for dark theme
+    const darkColors: Record<TokType, string> = {
+      keyword:   '#569cd6',
+      builtin:   '#4ec9b0',
+      string:    '#ce9178',
+      comment:   '#6a9955',
+      number:    '#b5cea8',
+      decorator: '#c586c0',
+      funcname:  '#dcdcaa',
+      operator:  '#d4d4d4',
+      plain:     '#d4d4d4',
+    };
+    return darkColors[type];
+  } else {
+    // Light theme colors
+    const lightColors: Record<TokType, string> = {
+      keyword:   '#0000ff',
+      builtin:   '#267f99',
+      string:    '#a31515',
+      comment:   '#008000',
+      number:    '#098658',
+      decorator: '#af00db',
+      funcname:  '#795e26',
+      operator:  '#000000',
+      plain:     '#000000',
+    };
+    return lightColors[type];
+  }
 };
 
 function tokenizeLine(line: string, lang: string): Token[] {
@@ -249,6 +271,9 @@ export function SyntaxHighlight({
   streaming?: boolean;
   className?: string;
 }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  
   if (animate || streaming) ensureStyles();
 
   const lang = language.toLowerCase().trim();
@@ -258,24 +283,33 @@ export function SyntaxHighlight({
   const truncated = maxLines ? allLines.length > maxLines : false;
   const accentColor = LANG_COLOR[lang] ?? '#569cd6';
 
+  // Theme-aware colors
+  const backgroundColor = isDark ? '#0b0b14' : '#f8f9fa';
+  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)';
+  const headerBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)';
+  const headerBorder = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const lineNumberColor = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.3)';
+  const lineNumberBorder = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)';
+  const hoverBg = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.025)';
+
   return (
     <div
       className={className}
       style={{
-        background: '#0b0b14',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: backgroundColor,
+        border: `1px solid ${borderColor}`,
         overflow: 'hidden',
         fontFamily: 'JetBrains Mono, Fira Code, Menlo, Consolas, monospace',
         // subtle glow matching language
-        boxShadow: `0 0 24px ${accentColor}12, inset 0 1px 0 rgba(255,255,255,0.04)`,
+        boxShadow: `0 0 24px ${accentColor}12, inset 0 1px 0 ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'}`,
       }}
     >
       {/* Header bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '6px 12px',
-        background: 'rgba(255,255,255,0.03)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: headerBg,
+        borderBottom: `1px solid ${headerBorder}`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
@@ -296,7 +330,7 @@ export function SyntaxHighlight({
             }}>● generating</span>
           )}
         </div>
-        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>
+        <span style={{ fontSize: 9, color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.4)', letterSpacing: '0.1em' }}>
           {allLines.length} line{allLines.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -315,18 +349,18 @@ export function SyntaxHighlight({
                     animationDelay: `${Math.min(idx * 0.018, 0.6)}s`,
                   } : {}),
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = hoverBg; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
               >
                 {showLineNumbers && (
                   <td style={{
                     padding: '0 10px',
                     textAlign: 'right',
-                    color: 'rgba(255,255,255,0.18)',
+                    color: lineNumberColor,
                     userSelect: 'none',
                     fontSize: 10,
                     minWidth: 36,
-                    borderRight: '1px solid rgba(255,255,255,0.05)',
+                    borderRight: `1px solid ${lineNumberBorder}`,
                     whiteSpace: 'nowrap',
                   }}>
                     {idx + 1}
@@ -334,7 +368,7 @@ export function SyntaxHighlight({
                 )}
                 <td style={{ padding: '0 16px', whiteSpace: 'pre' }}>
                   {tokenizeLine(line, lang).map((tok, ti) => (
-                    <span key={ti} style={{ color: TOK_COLOR[tok.type] }}>{tok.value}</span>
+                    <span key={ti} style={{ color: getTokColor(tok.type, isDark) }}>{tok.value}</span>
                   ))}
                   {/* Blinking cursor on last visible line during streaming */}
                   {streaming && idx === displayLines.length - 1 && (
@@ -352,7 +386,7 @@ export function SyntaxHighlight({
               <tr>
                 <td
                   colSpan={showLineNumbers ? 2 : 1}
-                  style={{ padding: '4px 16px', color: 'rgba(255,255,255,0.25)', fontSize: 10, fontStyle: 'italic' }}
+                  style={{ padding: '4px 16px', color: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.4)', fontSize: 10, fontStyle: 'italic' }}
                 >
                   … {allLines.length - maxLines!} more line{allLines.length - maxLines! !== 1 ? 's' : ''} hidden
                 </td>
