@@ -25,6 +25,7 @@ import {
   ComputerDesktopIcon
 } from '@/lib/icons';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
 
@@ -54,7 +55,20 @@ export default function FlashcardsPage() {
 
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
-  useEffect(() => { loadDecks(); }, []);
+  const searchParams = useSearchParams();
+
+  useEffect(() => { 
+    loadDecks(); 
+    
+    // Handle auto-generation redirect from curriculum
+    const autoGen = searchParams.get('autoGenerate') === 'true';
+    const deckId = searchParams.get('deckId');
+    if (autoGen && deckId) {
+      setSelectedDeckId(deckId);
+      setShowBuilder(true);
+      // We'll pass the topic to the builder via state or it can read searchParams
+    }
+  }, [searchParams]);
 
   async function loadDecks() {
     setLoading(true);

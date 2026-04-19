@@ -442,34 +442,49 @@ img[alt="Official Signature"] {
   }
 }
 
-/* ── Select Premium Utility ── */
-.select-premium {
+/* ── Global Select & Select Premium ── */
+select, .select-premium {
   @apply bg-card border border-border text-foreground transition-colors outline-none cursor-pointer;
 }
 
-.select-premium option {
+/* Force dropdown menu styles */
+select option, .select-premium option {
   background-color: var(--card) !important;
   color: var(--foreground) !important;
 }
 
-.dark .select-premium option {
+.dark select, .dark .select-premium, 
+.dark select option, .dark .select-premium option {
   background-color: #121320 !important;
   color: #DDE1EE !important;
 }
 
-.light .select-premium option {
+.light select, .light .select-premium,
+.light select option, .light .select-premium option {
   background-color: #FFFFFF !important;
   color: #0A0A0C !important;
 }
 
-/* Fallback for browsers that don't support var in option tags well */
-select option {
-  background-color: inherit;
-  color: inherit;
+/* Custom arrow for select-premium */
+.select-premium {
+  @apply appearance-none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
 }
 
 select {
   color-scheme: dark light;
+}
+
+.dark select {
+  color-scheme: dark;
+}
+
+.light select {
+  color-scheme: light;
 }
 
 /* Mobile touch targets */

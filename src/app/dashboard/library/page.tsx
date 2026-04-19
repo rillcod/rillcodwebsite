@@ -422,7 +422,7 @@ export default function ContentLibraryPage() {
               <select
                 value={activeCategory}
                 onChange={e => setActiveCategory(e.target.value)}
-                className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
               >
                 {CATEGORIES.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -436,7 +436,7 @@ export default function ContentLibraryPage() {
               <select
                 value={subjectFilter}
                 onChange={e => setSubjectFilter(e.target.value)}
-                className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
               >
                 {subjects.map(subject => (
                   <option key={subject} value={subject}>{subject}</option>
@@ -450,7 +450,7 @@ export default function ContentLibraryPage() {
               <select
                 value={sortKey}
                 onChange={e => setSortKey(e.target.value as SortKey)}
-                className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
               >
                 <option value="newest">Newest First</option>
                 <option value="most_used">Most Used</option>

@@ -28,9 +28,11 @@ alter table public.lesson_plans
 
 alter table public.course_curricula enable row level security;
 
--- school admins can select curricula for their school
+-- staff can select curricula for their school
 drop policy if exists "school admins select curricula for their school" on public.course_curricula;
-create policy "school admins select curricula for their school"
+drop policy if exists "teachers select curricula for their school" on public.course_curricula;
+drop policy if exists "staff select curricula for their school" on public.course_curricula;
+create policy "staff select curricula for their school"
   on public.course_curricula
   for select
   using (
@@ -38,14 +40,15 @@ create policy "school admins select curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school')
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
         and pu.school_id = course_curricula.school_id
     )
   );
 
--- school admins can insert curricula for their school
+-- staff can insert curricula for their school
 drop policy if exists "school admins insert curricula for their school" on public.course_curricula;
-create policy "school admins insert curricula for their school"
+drop policy if exists "staff insert curricula for their school" on public.course_curricula;
+create policy "staff insert curricula for their school"
   on public.course_curricula
   for insert
   with check (
@@ -53,14 +56,15 @@ create policy "school admins insert curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school')
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
         and pu.school_id = course_curricula.school_id
-    )
+      )
   );
 
--- school admins can update curricula for their school
+-- staff can update curricula for their school
 drop policy if exists "school admins update curricula for their school" on public.course_curricula;
-create policy "school admins update curricula for their school"
+drop policy if exists "staff update curricula for their school" on public.course_curricula;
+create policy "staff update curricula for their school"
   on public.course_curricula
   for update
   using (
@@ -68,12 +72,12 @@ create policy "school admins update curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id        = auth.uid()
-        and pu.role      in ('admin', 'school_admin', 'school')
+        and pu.role      in ('admin', 'school_admin', 'school', 'teacher')
         and pu.school_id = course_curricula.school_id
     )
   );
 
--- school admins can delete curricula for their school
+-- school admins can delete curricula for their school (admins only for safety)
 drop policy if exists "school admins delete curricula for their school" on public.course_curricula;
 create policy "school admins delete curricula for their school"
   on public.course_curricula
@@ -84,21 +88,6 @@ create policy "school admins delete curricula for their school"
       from public.portal_users pu
       where pu.id        = auth.uid()
         and pu.role      in ('admin', 'school_admin', 'school')
-        and pu.school_id = course_curricula.school_id
-    )
-  );
-
--- teachers can select curricula for their school (read-only)
-drop policy if exists "teachers select curricula for their school" on public.course_curricula;
-create policy "teachers select curricula for their school"
-  on public.course_curricula
-  for select
-  using (
-    exists (
-      select 1
-      from public.portal_users pu
-      where pu.id        = auth.uid()
-        and pu.role      = 'teacher'
         and pu.school_id = course_curricula.school_id
     )
   );

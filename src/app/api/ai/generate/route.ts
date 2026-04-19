@@ -103,7 +103,7 @@ RULES:
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum' | 'flashcard';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -799,6 +799,33 @@ Every term follows this EXACT weekly structure (adapt proportionally if weeks_pe
 - Week 7: Lesson (revision + consolidation)
 - Week 8: END-OF-TERM EXAMINATION — covers all weeks 1–7 (type: "examination")
 
+    case 'flashcard': {
+      const count = req.questionCount ?? 10;
+      return `Generate a set of ${count} high-quality educational flashcards for Rillcod Technologies.
+Topic: "${req.topic}"
+Grade Level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+Difficulty: ${req.difficulty ?? 'medium'}
+
+RULES:
+1. "Front" should be a clear, concise question or term.
+2. "Back" should be a clear, informative answer or explanation.
+3. Content must be age-appropriate for ${req.gradeLevel ?? 'all levels'}.
+4. For technical topics, include brief code snippets or technical diagrams (as text/markdown).
+5. Ensure zero repetition and high conceptual value.
+
+Return a JSON object with this exact shape:
+{
+  "cards": [
+    {
+      "front": "string — question or term",
+      "back": "string — answer or explanation",
+      "tags": ["string"],
+      "difficulty": "easy" | "medium" | "hard"
+    }
+  ]
+}`; }
+
 ━━━ WEEK TYPES ━━━
 "lesson" — A full, teacher-ready lesson with complete lesson plan
 "assessment" — A formative assessment (written test / practical)
@@ -998,7 +1025,7 @@ export async function POST(req: NextRequest) {
     if (!body.topic?.trim() && !body.prompt?.trim()) {
       return NextResponse.json({ error: 'topic or prompt is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum', 'flashcard'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
@@ -1175,6 +1202,16 @@ export async function POST(req: NextRequest) {
         ];
         adaptiveTemperature = 0.55; // Creative enough for fresh topics, structured enough for JSON
         adaptiveMaxTokens = 16000;  // Full lesson plans per week need many tokens
+        break;
+
+      case 'flashcard':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "deepseek/deepseek-chat-v3-5",
+          "meta-llama/llama-3.3-70b-instruct",
+        ];
+        adaptiveTemperature = 0.8;
+        adaptiveMaxTokens = 4000;
         break;
 
       default:
