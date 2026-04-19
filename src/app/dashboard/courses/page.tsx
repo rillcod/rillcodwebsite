@@ -69,7 +69,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
               defaultValue=""
               disabled={assigning}
               onChange={handleAssign}
-              className="w-full px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-none text-xs text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+              className="select-premium w-full px-3 py-1.5 text-xs disabled:opacity-50"
             >
               <option value="" disabled>⚠ Assign to a program…</option>
               {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -407,7 +407,7 @@ export default function CoursesPage() {
             <select
               value={programFilter}
               onChange={e => setProgramFilter(e.target.value)}
-              className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[200px]"
+              className="select-premium px-4 py-3 shadow-sm text-sm focus:border-orange-500 min-w-[200px]"
             >
               <option value="all">All Programs</option>
               {programs.map(p => (

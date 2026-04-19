@@ -325,7 +325,7 @@ export default function ProgramsPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Difficulty</label>
                   <select value={form.difficulty_level} onChange={e => setForm(s => ({ ...s, difficulty_level: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-orange-500 outline-none">
+                    className="select-premium w-full px-4 py-3 text-sm">
                     {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
@@ -344,7 +344,7 @@ export default function ProgramsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Delivery Type</label>
                 <select value={form.delivery_type} onChange={e => setForm(s => ({ ...s, delivery_type: e.target.value }))}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-orange-500 outline-none">
+                  className="select-premium w-full px-4 py-3 text-sm">
                   <option value="compulsory">Compulsory — structured lessons &amp; assessments</option>
                   <option value="optional">Elective / Optional — project-based, self-directed modules</option>
                 </select>

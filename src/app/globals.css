@@ -442,24 +442,34 @@ img[alt="Official Signature"] {
   }
 }
 
-/* Focus styles for accessibility */
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ring);
+/* ── Select Premium Utility ── */
+.select-premium {
+  @apply bg-card border border-border text-foreground transition-colors outline-none cursor-pointer;
 }
 
-/* Dark theme select options — fixes white dropdown on dark backgrounds */
-.dark select option {
-  background-color: #0f0f1a;
-  color: #ffffff;
+.select-premium option {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
 }
 
-.dark select {
-  color-scheme: dark;
+.dark .select-premium option {
+  background-color: #121320 !important;
+  color: #DDE1EE !important;
 }
 
-.light select {
-  color-scheme: light;
+.light .select-premium option {
+  background-color: #FFFFFF !important;
+  color: #0A0A0C !important;
+}
+
+/* Fallback for browsers that don't support var in option tags well */
+select option {
+  background-color: inherit;
+  color: inherit;
+}
+
+select {
+  color-scheme: dark light;
 }
 
 /* Mobile touch targets */
