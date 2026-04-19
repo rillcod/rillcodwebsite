@@ -5,6 +5,7 @@ import PasswordChangeGuard from '@/components/layout/PasswordChangeGuard';
 import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundary';
 import SystemStatusBanners from '@/components/dashboard/SystemStatusBanners';
 import SessionExpiryWrapper from '@/components/dashboard/SessionExpiryWrapper';
+import PopupNotificationContainer from '@/components/notifications/PopupNotificationContainer';
 import { Suspense } from 'react';
 import Script from 'next/script';
 
@@ -36,6 +37,10 @@ export default function DashboardLayout({
           {children}
         </DashboardErrorBoundary>
       </DashboardShell>
+
+      {/* Global Dashboard Overlays */}
+      <PopupNotificationContainer />
+      <CommandPalette />
 
       {/* Puter.js — free-tier AI SDK (browser only, no API key needed) */}
       <Script src="https://js.puter.com/v2/" strategy="lazyOnload" />
