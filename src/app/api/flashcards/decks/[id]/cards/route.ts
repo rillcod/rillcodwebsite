@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic';
 // Logic for retrieving all cards for a specific deck
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id: deckId } = await context.params;
   const supabase = await createClient();
-  const deckId = params.id;
 
   const { data, error } = await supabase
     .from('flashcard_cards')
@@ -26,13 +26,13 @@ export async function GET(
 // Logic for adding a new card to a deck
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id: deckId } = await context.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const deckId = params.id;
   const body = await req.json();
 
   // Verify ownership or staff status if needed (RLS handles this mostly)
