@@ -165,12 +165,12 @@ export default function ProgramsPage() {
               <AcademicCapIcon className="w-5 h-5 text-orange-400" />
               <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Academics</span>
             </div>
-            <h1 className="text-3xl font-extrabold">Programs &amp; Curricula</h1>
-            <p className="text-muted-foreground text-sm mt-1">Configure high-level learning programs and their settings</p>
+            <h1 className="text-3xl font-extrabold text-foreground">Programs &amp; Courses</h1>
+            <p className="text-muted-foreground text-sm mt-1">Configure learning programs and their course structure</p>
           </div>
           {isAdmin && (
             <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory' }); setShowForm(true); }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-all shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> New Program
             </button>
           )}
