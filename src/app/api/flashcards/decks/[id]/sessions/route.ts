@@ -72,6 +72,27 @@ export async function POST(
     const streakBonus = maxStreak * 5;
     const totalXP = baseXP + accuracyBonus + streakBonus;
 
+    // Award XP via engagement service
+    try {
+      const { engagementService } = await import('@/services/engagement.service');
+      
+      // Get deck details to find school_id
+      const { data: deck } = await supabase.from('flashcard_decks').select('school_id').eq('id', deckId).single();
+
+      await engagementService.awardXP(user.id, 'flashcard_review', {
+        refId: session.id,
+        refType: 'assignment', // using assignment as refType proxy for engagement tracking
+        schoolId: deck?.school_id ?? undefined,
+        metadata: {
+          cards_studied: cardsStudied,
+          accuracy: Math.round(accuracy),
+          deck_id: deckId
+        }
+      });
+    } catch (xpErr) {
+      console.error('Failed to award XP for flashcards:', xpErr);
+    }
+
     return NextResponse.json({
       data: session,
       rewards: {
@@ -83,7 +104,7 @@ export async function POST(
           streakBonus
         }
       },
-      message: 'Study session recorded successfully!'
+      message: 'Study session recorded successfully! XP Awarded.'
     });
 
   } catch (error) {

@@ -38,52 +38,16 @@ export async function POST(
       .eq('student_id', user.id)
       .single();
 
-    // SM-2 Algorithm implementation
-    let newEaseFactor: number;
-    let newIntervalDays: number;
-    let newRepetitions: number;
+    // Use shared SM-2 logic
+    const { sm2 } = await import('@/lib/sm2');
+    const state = existingReview 
+      ? { repetitions: existingReview.repetitions, intervalDays: existingReview.interval_days, easeFactor: existingReview.ease_factor }
+      : { repetitions: 0, intervalDays: 1, easeFactor: 2.5 };
 
-    if (existingReview) {
-      const { ease_factor, interval_days, repetitions } = existingReview;
-      
-      if (correct) {
-        // Correct answer - increase interval
-        newRepetitions = repetitions + 1;
-        
-        if (newRepetitions === 1) {
-          newIntervalDays = 1;
-        } else if (newRepetitions === 2) {
-          newIntervalDays = 6;
-        } else {
-          newIntervalDays = Math.round(interval_days * ease_factor);
-        }
-        
-        // Adjust ease factor based on confidence (1-5 scale)
-        const qualityScore = confidence; // 1=hard, 3=good, 5=easy
-        newEaseFactor = ease_factor + (0.1 - (5 - qualityScore) * (0.08 + (5 - qualityScore) * 0.02));
-        newEaseFactor = Math.max(1.3, newEaseFactor); // Minimum ease factor
-      } else {
-        // Incorrect answer - reset
-        newRepetitions = 0;
-        newIntervalDays = 1;
-        newEaseFactor = Math.max(1.3, ease_factor - 0.2);
-      }
-    } else {
-      // First review
-      if (correct) {
-        newRepetitions = 1;
-        newIntervalDays = 1;
-        newEaseFactor = 2.5;
-      } else {
-        newRepetitions = 0;
-        newIntervalDays = 1;
-        newEaseFactor = 2.3;
-      }
-    }
+    const result = sm2(state, confidence); // Use confidence (1-5) as quality
 
     // Calculate next review date
-    const nextReviewAt = new Date();
-    nextReviewAt.setDate(nextReviewAt.getDate() + newIntervalDays);
+    const nextReviewAt = result.nextReviewAt;
 
     // Upsert review record
     const { data: review, error: reviewError } = await supabase
@@ -91,10 +55,10 @@ export async function POST(
       .upsert({
         card_id: cardId,
         student_id: user.id,
-        next_review_at: nextReviewAt.toISOString(),
-        interval_days: newIntervalDays,
-        ease_factor: newEaseFactor,
-        repetitions: newRepetitions,
+        next_review_at: nextReviewAt,
+        interval_days: result.intervalDays,
+        ease_factor: result.easeFactor,
+        repetitions: result.repetitions,
         confidence_level: confidence,
         study_time_seconds: studyTimeSeconds,
         last_reviewed_at: new Date().toISOString(),
@@ -116,10 +80,10 @@ export async function POST(
     return NextResponse.json({
       data: review,
       nextReview: {
-        date: nextReviewAt.toISOString(),
-        daysUntil: newIntervalDays,
-        easeFactor: newEaseFactor,
-        repetitions: newRepetitions
+        date: nextReviewAt,
+        daysUntil: result.intervalDays,
+        easeFactor: result.easeFactor,
+        repetitions: result.repetitions
       },
       message: correct ? 'Great job! Keep it up!' : 'Keep practicing!'
     });

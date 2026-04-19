@@ -38,7 +38,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
-  const { front, back } = await req.json();
+  const { 
+    front, 
+    back, 
+    front_image_url, 
+    back_image_url, 
+    template, 
+    tags, 
+    difficulty_level, 
+    notes 
+  } = await req.json();
+
   if (!front?.trim() || !back?.trim()) {
     return NextResponse.json({ error: 'Both front and back are required' }, { status: 400 });
   }
@@ -55,7 +65,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       deck_id: id, 
       front: front.trim(), 
       back: back.trim(), 
-      position: (count ?? 0) + 1 
+      position: (count ?? 0) + 1,
+      front_image_url,
+      back_image_url,
+      template: template || 'classic',
+      tags: tags || [],
+      difficulty_level: difficulty_level || 'medium',
+      notes
     })
     .select()
     .single();
