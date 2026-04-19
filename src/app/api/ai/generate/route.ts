@@ -1020,7 +1020,8 @@ export async function POST(req: NextRequest) {
     // Safe JSON extraction — handles markdown code fences and truncated responses
     function safeParseJSON(raw: string): any {
       // Strip markdown code fences if present
-      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      let stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      
       try {
         return JSON.parse(stripped);
       } catch {
@@ -1028,12 +1029,16 @@ export async function POST(req: NextRequest) {
         const match = stripped.match(/(\{[\s\S]*\})/);
         if (match) {
           try { 
-            // Aggressively clean up trailing commas and comments which AI loves
+            // Aggressively clean up trailing commas and potential escaped control chars which AI loves
             const cleaned = match[1]
-              .replace(/,\s*([\}\]])/g, '$1')
-              .replace(/\/\/.*/g, '');
+              .replace(/,\s*([\}\]])/g, '$1') // Trailing commas
+              .replace(/\/\/.*/g, '')         // Comments
+              .replace(/\\n/g, ' ')           // Escaped newlines that might break some parsers
+              .trim();
             return JSON.parse(cleaned); 
-          } catch { /* fail */ }
+          } catch (e2) {
+             console.error('Safe parse failed even after rescue:', e2);
+          }
         }
         throw new Error('AI returned malformed data — please refresh and try again');
       }
@@ -1269,7 +1274,7 @@ export async function POST(req: NextRequest) {
     for (const modelId of modelQueue) {
       try {
         const controller = new AbortController();
-        const timeoutMs = ['lesson', 'lesson-notes'].includes(type) ? 55000 : 30000;
+        const timeoutMs = ['lesson', 'lesson-notes', 'curriculum'].includes(type) ? 55000 : 30000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         const requestBody: any = {
