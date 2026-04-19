@@ -105,7 +105,7 @@ export async function POST(
               continue;
             }
 
-            // Save lesson as draft
+            // Save lesson as draft — store lesson_plan_id in metadata so we can find it later
             const { error: insertErr } = await supabase.from('lessons').insert({
               course_id: plan.course_id,
               school_id: plan.school_id,
@@ -117,6 +117,11 @@ export async function POST(
               duration_minutes: aiData.data.duration_minutes || 60,
               lesson_type: aiData.data.lesson_type || 'workshop',
               status: 'draft',
+              metadata: {
+                source: 'lesson-plan-bulk',
+                lesson_plan_id: id,
+                week: week.week,
+              },
             });
 
             if (insertErr) {

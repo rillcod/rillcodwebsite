@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -41,6 +42,8 @@ const TYPE_COLOR: Record<string, string> = {
 
 export default function LessonsPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const lessonPlanId = searchParams.get('lesson_plan_id');
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +197,8 @@ export default function LessonsPage() {
           if (err) throw err;
           result = data ?? [];
         } else {
-          const res = await fetch('/api/lessons', { cache: 'no-store' });
+          const qs = lessonPlanId ? `?lesson_plan_id=${lessonPlanId}` : '';
+          const res = await fetch(`/api/lessons${qs}`, { cache: 'no-store' });
           if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
           const json = await res.json();
           result = json.data ?? [];
@@ -208,7 +212,7 @@ export default function LessonsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [profile?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id, authLoading, lessonPlanId]); // eslint-disable-line
 
   const filtered = lessons.filter(l => {
     const q = search.toLowerCase();
@@ -289,6 +293,17 @@ export default function LessonsPage() {
           </div>
         ))}
       </div>
+
+      {/* Lesson plan filter banner */}
+      {lessonPlanId && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/30 text-violet-400 text-sm font-bold">
+          <SparklesIcon className="w-4 h-4 shrink-0" />
+          <span>Showing lessons from lesson plan</span>
+          <Link href="/dashboard/lessons" className="ml-auto text-xs underline hover:text-violet-300 transition-colors">
+            Show all lessons
+          </Link>
+        </div>
+      )}
 
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-3">

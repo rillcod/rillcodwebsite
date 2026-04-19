@@ -3,74 +3,117 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/flashcards/decks/[id]/due — returns cards due for review today
-export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
+/**
+ * GET /api/flashcards/decks/[id]/due
+ * Get cards due for review using spaced repetition
+ */
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id: deckId } = await context.params;
   const supabase = await createClient();
+  
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Get all cards in deck
-  const { data: cards } = await supabase
-    .from('flashcard_cards')
-    .select('*')
-    .eq('deck_id', id)
-    .order('position');
-
-  if (!cards?.length) return NextResponse.json({ data: [], nextReviewAt: null });
-
-  const cardIds = cards.map((c: any) => c.id);
-  const now = new Date().toISOString();
-
-  // Find existing reviews
-  const { data: reviews } = await supabase
-    .from('flashcard_reviews')
-    .select('*')
-    .eq('student_id', user.id)
-    .in('card_id', cardIds)
-    .lte('next_review_at', now);
-
-  const reviewedIds = new Set((reviews ?? []).map((r: any) => r.card_id));
-  // Cards with no review yet or due review
-  const dueCards = cards.filter((c: any) => reviewedIds.has(c.id) || !reviews?.some((r: any) => r.card_id === c.id));
-
-  // Get next scheduled review for non-due cards
-  const { data: futureReviews } = await supabase
-    .from('flashcard_reviews')
-    .select('next_review_at')
-    .eq('student_id', user.id)
-    .in('card_id', cardIds)
-    .gt('next_review_at', now)
-    .order('next_review_at')
-    .limit(1);
-
-  const nextReviewAt = futureReviews?.[0]?.next_review_at ?? null;
-  return NextResponse.json({ data: dueCards, nextReviewAt });
-}
-
-// POST /api/flashcards/decks/[id]/cards — add a card to a deck
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { front, back } = await req.json();
-  if (!front?.trim() || !back?.trim()) {
-    return NextResponse.json({ error: 'Both front and back are required' }, { status: 400 });
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { count } = await supabase
-    .from('flashcard_cards')
-    .select('*', { count: 'exact', head: true })
-    .eq('deck_id', id);
+  try {
+    const { searchParams } = new URL(req.url);
+    const mode = searchParams.get('mode') || 'due'; // due, all, starred, difficult
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-  const { data, error } = await supabase
-    .from('flashcard_cards')
-    .insert({ deck_id: id, front: front.trim(), back: back.trim(), position: (count ?? 0) + 1 })
-    .select()
-    .single();
+    let query = supabase
+      .from('flashcard_cards')
+      .select(`
+        *,
+        flashcard_reviews!left(
+          next_review_at,
+          ease_factor,
+          repetitions,
+          confidence_level,
+          last_reviewed_at
+        )
+      `)
+      .eq('deck_id', deckId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data }, { status: 201 });
+    // Apply filters based on mode
+    switch (mode) {
+      case 'starred':
+        query = query.eq('is_starred', true);
+        break;
+      case 'difficult':
+        query = query.eq('difficulty_level', 'hard');
+        break;
+      case 'new':
+        // Cards never reviewed
+        query = query.is('flashcard_reviews.next_review_at', null);
+        break;
+      case 'due':
+      default:
+        // Cards due for review or never reviewed
+        // This will be filtered in post-processing
+        break;
+    }
+
+    query = query.limit(limit);
+
+    const { data: cards, error } = await query;
+
+    if (error) {
+      console.error('Due cards fetch error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch cards' },
+        { status: 500 }
+      );
+    }
+
+    // Process cards to determine due status
+    const now = new Date();
+    const processedCards = cards?.map(card => {
+      const review = Array.isArray(card.flashcard_reviews) 
+        ? card.flashcard_reviews.find((r: any) => r) 
+        : card.flashcard_reviews;
+
+      const isDue = !review?.next_review_at || new Date(review.next_review_at) <= now;
+      const isNew = !review?.next_review_at;
+      
+      return {
+        ...card,
+        review: review || null,
+        isDue,
+        isNew,
+        daysUntilDue: review?.next_review_at
+          ? Math.ceil((new Date(review.next_review_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          : 0
+      };
+    }) || [];
+
+    // Filter for due cards if mode is 'due'
+    const filteredCards = mode === 'due' 
+      ? processedCards.filter(card => card.isDue)
+      : processedCards;
+
+    // Shuffle cards for better learning
+    const shuffled = [...filteredCards].sort(() => Math.random() - 0.5);
+
+    return NextResponse.json({
+      data: shuffled,
+      meta: {
+        total: filteredCards.length,
+        mode,
+        dueCount: processedCards.filter(c => c.isDue).length,
+        newCount: processedCards.filter(c => c.isNew).length,
+        reviewedCount: processedCards.filter(c => !c.isNew).length
+      }
+    });
+
+  } catch (error) {
+    console.error('Due cards API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

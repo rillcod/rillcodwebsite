@@ -2932,30 +2932,92 @@ export type Database = {
           },
         ]
       }
+      flashcard_card_statistics: {
+        Row: {
+          average_confidence: number | null
+          card_id: string
+          correct_reviews: number
+          id: string
+          incorrect_reviews: number
+          last_updated: string
+          total_reviews: number
+        }
+        Insert: {
+          average_confidence?: number | null
+          card_id: string
+          correct_reviews?: number
+          id?: string
+          incorrect_reviews?: number
+          last_updated?: string
+          total_reviews?: number
+        }
+        Update: {
+          average_confidence?: number | null
+          card_id?: string
+          correct_reviews?: number
+          id?: string
+          incorrect_reviews?: number
+          last_updated?: string
+          total_reviews?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_card_statistics_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: true
+            referencedRelation: "flashcard_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flashcard_cards: {
         Row: {
           back: string
+          back_image_url: string | null
           created_at: string
           deck_id: string
+          difficulty_level: string | null
           front: string
+          front_image_url: string | null
           id: string
+          is_starred: boolean | null
+          notes: string | null
           position: number
+          tags: string[] | null
+          template: string | null
+          updated_at: string | null
         }
         Insert: {
           back: string
+          back_image_url?: string | null
           created_at?: string
           deck_id: string
+          difficulty_level?: string | null
           front: string
+          front_image_url?: string | null
           id?: string
+          is_starred?: boolean | null
+          notes?: string | null
           position?: number
+          tags?: string[] | null
+          template?: string | null
+          updated_at?: string | null
         }
         Update: {
           back?: string
+          back_image_url?: string | null
           created_at?: string
           deck_id?: string
+          difficulty_level?: string | null
           front?: string
+          front_image_url?: string | null
           id?: string
+          is_starred?: boolean | null
+          notes?: string | null
           position?: number
+          tags?: string[] | null
+          template?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -2972,28 +3034,40 @@ export type Database = {
           course_id: string | null
           created_at: string
           created_by: string
+          description: string | null
           id: string
+          is_public: boolean | null
           lesson_id: string | null
           school_id: string
+          tags: string[] | null
           title: string
+          updated_at: string | null
         }
         Insert: {
           course_id?: string | null
           created_at?: string
           created_by: string
+          description?: string | null
           id?: string
+          is_public?: boolean | null
           lesson_id?: string | null
           school_id: string
+          tags?: string[] | null
           title: string
+          updated_at?: string | null
         }
         Update: {
           course_id?: string | null
           created_at?: string
           created_by?: string
+          description?: string | null
           id?: string
+          is_public?: boolean | null
           lesson_id?: string | null
           school_id?: string
+          tags?: string[] | null
           title?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -3036,30 +3110,42 @@ export type Database = {
       flashcard_reviews: {
         Row: {
           card_id: string
+          confidence_level: number | null
           ease_factor: number
           id: string
           interval_days: number
+          last_reviewed_at: string | null
           next_review_at: string
           repetitions: number
           student_id: string
+          study_time_seconds: number | null
+          updated_at: string | null
         }
         Insert: {
           card_id: string
+          confidence_level?: number | null
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
           student_id: string
+          study_time_seconds?: number | null
+          updated_at?: string | null
         }
         Update: {
           card_id?: string
+          confidence_level?: number | null
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
           student_id?: string
+          study_time_seconds?: number | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -3078,6 +3164,67 @@ export type Database = {
           },
           {
             foreignKeyName: "flashcard_reviews_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      flashcard_study_sessions: {
+        Row: {
+          cards_correct: number
+          cards_incorrect: number
+          cards_studied: number
+          completed_at: string
+          created_at: string
+          deck_id: string
+          id: string
+          max_streak: number
+          student_id: string
+          study_duration_seconds: number
+        }
+        Insert: {
+          cards_correct?: number
+          cards_incorrect?: number
+          cards_studied?: number
+          completed_at?: string
+          created_at?: string
+          deck_id: string
+          id?: string
+          max_streak?: number
+          student_id: string
+          study_duration_seconds?: number
+        }
+        Update: {
+          cards_correct?: number
+          cards_incorrect?: number
+          cards_studied?: number
+          completed_at?: string
+          created_at?: string
+          deck_id?: string
+          id?: string
+          max_streak?: number
+          student_id?: string
+          study_duration_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_study_sessions_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_decks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_study_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_study_sessions_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
@@ -3998,6 +4145,7 @@ export type Database = {
           id: string
           lesson_notes: string | null
           lesson_type: string | null
+          metadata: Json | null
           order_index: number | null
           school_id: string | null
           school_name: string | null
@@ -4018,6 +4166,7 @@ export type Database = {
           id?: string
           lesson_notes?: string | null
           lesson_type?: string | null
+          metadata?: Json | null
           order_index?: number | null
           school_id?: string | null
           school_name?: string | null
@@ -4038,6 +4187,7 @@ export type Database = {
           id?: string
           lesson_notes?: string | null
           lesson_type?: string | null
+          metadata?: Json | null
           order_index?: number | null
           school_id?: string | null
           school_name?: string | null
@@ -8580,6 +8730,22 @@ export type Database = {
           id: string
           time_ago: string
           title: string
+        }[]
+      }
+      get_due_flashcards: {
+        Args: { p_deck_id?: string; p_student_id: string }
+        Returns: {
+          back: string
+          back_image_url: string
+          card_id: string
+          deck_id: string
+          difficulty_level: string
+          ease_factor: number
+          front: string
+          front_image_url: string
+          next_review_at: string
+          repetitions: number
+          template: string
         }[]
       }
       get_my_role: { Args: never; Returns: string }

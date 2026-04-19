@@ -89,6 +89,7 @@ export default function TakeExamPage() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [certError, setCertError] = useState(false);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
 
@@ -107,7 +108,7 @@ export default function TakeExamPage() {
           .then(({ data: examData }) => {
             if (!examData) { router.push('/dashboard/cbt'); return; }
             setExam(examData);
-            setQuestions(examData.cbt_questions ?? []);
+            setQuestions([...(examData.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
             setTimeLeft((examData.duration_minutes ?? 60) * 60);
             setLoading(false);
           });
@@ -261,6 +262,7 @@ export default function TakeExamPage() {
           }
         } catch (certErr) {
           console.error('Auto-certificate issuance failed:', certErr);
+          setCertError(true);
         }
       }
     } finally {
@@ -371,6 +373,13 @@ export default function TakeExamPage() {
                     <span className="text-[9px] font-black uppercase text-orange-400 tracking-widest">AI Evaluated Subjective Answers</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {certError && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs text-left">
+                <span>⚠</span>
+                <span>Your certificate could not be issued automatically. Please contact your instructor to confirm your award.</span>
               </div>
             )}
 

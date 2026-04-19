@@ -43,26 +43,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Exam already submitted' }, { status: 409 });
     }
 
-    // ── Req 2.2: Server-side deadline enforcement ─────────────────────────────
-    // Fetch the exam's deadline from the generated column (migration 20260501000002)
-    const { data: sessionRow } = await admin
-      .from('cbt_sessions')
-      .select('deadline')
-      .eq('exam_id', exam_id)
-      .eq('user_id', caller.id)
-      .maybeSingle();
+    // ── Server-side deadline enforcement ─────────────────────────────────────
+    // Compute deadline from exam duration + student's start_time.
+    // (Querying cbt_sessions for the deadline was dead code — no session exists yet.)
+    const { data: examRow } = await admin
+      .from('cbt_exams')
+      .select('duration_minutes, end_date, is_active')
+      .eq('id', exam_id)
+      .single();
 
-    // If a deadline exists on an in-progress session, check it
-    if (sessionRow?.deadline) {
-      const deadlineMs = new Date(sessionRow.deadline).getTime();
-      const submittedMs = submitted_at
-        ? new Date(submitted_at).getTime()
-        : Date.now();
-      const GRACE_MS = 30_000; // 30-second grace period
+    if (!examRow || !examRow.is_active) {
+      return NextResponse.json({ error: 'Exam not found or is no longer active' }, { status: 404 });
+    }
 
-      if (submittedMs > deadlineMs + GRACE_MS) {
+    // Check exam window closed
+    if (examRow.end_date && new Date(examRow.end_date) < new Date()) {
+      return NextResponse.json({ error: 'The exam window has closed' }, { status: 422 });
+    }
+
+    // Enforce duration-based deadline
+    if (examRow.duration_minutes && start_time) {
+      const deadline = new Date(start_time).getTime() + examRow.duration_minutes * 60_000;
+      const submittedMs = submitted_at ? new Date(submitted_at).getTime() : Date.now();
+      const GRACE_MS = 30_000; // 30-second grace period for network latency
+
+      if (submittedMs > deadline + GRACE_MS) {
         return NextResponse.json(
-          { error: 'DEADLINE_EXCEEDED', deadline: sessionRow.deadline },
+          { error: 'DEADLINE_EXCEEDED' },
           { status: 422 },
         );
       }
@@ -81,6 +88,7 @@ export async function POST(request: NextRequest) {
         manual_scores: manual_scores ?? {},
         grading_notes: grading_notes ?? null,
         needs_grading: needs_grading ?? false,
+        auto_submitted: auto_submitted ?? false,
       })
       .select('id, score, status')
       .single();
