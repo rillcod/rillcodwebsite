@@ -1,0 +1,18 @@
+# This is a placeholder for the OpenGraph image
+# In production, you should replace this with an actual 1200x630 PNG image
+# The dynamic image generation should work, but this serves as a fallback
+
+# To create the actual image:
+# 1. Use the design from opengraph-image.tsx
+# 2. Create a 1200x630 PNG with:
+#    - Dark background (#0f0f1a)
+#    - Rillcod logo and branding
+#    - "Tech Education & Innovation Hub" text
+#    - Orange accent colors (#ff6b35)
+#    - Location: Benin City, Nigeria
+
+# You can use tools like:
+# - Canva
+# - Figma
+# - Adobe Photoshop
+# - Online OG image generators

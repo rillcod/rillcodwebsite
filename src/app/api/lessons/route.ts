@@ -105,21 +105,24 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // If lesson_plan data is included, save it too
+    // If lesson_plan data is included, save it and return its id
+    let lesson_plan_id: string | null = null;
     if (body.lesson_plan && data?.id) {
       const plan = body.lesson_plan;
-      await adminClient().from('lesson_plans').insert({
+      const { data: planRow } = await adminClient().from('lesson_plans').insert({
         lesson_id: data.id,
+        course_id: body.course_id ?? null,
         objectives: plan.objectives ?? null,
         activities: plan.activities ?? null,
         assessment_methods: plan.assessment_methods ?? null,
         staff_notes: plan.staff_notes ?? null,
         plan_data: plan.plan_data ?? null,
         covers_full_course: plan.covers_full_course ?? false,
-      });
+      }).select('id').single();
+      lesson_plan_id = planRow?.id ?? null;
     }
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({ data: { ...data, lesson_plan_id } }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

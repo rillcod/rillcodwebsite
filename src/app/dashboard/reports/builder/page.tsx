@@ -60,6 +60,69 @@ interface SessionConfig {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Specified'];
+
+// ── WAEC 6-component weights ──────────────────────────────────────────────────
+const WAEC_WEIGHTS = { theory: 0.20, classwork: 0.10, practical: 0.25, assignments: 0.20, attendance: 0.10, assessment: 0.15 };
+
+// ── Activity qualifier quick-picks (curriculum-mapped, no overlap) ────────────
+const CLASSWORK_PICKS = [
+    'Fully Engaged', 'Active Learner', 'Consistently Attentive', 'Shows Initiative',
+    'Mostly Engaged', 'Improving Steadily', 'Needs Encouragement', 'Rarely Participates',
+    'Task Focused', 'Asks Good Questions', 'Helps Peers', 'Easily Distracted',
+];
+const PROJECTS_PICKS = [
+    'All Delivered', 'Strong Deliverables', 'Outstanding Work', 'Projects Complete',
+    'Mostly Complete', 'Partially Submitted', 'Needs Improvement', 'Incomplete Labs',
+    'Built & Deployed', 'Creative Solutions', 'Logic Correct', 'Requires Rework',
+];
+const HOMEWORK_PICKS = [
+    'Always Submitted', 'Consistently On-time', 'Mostly Punctual', 'Above Average',
+    'Partially Complete', 'Often Late', 'Rarely Submitted', 'Below Expectation',
+    'Improving Pattern', 'Needs Catch-up', 'Reliable Output', 'Inconsistent Effort',
+];
+
+// ── Module suggestions (curriculum-aware) ─────────────────────────────────────
+const MODULE_SUGGESTIONS: Record<string, { modules: string[]; next: string[] }> = {
+    python: {
+        modules: ['Variables & Data Types', 'Control Flow & Loops', 'Functions & Scope', 'Lists & Dictionaries', 'OOP Basics', 'File Handling', 'APIs & Libraries', 'Final Project'],
+        next:    ['Control Flow & Loops', 'Functions & Scope', 'Lists & Dictionaries', 'OOP Basics', 'File Handling', 'APIs & Libraries', 'Final Project', 'Course Complete'],
+    },
+    web: {
+        modules: ['HTML Fundamentals', 'CSS Styling & Layout', 'Flexbox & Grid', 'JavaScript Basics', 'DOM Manipulation', 'Forms & Validation', 'Responsive Design', 'Deployment'],
+        next:    ['CSS Styling & Layout', 'Flexbox & Grid', 'JavaScript Basics', 'DOM Manipulation', 'Forms & Validation', 'Responsive Design', 'Deployment', 'Course Complete'],
+    },
+    ai: {
+        modules: ['Intro to AI & ML', 'Data Collection & Cleaning', 'Supervised Learning', 'Model Training', 'Evaluation & Metrics', 'Neural Networks Basics', 'Real-world Projects', 'AI Ethics'],
+        next:    ['Data Collection & Cleaning', 'Supervised Learning', 'Model Training', 'Evaluation & Metrics', 'Neural Networks Basics', 'Real-world Projects', 'AI Ethics', 'Course Complete'],
+    },
+    robotics: {
+        modules: ['Circuit Fundamentals', 'Arduino Setup', 'Sensors & Actuators', 'Motor Control', 'LED & Display Programming', 'Line Follower Build', 'Autonomous Systems', 'Final Robot Project'],
+        next:    ['Arduino Setup', 'Sensors & Actuators', 'Motor Control', 'LED & Display Programming', 'Line Follower Build', 'Autonomous Systems', 'Final Robot Project', 'Course Complete'],
+    },
+    scratch: {
+        modules: ['Scratch Interface & Sprites', 'Motion & Events', 'Loops & Conditions', 'Variables & Operators', 'Interactive Stories', 'Game Design', 'Animation Project', 'Sharing & Publishing'],
+        next:    ['Motion & Events', 'Loops & Conditions', 'Variables & Operators', 'Interactive Stories', 'Game Design', 'Animation Project', 'Sharing & Publishing', 'Course Complete'],
+    },
+    game: {
+        modules: ['Game Design Principles', 'Engine Setup (Unity/GDevelop)', 'Player Movement', 'Collision & Physics', 'Score & UI', 'Levels & Progression', 'Sound & Effects', 'Publish & Share'],
+        next:    ['Engine Setup (Unity/GDevelop)', 'Player Movement', 'Collision & Physics', 'Score & UI', 'Levels & Progression', 'Sound & Effects', 'Publish & Share', 'Course Complete'],
+    },
+    default: {
+        modules: ['Introduction & Setup', 'Core Concepts Week 1-2', 'Practical Skills Week 3-4', 'Mid-term Assessment', 'Advanced Topics Week 5-6', 'Project Development', 'Final Assessment', 'Course Review'],
+        next:    ['Core Concepts Week 1-2', 'Practical Skills Week 3-4', 'Mid-term Assessment', 'Advanced Topics Week 5-6', 'Project Development', 'Final Assessment', 'Course Review', 'Course Complete'],
+    },
+};
+
+function getModuleSuggestions(courseName: string): { modules: string[]; next: string[] } {
+    const lower = (courseName || '').toLowerCase();
+    if (lower.includes('python'))                                              return MODULE_SUGGESTIONS.python;
+    if (lower.includes('web') || lower.includes('html') || lower.includes('css')) return MODULE_SUGGESTIONS.web;
+    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml')) return MODULE_SUGGESTIONS.ai;
+    if (lower.includes('robot') || lower.includes('arduino'))                  return MODULE_SUGGESTIONS.robotics;
+    if (lower.includes('scratch'))                                             return MODULE_SUGGESTIONS.scratch;
+    if (lower.includes('game'))                                                return MODULE_SUGGESTIONS.game;
+    return MODULE_SUGGESTIONS.default;
+}
 const CLASS_PRESETS = [
     'Kindergarten',
     'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
@@ -233,19 +296,23 @@ function ReportBuilderInner() {
     const [form, setForm] = useState({
         student_name: '',
         section_class: '',
-        theory_score: '0',
-        practical_score: '0',
-        attendance_score: '0',
-        participation_grade: 'Good',
-        projects_grade: 'Good',
-        homework_grade: 'Good',
+        // ── WAEC 6-component scores ──────────────────────────────────────────
+        theory_score:       '0',   // Theory/Written    20%
+        classwork_score:    '0',   // Classwork         10%  (→ engagement_metrics)
+        practical_score:    '0',   // Practical/Projects 25%
+        attendance_score:   '0',   // Assignments       20%  (DB: attendance_score)
+        participation_score:'0',   // Attendance        10%  (DB: participation_score)
+        assessment_score:   '0',   // Mid-term          15%  (→ engagement_metrics)
+        // ── Qualitative ─────────────────────────────────────────────────────
+        participation_grade: '',   // Classwork qualifier comment
+        projects_grade: '',        // Practical/Projects qualifier comment
+        homework_grade: '',        // Assignments qualifier comment
         proficiency_level: 'intermediate',
         key_strengths: '',
         areas_for_growth: '',
         is_published: false,
         photo_url: '',
         fee_status: '' as '' | 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived',
-        participation_score: '0',
     });
 
     // ── UI state ──────────────────────────────────────────────────────────────
@@ -580,22 +647,25 @@ function ReportBuilderInner() {
             }));
         }
 
+        const existingMetrics = (report as any)?.engagement_metrics ?? {};
         setForm({
             student_name: s.full_name ?? '',
             section_class: report?.section_class ?? (s as any).section_class ?? '',
-            theory_score: String(report?.theory_score ?? 0),
-            practical_score: String(report?.practical_score ?? 0),
-            attendance_score: String(report?.attendance_score ?? 0),
-            participation_grade: report?.participation_grade ?? 'Good',
-            projects_grade: report?.projects_grade ?? 'Good',
-            homework_grade: report?.homework_grade ?? 'Good',
+            theory_score:        String(report?.theory_score        ?? 0),
+            classwork_score:     String(existingMetrics.classwork_score  ?? 0),
+            practical_score:     String(report?.practical_score     ?? 0),
+            attendance_score:    String(report?.attendance_score    ?? 0),
+            participation_score: String(report?.participation_score ?? 0),
+            assessment_score:    String(existingMetrics.assessment_score ?? 0),
+            participation_grade: report?.participation_grade ?? '',
+            projects_grade:      report?.projects_grade      ?? '',
+            homework_grade:      report?.homework_grade       ?? '',
             proficiency_level: report?.proficiency_level ?? 'intermediate',
             key_strengths: report?.key_strengths ?? '',
             areas_for_growth: report?.areas_for_growth ?? '',
             is_published: report?.is_published ?? false,
             photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
             fee_status: ((report as any)?.fee_status ?? '') as any,
-            participation_score: String(report?.participation_score ?? 0),
         });
 
         // ── Fetch transparent stats for all 4 score categories ───────────────
@@ -670,21 +740,31 @@ function ReportBuilderInner() {
                 projects: projectCount,
             });
 
-            // 4. Auto-suggest all 4 scores from real platform data (only if currently 0/unset)
+            // ── Auto-suggest all 6 WAEC components from real platform data ──────
+            // Only suggests when score is currently 0/unset (never overwrites teacher edits)
+            const attPct = sessionIds.length > 0
+                ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
+                : 0;
             setForm(f => ({
                 ...f,
-                // Examination → best CBT score where exam_type = 'examination'
+                // Theory (20%) → CBT examination score
                 ...(cbtScore > 0 && (f.theory_score === '0' || !f.theory_score)
                     ? { theory_score: String(cbtScore) } : {}),
-                // Evaluation → best CBT score where exam_type = 'evaluation' (fallback: assignment avg)
-                ...((evalScore > 0 || assignmentAvg > 0) && (f.practical_score === '0' || !f.practical_score)
-                    ? { practical_score: String(evalScore || assignmentAvg) } : {}),
-                // Assignment → completion percentage
-                ...(f.attendance_score === '0' || !f.attendance_score
+                // Classwork (10%) → assignment grade average (quality proxy)
+                ...(assignmentAvg > 0 && (f.classwork_score === '0' || !f.classwork_score)
+                    ? { classwork_score: String(assignmentAvg) } : {}),
+                // Practical/Projects (25%) → lab + portfolio project ratio
+                ...(projectPct > 0 && (f.practical_score === '0' || !f.practical_score)
+                    ? { practical_score: String(projectPct) } : {}),
+                // Assignments (20%) → submission completion %
+                ...(assignmentPct > 0 && (f.attendance_score === '0' || !f.attendance_score)
                     ? { attendance_score: String(assignmentPct) } : {}),
-                // Project Engagement → lab + portfolio projects ratio
-                ...(f.participation_score === '0' || !f.participation_score
-                    ? { participation_score: String(projectPct) } : {}),
+                // Attendance (10%) → class sessions attendance %
+                ...(attPct > 0 && (f.participation_score === '0' || !f.participation_score)
+                    ? { participation_score: String(attPct) } : {}),
+                // Mid-term Assessment (15%) → CBT evaluation score
+                ...(evalScore > 0 && (f.assessment_score === '0' || !f.assessment_score)
+                    ? { assessment_score: String(evalScore) } : {}),
             }));
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
@@ -694,19 +774,26 @@ function ReportBuilderInner() {
         setSessionExpanded(false);
     }
 
+    // ── WAEC weighted overall (6 components, mirrors grading.ts SCORE_WEIGHTS) ──
     const overallScore = Math.round(
-        (parseFloat(form.theory_score) || 0) * 0.40 +
-        (parseFloat(form.practical_score) || 0) * 0.20 +
-        (parseFloat(form.attendance_score) || 0) * 0.20 +
-        (parseFloat(form.participation_score) || 0) * 0.20
+        (parseFloat(form.theory_score)        || 0) * WAEC_WEIGHTS.theory      +  // 20%
+        (parseFloat(form.classwork_score)     || 0) * WAEC_WEIGHTS.classwork   +  // 10%
+        (parseFloat(form.practical_score)     || 0) * WAEC_WEIGHTS.practical   +  // 25%
+        (parseFloat(form.attendance_score)    || 0) * WAEC_WEIGHTS.assignments +  // 20%
+        (parseFloat(form.participation_score) || 0) * WAEC_WEIGHTS.attendance  +  // 10%
+        (parseFloat(form.assessment_score)    || 0) * WAEC_WEIGHTS.assessment     // 15%
     );
 
-    // We use the helper from ReportCard which returns an object with {g,label,color}.
-    // convert it to a simple string when rendering or saving, otherwise React will
-    // try to render the object and throw an error ("Objects are not valid as a
-    // React child").
-    const overallGradeObj = reportGrade(overallScore);
-    const overallGradeLetter = overallGradeObj.g; // e.g. "A", "B" etc.
+    // ── WAEC grade code (A1–F9) for display and save ─────────────────────────
+    const overallGradeObj = reportGrade(overallScore); // kept for Standard report card
+    const overallGradeLetter = overallGradeObj.g;      // e.g. "A", "B" etc.
+    // WAEC code for ModernReportCard:
+    function localWaecCode(s: number): string {
+        if (s >= 75) return 'A1'; if (s >= 70) return 'B2'; if (s >= 65) return 'B3';
+        if (s >= 60) return 'C4'; if (s >= 55) return 'C5'; if (s >= 50) return 'C6';
+        if (s >= 45) return 'D7'; if (s >= 40) return 'E8'; return 'F9';
+    }
+    const waecCode = localWaecCode(overallScore);
 
     // ── Bulk Build: Process all students in current view ─────────────────────
     const handleBulkBuild = async () => {
@@ -747,7 +834,7 @@ function ReportBuilderInner() {
                     db.from('portfolio_projects').select('id').eq('user_id', s.id),
                 ]);
 
-                // 2. Compute transparent scores (same logic as fetchStats)
+                // 2. Compute transparent scores (mirrors fetchStats 6-component mapping)
                 const cbtScore = Math.min(100, cbtRes.data?.[0]?.score || 0);
                 const asgnGrades = subRes.data?.map((x: any) => x.grade).filter((g: any) => g !== null) as number[] || [];
                 const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
@@ -756,19 +843,36 @@ function ReportBuilderInner() {
                 const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
                 const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
                 const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
+                // Assessment: blend of lab quality and submission consistency
+                const evalScore = Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
 
-                // 3. Map to report fields — Exam/Test/Assignment/Project
-                const theory = cbtScore;                         // Exam (40%) — CBT score
-                const practical = asgnAvg;                       // Test (20%) — assignment grade avg
-                const attendance_score = assigPct;              // Assignment (20%) — completion %
-                const participation = projectPct || Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
+                // 3. Map to 6 weighted components
+                const theory      = cbtScore;    // Theory (20%)  — CBT exam score
+                const classwork   = asgnAvg;      // Classwork (10%) — assignment grade avg
+                const practical   = projectPct;   // Practical (25%) — project completion %
+                const assignments = assigPct;     // Assignments (20%) — submission rate
+                const attendance  = attPct;       // Attendance (10%) — session attendance %
+                const assessment  = evalScore;    // Assessment (15%) — blended eval score
 
                 // 4. Check for existing report
                 const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
                 const { data: existing } = isPrePortal ? { data: null } : await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
 
-                const overall = Math.round(theory * 0.40 + practical * 0.20 + attendance_score * 0.20 + participation * 0.20);
-                const gradeLetter = reportGrade(overall).g;
+                const overall = Math.round(
+                    theory      * WAEC_WEIGHTS.theory      +
+                    classwork   * WAEC_WEIGHTS.classwork   +
+                    practical   * WAEC_WEIGHTS.practical   +
+                    assignments * WAEC_WEIGHTS.assignments +
+                    attendance  * WAEC_WEIGHTS.attendance  +
+                    assessment  * WAEC_WEIGHTS.assessment
+                );
+                // Grade code for display (A1–F9); letter grade kept for Standard report card
+                const bulkWaecCode = (() => {
+                    if (overall >= 75) return 'A1'; if (overall >= 70) return 'B2';
+                    if (overall >= 65) return 'B3'; if (overall >= 60) return 'C4';
+                    if (overall >= 55) return 'C5'; if (overall >= 50) return 'C6';
+                    if (overall >= 45) return 'D7'; if (overall >= 40) return 'E8'; return 'F9';
+                })();
 
                 const payload: any = {
                     student_id: isPrePortal ? null : s.id,
@@ -783,12 +887,14 @@ function ReportBuilderInner() {
                     report_term: sessionConfig.report_term,
                     report_period: sessionConfig.report_period,
                     instructor_name: sessionConfig.instructor_name,
-                    theory_score: theory,
-                    practical_score: practical,
-                    attendance_score: attendance_score,
-                    participation_score: participation,
+                    // DB column mapping: attendance_score → assignments, participation_score → attendance
+                    theory_score:        theory,
+                    practical_score:     practical,
+                    attendance_score:    assignments,
+                    participation_score: attendance,
+                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment },
                     overall_score: overall,
-                    overall_grade: gradeLetter,
+                    overall_grade: bulkWaecCode,
                     proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
                     is_published: false,
                     updated_at: new Date().toISOString(),
@@ -847,7 +953,7 @@ function ReportBuilderInner() {
                 participation_grade: form.participation_grade,
                 projects_grade: form.projects_grade,
                 homework_grade: form.homework_grade,
-                overall_grade: overallGradeLetter,
+                overall_grade: waecCode,
                 overall_score: overallScore,
                 key_strengths: form.key_strengths || null,
                 areas_for_growth: form.areas_for_growth || null,
@@ -867,10 +973,14 @@ function ReportBuilderInner() {
                 show_payment_notice: sessionConfig.show_payment_notice,
                 participation_score: parseFloat(form.participation_score) || 0,
                 engagement_metrics: {
-                    examScore: studentStats.cbtScore,
-                    testAvg: studentStats.assignmentAvg,
-                    assignmentCompletion: studentStats.assignmentPct,
-                    projectsCompleted: studentStats.projects,
+                    // WAEC components stored in metrics (not in dedicated DB columns)
+                    classwork_score:    parseFloat(form.classwork_score)  || 0,
+                    assessment_score:   parseFloat(form.assessment_score) || 0,
+                    // Source data for transparency
+                    examScore:           studentStats.cbtScore,
+                    testAvg:             studentStats.assignmentAvg,
+                    assignmentCompletion:studentStats.assignmentPct,
+                    projectsCompleted:   studentStats.projects,
                 },
             };
 
@@ -1048,11 +1158,16 @@ function ReportBuilderInner() {
         ...form,
         id: existingReport?.id || 'Preview',
         template_id: modernTemplateId,
-        theory_score: parseFloat(form.theory_score) || 0,
-        practical_score: parseFloat(form.practical_score) || 0,
-        attendance_score: parseFloat(form.attendance_score) || 0,
+        theory_score:        parseFloat(form.theory_score)        || 0,
+        practical_score:     parseFloat(form.practical_score)     || 0,
+        attendance_score:    parseFloat(form.attendance_score)    || 0,
         participation_score: parseFloat(form.participation_score) || 0,
         overall_score: overallScore,
+        overall_grade: waecCode,
+        engagement_metrics: {
+            classwork_score:  parseFloat(form.classwork_score)  || 0,
+            assessment_score: parseFloat(form.assessment_score) || 0,
+        },
         has_certificate: forceCertificate || overallScore >= 45,
         certificate_text: (forceCertificate || overallScore >= 45)
             ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
@@ -1192,14 +1307,20 @@ function ReportBuilderInner() {
                             </select>
                         </Field>
                         <Field label="Current Module">
-                            <input value={sessionConfig.current_module}
+                            <input list="mod-cur-bar" value={sessionConfig.current_module}
                                 onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
                                 className={INPUT} placeholder="e.g. Control Statements" />
+                            <datalist id="mod-cur-bar">
+                                {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
+                            </datalist>
                         </Field>
                         <Field label="Next Module">
-                            <input value={sessionConfig.next_module}
+                            <input list="mod-nxt-bar" value={sessionConfig.next_module}
                                 onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
                                 className={INPUT} placeholder="e.g. Loops & Automation" />
+                            <datalist id="mod-nxt-bar">
+                                {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
+                            </datalist>
                         </Field>
                         <Field label="Duration">
                             <select value={sessionConfig.course_duration}
@@ -1618,14 +1739,24 @@ function ReportBuilderInner() {
                                     </Field>
                                 )}
                                 <Field label="Current Module">
-                                    <input value={sessionConfig.current_module}
+                                    <input
+                                        list="module-current-list"
+                                        value={sessionConfig.current_module}
                                         onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
                                         className={INPUT} placeholder="e.g. Control Statements" />
+                                    <datalist id="module-current-list">
+                                        {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
+                                    </datalist>
                                 </Field>
                                 <Field label="Next Module">
-                                    <input value={sessionConfig.next_module}
+                                    <input
+                                        list="module-next-list"
+                                        value={sessionConfig.next_module}
                                         onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
                                         className={INPUT} placeholder="e.g. Loops & Automation" />
+                                    <datalist id="module-next-list">
+                                        {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
+                                    </datalist>
                                 </Field>
                             </div>
                         </div>
@@ -1922,37 +2053,43 @@ function ReportBuilderInner() {
                             </button>
                         </div>
 
-                        {/* Transparent score sources bar */}
+                        {/* Transparent score sources bar — 6 weighted components */}
                         {!fetchingStats && (
                             <div className="bg-[#0d1526] border border-border px-5 py-3 space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">Score Sources — Live Platform Data</span>
+                                    <span className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
                                     <span className="text-[9px] text-muted-foreground">auto-suggested when score is 0</span>
                                 </div>
-                                <div className="grid grid-cols-4 gap-3">
-                                    {/* Exam ← CBT */}
-                                    <div className="bg-indigo-500/5 border border-indigo-500/20 rounded px-3 py-2">
-                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Examination (40%)</p>
+                                <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+                                    <div className="bg-indigo-500/5 border border-indigo-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
-                                        <p className="text-[9px] text-muted-foreground">CBT best score</p>
+                                        <p className="text-[8px] text-muted-foreground">CBT exam</p>
                                     </div>
-                                    {/* Test ← assignment grade avg */}
-                                    <div className="bg-cyan-500/5 border border-cyan-500/20 rounded px-3 py-2">
-                                        <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1">Evaluation (20%)</p>
+                                    <div className="bg-cyan-500/5 border border-cyan-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
-                                        <p className="text-[9px] text-muted-foreground">CBT evaluation test score</p>
+                                        <p className="text-[8px] text-muted-foreground">Assignment avg</p>
                                     </div>
-                                    {/* Assignment ← completion */}
-                                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded px-3 py-2">
-                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignment (20%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignments}/{studentStats.totalAssignments}</p>
-                                        <p className="text-[9px] text-muted-foreground">{studentStats.assignmentPct}% completed</p>
-                                    </div>
-                                    {/* Project ← lab + portfolio */}
-                                    <div className="bg-violet-500/5 border border-violet-500/20 rounded px-3 py-2">
-                                        <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Project Engagement (20%)</p>
+                                    <div className="bg-violet-500/5 border border-violet-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-violet-400 uppercase tracking-widest mb-1">Practical (25%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.projects} project{studentStats.projects !== 1 ? 's' : ''}</p>
-                                        <p className="text-[9px] text-muted-foreground">Lab + portfolio work</p>
+                                        <p className="text-[8px] text-muted-foreground">Lab + portfolio</p>
+                                    </div>
+                                    <div className="bg-emerald-500/5 border border-emerald-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignments (20%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignments}/{studentStats.totalAssignments}</p>
+                                        <p className="text-[8px] text-muted-foreground">{studentStats.assignmentPct}% submitted</p>
+                                    </div>
+                                    <div className="bg-amber-500/5 border border-amber-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1">Attendance (10%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.attendance}/{studentStats.totalSessions}</p>
+                                        <p className="text-[8px] text-muted-foreground">Sessions present</p>
+                                    </div>
+                                    <div className="bg-rose-500/5 border border-rose-500/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
+                                        <p className="text-[8px] text-muted-foreground">CBT evaluation</p>
                                     </div>
                                 </div>
                             </div>
@@ -2093,67 +2230,53 @@ function ReportBuilderInner() {
                                     </div>
                                 </Section>
 
-                                {/* Scores */}
+                                {/* Scores — 6 weighted components */}
                                 <Section title="Performance Scores" icon="📊">
-                                    <div className="space-y-5">
-                                        {(['theory_score', 'practical_score', 'attendance_score', 'participation_score'] as const).map((key) => {
-                                            const labels: Record<string, string> = {
-                                                theory_score: 'Examination (40%)',
-                                                practical_score: 'Evaluation (20%)',
-                                                attendance_score: 'Assignment (20%)',
-                                                participation_score: 'Project Engagement (20%)',
-                                            };
-                                            const colors: Record<string, string> = {
-                                                theory_score: '#6366f1',
-                                                practical_score: '#06b6d4',
-                                                attendance_score: '#10b981',
-                                                participation_score: '#8b5cf6',
-                                            };
-                                            const sources: Record<string, string> = {
-                                                theory_score: studentStats.cbtScore > 0 ? `CBT Examination: ${studentStats.cbtScore}%` : 'Source: CBT exam_type=examination',
-                                                practical_score: studentStats.assignmentAvg > 0 ? `CBT Evaluation: ${studentStats.assignmentAvg}%` : 'Source: CBT exam_type=evaluation',
-                                                attendance_score: `${studentStats.assignments}/${studentStats.totalAssignments} assignments graded (${studentStats.assignmentPct}%)`,
-                                                participation_score: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)`,
-                                            };
-                                            const thumbColors: Record<string, string> = {
-                                                theory_score: '[&::-webkit-slider-thumb]:bg-indigo-500',
-                                                practical_score: '[&::-webkit-slider-thumb]:bg-cyan-500',
-                                                attendance_score: '[&::-webkit-slider-thumb]:bg-emerald-500',
-                                                participation_score: '[&::-webkit-slider-thumb]:bg-violet-500',
-                                            };
-                                            const val = Math.min(100, Math.max(0, parseInt(form[key]) || 0));
+                                    <div className="space-y-4">
+                                        {([
+                                            { key: 'theory_score',       label: 'Theory / Written Tests',      weight: '20%', color: '#6366f1', hint: `CBT exam: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
+                                            { key: 'classwork_score',    label: 'Classwork & Participation',   weight: '10%', color: '#06b6d4', hint: `Assignment grade avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                            { key: 'practical_score',    label: 'Practical / Projects',        weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)` },
+                                            { key: 'attendance_score',   label: 'Assignments Submitted',       weight: '20%', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} graded (${studentStats.assignmentPct}%)` },
+                                            { key: 'participation_score',label: 'Attendance',                  weight: '10%', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions} sessions present` },
+                                            { key: 'assessment_score',   label: 'Mid-term Assessment',         weight: '15%', color: '#f43f5e', hint: `CBT evaluation: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                        ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
+                                            const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             const nudge = (delta: number) =>
-                                                setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(f[key]) || 0) + delta))) }));
+                                                setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(String(f[key])) || 0) + delta))) }));
                                             return (
-                                                <div key={key} className="space-y-1.5">
+                                                <div key={key} className="space-y-1">
                                                     <div className="flex justify-between items-baseline">
-                                                        <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{labels[key]}</label>
-                                                        <span className="text-[11px] font-black tabular-nums" style={{ color: colors[key] }}>{val}%</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{label}</label>
+                                                            <span className="text-[8px] text-muted-foreground/40 font-bold">{weight}</span>
+                                                        </div>
+                                                        <span className="text-[11px] font-black tabular-nums" style={{ color }}>{val}%</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <input
-                                                            type="range" min="0" max="100" value={form[key]}
+                                                            type="range" min="0" max="100" value={String(form[key])}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-[3px] appearance-none cursor-pointer outline-none bg-muted/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 ${thumbColors[key]}`}
-                                                            style={{ background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
+                                                            className="flex-1 h-[3px] appearance-none cursor-pointer outline-none bg-muted/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:cursor-pointer"
+                                                            style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
                                                         />
                                                         <div className="flex items-center gap-px flex-shrink-0">
                                                             <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
                                                             <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
-                                                            <input
-                                                                type="number" min="0" max="100" value={form[key]}
+                                                            <input type="number" min="0" max="100" value={String(form[key])}
                                                                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                                                                 className="w-9 text-center py-0.5 bg-card border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-orange-500" />
                                                             <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
                                                             <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
                                                         </div>
                                                     </div>
-                                                    <p className="text-[8px] text-muted-foreground/40 italic">{sources[key]}</p>
+                                                    <p className="text-[8px] text-muted-foreground/40 italic">{hint}</p>
                                                 </div>
                                             );
                                         })}
 
-                                        {/* Overall — compact premium display */}
+                                        {/* Overall — weighted score display */}
                                         <div className="mt-1 pt-3 border-t border-border flex items-center justify-between">
                                             <div>
                                                 <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Weighted Overall</p>
@@ -2162,68 +2285,67 @@ function ReportBuilderInner() {
                                             <div className="flex items-center gap-3">
                                                 <div className="text-right">
                                                     <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
-                                                    <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
+                                                    <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
                                                 </div>
-                                                <div className="w-10 h-10 flex items-center justify-center font-black text-lg border-2 border-orange-500/40 bg-orange-500/10 text-orange-400">
-                                                    {overallGradeLetter}
+                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-orange-500/40 bg-orange-500/10 text-orange-400">
+                                                    <span className="text-base leading-none">{waecCode}</span>
+                                                    <span className="text-[7px] text-orange-400/60 font-bold">{overallGradeLetter}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </Section>
 
-                                {/* Grades */}
-                                <Section title="Grade Qualifiers" icon="🏅">
-                                    {(() => {
-                                        const COMPLETION_LEVELS = [
-                                            'In Progress',
-                                            'Partially Completed',
-                                            'Mostly Completed',
-                                            'Constructive Progression',
-                                            'Completed',
-                                            'Outstanding',
-                                        ];
-                                        const isPreset = (v: string) => COMPLETION_LEVELS.includes(v);
-                                        return (
-                                            <div className="space-y-5">
-                                                {[
-                                                    { key: 'participation_grade', label: 'Class Participation' },
-                                                    { key: 'projects_grade', label: 'Project Work' },
-                                                    { key: 'homework_grade', label: 'Homework' },
-                                                ].map(({ key, label }) => {
-                                                    const val = (form as any)[key] as string;
-                                                    return (
-                                                        <div key={key}>
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
-                                                                <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                                    className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
-                                                                    {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
-                                                                    AI Generate
-                                                                </button>
-                                                            </div>
-                                                            {/* Quick-select preset level */}
-                                                            <select
-                                                                value={isPreset(val) ? val : ''}
-                                                                onChange={e => { if (e.target.value) setForm(f => ({ ...f, [key]: e.target.value })); }}
-                                                                className={`${INPUT} mb-2`}
-                                                            >
-                                                                <option value="">Select completion level...</option>
-                                                                {COMPLETION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                                                            </select>
-                                                            {/* Text input for custom or AI-generated values */}
-                                                            <input
-                                                                value={val}
-                                                                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                                className={INPUT}
-                                                                placeholder="Or type a custom description..."
-                                                            />
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        );
-                                    })()}
+                                {/* Activity Qualifiers — aligned to grading components */}
+                                <Section title="Activity Qualifiers" icon="🏅">
+                                    <div className="space-y-5">
+                                        {([
+                                            { key: 'participation_grade', label: 'Classwork & Participation', picks: CLASSWORK_PICKS, placeholder: 'e.g. Fully Engaged, Shows Initiative…' },
+                                            { key: 'projects_grade',      label: 'Practical / Projects',      picks: PROJECTS_PICKS,  placeholder: 'e.g. All Delivered, Outstanding Work…' },
+                                            { key: 'homework_grade',      label: 'Assignments & Homework',    picks: HOMEWORK_PICKS,  placeholder: 'e.g. Always Submitted, Improving Pattern…' },
+                                        ] as { key: keyof typeof form; label: string; picks: string[]; placeholder: string }[]).map(({ key, label, picks, placeholder }) => {
+                                            const val = String(form[key] ?? '');
+                                            return (
+                                                <div key={key}>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
+                                                        <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
+                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all">
+                                                            {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
+                                                            AI Draft
+                                                        </button>
+                                                    </div>
+                                                    {/* Quick-pick chips */}
+                                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                                        {picks.map(p => (
+                                                            <button key={p} type="button"
+                                                                onClick={() => setForm(f => ({ ...f, [key]: p }))}
+                                                                className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${
+                                                                    val === p
+                                                                        ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-orange-500/30 hover:text-foreground/80'
+                                                                }`}>
+                                                                {p}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    {/* Free-text input with datalist for typed suggestions */}
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`${key}-list`}
+                                                            value={val}
+                                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                            className={INPUT}
+                                                            placeholder={placeholder}
+                                                        />
+                                                        <datalist id={`${key}-list`}>
+                                                            {picks.map(p => <option key={p} value={p} />)}
+                                                        </datalist>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </Section>
                             </div>
 

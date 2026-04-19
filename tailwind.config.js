@@ -27,6 +27,11 @@ module.exports = {
         'card-foreground': 'var(--card-foreground)',
         popover: 'var(--popover)',
         'popover-foreground': 'var(--popover-foreground)',
+        // Brand colors
+        'whatsapp-green': 'var(--whatsapp-green)',
+        'whatsapp-green-hover': 'var(--whatsapp-green-hover)',
+        'linkedin-blue': 'var(--linkedin-blue)',
+        'github-dark': 'var(--github-dark)',
       },
       borderRadius: {
         lg: 'var(--radius)',

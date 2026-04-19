@@ -71,25 +71,178 @@ export class NotificationsService {
     }
 
     /**
-     * Show a pop-up notification to the user
+     * Show an enhanced pop-up notification to the user with rich features
      */
-    async showPopupNotification(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
+    async showPopupNotification(
+        userId: string, 
+        title: string, 
+        message: string, 
+        type: 'info' | 'success' | 'warning' | 'error' | 'achievement' | 'streak' | 'celebration' = 'info',
+        options: {
+            priority?: 'low' | 'normal' | 'high' | 'urgent';
+            autoClose?: number;
+            actionLabel?: string;
+            actionUrl?: string;
+            category?: string;
+            sound?: boolean;
+            persistent?: boolean;
+        } = {}
+    ) {
         try {
             // Log to database
             await this.logNotification(userId, title, message, type);
             
-            // Emit real-time pop-up event
+            // Determine auto-close timing based on type and priority
+            let autoClose = options.autoClose;
+            if (!autoClose && !options.persistent) {
+                switch (type) {
+                    case 'success':
+                    case 'achievement':
+                        autoClose = 5000;
+                        break;
+                    case 'error':
+                        autoClose = 10000;
+                        break;
+                    case 'warning':
+                        autoClose = 8000;
+                        break;
+                    case 'celebration':
+                    case 'streak':
+                        autoClose = 7000;
+                        break;
+                    default:
+                        autoClose = 6000;
+                }
+                
+                // Adjust for priority
+                if (options.priority === 'urgent') autoClose *= 1.5;
+                if (options.priority === 'low') autoClose *= 0.7;
+            }
+            
+            // Emit real-time pop-up event with enhanced data
             emitToUser(userId, 'notification:popup', {
                 id: createHash('sha256').update(`${userId}:${Date.now()}:${title}`).digest('hex'),
                 title,
                 message,
                 type,
                 timestamp: new Date().toISOString(),
-                autoClose: type === 'success' ? 5000 : type === 'error' ? 10000 : 7000
+                priority: options.priority || 'normal',
+                autoClose,
+                actionLabel: options.actionLabel,
+                actionUrl: options.actionUrl,
+                category: options.category,
+                sound: options.sound || ['achievement', 'streak', 'celebration'].includes(type)
             });
         } catch (err) {
             console.error('Failed to show popup notification:', err);
         }
+    }
+
+    /**
+     * Show achievement notification with celebration effects
+     */
+    async showAchievementNotification(
+        userId: string,
+        achievementName: string,
+        description: string,
+        actionUrl?: string
+    ) {
+        return this.showPopupNotification(
+            userId,
+            `Achievement Unlocked!`,
+            `${achievementName}: ${description}`,
+            'achievement',
+            {
+                priority: 'high',
+                sound: true,
+                actionLabel: actionUrl ? 'View Achievement' : undefined,
+                actionUrl,
+                category: 'Achievement',
+                autoClose: 8000
+            }
+        );
+    }
+
+    /**
+     * Show streak notification with fire effects
+     */
+    async showStreakNotification(
+        userId: string,
+        streakCount: number,
+        streakType: string = 'study'
+    ) {
+        const messages = [
+            `You're on fire! ${streakCount} days strong! 🔥`,
+            `Incredible ${streakCount}-day ${streakType} streak! Keep it up! 💪`,
+            `${streakCount} days in a row! You're unstoppable! ⚡`,
+            `Amazing dedication! ${streakCount} consecutive days! 🌟`
+        ];
+        
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        
+        return this.showPopupNotification(
+            userId,
+            `${streakCount}-Day Streak!`,
+            message,
+            'streak',
+            {
+                priority: streakCount >= 7 ? 'high' : 'normal',
+                sound: true,
+                category: 'Streak',
+                autoClose: 6000
+            }
+        );
+    }
+
+    /**
+     * Show celebration notification for special events
+     */
+    async showCelebrationNotification(
+        userId: string,
+        event: string,
+        message: string,
+        actionUrl?: string
+    ) {
+        return this.showPopupNotification(
+            userId,
+            `🎉 ${event}`,
+            message,
+            'celebration',
+            {
+                priority: 'high',
+                sound: true,
+                actionLabel: actionUrl ? 'Celebrate' : undefined,
+                actionUrl,
+                category: 'Celebration',
+                autoClose: 7000
+            }
+        );
+    }
+
+    /**
+     * Show urgent notification that requires immediate attention
+     */
+    async showUrgentNotification(
+        userId: string,
+        title: string,
+        message: string,
+        actionLabel?: string,
+        actionUrl?: string
+    ) {
+        return this.showPopupNotification(
+            userId,
+            title,
+            message,
+            'warning',
+            {
+                priority: 'urgent',
+                sound: true,
+                persistent: true, // Don't auto-close
+                actionLabel,
+                actionUrl,
+                category: 'Urgent'
+            }
+        );
     }
 
     // internal utility to log notification sent internally

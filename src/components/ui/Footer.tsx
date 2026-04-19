@@ -106,20 +106,20 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-background text-foreground border-t border-border">
       <div className="container mx-auto px-4 md:px-8 py-12">
         {/* Newsletter Signup */}
         <div className="max-w-xl mx-auto mb-12">
-          <form className="flex flex-col sm:flex-row items-center bg-white rounded-lg shadow p-4 gap-2">
+          <form className="flex flex-col sm:flex-row items-center bg-card rounded-lg shadow p-4 gap-2">
             <input
               type="email"
               placeholder="Your email for updates"
-              className="flex-grow px-4 py-2 border rounded focus:ring-2 focus:ring-[#FF914D]"
+              className="flex-grow px-4 py-2 border rounded focus:ring-2 focus:ring-primary"
               required
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-[#FF914D] text-white rounded hover:bg-orange-600 transition"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
             >
               Subscribe
             </button>
@@ -136,9 +136,9 @@ export default function Footer() {
                 height={40}
                 className="h-10 w-10 rounded-full"
               />
-              <span className="text-xl font-bold text-[#FF914D]">Rillcod Technologies</span>
+              <span className="text-xl font-bold text-primary">Rillcod Technologies</span>
             </div>
-            <p className="text-gray-300 text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               Empowering Nigeria's future through technology education. We partner with schools 
               to deliver world-class programming and technology courses to young minds.
             </p>
@@ -151,7 +151,7 @@ export default function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-[#FF914D] transition-colors duration-300"
+                  className="text-muted-foreground hover:text-primary transition-colors duration-300"
                   aria-label={social.name}
                 >
                   {social.icon}
@@ -162,13 +162,13 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-[#FF914D]">Quick Links</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Quick Links</h3>
             <ul className="space-y-2">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-gray-300 hover:text-[#FF914D] transition-colors duration-300 text-sm"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-300 text-sm"
                   >
                     {link.name}
                   </Link>
@@ -179,13 +179,13 @@ export default function Footer() {
 
           {/* Programs */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-[#FF914D]">Our Programs</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Our Programs</h3>
             <ul className="space-y-2">
               {programs.map((program) => (
                 <li key={program.name}>
                   <Link
                     href={program.href}
-                    className="text-gray-300 hover:text-[#FF914D] transition-colors duration-300 text-sm"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-300 text-sm"
                   >
                     {program.name}
                   </Link>
@@ -196,13 +196,13 @@ export default function Footer() {
 
           {/* Resources */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-[#FF914D]">Resources</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Resources</h3>
             <ul className="space-y-2">
               {resources.map((resource) => (
                 <li key={resource.name}>
                   <Link
                     href={resource.href}
-                    className="text-gray-300 hover:text-[#FF914D] transition-colors duration-300 text-sm"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-300 text-sm"
                   >
                     {resource.name}
                   </Link>
@@ -213,13 +213,13 @@ export default function Footer() {
 
           {/* Support */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-[#FF914D]">Support</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary">Support</h3>
             <ul className="space-y-2">
               {support.map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-gray-300 hover:text-[#FF914D] transition-colors duration-300 text-sm"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-300 text-sm"
                   >
                     {item.name}
                   </Link>
@@ -230,20 +230,20 @@ export default function Footer() {
         </div>
 
         {/* Bottom Section */}
-        <div className="border-t border-gray-800 mt-8 pt-8">
+        <div className="border-t border-border mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-gray-400 text-sm">
+            <div className="text-muted-foreground text-sm">
               © {currentYear} Rillcod Technologies. All rights reserved.
             </div>
             
             <div className="flex space-x-6 text-sm">
-              <Link href="/privacy-policy" className="text-gray-400 hover:text-[#FF914D] transition-colors">
+              <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
                 Privacy Policy
               </Link>
-              <Link href="/terms-of-service" className="text-gray-400 hover:text-[#FF914D] transition-colors">
+              <Link href="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
                 Terms of Service
               </Link>
-              <Link href="/faq" className="text-gray-400 hover:text-[#FF914D] transition-colors">
+              <Link href="/faq" className="text-muted-foreground hover:text-primary transition-colors">
                 FAQ
               </Link>
             </div>
