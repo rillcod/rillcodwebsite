@@ -38,7 +38,7 @@ create policy "staff select curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id = auth.uid()
-        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.role in ('admin', 'teacher')
         and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
@@ -53,7 +53,7 @@ create policy "staff insert curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id = auth.uid()
-        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.role in ('admin', 'teacher')
         and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
@@ -68,14 +68,14 @@ create policy "staff update curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id = auth.uid()
-        and pu.role in ('admin', 'school_admin', 'school', 'teacher')
+        and pu.role in ('admin', 'teacher')
         and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
     )
   );
 
--- school admins can delete curricula for their school (admins only for safety)
+-- admins can delete curricula
 drop policy if exists "school admins delete curricula for their school" on public.course_curricula;
-create policy "school admins delete curricula for their school"
+create policy "admins delete curricula for their school"
   on public.course_curricula
   for delete
   using (
@@ -83,7 +83,6 @@ create policy "school admins delete curricula for their school"
       select 1
       from public.portal_users pu
       where pu.id = auth.uid()
-        and pu.role in ('admin', 'school_admin', 'school')
-        and (pu.role = 'admin' or pu.school_id = course_curricula.school_id)
+        and pu.role = 'admin'
     )
   );
