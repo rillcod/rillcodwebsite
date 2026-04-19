@@ -70,6 +70,28 @@ export class NotificationsService {
         return this.sendPulseToken as string;
     }
 
+    /**
+     * Show a pop-up notification to the user
+     */
+    async showPopupNotification(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
+        try {
+            // Log to database
+            await this.logNotification(userId, title, message, type);
+            
+            // Emit real-time pop-up event
+            emitToUser(userId, 'notification:popup', {
+                id: createHash('sha256').update(`${userId}:${Date.now()}:${title}`).digest('hex'),
+                title,
+                message,
+                type,
+                timestamp: new Date().toISOString(),
+                autoClose: type === 'success' ? 5000 : type === 'error' ? 10000 : 7000
+            });
+        } catch (err) {
+            console.error('Failed to show popup notification:', err);
+        }
+    }
+
     // internal utility to log notification sent internally
     public async logNotification(userId: string, title: string, message: string, type: string = 'info') {
         try {
@@ -96,7 +118,7 @@ export class NotificationsService {
         }
     }
 
-    private async fetchWithRetry(url: string, options: RequestInit, retries: number = 3): Promise<any> {
+    private async fetchWithRetry(url: string, options: RequestInit, retries: number = 2): Promise<Response> {
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
                 const res = await fetch(url, options);
@@ -104,7 +126,7 @@ export class NotificationsService {
                     let errText = await res.text().catch(() => 'Unknown Error');
                     throw new Error(`SendPulse API error [${res.status}]: ${errText}`);
                 }
-                return await res.json();
+                return res;
             } catch (error: any) {
                 console.warn(`SendPulse attempt ${attempt} failed: ${error.message}`);
                 if (attempt === retries) {
@@ -114,6 +136,7 @@ export class NotificationsService {
                 await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }
         }
+        throw new Error('All retry attempts failed');
     }
 
     private async checkPreferences(userId: string, type: 'email' | 'sms'): Promise<boolean> {

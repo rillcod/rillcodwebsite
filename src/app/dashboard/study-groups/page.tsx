@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { ChatBubbleLeftRightIcon, UserGroupIcon, PlusIcon, XMarkIcon, CodeBracketIcon } from '@/lib/icons';
+import { 
+  ChatBubbleLeftRightIcon, 
+  UserGroupIcon, 
+  PlusIcon, 
+  XMarkIcon, 
+  UserIcon,
+  AcademicCapIcon 
+} from '@/lib/icons';
 import Link from 'next/link';
 
 interface StudyGroup {
@@ -12,7 +19,11 @@ interface StudyGroup {
   course_id: string | null;
   status: string;
   created_at: string;
+  assigned_teacher_id: string | null;
+  school_id: string | null;
+  grade_level: string | null;
   study_group_members: { count: number }[];
+  assigned_teacher?: { full_name: string };
 }
 
 export default function StudyGroupsPage() {
@@ -43,10 +54,37 @@ export default function StudyGroupsPage() {
     if (!name.trim()) return;
     setCreating(true);
     setError('');
+    
+    // Auto-assign teacher based on student's assigned teacher or school
+    let assignedTeacherId = null;
+    if (profile?.role === 'student') {
+      const db = createClient();
+      
+      // Try to find student's assigned teacher from school or find any teacher from same school
+      if (profile?.school_id) {
+        // Find a teacher from the same school
+        const { data: teachers } = await db
+          .from('portal_users')
+          .select('id')
+          .eq('role', 'teacher')
+          .eq('school_id', profile.school_id)
+          .limit(1);
+        
+        if (teachers && teachers.length > 0) {
+          assignedTeacherId = teachers[0].id;
+        }
+      }
+    }
+    
     const res = await fetch('/api/study-groups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ 
+        name,
+        assigned_teacher_id: assignedTeacherId,
+        school_id: profile?.school_id,
+        grade_level: profile?.grade_level
+      }),
     });
     const json = await res.json();
     if (!res.ok) { setError(json.error || 'Failed to create'); setCreating(false); return; }
@@ -91,7 +129,7 @@ export default function StudyGroupsPage() {
         {/* Create modal */}
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="bg-[#0d1526] border border-border rounded-none w-full max-w-sm p-6 space-y-4">
+            <div className="bg-card border border-border rounded-none w-full max-w-sm p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-black text-foreground">New Study Group</h2>
                 <button onClick={() => setShowCreate(false)}><XMarkIcon className="w-5 h-5 text-muted-foreground" /></button>
@@ -102,13 +140,13 @@ export default function StudyGroupsPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Python Study Squad"
-                  className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+                  className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
                   onKeyDown={e => e.key === 'Enter' && createGroup()}
                 />
               </div>
               {error && <p className="text-rose-400 text-xs">{error}</p>}
               <div className="flex gap-3">
-                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-card text-muted-foreground font-bold rounded-none hover:bg-muted text-sm transition-colors">Cancel</button>
+                <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-muted text-muted-foreground font-bold rounded-none hover:bg-muted/80 text-sm transition-colors">Cancel</button>
                 <button onClick={createGroup} disabled={!name.trim() || creating} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
                   {creating ? 'Creating…' : 'Create'}
                 </button>
@@ -136,6 +174,14 @@ export default function StudyGroupsPage() {
                     <h3 className="font-bold text-foreground text-sm leading-snug">{group.name}</h3>
                     {isFull && <span className="text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">FULL</span>}
                   </div>
+                  
+                  {group.assigned_teacher && (
+                    <div className="flex items-center gap-1 text-xs text-blue-400">
+                      <AcademicCapIcon className="w-3.5 h-3.5" />
+                      Moderated by {group.assigned_teacher.full_name}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <UserGroupIcon className="w-3.5 h-3.5" />
                     {memberCount} / 20 members
