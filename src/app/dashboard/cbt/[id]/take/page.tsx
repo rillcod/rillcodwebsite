@@ -4,7 +4,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
   CodeBracketIcon, SparklesIcon
@@ -89,7 +88,6 @@ export default function TakeExamPage() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [certError, setCertError] = useState(false);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
 
@@ -241,30 +239,8 @@ export default function TakeExamPage() {
       setResult({ score, passed, correct, status: finalStatus });
       setSubmitted(true);
 
-      // AUTO-ASSIGN CERTIFICATE IF PASSED
-      if (passed && profile?.id) {
-        try {
-          const db = createClient();
-          // 1. Get first course for this program
-          const { data: course } = await db.from('courses').select('id').eq('program_id', exam.program_id).order('order_index').limit(1).single();
-
-          if (course) {
-            // 2. Check if student already has a certificate for this course
-            const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', profile.id).eq('course_id', course.id).maybeSingle();
-
-            if (!existing) {
-              await fetch('/api/certificates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentId: profile.id, courseId: course.id })
-              });
-            }
-          }
-        } catch (certErr) {
-          console.error('Auto-certificate issuance failed:', certErr);
-          setCertError(true);
-        }
-      }
+      // Certificate is auto-issued by the database trigger on cbt_sessions INSERT.
+      // No client-side call needed — and students are blocked from POST /api/certificates anyway.
     } finally {
       setSubmitting(false);
     }
@@ -373,13 +349,6 @@ export default function TakeExamPage() {
                     <span className="text-[9px] font-black uppercase text-orange-400 tracking-widest">AI Evaluated Subjective Answers</span>
                   </div>
                 )}
-              </div>
-            )}
-
-            {certError && (
-              <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs text-left">
-                <span>⚠</span>
-                <span>Your certificate could not be issued automatically. Please contact your instructor to confirm your award.</span>
               </div>
             )}
 
