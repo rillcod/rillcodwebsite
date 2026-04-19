@@ -119,19 +119,42 @@ export class NotificationsService {
                 if (options.priority === 'low') autoClose *= 0.7;
             }
             
-            // Emit real-time pop-up event with enhanced data
+            const notificationId = createHash('sha256').update(`${userId}:${Date.now()}:${title}`).digest('hex');
+            const timestamp = new Date().toISOString();
+
+            // Emit real-time pop-up event with enhanced data via Socket.IO
             emitToUser(userId, 'notification:popup', {
-                id: createHash('sha256').update(`${userId}:${Date.now()}:${title}`).digest('hex'),
+                id: notificationId,
                 title,
                 message,
                 type,
-                timestamp: new Date().toISOString(),
+                timestamp,
                 priority: options.priority || 'normal',
                 autoClose,
                 actionLabel: options.actionLabel,
                 actionUrl: options.actionUrl,
                 category: options.category,
                 sound: options.sound || ['achievement', 'streak', 'celebration'].includes(type)
+            });
+
+            // ALSO broadcast via Supabase Realtime (matches frontend PopupNotificationContainer)
+            const supabase = await createClient();
+            await supabase.channel(`popup-notifications-${userId}`).send({
+                type: 'broadcast',
+                event: 'notification:popup',
+                payload: {
+                    id: notificationId,
+                    title,
+                    message,
+                    type,
+                    timestamp,
+                    priority: options.priority || 'normal',
+                    autoClose,
+                    actionLabel: options.actionLabel,
+                    actionUrl: options.actionUrl,
+                    category: options.category,
+                    sound: options.sound || ['achievement', 'streak', 'celebration'].includes(type)
+                }
             });
         } catch (err) {
             console.error('Failed to show popup notification:', err);
