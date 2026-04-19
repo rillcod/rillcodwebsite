@@ -463,7 +463,7 @@ function ReportBuilderInner() {
 
             // Build classes query — teachers see their own, admins see all
             let classQuery = db.from('classes').select('id, name, school_id').eq('status', 'active') as any;
-            if (!isAdmin) classQuery = classQuery.eq('teacher_id', profile?.id);
+            if (!isAdmin && profile?.id) classQuery = classQuery.eq('teacher_id', profile.id);
 
             const [cRes, bRes, clsRes, ppRes, progRes] = await Promise.all([
                 db.from('courses').select('*, programs(name)').eq('is_active', true).order('title'),

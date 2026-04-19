@@ -102,7 +102,13 @@ export default function NotificationsPage() {
         .limit(100);
 
       if (error) throw error;
-      setNotifications(data || []);
+      const mapped: Notification[] = (data || []).map((n: any) => ({
+        ...n,
+        type: n.type || 'info',
+        is_read: !!n.is_read,
+        created_at: n.created_at || new Date().toISOString()
+      }));
+      setNotifications(mapped);
     } catch (error) {
       console.error('Failed to load notifications:', error);
     } finally {
