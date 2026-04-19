@@ -105,14 +105,17 @@ function TeacherPersonalDashboard() {
       setLoading(true);
       try {
         // Step 1: get teacher's own assignment IDs
-        const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile.id);
-        const aIds = (myAsgns ?? []).map((a: any) => a.id);
+        const { data: myAsgns, error: asgnErr } = await supabase.from('assignments').select('id, title').eq('created_by', profile.id);
+        if (asgnErr) throw asgnErr;
+
+        const aIds = (myAsgns || []).map((a: any) => a.id);
         const aTitleMap: Record<string, string> = {};
-        (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+        (myAsgns || []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
 
         // Get schools this teacher is assigned to
-        const { data: schools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-        const schoolIds = schools?.map(s => s.school_id).filter(Boolean) || [];
+        const { data: schools, error: schErr } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+        if (schErr) throw schErr;
+        const schoolIds = (schools || []).map(s => s.school_id).filter((sid): sid is string => !!sid);
 
         let studentCountQuery = supabase.from('students').select('id', { count: 'exact', head: true });
         if (schoolIds.length > 0) {

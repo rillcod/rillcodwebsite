@@ -89,7 +89,12 @@ export default function ActivityLogsPage() {
       const res = await fetch(`/api/activity-logs?${params}`);
       if (!res.ok) throw new Error('Failed to load');
       const json = await res.json();
-      setLogs(json.data ?? []);
+      const mappedLogs = (json.data ?? []).map((l: any) => ({
+        ...l,
+        user_id: l.user_id || null, // interface allows null, but we ensure it's not undefined
+        created_at: l.created_at || new Date().toISOString()
+      }));
+      setLogs(mappedLogs);
       setTotal(json.total ?? 0);
     } catch {
       toast.error('Failed to load logs');
