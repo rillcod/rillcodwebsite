@@ -73,10 +73,12 @@ RETURNS boolean AS $$
 DECLARE
   v_total_lessons     int;
   v_completed_lessons int;
+  v_project_count     int;
+  v_completed_projects int;
   v_exam_count        int;
   v_has_passed_exam   boolean;
 BEGIN
-  -- Count total published lessons in course
+  -- 1. Lessons: Count total published lessons in course
   SELECT count(*) INTO v_total_lessons
   FROM public.lessons
   WHERE course_id = p_course_id AND status = 'published';
@@ -97,12 +99,32 @@ BEGIN
     RETURN false;
   END IF;
 
-  -- Check whether this course has any active CBT exams
+  -- 2. Projects: Count mandatory projects for this course
+  SELECT count(*) INTO v_project_count
+  FROM public.assignments
+  WHERE course_id = p_course_id AND assignment_type = 'project' AND is_active = true;
+
+  IF v_project_count > 0 THEN
+    -- Check if all projects are submitted (status 'submitted' or 'graded')
+    SELECT count(s.id) INTO v_completed_projects
+    FROM public.assignment_submissions s
+    JOIN public.assignments a ON s.assignment_id = a.id
+    WHERE s.portal_user_id = p_user_id
+      AND a.course_id = p_course_id
+      AND a.assignment_type = 'project'
+      AND s.status IN ('submitted', 'graded');
+    
+    IF v_completed_projects < v_project_count THEN
+      RETURN false;
+    END IF;
+  END IF;
+
+  -- 3. Exams: Check whether this course has any active CBT exams
   SELECT count(*) INTO v_exam_count
   FROM public.cbt_exams
   WHERE course_id = p_course_id AND is_active = true;
 
-  -- No exam configured → lesson completion is sufficient
+  -- No exam configured → lesson & project completion is sufficient
   IF v_exam_count = 0 THEN
     RETURN true;
   END IF;
@@ -121,3 +143,57 @@ BEGIN
   RETURN v_has_passed_exam;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── Update handle_certificate_trigger to handle assignments ──────────
+CREATE OR REPLACE FUNCTION public.handle_certificate_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_course_id uuid;
+    v_user_id uuid;
+BEGIN
+    IF tg_table_name = 'lesson_progress' THEN
+        v_user_id := new.portal_user_id;
+        SELECT course_id INTO v_course_id FROM public.lessons WHERE id = new.lesson_id;
+    ELSIF tg_table_name = 'cbt_sessions' THEN
+        v_user_id := new.user_id;
+        SELECT course_id INTO v_course_id FROM public.cbt_exams WHERE id = new.exam_id;
+    ELSIF tg_table_name = 'assignment_submissions' THEN
+        v_user_id := new.portal_user_id;
+        SELECT course_id INTO v_course_id FROM public.assignments WHERE id = new.assignment_id;
+    END IF;
+
+    IF v_user_id IS NULL OR v_course_id IS NULL THEN
+        RETURN new;
+    END IF;
+
+    -- check if already has certificate
+    IF EXISTS (SELECT 1 FROM public.certificates WHERE portal_user_id = v_user_id AND course_id = v_course_id) THEN
+        RETURN new;
+    END IF;
+
+    -- check completion
+    IF public.check_course_completion(v_user_id, v_course_id) THEN
+        INSERT INTO public.certificates (
+            portal_user_id,
+            course_id,
+            certificate_number,
+            verification_code,
+            issued_date
+        ) VALUES (
+            v_user_id,
+            v_course_id,
+            'CERT-' || upper(substring(replace(v_user_id::text, '-', ''), 1, 8)) || '-' || upper(substring(replace(v_course_id::text, '-', ''), 1, 4)),
+            upper(substring(gen_random_uuid()::text, 1, 8)),
+            current_date
+        );
+    END IF;
+
+    RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Add trigger for assignment submissions
+DROP TRIGGER IF EXISTS tr_check_cert_assignment_submissions ON public.assignment_submissions;
+CREATE TRIGGER tr_check_cert_assignment_submissions
+    AFTER INSERT OR UPDATE ON public.assignment_submissions
+    FOR EACH ROW EXECUTE FUNCTION public.handle_certificate_trigger();
