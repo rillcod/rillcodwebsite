@@ -331,6 +331,8 @@ export default function StudentLearningPage() {
           {[
             { label: 'Written Exams',    href: '/dashboard/exams',        color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20', icon: '📝' },
             { label: 'CBT / Evaluation', href: '/dashboard/cbt',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20', icon: '🎯' },
+            { label: 'Flashcards',       href: '/dashboard/flashcards',   color: 'text-rose-400 bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20', icon: '🎴' },
+            { label: 'Certificates',     href: '/dashboard/certificates', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20', icon: '🎓' },
             { label: 'Assignments',      href: '/dashboard/assignments',   color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', icon: '📋' },
             { label: 'Projects',         href: '/dashboard/projects',      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20', icon: '🚀' },
             { label: 'Lessons',          href: '/dashboard/lessons',       color: 'text-amber-400 bg-amber-500/15 border-amber-500/30', icon: '📖', active: true },
