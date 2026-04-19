@@ -118,14 +118,13 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
         }))
       ];
 
-      // Filter out items already in portfolio
+      // Filter out items whose title already exists in the portfolio
       const { data: existingProjects } = await db.from('portfolio_projects')
-        .select('source_id, source_type')
-        .eq('user_id', userId)
-        .not('source_id', 'is', null);
+        .select('title')
+        .eq('user_id', userId);
 
-      const existingIds = new Set(existingProjects?.map(p => `${p.source_type}-${p.source_id}`) || []);
-      const availableWork = work.filter(w => !existingIds.has(`${w.type}-${w.id}`));
+      const existingTitles = new Set(existingProjects?.map(p => p.title.toLowerCase()) || []);
+      const availableWork = work.filter(w => !existingTitles.has(w.title.toLowerCase()));
 
       setCompletedWork(availableWork.sort((a, b) => 
         new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
