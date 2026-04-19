@@ -76,18 +76,18 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
       
       // Get completed assignments, lessons, and projects not yet in portfolio
       const [assignmentsRes, lessonsRes, projectsRes] = await Promise.all([
-        db.from('assignment_submissions')
+        (db.from('assignment_submissions') as any)
           .select('id, assignments(id, title, description), submitted_at, grade')
           .eq('portal_user_id', userId)
           .eq('status', 'graded')
           .gte('grade', 70), // Only good grades
         
-        db.from('lesson_progress')
+        (db.from('lesson_progress') as any)
           .select('id, lessons(id, title, description), completed_at')
           .eq('portal_user_id', userId)
           .eq('status', 'completed'),
         
-        db.from('project_submissions')
+        (db.from('project_submissions') as any)
           .select('id, projects(id, title, description), submitted_at, grade')
           .eq('portal_user_id', userId)
           .eq('status', 'graded')
