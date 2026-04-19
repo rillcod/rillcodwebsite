@@ -91,12 +91,13 @@ export default function NotificationsPage() {
   }, [profile]);
 
   async function loadNotifications() {
+    if (!profile?.id) return;
     try {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', profile?.id)
+        .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -169,12 +170,13 @@ export default function NotificationsPage() {
 
   // Bulk actions
   async function markAllAsRead() {
+    if (!profile?.id) return;
     try {
       const supabase = createClient();
       await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('user_id', profile?.id)
+        .eq('user_id', profile.id)
         .eq('is_read', false);
 
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -224,10 +226,13 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-[#020817] text-foreground relative overflow-hidden">
+      {/* Neural Background Texture */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      
       {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 border-b border-border/40 bg-card/20 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -245,35 +250,37 @@ export default function NotificationsPage() {
             </div>
             
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-black text-foreground">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Total</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-orange-400">{stats.unread}</p>
-                <p className="text-xs text-muted-foreground">Unread</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-emerald-400">{stats.read}</p>
-                <p className="text-xs text-muted-foreground">Read</p>
-              </div>
+            <div className="grid grid-cols-3 gap-6">
+              {[
+                { label: 'Total Logs', value: stats.total, color: 'text-foreground' },
+                { label: 'Pending', value: stats.unread, color: 'text-orange-400' },
+                { label: 'Cleared', value: stats.read, color: 'text-emerald-400' },
+              ].map(stat => (
+                <div key={stat.label} className="text-center group">
+                  <p className={`text-4xl font-black italic tracking-tighter transition-transform group-hover:scale-110 ${stat.color}`}>
+                    {stat.value}
+                  </p>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">{stat.label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
         {/* Filters and Search */}
-        <div className="bg-card border border-border p-6 mb-8 space-y-6">
+        <div className="bg-card/40 backdrop-blur-xl border border-border/40 p-6 mb-10 space-y-6">
           {/* Search */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="w-5 h-5 text-muted-foreground group-focus-within:text-orange-400 transition-colors" />
+            </div>
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notifications..."
-              className="w-full bg-background border border-border pl-12 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              placeholder="SCAN ARCHIVE..."
+              className="w-full bg-background/50 border border-border/40 pl-12 pr-4 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-orange-500/60 transition-all italic tracking-tight"
             />
           </div>
 
@@ -357,15 +364,15 @@ export default function NotificationsPage() {
                 return (
                   <motion.div
                     key={notification.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -300 }}
-                    transition={{ delay: index * 0.05 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 100 }}
+                    transition={{ delay: index * 0.03 }}
                     className={`
-                      relative bg-card border transition-all duration-200 cursor-pointer
-                      ${notification.is_read ? 'border-border opacity-75' : 'border-orange-500/30 shadow-lg'}
-                      ${isSelected ? 'ring-2 ring-orange-500/50' : ''}
-                      hover:border-orange-500/50 hover:shadow-xl
+                      relative bg-card/30 backdrop-blur-sm border transition-all duration-300 group
+                      ${notification.is_read ? 'border-border/30 opacity-60' : 'border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.05)]'}
+                      ${isSelected ? 'border-orange-500 ring-1 ring-orange-500/20' : ''}
+                      hover:bg-card/50 hover:border-orange-500/50
                     `}
                     onClick={() => toggleSelection(notification.id)}
                   >
