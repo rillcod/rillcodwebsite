@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, CheckIcon, EyeIcon, SparklesIcon } from '@/lib/icons';
 import type { CardTemplate, CreateCardRequest } from '@/types/flashcards';
 import { CARD_TEMPLATES } from './templates';
+import BuilderHeader from './BuilderHeader';
 import BuilderSidebar from './BuilderSidebar';
 import CardEditor from './CardEditor';
 import CardPreview from './CardPreview';

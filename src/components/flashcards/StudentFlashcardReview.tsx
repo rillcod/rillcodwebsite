@@ -17,8 +17,10 @@ interface Card {
   id: string;
   front: string;
   back: string;
+  front_image_url?: string;
+  back_image_url?: string;
   template?: string;
-  difficulty?: number;
+  difficulty_level?: 'easy' | 'medium' | 'hard';
   last_reviewed?: string;
   next_review?: string;
   review_count?: number;
@@ -77,6 +79,8 @@ export default function StudentFlashcardReview({
   });
   const [sessionComplete, setSessionComplete] = useState(false);
   const [cardFlipped, setCardFlipped] = useState(false);
+  const [sessionStartTime] = useState(Date.now());
+  const [cardStartTime, setCardStartTime] = useState(Date.now());
 
   useEffect(() => {
     loadCards();
@@ -84,7 +88,7 @@ export default function StudentFlashcardReview({
 
   async function loadCards() {
     try {
-      const res = await fetch(`/api/flashcards/decks/${deckId}/cards`);
+      const res = await fetch(`/api/flashcards/decks/${deckId}/due`);
       const json = await res.json();
       if (res.ok && json.data) {
         // Shuffle cards for better learning
@@ -109,9 +113,11 @@ export default function StudentFlashcardReview({
     }, 150);
   };
 
-  const handleResponse = async (correct: boolean) => {
-    const newStats = { ...sessionStats };
+  const handleResponse = async (confidence: number) => {
+    const correct = confidence >= 3;
+    const studyTime = Math.round((Date.now() - cardStartTime) / 1000);
     
+    const newStats = { ...sessionStats };
     if (correct) {
       newStats.correct++;
       newStats.streak++;
@@ -120,7 +126,6 @@ export default function StudentFlashcardReview({
       newStats.incorrect++;
       newStats.streak = 0;
     }
-    
     setSessionStats(newStats);
 
     // Record the review
@@ -128,7 +133,11 @@ export default function StudentFlashcardReview({
       await fetch(`/api/flashcards/cards/${currentCard.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ correct })
+        body: JSON.stringify({ 
+          correct, 
+          confidence,
+          studyTimeSeconds: studyTime
+        })
       });
     } catch (error) {
       console.error('Failed to record review:', error);
@@ -138,8 +147,30 @@ export default function StudentFlashcardReview({
     if (currentIndex < cards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setShowAnswer(false);
+      setCardStartTime(Date.now());
     } else {
-      setSessionComplete(true);
+      completeSession(newStats);
+    }
+  };
+
+  const completeSession = async (stats: typeof sessionStats) => {
+    setSessionComplete(true);
+    const duration = Math.round((Date.now() - sessionStartTime) / 1000);
+
+    try {
+      await fetch(`/api/flashcards/decks/${deckId}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardsStudied: cards.length,
+          cardsCorrect: stats.correct,
+          cardsIncorrect: stats.incorrect,
+          maxStreak: stats.maxStreak,
+          studyDurationSeconds: duration
+        })
+      });
+    } catch (error) {
+      console.error('Failed to submit session analytics:', error);
     }
   };
 
@@ -343,14 +374,27 @@ export default function StudentFlashcardReview({
                   </div>
                 )}
                 
-                <motion.p 
+                <motion.div 
                   key={showAnswer ? 'answer' : 'question'}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xl font-bold leading-relaxed"
+                  className="space-y-4"
                 >
-                  {showAnswer ? currentCard.back : currentCard.front}
-                </motion.p>
+                  <p className="text-xl font-bold leading-relaxed">
+                    {showAnswer ? currentCard.back : currentCard.front}
+                  </p>
+                  
+                  {showAnswer && currentCard.back_image_url && (
+                    <div className="relative w-48 h-32 mx-auto">
+                      <img src={currentCard.back_image_url} alt="Back context" className="object-cover w-full h-full rounded" />
+                    </div>
+                  )}
+                  {!showAnswer && currentCard.front_image_url && (
+                    <div className="relative w-48 h-32 mx-auto">
+                      <img src={currentCard.front_image_url} alt="Front context" className="object-cover w-full h-full rounded" />
+                    </div>
+                  )}
+                </motion.div>
                 
                 <p className="text-sm opacity-70">
                   {showAnswer ? 'How did you do?' : 'Tap to reveal answer'}
@@ -366,27 +410,39 @@ export default function StudentFlashcardReview({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="flex gap-4 mt-8 justify-center"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 w-full max-w-xl mx-auto"
               >
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleResponse(false)}
-                  className="flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-colors shadow-lg"
+                <button
+                  onClick={() => handleResponse(1)}
+                  className="flex flex-col items-center justify-center gap-1 p-4 bg-rose-600 hover:bg-rose-500 text-white rounded-none transition-all shadow-lg group"
                 >
-                  <XCircleIcon className="w-5 h-5" />
-                  Incorrect
-                </motion.button>
+                  <span className="text-xl">😵</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Forgot</span>
+                </button>
                 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleResponse(true)}
-                  className="flex items-center gap-2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors shadow-lg"
+                <button
+                  onClick={() => handleResponse(2)}
+                  className="flex flex-col items-center justify-center gap-1 p-4 bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all shadow-lg group"
                 >
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Correct
-                </motion.button>
+                  <span className="text-xl">😫</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Hard</span>
+                </button>
+
+                <button
+                  onClick={() => handleResponse(4)}
+                  className="flex flex-col items-center justify-center gap-1 p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-none transition-all shadow-lg group"
+                >
+                  <span className="text-xl">😃</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Good</span>
+                </button>
+
+                <button
+                  onClick={() => handleResponse(5)}
+                  className="flex flex-col items-center justify-center gap-1 p-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none transition-all shadow-lg group"
+                >
+                  <span className="text-xl">🤩</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Easy</span>
+                </button>
               </motion.div>
             )}
           </AnimatePresence>

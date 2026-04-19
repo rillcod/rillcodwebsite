@@ -20,25 +20,31 @@ export async function GET(req: NextRequest) {
       .eq('student_id', user.id)
       .lte('next_review_at', now);
 
-    // 2. Get master level stats from flashcard_card_statistics
-    // This table was enhanced in our latest migration
-    const { data: stats } = await supabase
-      .from('flashcard_card_statistics')
-      .select('mastery_level, count')
+    // 2. Derive mastery stats from flashcard_reviews
+    // 0-1 reps: Learning, 2-5 reps: Reviewing, 6+: Mastered
+    const { data: reviews } = await supabase
+      .from('flashcard_reviews')
+      .select('repetitions')
       .eq('student_id', user.id);
 
-    // 3. Get recent study sessions
+    const mastery_stats = [
+      { status: 'Learning', count: reviews?.filter(r => r.repetitions <= 1).length || 0 },
+      { status: 'Reviewing', count: reviews?.filter(r => r.repetitions > 1 && r.repetitions < 6).length || 0 },
+      { status: 'Mastered', count: reviews?.filter(r => r.repetitions >= 6).length || 0 },
+    ];
+
+    // 3. Get recent study sessions using correct column completed_at
     const { data: sessions } = await supabase
       .from('flashcard_study_sessions')
       .select('*')
       .eq('student_id', user.id)
-      .order('started_at', { ascending: false })
+      .order('completed_at', { ascending: false })
       .limit(5);
 
     return NextResponse.json({
       data: {
         due_today: dueToday || 0,
-        mastery_stats: stats ?? [],
+        mastery_stats,
         recent_sessions: sessions ?? []
       }
     });
