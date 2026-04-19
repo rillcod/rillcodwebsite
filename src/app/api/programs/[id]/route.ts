@@ -53,7 +53,7 @@ export async function PUT(
     const body = await request.json();
 
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    const fields = ['name', 'description', 'duration_weeks', 'difficulty_level', 'price', 'max_students', 'is_active'];
+    const fields = ['name', 'description', 'duration_weeks', 'difficulty_level', 'price', 'max_students', 'is_active', 'delivery_type'];
     for (const f of fields) {
       if (f in body) allowed[f] = body[f] ?? null;
     }

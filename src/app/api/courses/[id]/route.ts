@@ -15,6 +15,8 @@ const updateCourseSchema = z.object({
     end_date: z.string().optional(),
     is_published: z.boolean().optional(),
     is_locked: z.boolean().optional(),
+    level_order: z.number().int().min(1).optional(),
+    next_course_id: z.string().uuid().nullable().optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {

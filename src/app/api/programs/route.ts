@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
 
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
+    const { delivery_type } = body;
+
     const { data, error } = await adminClient()
       .from('programs')
       .insert({
@@ -63,6 +65,7 @@ export async function POST(request: NextRequest) {
         price: price ?? 0,
         max_students: max_students || null,
         is_active: is_active ?? true,
+        delivery_type: delivery_type === 'optional' ? 'optional' : 'compulsory',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
