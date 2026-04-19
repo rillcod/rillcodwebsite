@@ -180,7 +180,8 @@ export default function CurriculumPage() {
   const [genWeek, setGenWeek] = useState<CurriculumWeek | null>(null);
   const [genContentType, setGenContentType] = useState<ContentKey | null>(null);
   const [genGenerating, setGenGenerating] = useState(false);
-  const [genError, setGenError] = useState('');
+  const [genTabError, setGenTabError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const isAdmin   = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -207,27 +208,34 @@ export default function CurriculumPage() {
         if (progs.length === 1) {
           setExpandedPrograms(new Set([progs[0].id]));
         }
-      });
+      })
+      .catch(() => setLoadError('Failed to load programs — please refresh the page.'));
   }, []);
 
   // ── Load curriculum for selected course ──────────────────────────────────
   const loadCurriculum = useCallback(async (courseId: string) => {
     setLoadingCurr(true);
+    setLoadError('');
     setCurriculum(null);
     setTracking([]);
     setActiveWeek(null);
-    const res = await fetch(`/api/curricula?course_id=${courseId}`);
-    const json = await res.json();
-    const items: CurriculumDoc[] = json.data ?? [];
-    if (items.length > 0) {
-      const curr = items[0];
-      setCurriculum(curr);
-      // Load tracking
-      const tRes = await fetch(`/api/curricula/${curr.id}/track`);
-      const tJson = await tRes.json();
-      setTracking(tJson.data ?? []);
+    try {
+      const res = await fetch(`/api/curricula?course_id=${courseId}`);
+      if (!res.ok) throw new Error('Failed to load syllabus');
+      const json = await res.json();
+      const items: CurriculumDoc[] = json.data ?? [];
+      if (items.length > 0) {
+        const curr = items[0];
+        setCurriculum(curr);
+        const tRes = await fetch(`/api/curricula/${curr.id}/track`);
+        const tJson = await tRes.json();
+        setTracking(tJson.data ?? []);
+      }
+    } catch {
+      setLoadError('Could not load the syllabus — please try again.');
+    } finally {
+      setLoadingCurr(false);
     }
-    setLoadingCurr(false);
   }, []);
 
   function selectCourse(prog: Program, course: Course) {
@@ -237,7 +245,8 @@ export default function CurriculumPage() {
     setActiveWeek(null);
     setGenWeek(null);
     setGenContentType(null);
-    setGenError('');
+    setGenTabError('');
+    setLoadError('');
     setMobileSidebarOpen(false);
     loadCurriculum(course.id);
   }
@@ -423,9 +432,14 @@ export default function CurriculumPage() {
     const json = await res.json();
     setCreatingLesson(false);
     if (res.ok) {
-      // Use lesson_plan_id (returned by lessons POST) — not the lesson id
       const planId = json.data?.lesson_plan_id ?? json.data?.id;
-      if (planId) router.push(`/dashboard/lesson-plans/${planId}`);
+      if (planId) {
+        router.push(`/dashboard/lesson-plans/${planId}`);
+      } else {
+        setLoadError('Lesson plan created but could not navigate — check Lesson Plans.');
+      }
+    } else {
+      setLoadError(json.error || 'Failed to create lesson plan.');
     }
   }
 
@@ -452,7 +466,7 @@ export default function CurriculumPage() {
   async function handleGenerate() {
     if (!selectedCourse || !genWeek || !genContentType) return;
     setGenGenerating(true);
-    setGenError('');
+    setGenTabError('');
     try {
       const plan    = genWeek.lesson_plan;
       const weekTag = `Week ${genWeek.week}: ${genWeek.topic}`;
@@ -511,7 +525,7 @@ export default function CurriculumPage() {
         return;
       }
     } catch (e: any) {
-      setGenError(e.message || 'Something went wrong — please try again');
+      setGenTabError(e.message || 'Something went wrong — please try again');
     } finally {
       setGenGenerating(false);
     }
@@ -708,9 +722,9 @@ export default function CurriculumPage() {
                       className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 transition-colors"
                     >
                       <option value="">— Select Week —</option>
-                      {curriculum.content.terms.map(term => (
+                      {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => (
                         <optgroup key={term.term} label={term.title}>
-                          {term.weeks.map(w => (
+                          {[...(term.weeks ?? [])].sort((a, b) => a.week - b.week).map(w => (
                             <option key={`${term.term}-${w.week}`} value={`${term.term}-${w.week}`}>
                               Week {w.week} — {w.topic}
                             </option>
@@ -765,10 +779,10 @@ export default function CurriculumPage() {
             )}
 
             {/* Error */}
-            {genError && (
+            {genTabError && (
               <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-xs">
                 <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                {genError}
+                {genTabError}
               </div>
             )}
 
@@ -811,6 +825,17 @@ export default function CurriculumPage() {
         ) : loadingCurr ? (
           <div className="flex items-center justify-center h-64">
             <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
+            <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
+            <p className="text-sm text-rose-400 font-bold">{loadError}</p>
+            <button
+              onClick={() => selectedCourse && loadCurriculum(selectedCourse.id)}
+              className="px-4 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         ) : !curriculum ? (
           /* No curriculum yet */
@@ -920,7 +945,7 @@ export default function CurriculumPage() {
             {/* Term tabs */}
             {termCount > 0 && (
               <div className="flex gap-1 bg-card border border-border p-1 w-fit">
-                {curriculum.content.terms.map(term => {
+                {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => {
                   const termTracking = tracking.filter(t => t.term_number === term.term);
                   const termWeeks = term.weeks?.length ?? 0;
                   const termDone = termTracking.filter(t => t.status === 'completed').length;
@@ -963,7 +988,7 @@ export default function CurriculumPage() {
             {/* Week grid */}
             {currentTermData?.weeks && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {currentTermData.weeks.map(week => {
+                {[...currentTermData.weeks].sort((a, b) => a.week - b.week).map(week => {
                   const meta = WEEK_META[week.type] ?? WEEK_META.lesson;
                   const trackRec = getTracking(activeTerm, week.week);
                   const trackMeta = TRACK_META[trackRec?.status ?? 'pending'];
@@ -1303,7 +1328,7 @@ export default function CurriculumPage() {
 
             <div className="bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
               <p className="font-bold text-foreground/80">Standard Assessment Schedule (applied automatically):</p>
-              <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week 8 → Examination</p>
+              <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week {form.weeks_per_term} → Examination</p>
               <p>Each lesson week includes a full teacher-ready lesson plan with activities, classwork, and assignments.</p>
             </div>
 

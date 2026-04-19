@@ -73,7 +73,7 @@ export default function EditExamPage() {
                     end_date: e.end_date ? new Date(e.end_date).toISOString().slice(0, 16) : '',
                     is_active: e.is_active ?? true,
                 });
-                setQuestions((e.cbt_questions ?? []).map((q: any) => ({
+                setQuestions([...(e.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((q: any) => ({
                     ...q,
                     options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
                 })));

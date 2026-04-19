@@ -47,15 +47,26 @@ export async function GET(request: NextRequest) {
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
+    const url = new URL(request.url);
+    const lessonPlanId = url.searchParams.get('lesson_plan_id');
+    const courseId     = url.searchParams.get('course_id');
+
     const admin = adminClient();
     let query = admin
       .from('lessons')
       .select(`
         id, title, description, lesson_type, status, duration_minutes,
-        session_date, video_url, created_by, created_at,
+        session_date, video_url, created_by, created_at, metadata,
         courses ( id, title, programs ( name ) )
       `)
       .order('created_at', { ascending: false });
+
+    if (lessonPlanId) {
+      query = query.filter('metadata->>lesson_plan_id', 'eq', lessonPlanId) as any;
+    }
+    if (courseId) {
+      query = query.eq('course_id', courseId) as any;
+    }
 
     if (caller.role === 'teacher') {
       const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id ?? null);

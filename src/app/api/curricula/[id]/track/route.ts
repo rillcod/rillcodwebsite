@@ -55,8 +55,15 @@ export async function POST(
   const body = await req.json();
   const { term_number, week_number, status, teacher_notes, actual_date } = body;
 
+  const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'skipped'] as const;
   if (!term_number || !week_number || !status) {
     return NextResponse.json({ error: 'term_number, week_number, status required' }, { status: 400 });
+  }
+  if (!VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
+  }
+  if (teacher_notes && teacher_notes.length > 1000) {
+    return NextResponse.json({ error: 'teacher_notes must be under 1000 characters' }, { status: 400 });
   }
 
   const admin = createAdminClient() as any;

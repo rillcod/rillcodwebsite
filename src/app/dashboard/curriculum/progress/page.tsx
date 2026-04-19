@@ -68,20 +68,24 @@ export default function CurriculumProgressPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState('');
   const [filterTerm, setFilterTerm]     = useState('');
+  const [fetchError, setFetchError]     = useState('');
+  const [retryKey, setRetryKey]         = useState(0);
 
   const isSchool = profile?.role === 'school';
 
   useEffect(() => {
     setLoading(true);
+    setFetchError('');
     const qs = filterSchool ? `?school_id=${filterSchool}` : '';
     fetch(`/api/curricula/progress${qs}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('Server error'); return r.json(); })
       .then(j => {
         setData(j.data ?? []);
         setSchools(j.schools ?? []);
       })
+      .catch(() => setFetchError('Failed to load progress data — please refresh.'))
       .finally(() => setLoading(false));
-  }, [filterSchool]);
+  }, [filterSchool, retryKey]);
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -192,6 +196,17 @@ export default function CurriculumProgressPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-rose-500/20">
+            <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
+            <p className="text-rose-400 font-bold text-sm">{fetchError}</p>
+            <button
+              onClick={() => setRetryKey(k => k + 1)}
+              className="text-xs px-4 py-2 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors font-bold"
+            >
+              Retry
+            </button>
           </div>
         ) : filteredData.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border">
@@ -307,7 +322,7 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
         <div className="mt-3 ml-7 space-y-4">
           {/* Term breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {school.term_progress.map(term => {
+            {[...school.term_progress].sort((a, b) => a.term - b.term).map(term => {
               const { label, months, color } = TERM_LABELS[term.term] ?? { label: `Term ${term.term}`, months: '', color: 'text-muted-foreground' };
               return (
                 <div key={term.term} className="bg-background border border-border p-3 space-y-2">

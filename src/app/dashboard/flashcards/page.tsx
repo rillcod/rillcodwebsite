@@ -26,7 +26,7 @@ import {
 } from '@/lib/icons';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import FlashcardBuilder from '@/components/flashcards/FlashcardBuilder';
+import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
 
 interface Deck {
   id: string;
@@ -423,10 +423,10 @@ export default function FlashcardsPage() {
           )}
         </AnimatePresence>
 
-        {/* Flashcard Builder */}
+        {/* Enhanced Flashcard Builder */}
         <AnimatePresence>
           {showBuilder && selectedDeckId && (
-            <FlashcardBuilder
+            <EnhancedFlashcardBuilder
               deckId={selectedDeckId}
               onClose={() => {
                 setShowBuilder(false);

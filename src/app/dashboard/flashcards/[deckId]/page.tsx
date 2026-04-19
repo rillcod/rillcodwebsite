@@ -7,17 +7,13 @@ import {
   ArrowLeftIcon,
   PencilIcon,
   TrashIcon,
-  PlusIcon,
   PlayIcon,
-  EyeIcon,
   DocumentTextIcon,
-  SparklesIcon,
-  CheckIcon,
-  XMarkIcon
+  SparklesIcon
 } from '@/lib/icons';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import FlashcardBuilder from '@/components/flashcards/FlashcardBuilder';
+import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
 
 interface Card {
   id: string;
@@ -332,10 +328,10 @@ export default function FlashcardDeckPage() {
         )}
       </div>
 
-      {/* Flashcard Builder */}
+      {/* Enhanced Flashcard Builder */}
       <AnimatePresence>
         {showBuilder && (
-          <FlashcardBuilder
+          <EnhancedFlashcardBuilder
             deckId={deckId}
             onClose={() => setShowBuilder(false)}
             onCardCreated={() => {

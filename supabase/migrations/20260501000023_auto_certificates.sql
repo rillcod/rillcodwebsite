@@ -2,8 +2,13 @@
 -- requirements: NF-2.1
 
 -- unique constraint to prevent duplicate certificates for the same course
-alter table public.certificates 
-  add constraint uq_certificates_user_course unique (portal_user_id, course_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_certificates_user_course') THEN
+        ALTER TABLE public.certificates 
+        ADD CONSTRAINT uq_certificates_user_course UNIQUE (portal_user_id, course_id);
+    END IF;
+END $$;
 
 -- function to check if a student has completed a course
 create or replace function public.check_course_completion(p_user_id uuid, p_course_id uuid)
@@ -104,10 +109,12 @@ end;
 $$ language plpgsql security definer;
 
 -- triggers
+DROP TRIGGER IF EXISTS tr_check_cert_lesson_progress ON public.lesson_progress;
 create trigger tr_check_cert_lesson_progress
     after insert or update on public.lesson_progress
     for each row execute function public.handle_certificate_trigger();
 
+DROP TRIGGER IF EXISTS tr_check_cert_cbt_sessions ON public.cbt_sessions;
 create trigger tr_check_cert_cbt_sessions
     after insert or update on public.cbt_sessions
     for each row execute function public.handle_certificate_trigger();

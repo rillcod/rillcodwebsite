@@ -67,16 +67,24 @@ export default function LessonPlanDetailPage() {
   const [activeTab, setActiveTab] = useState<'weeks' | 'content'>('weeks');
   const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | null>(null);
   const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
+  const [linkedLessons, setLinkedLessons] = useState<{ id: string; title: string; status: string; metadata?: { week?: number } | null }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/lesson-plans/${id}`);
-      if (!res.ok) { toast.error('Plan not found'); router.push('/dashboard/lesson-plans'); return; }
-      const j = await res.json();
+      const [planRes, lessonsRes] = await Promise.all([
+        fetch(`/api/lesson-plans/${id}`),
+        fetch(`/api/lessons?lesson_plan_id=${id}`),
+      ]);
+      if (!planRes.ok) { toast.error('Plan not found'); router.push('/dashboard/lesson-plans'); return; }
+      const j = await planRes.json();
       const p: LessonPlan = j.data;
       setPlan(p);
-      setWeeks((p.plan_data?.weeks ?? []) as WeekEntry[]);
+      setWeeks([...(p.plan_data?.weeks ?? []) as WeekEntry[]].sort((a, b) => a.week - b.week));
+      if (lessonsRes.ok) {
+        const lj = await lessonsRes.json();
+        setLinkedLessons(lj.data ?? []);
+      }
     } catch {
       toast.error('Failed to load plan');
     } finally {
@@ -432,26 +440,46 @@ export default function LessonPlanDetailPage() {
           )}
 
           <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
-            <h3 className="text-sm font-black text-card-foreground mb-3">Content Overview</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-black text-card-foreground">Content Overview</h3>
+              {linkedLessons.length > 0 && (
+                <Link
+                  href={`/dashboard/lessons?lesson_plan_id=${id}`}
+                  className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors"
+                >
+                  View all {linkedLessons.length} lesson{linkedLessons.length !== 1 ? 's' : ''} →
+                </Link>
+              )}
+            </div>
             {weeks.length === 0 ? (
               <p className="text-card-foreground/40 text-sm">No weeks defined yet.</p>
             ) : (
               <div className="space-y-2">
-                {weeks.map(w => (
-                  <div key={w.week} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-black text-violet-400">Week {w.week}</span>
-                        <span className="text-sm text-card-foreground">{w.topic}</span>
-                      </div>
-                      <div className="flex gap-4 text-xs text-card-foreground/50">
-                        <span>Lessons: 0</span>
-                        <span>Assignments: 0</span>
-                        <span>Projects: 0</span>
+                {weeks.map(w => {
+                  const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
+                  return (
+                    <div key={w.week} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-black text-violet-400">Week {w.week}</span>
+                          <span className="text-sm text-card-foreground truncate">{w.topic}</span>
+                        </div>
+                        <div className="flex gap-3 text-xs text-card-foreground/50">
+                          {weekLesson ? (
+                            <Link
+                              href={`/dashboard/lessons/${weekLesson.id}`}
+                              className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors"
+                            >
+                              ✓ Lesson ({weekLesson.status})
+                            </Link>
+                          ) : (
+                            <span className="text-card-foreground/30">No lesson yet</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

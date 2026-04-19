@@ -29,7 +29,20 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { front, back, position } = await req.json();
+  const body = await req.json();
+  const { 
+    front, 
+    back, 
+    position,
+    front_image_url,
+    back_image_url,
+    tags,
+    difficulty_level,
+    is_starred,
+    notes,
+    template
+  } = body;
+
   if (!front?.trim() || !back?.trim()) {
     return NextResponse.json({ error: 'Both front and back are required' }, { status: 400 });
   }
@@ -47,12 +60,19 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   const updateData: any = { 
     front: front.trim(), 
-    back: back.trim() 
+    back: back.trim(),
+    updated_at: new Date().toISOString()
   };
   
-  if (position !== undefined) {
-    updateData.position = position;
-  }
+  // Add optional fields if provided
+  if (position !== undefined) updateData.position = position;
+  if (front_image_url !== undefined) updateData.front_image_url = front_image_url;
+  if (back_image_url !== undefined) updateData.back_image_url = back_image_url;
+  if (tags !== undefined) updateData.tags = tags;
+  if (difficulty_level !== undefined) updateData.difficulty_level = difficulty_level;
+  if (is_starred !== undefined) updateData.is_starred = is_starred;
+  if (notes !== undefined) updateData.notes = notes;
+  if (template !== undefined) updateData.template = template;
 
   const { data, error } = await supabase
     .from('flashcard_cards')

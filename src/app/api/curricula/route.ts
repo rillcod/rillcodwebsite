@@ -180,13 +180,18 @@ export async function POST(req: NextRequest) {
 
   const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = await req.json();
   if (!course_name) return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
+  if (!course_id) return NextResponse.json({ error: 'course_id is required' }, { status: 400 });
+  const tc = Number(term_count ?? 3);
+  const wpt = Number(weeks_per_term ?? 8);
+  if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
+  if (!Number.isInteger(wpt) || wpt < 6) return NextResponse.json({ error: 'weeks_per_term must be at least 6' }, { status: 400 });
 
   const prompt = buildCurriculumPrompt(
     course_name,
     grade_level ?? 'JSS1',
     subject_area ?? 'STEM / Coding',
-    term_count ?? 3,
-    weeks_per_term ?? 8,
+    tc,
+    wpt,
     notes,
   );
 
@@ -197,12 +202,12 @@ export async function POST(req: NextRequest) {
 
   // Update existing or insert new
   if (course_id) {
-    const existingQuery = (supabase as any)
+    let existingQuery = (supabase as any)
       .from('course_curricula')
       .select('id, version')
       .eq('course_id', course_id);
-    if (profile.school_id) existingQuery.eq('school_id', profile.school_id);
-    const { data: existing } = await existingQuery.single();
+    if (profile.school_id) existingQuery = existingQuery.eq('school_id', profile.school_id);
+    const { data: existing } = await existingQuery.maybeSingle();
 
     if (existing) {
       const { data, error } = await supabase
