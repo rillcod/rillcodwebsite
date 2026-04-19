@@ -138,7 +138,7 @@ interface WeekTracking {
 }
 
 interface Course { id: string; title: string; is_active: boolean }
-interface Program { id: string; title: string; courses: Course[] }
+interface Program { id: string; name: string; courses: Course[] }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> = {
@@ -643,7 +643,7 @@ export default function CurriculumPage() {
                   {isExpanded
                     ? <ChevronDownIcon className="w-4 h-4 text-orange-500 shrink-0" />
                     : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
-                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.title}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.name || (prog as any).title}</span>
                   <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">{activeCourses.length}</span>
                 </button>
 
@@ -906,7 +906,7 @@ export default function CurriculumPage() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{selectedProgram?.title}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{selectedProgram?.name}</span>
                   <span className="text-muted-foreground/40">›</span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{selectedCourse.title}</span>
                 </div>
