@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
+import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
   Bronze:   { label: 'Bronze',   emoji: '🥉', bar: 'bg-amber-700',  text: 'text-amber-700',  border: 'border-amber-700/40' },
@@ -526,6 +527,11 @@ export default function StudentDashboard() {
       )}
 
       {/* Recent Activity */}
+      {/* ── WAEC Engagement Card ── */}
+      {profile?.id && (
+        <StudentEngagementCard studentId={profile.id} />
+      )}
+
       {data.recentActivity.length > 0 && (
         <div className="bg-card border border-border p-6">
           <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-4">Recent Activity</h3>

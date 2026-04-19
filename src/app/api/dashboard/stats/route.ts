@@ -117,13 +117,13 @@ export async function GET(req: NextRequest) {
         const d = data as unknown as StudentStats;
         stats = {
           enrolledCourses: d.enrolled_courses || 0,
-          xp: xpRes.data?.total_xp ?? d.xp_points || 0,
-          streak: streakRes.data?.current_streak ?? d.current_streak || 0,
-          level: xpRes.data?.level ? `Level ${xpRes.data.level}` : d.achievement_level || 'Bronze',
+          xp: (xpRes.data?.total_xp ?? d.xp_points) || 0,
+          streak: (streakRes.data?.current_streak ?? d.current_streak) || 0,
+          level: xpRes.data?.level ? `Level ${xpRes.data.level}` : (d.achievement_level || 'Bronze'),
           lessonsDone: d.lessons_completed || 0,
           avgScore: d.avg_score || 0,
           pendingAssignments: d.pending_assignments || 0,
-          badgesCount: badgeRes.count ?? d.badges_count || 0,
+          badgesCount: (badgeRes.count ?? d.badges_count) || 0,
           leaderboardRank: d.leaderboard_rank || null,
         };
       }
