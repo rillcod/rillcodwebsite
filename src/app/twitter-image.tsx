@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export const alt = 'Rillcod Technologies — Tech Education & Innovation Hub';
 export const size = {
@@ -8,6 +10,9 @@ export const size = {
 export const contentType = 'image/png';
 
 export default async function Image() {
+  const logoBuffer = readFileSync(join(process.cwd(), 'public/images/logo.png'));
+  const logoSrc = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+
   return new ImageResponse(
     (
       <div
@@ -36,9 +41,10 @@ export default async function Image() {
               radial-gradient(circle at 75% 75%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
               radial-gradient(circle at 50% 50%, rgba(0, 191, 255, 0.05) 0%, transparent 50%)
             `,
+            display: 'flex',
           }}
         />
-        
+
         {/* Twitter Badge */}
         <div
           style={{
@@ -51,11 +57,12 @@ export default async function Image() {
             borderRadius: '20px',
             fontSize: '16px',
             fontWeight: 'bold',
+            display: 'flex',
           }}
         >
           @rillcod_
         </div>
-        
+
         {/* Main Content */}
         <div
           style={{
@@ -76,38 +83,44 @@ export default async function Image() {
               marginBottom: '40px',
             }}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoSrc}
+              alt="Rillcod Technologies"
+              width={80}
+              height={80}
+              style={{ marginRight: '20px', objectFit: 'contain' }}
+            />
             <div
               style={{
-                width: '80px',
-                height: '80px',
-                backgroundColor: '#ff6b35',
-                borderRadius: '20px',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '20px',
-                boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
               }}
             >
               <div
                 style={{
                   color: 'white',
-                  fontSize: '36px',
+                  fontSize: '40px',
                   fontWeight: 'bold',
+                  letterSpacing: '-1px',
+                  lineHeight: 1,
                 }}
               >
-                R
+                RILLCOD
               </div>
-            </div>
-            <div
-              style={{
-                color: 'white',
-                fontSize: '48px',
-                fontWeight: 'bold',
-                letterSpacing: '-2px',
-              }}
-            >
-              RILLCOD
+              <div
+                style={{
+                  color: '#ff6b35',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  letterSpacing: '4px',
+                  lineHeight: 1,
+                  marginTop: '4px',
+                }}
+              >
+                TECHNOLOGIES
+              </div>
             </div>
           </div>
 
@@ -138,6 +151,7 @@ export default async function Image() {
               lineHeight: 1.3,
               textAlign: 'center',
               marginBottom: '30px',
+              display: 'flex',
             }}
           >
             STEM • Robotics • Coding • Web Development
@@ -168,6 +182,7 @@ export default async function Image() {
             borderRadius: '50%',
             background: 'linear-gradient(135deg, rgba(255, 107, 53, 0.2) 0%, rgba(138, 43, 226, 0.2) 100%)',
             filter: 'blur(40px)',
+            display: 'flex',
           }}
         />
         <div
@@ -180,6 +195,7 @@ export default async function Image() {
             borderRadius: '50%',
             background: 'linear-gradient(135deg, rgba(0, 191, 255, 0.2) 0%, rgba(255, 107, 53, 0.2) 100%)',
             filter: 'blur(30px)',
+            display: 'flex',
           }}
         />
       </div>
