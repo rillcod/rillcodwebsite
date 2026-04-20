@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { notifySessionScheduled } from '@/lib/live-session-notify';
 
 function adminClient() {
   return createClient(
