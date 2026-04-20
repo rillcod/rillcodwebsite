@@ -12,7 +12,7 @@ import {
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
   SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
   ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  AcademicCapIcon, ClipboardDocumentListIcon,
+  AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon,
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
