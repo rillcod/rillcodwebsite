@@ -1,4 +1,5 @@
--- Expand the allowed lesson types for the lessons table
+-- Further expand the allowed lesson types for the lessons table
+-- This ensures and reinforces the previously attempted fix
 ALTER TABLE "public"."lessons" DROP CONSTRAINT IF EXISTS "lessons_lesson_type_check";
 
 ALTER TABLE "public"."lessons" ADD CONSTRAINT "lessons_lesson_type_check" 
