@@ -8857,6 +8857,10 @@ export type Database = {
         Args: { file_id: string }
         Returns: undefined
       }
+      increment_question_upvotes: {
+        Args: { question_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_teacher: { Args: never; Returns: boolean }
       is_parent: { Args: never; Returns: boolean }
