@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,14 +10,17 @@ import {
   Room,
   RoomEvent,
   Track,
-  LocalVideoTrack,
-  LocalAudioTrack,
-  RemoteParticipant,
-  RemoteTrackPublication,
-  RemoteTrack,
-  createLocalTracks,
-  type Participant,
 } from 'livekit-client';
+
+// Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
+const LiveKitMeeting = dynamic(
+  () => import('@/components/live-session/LiveKitMeeting'),
+  { ssr: false, loading: () => (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a]">
+      <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
+    </div>
+  )},
+);
 import {
   VideoCameraIcon, CalendarDaysIcon, ClockIcon, PencilIcon, TrashIcon,
   PlusIcon, XMarkIcon, LinkIcon, SignalIcon, FilmIcon, UserCircleIcon,
@@ -1326,219 +1330,6 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
   );
 }
 
-// ─── LiveKit Meeting Room (custom UI, raw SDK) ────────────────────────────────
-
-function LiveKitModal({ session, onClose }: {
-  session: LiveSession; onClose: () => void;
-}) {
-  const [token, setToken]             = useState<string | null>(null);
-  const [livekitUrl, setLivekitUrl]   = useState<string | null>(null);
-  const [isModerator, setIsModerator] = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-  const [connected, setConnected]     = useState(false);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [audioMuted, setAudioMuted]   = useState(false);
-  const [videoMuted, setVideoMuted]   = useState(false);
-
-  const roomRef      = useRef<Room | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-
-  const handleClose = useCallback(async () => {
-    roomRef.current?.disconnect();
-    try { await fetch(`/api/live-sessions/${session.id}/leave`, { method: 'POST' }); } catch { /* silent */ }
-    onClose();
-  }, [session.id, onClose]);
-
-  // Fetch token
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/live-sessions/livekit-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: session.id }),
-        });
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.error ?? 'Token error');
-        setToken(j.token);
-        setLivekitUrl(j.url);
-        setIsModerator(j.isModerator);
-      } catch (e: any) { setError(e.message ?? 'Failed to connect'); }
-    })();
-  }, [session.id]);
-
-  // Connect to room once token is ready
-  useEffect(() => {
-    if (!token || !livekitUrl) return;
-
-    const room = new Room({ adaptiveStream: true, dynacast: true });
-    roomRef.current = room;
-
-    const updateParticipants = () => {
-      setParticipants([room.localParticipant, ...Array.from(room.remoteParticipants.values())]);
-    };
-
-    room
-      .on(RoomEvent.Connected, () => { setConnected(true); updateParticipants(); })
-      .on(RoomEvent.Disconnected, handleClose)
-      .on(RoomEvent.ParticipantConnected, updateParticipants)
-      .on(RoomEvent.ParticipantDisconnected, updateParticipants)
-      .on(RoomEvent.TrackSubscribed, updateParticipants)
-      .on(RoomEvent.TrackUnsubscribed, updateParticipants)
-      .on(RoomEvent.LocalTrackPublished, updateParticipants)
-      .on(RoomEvent.LocalTrackUnpublished, updateParticipants);
-
-    room.connect(livekitUrl, token).then(async () => {
-      await room.localParticipant.enableCameraAndMicrophone();
-      // Attach local video
-      const videoTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
-      if (videoTrack && localVideoRef.current) {
-        videoTrack.attach(localVideoRef.current);
-      }
-      updateParticipants();
-    }).catch(e => setError(e.message));
-
-    return () => { room.disconnect(); };
-  }, [token, livekitUrl]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleAudio = async () => {
-    const room = roomRef.current;
-    if (!room) return;
-    await room.localParticipant.setMicrophoneEnabled(audioMuted);
-    setAudioMuted(!audioMuted);
-  };
-
-  const toggleVideo = async () => {
-    const room = roomRef.current;
-    if (!room) return;
-    await room.localParticipant.setCameraEnabled(videoMuted);
-    setVideoMuted(!videoMuted);
-  };
-
-  const remoteParticipants = participants.filter(p => p !== roomRef.current?.localParticipant);
-
-  return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0a]">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-          </span>
-          <span className="text-[10px] font-black text-white uppercase tracking-widest truncate max-w-[200px] sm:max-w-none">{session.title}</span>
-          {isModerator && <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20">Host</span>}
-          {connected && <span className="text-[8px] text-white/30 font-bold">{remoteParticipants.length + 1} in room</span>}
-        </div>
-        <button onClick={handleClose} className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all">
-          <XMarkIcon className="w-3.5 h-3.5" /> Leave
-        </button>
-      </div>
-
-      {error ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <p className="text-rose-400 text-sm font-bold">{error}</p>
-          <button onClick={handleClose} className="px-6 py-3 bg-white/10 text-white text-xs font-black uppercase tracking-widest">Close</button>
-        </div>
-      ) : !connected ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
-            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Connecting…</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Video grid */}
-          <div className="flex-1 grid gap-1 p-2 overflow-hidden"
-            style={{ gridTemplateColumns: `repeat(${Math.min(Math.ceil(Math.sqrt(participants.length)), 3)}, 1fr)` }}>
-            {/* Local video */}
-            <div className="relative bg-black rounded overflow-hidden">
-              <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-              <div className="absolute bottom-2 left-2 text-[9px] font-black text-white bg-black/60 px-2 py-0.5 rounded">
-                You {isModerator ? '(Host)' : ''}
-              </div>
-              {videoMuted && (
-                <div className="absolute inset-0 bg-[#111] flex items-center justify-center">
-                  <UserCircleIcon className="w-12 h-12 text-white/20" />
-                </div>
-              )}
-            </div>
-            {/* Remote participants */}
-            {remoteParticipants.map(p => (
-              <RemoteParticipantTile key={p.identity} participant={p as RemoteParticipant} />
-            ))}
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-3 p-4 border-t border-white/10 flex-shrink-0">
-            <button
-              onClick={toggleAudio}
-              className={`flex flex-col items-center gap-1 px-5 py-3 border transition-all ${audioMuted ? 'bg-rose-600/20 border-rose-500/40 text-rose-400' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}
-            >
-              <span className="text-lg">{audioMuted ? '🔇' : '🎤'}</span>
-              <span className="text-[8px] font-black uppercase tracking-widest">{audioMuted ? 'Unmute' : 'Mute'}</span>
-            </button>
-            <button
-              onClick={toggleVideo}
-              className={`flex flex-col items-center gap-1 px-5 py-3 border transition-all ${videoMuted ? 'bg-rose-600/20 border-rose-500/40 text-rose-400' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}
-            >
-              <span className="text-lg">{videoMuted ? '📷' : '📹'}</span>
-              <span className="text-[8px] font-black uppercase tracking-widest">{videoMuted ? 'Start Video' : 'Stop Video'}</span>
-            </button>
-            <button
-              onClick={handleClose}
-              className="flex flex-col items-center gap-1 px-5 py-3 bg-rose-600 hover:bg-rose-500 border border-rose-500 text-white transition-all"
-            >
-              <span className="text-lg">📵</span>
-              <span className="text-[8px] font-black uppercase tracking-widest">Leave</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Remote participant video tile
-function RemoteParticipantTile({ participant }: { participant: RemoteParticipant }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    const attachTracks = () => {
-      participant.getTrackPublications().forEach(pub => {
-        if (!pub.track || pub.isMuted) return;
-        if (pub.track.kind === Track.Kind.Video && videoRef.current) {
-          pub.track.attach(videoRef.current);
-        }
-        if (pub.track.kind === Track.Kind.Audio && audioRef.current) {
-          pub.track.attach(audioRef.current);
-        }
-      });
-    };
-
-    attachTracks();
-    participant.on(RoomEvent.TrackSubscribed, attachTracks);
-    participant.on(RoomEvent.TrackUnsubscribed, attachTracks);
-
-    return () => {
-      participant.off(RoomEvent.TrackSubscribed, attachTracks);
-      participant.off(RoomEvent.TrackUnsubscribed, attachTracks);
-    };
-  }, [participant]);
-
-  return (
-    <div className="relative bg-black rounded overflow-hidden">
-      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-      <audio ref={audioRef} autoPlay />
-      <div className="absolute bottom-2 left-2 text-[9px] font-black text-white bg-black/60 px-2 py-0.5 rounded">
-        {participant.name ?? participant.identity}
-      </div>
-    </div>
-  );
-}
-
 // ─── Auto-Join Toast (external sessions) ─────────────────────────────────────
 
 function AutoJoinToast({ session, onJoin, onDismiss }: {
@@ -2080,8 +1871,9 @@ export default function LiveSessionsPage() {
         />
       )}
       {jitsiSession && (
-        <LiveKitModal
-          session={jitsiSession}
+        <LiveKitMeeting
+          sessionId={jitsiSession.id}
+          sessionTitle={jitsiSession.title}
           onClose={() => setJitsiSession(null)}
         />
       )}

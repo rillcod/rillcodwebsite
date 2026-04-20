@@ -37,61 +37,60 @@ type StudentReport = Database['public']['Tables']['student_progress_reports']['R
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 
+// WAEC tier groups shown in the distribution chart
+const WAEC_TIERS = [
+    { codes: ['A1'],         label: 'A1',    bar: 'from-emerald-500/80 to-emerald-400/40', text: 'text-emerald-400' },
+    { codes: ['B2', 'B3'],   label: 'B2/B3', bar: 'from-green-500/80   to-green-400/40',   text: 'text-green-400'   },
+    { codes: ['C4','C5','C6'],label: 'C',    bar: 'from-blue-500/80    to-blue-400/40',    text: 'text-blue-400'    },
+    { codes: ['D7'],         label: 'D7',    bar: 'from-amber-500/80   to-amber-400/40',   text: 'text-amber-400'   },
+    { codes: ['E8'],         label: 'E8',    bar: 'from-orange-500/80  to-orange-400/40',  text: 'text-orange-400'  },
+    { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
+];
+
 function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
-    const counts = { A: 0, B: 0, C: 0, D: 0, F: 0, none: 0 };
+    // Count per WAEC tier
+    const counts = WAEC_TIERS.map(() => 0);
+    let noneCount = 0;
+
     students.forEach(s => {
-        const r = reportsMap[s.id];
-        if (r?.overall_grade) {
-            const gradeChar = r.overall_grade[0].toUpperCase();
-            if (gradeChar === 'A') counts.A++;
-            else if (gradeChar === 'B') counts.B++;
-            else if (gradeChar === 'C') counts.C++;
-            else if (gradeChar === 'D') counts.D++;
-            else if (gradeChar === 'F') counts.F++;
-            else counts.F++; 
-        } else {
-            counts.none++;
+        const grade: string | undefined = reportsMap[s.id]?.overall_grade;
+        if (!grade) { noneCount++; return; }
+        const g = grade.toUpperCase().trim();
+        const idx = WAEC_TIERS.findIndex(t => t.codes.includes(g));
+        if (idx >= 0) counts[idx]++;
+        else {
+            // Legacy single-letter grades (A→A1, B→B2, C→C4, D→D7, F→F9)
+            const legacyMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, F: 5 };
+            const ti = legacyMap[g[0]] ?? 5;
+            counts[ti]++;
         }
     });
 
-    const max = Math.max(...Object.values(counts).slice(0, 5), 1);
-    const totalWithGrades = students.length - counts.none;
+    const totalWithGrades = students.length - noneCount;
+    const max = Math.max(...counts, 1);
 
     return (
-        <div className="bg-[#111113] border border-white/[0.05] p-5 shadow-2xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[60px] rounded-full pointer-events-none" />
-            
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic leading-none mb-1.5">Cohort Distribution</p>
-                </div>
-            </div>
+        <div className="bg-[#111113] border border-white/[0.05] p-5 shadow-2xl overflow-hidden relative">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic leading-none mb-4">
+                WAEC Grade Distribution
+            </p>
 
-            <div className="flex items-end gap-3 h-28 mb-4">
-                {(['A', 'B', 'C', 'D', 'F'] as const).map(g => {
-                    const count = counts[g];
-                    const h = totalWithGrades > 0 ? (count / max) * 100 : 0;
-                    const colors = { 
-                        A: 'from-primary/80 to-primary/40', 
-                        B: 'from-blue-600/80 to-blue-400/40', 
-                        C: 'from-amber-600/80 to-amber-400/40', 
-                        D: 'from-indigo-600/80 to-indigo-400/40', 
-                        F: 'from-rose-600/80 to-rose-400/40' 
-                    };
+            <div className="flex items-end gap-2 h-24 mb-3">
+                {WAEC_TIERS.map((tier, i) => {
+                    const count = counts[i];
+                    const h = (count / max) * 100;
                     return (
-                        <div key={g} className="flex-1 flex flex-col items-center gap-3 group/bar">
-                            <div className="w-full bg-white/[0.02] border border-white/[0.05] flex flex-col justify-end h-full relative overflow-hidden">
+                        <div key={tier.label} className="flex-1 flex flex-col items-center gap-2">
+                            <div className="w-full bg-white/[0.02] border border-white/[0.05] flex flex-col justify-end h-full overflow-hidden relative">
                                 {count > 0 && (
-                                    <div 
-                                        className={`w-full bg-gradient-to-t ${colors[g]} transition-all duration-700 ease-out relative`} 
+                                    <div
+                                        className={`w-full bg-gradient-to-t ${tier.bar} transition-all duration-700 ease-out`}
                                         style={{ height: `${h}%` }}
-                                    >
-                                        <div className="absolute top-0 inset-x-0 h-px bg-white/20" />
-                                    </div>
+                                    />
                                 )}
                             </div>
-                            <div className="text-center space-y-0.5">
-                                <span className="block text-[10px] font-black text-slate-300">{g}</span>
+                            <div className="text-center">
+                                <span className={`block text-[9px] font-black ${tier.text}`}>{tier.label}</span>
                                 <span className="block text-[9px] font-bold text-slate-500">{count}</span>
                             </div>
                         </div>
@@ -99,13 +98,10 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
                 })}
             </div>
 
-            <div className="pt-4 border-t border-white/[0.05] flex items-center justify-between">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{totalWithGrades} DATA POINTS ANALYZED</span>
-                <div className="flex -space-x-1.5">
-                    {[1,2,3].map(i => (
-                        <div key={i} className="w-4 h-4 rounded-full border border-[#111113] bg-slate-800" />
-                    ))}
-                </div>
+            <div className="pt-3 border-t border-white/[0.05] flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    {totalWithGrades} graded · {noneCount} pending
+                </span>
             </div>
         </div>
     );
@@ -127,7 +123,10 @@ function ResultsPageInner() {
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
     const [loadingReport, setLoadingReport] = useState(false);
-    const [template, setTemplate] = useState<'standard' | 'modern'>('modern');
+    // Students see the standard (official) report card by default; staff can switch
+    const [template, setTemplate] = useState<'standard' | 'modern'>(
+        profile?.role === 'student' ? 'standard' : 'modern'
+    );
     const [modernTemplateId, setModernTemplateId] = useState<'industrial' | 'executive' | 'futuristic'>('industrial');
 
     // ── Filters ────────────────────────────────────────────────────────────────
@@ -615,11 +614,19 @@ function ResultsPageInner() {
 
         const gradeColor = (g: string | null | undefined) => {
             if (!g) return '#6b7280';
-            const c = g[0].toUpperCase();
+            const code = g.toUpperCase().trim();
+            if (code === 'A1')                       return '#10b981'; // emerald
+            if (code === 'B2' || code === 'B3')      return '#22c55e'; // green
+            if (code === 'C4' || code === 'C5' || code === 'C6') return '#3b82f6'; // blue
+            if (code === 'D7')                       return '#f59e0b'; // amber
+            if (code === 'E8')                       return '#f97316'; // orange
+            if (code === 'F9')                       return '#ef4444'; // rose
+            // Legacy single-letter fallback
+            const c = code[0];
             if (c === 'A') return '#10b981';
-            if (c === 'B') return '#3b82f6';
-            if (c === 'C') return '#f59e0b';
-            if (c === 'D') return '#8b5cf6';
+            if (c === 'B') return '#22c55e';
+            if (c === 'C') return '#3b82f6';
+            if (c === 'D') return '#f59e0b';
             return '#ef4444';
         };
 
@@ -1248,14 +1255,21 @@ tbody tr:hover{background:#f3f4f6}
                         {filtered.length} student{filtered.length !== 1 ? 's' : ''}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '16px' }}>
-                      {(['A','B','C','D','F'] as const).map(g => {
-                        const cnt = filtered.filter(s => reportsMap[s.id]?.overall_grade?.[0]?.toUpperCase() === g).length;
-                        const colors: Record<string,string> = { A:'#059669', B:'#2563eb', C:'#d97706', D:'#7c3aed', F:'#dc2626' };
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      {WAEC_TIERS.map(tier => {
+                        const cnt = filtered.filter(s => {
+                          const g = (reportsMap[s.id]?.overall_grade ?? '').toUpperCase().trim();
+                          return tier.codes.includes(g) ||
+                            (g.length === 1 && tier.codes.some(c => c[0] === g));
+                        }).length;
+                        const hexMap: Record<string, string> = {
+                          'A1': '#10b981', 'B2/B3': '#22c55e', 'C': '#3b82f6',
+                          'D7': '#f59e0b', 'E8': '#f97316', 'F9': '#ef4444',
+                        };
                         return cnt > 0 ? (
-                          <div key={g} style={{ textAlign: 'center', color: '#fff' }}>
-                            <div style={{ fontSize: '18px', fontWeight: 900, lineHeight: 1 }}>{cnt}</div>
-                            <div style={{ fontSize: '9px', fontWeight: 700, color: colors[g], background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 4px', marginTop: '2px' }}>{g}</div>
+                          <div key={tier.label} style={{ textAlign: 'center', color: '#fff' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 900, lineHeight: 1 }}>{cnt}</div>
+                            <div style={{ fontSize: '9px', fontWeight: 700, color: hexMap[tier.label] ?? '#9ca3af', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', marginTop: '2px' }}>{tier.label}</div>
                           </div>
                         ) : null;
                       })}
@@ -1278,8 +1292,8 @@ tbody tr:hover{background:#f3f4f6}
                     <tbody>
                       {filtered.map((s, i) => {
                         const r = reportsMap[s.id];
-                        const grade = r?.overall_grade?.[0]?.toUpperCase();
-                        const gradeColors: Record<string,string> = { A:'#059669', B:'#2563eb', C:'#d97706', D:'#7c3aed', F:'#dc2626' };
+                        const grade = r?.overall_grade ?? null;
+                        const gradeColors: Record<string,string> = { A1:'#10b981', B2:'#22c55e', B3:'#22c55e', C4:'#3b82f6', C5:'#3b82f6', C6:'#3b82f6', D7:'#f59e0b', E8:'#f97316', F9:'#ef4444' };
                         return (
                           <tr key={s.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                             <td style={{ padding: '6px 10px', color: '#9ca3af' }}>{i + 1}</td>
