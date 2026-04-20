@@ -6,6 +6,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  LiveKitRoom,
+  VideoConference,
+  RoomAudioRenderer,
+} from '@livekit/components-react';
+import '@livekit/components-styles';
+import {
   VideoCameraIcon, CalendarDaysIcon, ClockIcon, PencilIcon, TrashIcon,
   PlusIcon, XMarkIcon, LinkIcon, SignalIcon, FilmIcon, UserCircleIcon,
   ArrowRightIcon, UsersIcon, CheckCircleIcon, ChartBarIcon, PlayIcon, EyeIcon,
@@ -15,6 +21,7 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isJitsiUrl(url?: string | null) { return !!url && url.includes('meet.jit.si'); }
+function isLiveKitUrl(url?: string | null) { return !!url && url.startsWith('livekit:'); }
 
 function getYouTubeId(url: string) {
   const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -1313,87 +1320,42 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
   );
 }
 
-// ─── Jitsi In-App Meeting (External API — full moderator control) ─────────────
+// ─── LiveKit Meeting Room ─────────────────────────────────────────────────────
 
-function JitsiModal({ session, userId, displayName, isModerator, onClose }: {
-  session: LiveSession; userId: string; displayName: string;
-  isModerator: boolean; onClose: () => void;
+function LiveKitModal({ session, onClose }: {
+  session: LiveSession; onClose: () => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const apiRef       = useRef<any>(null);
-  const roomName     = `Rillcod-${session.id.slice(0, 12)}`;
+  const [token, setToken]           = useState<string | null>(null);
+  const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+  const [isModerator, setIsModerator] = useState(false);
+  const [error, setError]           = useState<string | null>(null);
 
   const handleClose = useCallback(async () => {
-    try { apiRef.current?.dispose(); } catch { /* silent */ }
     try { await fetch(`/api/live-sessions/${session.id}/leave`, { method: 'POST' }); } catch { /* silent */ }
     onClose();
   }, [session.id, onClose]);
 
   useEffect(() => {
-    // Load Jitsi External API script
-    const scriptId = 'jitsi-external-api';
-    const load = () => {
-      if (!containerRef.current) return;
-      const api = new (window as any).JitsiMeetExternalAPI('meet.jit.si', {
-        roomName,
-        parentNode: containerRef.current,
-        width: '100%',
-        height: '100%',
-        userInfo: {
-          displayName,
-          email: `${userId}@rillcod.app`,
-        },
-        configOverwrite: {
-          prejoinPageEnabled:          false,
-          disableDeepLinking:          true,
-          enableWelcomePage:           false,
-          requireDisplayName:          false,
-          disableModeratorIndicator:   !isModerator,
-          enableUserRolesBasedOnToken: false,
-          startWithAudioMuted:         false,
-          startWithVideoMuted:         false,
-          p2p: { enabled: true },
-          // Moderator starts the conference — no waiting screen
-          startAsSilent:               false,
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK:    false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          TOOLBAR_BUTTONS: [
-            'microphone','camera','desktop','fullscreen',
-            'hangup','chat','raisehand','tileview',
-            'participants-pane','settings',
-            ...(isModerator ? ['mute-everyone'] : []),
-          ],
-        },
-      });
-      apiRef.current = api;
-      api.addEventListeners({
-        readyToClose: handleClose,
-        videoConferenceLeft: handleClose,
-      });
-    };
-
-    if ((window as any).JitsiMeetExternalAPI) {
-      load();
-    } else {
-      let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-      if (!script) {
-        script = document.createElement('script');
-        script.id  = scriptId;
-        script.src = 'https://meet.jit.si/external_api.js';
-        document.head.appendChild(script);
+    (async () => {
+      try {
+        const res = await fetch('/api/live-sessions/livekit-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: session.id }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error ?? 'Token error');
+        setToken(j.token);
+        setLivekitUrl(j.url);
+        setIsModerator(j.isModerator);
+      } catch (e: any) {
+        setError(e.message ?? 'Failed to connect');
       }
-      script.onload = load;
-    }
-
-    return () => {
-      try { apiRef.current?.dispose(); } catch { /* silent */ }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    })();
+  }, [session.id]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0a]">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -1417,8 +1379,34 @@ function JitsiModal({ session, userId, displayName, isModerator, onClose }: {
           <XMarkIcon className="w-3.5 h-3.5" /> Leave
         </button>
       </div>
-      {/* Jitsi mounts here */}
-      <div ref={containerRef} className="flex-1 w-full" />
+
+      {/* Content */}
+      {error ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <p className="text-rose-400 text-sm font-bold">{error}</p>
+          <button onClick={handleClose} className="px-6 py-3 bg-white/10 text-white text-xs font-black uppercase tracking-widest">Close</button>
+        </div>
+      ) : !token || !livekitUrl ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Connecting…</p>
+          </div>
+        </div>
+      ) : (
+        <LiveKitRoom
+          token={token}
+          serverUrl={livekitUrl}
+          connect={true}
+          video={true}
+          audio={true}
+          onDisconnected={handleClose}
+          className="flex-1 w-full"
+        >
+          <VideoConference />
+          <RoomAudioRenderer />
+        </LiveKitRoom>
+      )}
     </div>
   );
 }
@@ -1709,15 +1697,15 @@ export default function LiveSessionsPage() {
   // ── Start / End session (host only) ────────────────────────────────────────
   async function handleStart(session: LiveSession) {
     try {
-      // Auto-generate Jitsi URL if none set
-      const sessionUrl = session.session_url || `https://meet.jit.si/Rillcod-${session.id.slice(0, 12)}`;
+      // Mark as live — LiveKit room is created on-demand via token
       await fetch(`/api/live-sessions/${session.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'live', session_url: sessionUrl }),
+        body: JSON.stringify({ status: 'live', session_url: `livekit:${session.id}` }),
       });
       // Open the meeting immediately for the host
-      handleJoin(session.id, sessionUrl);
+      const s = { ...session, session_url: `livekit:${session.id}` };
+      setJitsiSession(s);
     } catch (err: any) { alert(err?.message ?? 'Failed to start session'); }
   }
 
@@ -1964,11 +1952,8 @@ export default function LiveSessionsPage() {
         />
       )}
       {jitsiSession && (
-        <JitsiModal
+        <LiveKitModal
           session={jitsiSession}
-          userId={profile?.id ?? ''}
-          displayName={profile?.full_name ?? 'Participant'}
-          isModerator={profile?.role === 'admin' || profile?.role === 'teacher'}
           onClose={() => setJitsiSession(null)}
         />
       )}
