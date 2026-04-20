@@ -13,6 +13,7 @@ import {
   XMarkIcon, ClipboardIcon,
   UserGroupIcon, AcademicCapIcon, ChartBarIcon, TrophyIcon, ArrowPathIcon,
   ArrowRightIcon, DocumentTextIcon, ClipboardDocumentListIcon, CalendarDaysIcon,
+  UserPlusIcon,
 } from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -493,6 +494,28 @@ export default function SchoolsPage() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* Tab bar — People */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+            <BuildingOfficeIcon className="w-4 h-4" /> Schools
+          </span>
+          <Link href="/dashboard/teachers" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <AcademicCapIcon className="w-4 h-4" /> Teachers
+          </Link>
+          <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <UserGroupIcon className="w-4 h-4" /> Students
+          </Link>
+          <Link href="/dashboard/parents" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <UserPlusIcon className="w-4 h-4" /> Parents
+          </Link>
+          <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <ShieldCheckIcon className="w-4 h-4" /> Users
+          </Link>
+          <Link href="/dashboard/approvals" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <ClipboardDocumentListIcon className="w-4 h-4" /> Approvals
+          </Link>
+        </div>
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

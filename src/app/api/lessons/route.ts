@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const allowed = ['title', 'description', 'content', 'lesson_type', 'status',
-      'duration_minutes', 'order_index', 'video_url', 'is_active', 'course_id',
+      'duration_minutes', 'order_index', 'video_url', 'course_id',
       'session_date', 'content_layout'];
     const payload: Record<string, unknown> = { created_by: caller.id };
     for (const f of allowed) {

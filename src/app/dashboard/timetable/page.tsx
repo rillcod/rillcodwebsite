@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -9,7 +10,7 @@ import {
   CalendarDaysIcon, PlusIcon, PencilIcon, TrashIcon,
   ClockIcon, BuildingOfficeIcon, XMarkIcon, CheckIcon,
   BellAlertIcon, UserGroupIcon, UserIcon,
-  EllipsisVerticalIcon, ArrowsRightLeftIcon,
+  EllipsisVerticalIcon, ArrowsRightLeftIcon, ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -702,6 +703,34 @@ export default function TimetablePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* ── Schedule Tab Bar ── */}
+        {(isAdmin || isTeacher) && (
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+            <Link href="/dashboard/classes"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <UserGroupIcon className="w-4 h-4" /> Classes
+            </Link>
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+              <CalendarDaysIcon className="w-4 h-4" /> Timetable
+            </span>
+            <Link href="/dashboard/attendance"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+            </Link>
+          </div>
+        )}
+        {isStudent && (
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+              <CalendarDaysIcon className="w-4 h-4" /> Timetable
+            </span>
+            <Link href="/dashboard/attendance"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+            </Link>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

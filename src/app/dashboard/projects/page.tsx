@@ -14,7 +14,7 @@ import {
     GlobeAltIcon, CpuChipIcon, PaintBrushIcon, PresentationChartBarIcon,
     CalendarDaysIcon, ChartBarIcon, TrophyIcon, FireIcon,
     UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon, ShareIcon,
-    ArrowDownTrayIcon,
+    ArrowDownTrayIcon, CommandLineIcon,
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -412,6 +412,22 @@ export default function ProjectsPage() {
 
         return (
             <div className="min-h-screen bg-background">
+                {/* ── Assignments & Exams Tab Bar ── */}
+                <div className="px-4 sm:px-6 md:px-10 pt-6">
+                    <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+                        <Link href="/dashboard/assignments"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+                        </Link>
+                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+                            <RocketLaunchIcon className="w-4 h-4" /> Projects
+                        </span>
+                        <Link href="/dashboard/cbt"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            <CommandLineIcon className="w-4 h-4" /> CBT Exams
+                        </Link>
+                    </div>
+                </div>
                 {/* Hero */}
                 <div className="relative overflow-hidden bg-card border-b border-border">
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />
@@ -921,6 +937,22 @@ export default function ProjectsPage() {
 
     return (
         <div className="min-h-screen bg-background">
+            {/* ── Assignments & Exams Tab Bar ── */}
+            <div className="px-4 sm:px-6 md:px-10 pt-6">
+                <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+                    <Link href="/dashboard/assignments"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+                    </Link>
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+                        <RocketLaunchIcon className="w-4 h-4" /> Projects
+                    </span>
+                    <Link href="/dashboard/cbt"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <CommandLineIcon className="w-4 h-4" /> CBT Exams
+                    </Link>
+                </div>
+            </div>
             {/* Hero */}
             <div className="relative overflow-hidden bg-card border-b border-border">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />

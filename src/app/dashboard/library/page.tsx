@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -13,6 +14,7 @@ import {
   ArchiveBoxIcon, StarIcon, ArrowPathIcon, ExclamationTriangleIcon,
   Bars3Icon, EyeIcon, PlayIcon,
   ChevronLeftIcon, ChevronRightIcon, ArrowsPointingOutIcon,
+  ClipboardDocumentListIcon,
 } from "@/lib/icons";
 import VideoPlayer from '@/components/media/VideoPlayer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -375,6 +377,37 @@ export default function ContentLibraryPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* ── Content Pipeline Tab Bar (staff only) ── */}
+      {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+            <Link href="/dashboard/curriculum"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <BookOpenIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">1·</span>Course Syllabus
+            </Link>
+            <span className="text-muted-foreground text-xs px-1">→</span>
+            <Link href="/dashboard/lesson-plans"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <ClipboardDocumentListIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">2·</span>Lesson Plans
+            </Link>
+            <span className="text-muted-foreground text-xs px-1">→</span>
+            <Link href="/dashboard/lessons"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <SparklesIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">3·</span>Lessons
+            </Link>
+            <span className="text-muted-foreground text-xs px-1">→</span>
+            <Link href="/dashboard/flashcards"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <BoltIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">4·</span>Flashcard Studio
+            </Link>
+            <span className="text-muted-foreground text-xs px-1">→</span>
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+              <ArchiveBoxIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-80 mr-0.5">5·</span>Library
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Header */}
       <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

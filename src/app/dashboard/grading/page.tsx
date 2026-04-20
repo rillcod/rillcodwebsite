@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { ClipboardDocumentListIcon, CheckCircleIcon, AcademicCapIcon, StarIcon } from '@/lib/icons';
+import { ClipboardDocumentListIcon, CheckCircleIcon, AcademicCapIcon, StarIcon, ChartBarIcon, ClipboardDocumentCheckIcon, DocumentTextIcon } from '@/lib/icons';
 import Link from 'next/link';
 
 interface Submission {
@@ -73,6 +73,22 @@ export default function GradingQueuePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+        {/* ── Assessment Tab Bar ── */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+          <Link href="/dashboard/grades"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <ChartBarIcon className="w-4 h-4" /> Grades
+          </Link>
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-black">
+            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Grading Queue
+          </span>
+          <Link href="/dashboard/grading-guide"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <DocumentTextIcon className="w-4 h-4" /> Grading Guide
+          </Link>
+        </div>
+
         <div>
           <div className="flex items-center gap-2 mb-1">
             <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />

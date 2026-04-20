@@ -10,6 +10,7 @@ import {
   ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, EyeIcon, EyeSlashIcon,
   ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon, TrashIcon,
   ChatBubbleLeftEllipsisIcon, ClipboardDocumentListIcon,
+  UserPlusIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 
 import {
@@ -986,6 +987,28 @@ export default function ParentsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Tab bar — People */}
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+        <Link href="/dashboard/schools" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <BuildingOfficeIcon className="w-4 h-4" /> Schools
+        </Link>
+        <Link href="/dashboard/teachers" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <AcademicCapIcon className="w-4 h-4" /> Teachers
+        </Link>
+        <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <UserGroupIcon className="w-4 h-4" /> Students
+        </Link>
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+          <UserPlusIcon className="w-4 h-4" /> Parents
+        </span>
+        <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <ShieldCheckIcon className="w-4 h-4" /> Users
+        </Link>
+        <Link href="/dashboard/approvals" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <ClipboardDocumentListIcon className="w-4 h-4" /> Approvals
+        </Link>
+      </div>
+
       {/* Parents Hub Tab Bar */}
       <div className="bg-card border border-border">
         <div className="flex items-center gap-0 overflow-x-auto">

@@ -2,13 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, XCircleIcon,
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
     EnvelopeIcon, PhoneIcon, UserGroupIcon, ExclamationTriangleIcon,
-    SunIcon,
+    SunIcon, UserPlusIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 
 function StatusBadge({ status }: { status: string }) {
@@ -170,6 +171,28 @@ export default function ApprovalsPage() {
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+                {/* Tab bar — People */}
+                <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+                    <Link href="/dashboard/schools" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <BuildingOfficeIcon className="w-4 h-4" /> Schools
+                    </Link>
+                    <Link href="/dashboard/teachers" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <AcademicCapIcon className="w-4 h-4" /> Teachers
+                    </Link>
+                    <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <UserGroupIcon className="w-4 h-4" /> Students
+                    </Link>
+                    <Link href="/dashboard/parents" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <UserPlusIcon className="w-4 h-4" /> Parents
+                    </Link>
+                    <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <ShieldCheckIcon className="w-4 h-4" /> Users
+                    </Link>
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+                        <ClipboardDocumentCheckIcon className="w-4 h-4" /> Approvals
+                    </span>
+                </div>
 
                 {/* Header */}
                 <div>

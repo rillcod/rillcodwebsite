@@ -7,7 +7,7 @@ import {
   ChartBarIcon, BookOpenIcon, BuildingOfficeIcon, CheckCircleIcon,
   ClockIcon, ExclamationTriangleIcon, ArrowPathIcon, DocumentTextIcon,
   AcademicCapIcon, SparklesIcon, ChevronDownIcon, ChevronRightIcon,
-  CalendarDaysIcon, UserGroupIcon,
+  CalendarDaysIcon, UserGroupIcon, PresentationChartLineIcon,
 } from '@/lib/icons';
 
 // ── Nigerian Term Calendar ────────────────────────────────────────────────────
@@ -111,14 +111,20 @@ export default function CurriculumProgressPage() {
     <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
+        {/* ── Course Syllabus Tab Bar ── */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+          <Link href="/dashboard/curriculum"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <BookOpenIcon className="w-4 h-4" /> Course Syllabus
+          </Link>
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+            <PresentationChartLineIcon className="w-4 h-4" /> Delivery Progress
+          </span>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Link href="/dashboard/curriculum" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                ← Curriculum
-              </Link>
-            </div>
             <h1 className="text-2xl font-black">Curriculum Delivery Progress</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isSchool ? 'Your school\'s curriculum delivery status' : 'Live delivery tracking across all partner schools'}
