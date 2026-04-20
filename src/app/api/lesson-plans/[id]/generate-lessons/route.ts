@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+const ALLOWED_LESSON_TYPES = [
+  'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
+  'coding', 'reading', 'quiz', 'assignment', 'article', 'project', 'lab',
+  'live', 'practice', 'checkpoint', 'robotics', 'electronics', 'mechanics',
+  'design', 'iot', 'ai',
+];
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -115,7 +122,7 @@ export async function POST(
               content_layout: aiData.data.content_layout || [],
               video_url: aiData.data.video_url || null,
               duration_minutes: aiData.data.duration_minutes || 60,
-              lesson_type: aiData.data.lesson_type || 'workshop',
+              lesson_type: ALLOWED_LESSON_TYPES.includes(aiData.data.lesson_type) ? aiData.data.lesson_type : 'lesson',
               status: 'draft',
               metadata: {
                 source: 'lesson-plan-bulk',

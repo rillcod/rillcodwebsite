@@ -13,6 +13,16 @@ import {
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 
+const ALLOWED_LESSON_TYPES = [
+  'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
+  'coding', 'reading', 'quiz', 'assignment', 'article', 'project', 'lab',
+  'live', 'practice', 'checkpoint', 'robotics', 'electronics', 'mechanics',
+  'design', 'iot', 'ai',
+];
+function safeType(t: string | undefined, fallback: string): string {
+  return t && ALLOWED_LESSON_TYPES.includes(t) ? t : fallback;
+}
+
 const YOUNG_LEARNER_GRADES = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'Basic 1–Basic 6', 'KG–Basic 3'];
 
 export default function AddLessonPage() {
@@ -176,7 +186,7 @@ export default function AddLessonPage() {
                   content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0 ? d.content_layout : prev.content_layout,
                   video_url: d.video_url ?? prev.video_url,
                   duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
-                  lesson_type: d.lesson_type ?? prev.lesson_type,
+                  lesson_type: safeType(d.lesson_type, prev.lesson_type),
                 }));
                 setAiOpen(false);
                 setShowLessonPreview(true);
