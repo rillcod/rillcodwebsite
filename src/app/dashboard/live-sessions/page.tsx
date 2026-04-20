@@ -1294,37 +1294,88 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
   );
 }
 
-// ─── Jitsi In-App Meeting (meet.jit.si — free, unlimited) ────────────────────
+// ─── Jitsi In-App Meeting (External API — full moderator control) ─────────────
 
-function JitsiModal({ session, userId, displayName, onClose }: {
-  session: LiveSession; userId: string; displayName: string; onClose: () => void;
+function JitsiModal({ session, userId, displayName, isModerator, onClose }: {
+  session: LiveSession; userId: string; displayName: string;
+  isModerator: boolean; onClose: () => void;
 }) {
-  const roomName = `Rillcod-${session.id.slice(0, 12)}`;
-
-  const params = [
-    'config.disableDeepLinking=true',
-    'config.prejoinPageEnabled=false',
-    'config.requireDisplayName=false',
-    'config.enableWelcomePage=false',
-    'config.disableModeratorIndicator=true',
-    'config.enableUserRolesBasedOnToken=false',
-    'config.startWithAudioMuted=false',
-    'config.startWithVideoMuted=false',
-    'config.p2p.enabled=true',
-    'config.hideConferenceSubject=false',
-    `userInfo.displayName=${encodeURIComponent(displayName)}`,
-    `userInfo.email=${encodeURIComponent(userId + '@rillcod.app')}`,
-  ].join('&');
-
-  const src = `https://meet.jit.si/${roomName}#${params}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const apiRef       = useRef<any>(null);
+  const roomName     = `Rillcod-${session.id.slice(0, 12)}`;
 
   const handleClose = useCallback(async () => {
+    try { apiRef.current?.dispose(); } catch { /* silent */ }
     try { await fetch(`/api/live-sessions/${session.id}/leave`, { method: 'POST' }); } catch { /* silent */ }
     onClose();
   }, [session.id, onClose]);
 
+  useEffect(() => {
+    // Load Jitsi External API script
+    const scriptId = 'jitsi-external-api';
+    const load = () => {
+      if (!containerRef.current) return;
+      const api = new (window as any).JitsiMeetExternalAPI('meet.jit.si', {
+        roomName,
+        parentNode: containerRef.current,
+        width: '100%',
+        height: '100%',
+        userInfo: {
+          displayName,
+          email: `${userId}@rillcod.app`,
+        },
+        configOverwrite: {
+          prejoinPageEnabled:          false,
+          disableDeepLinking:          true,
+          enableWelcomePage:           false,
+          requireDisplayName:          false,
+          disableModeratorIndicator:   !isModerator,
+          enableUserRolesBasedOnToken: false,
+          startWithAudioMuted:         false,
+          startWithVideoMuted:         false,
+          p2p: { enabled: true },
+          // Moderator starts the conference — no waiting screen
+          startAsSilent:               false,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK:    false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          TOOLBAR_BUTTONS: [
+            'microphone','camera','desktop','fullscreen',
+            'hangup','chat','raisehand','tileview',
+            'participants-pane','settings',
+            ...(isModerator ? ['mute-everyone','kick','recording'] : []),
+          ],
+        },
+      });
+      apiRef.current = api;
+      api.addEventListeners({
+        readyToClose: handleClose,
+        videoConferenceLeft: handleClose,
+      });
+    };
+
+    if ((window as any).JitsiMeetExternalAPI) {
+      load();
+    } else {
+      let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement('script');
+        script.id  = scriptId;
+        script.src = 'https://meet.jit.si/external_api.js';
+        document.head.appendChild(script);
+      }
+      script.onload = load;
+    }
+
+    return () => {
+      try { apiRef.current?.dispose(); } catch { /* silent */ }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+      {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="relative flex h-2 w-2">
@@ -1334,6 +1385,11 @@ function JitsiModal({ session, userId, displayName, onClose }: {
           <span className="text-[10px] font-black text-white uppercase tracking-widest truncate max-w-[200px] sm:max-w-none">
             {session.title}
           </span>
+          {isModerator && (
+            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20">
+              Host
+            </span>
+          )}
         </div>
         <button
           onClick={handleClose}
@@ -1342,14 +1398,8 @@ function JitsiModal({ session, userId, displayName, onClose }: {
           <XMarkIcon className="w-3.5 h-3.5" /> Leave
         </button>
       </div>
-      <iframe
-        src={src}
-        allow="camera; microphone; display-capture; autoplay; clipboard-write; fullscreen; speaker-selection"
-        allowFullScreen
-        className="flex-1 w-full border-0"
-        title={session.title}
-        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation"
-      />
+      {/* Jitsi mounts here */}
+      <div ref={containerRef} className="flex-1 w-full" />
     </div>
   );
 }
@@ -1528,21 +1578,22 @@ export default function LiveSessionsPage() {
           const wasLive = payload.old?.status === 'live';
           const nowLive = updated.status === 'live';
           if (!wasLive && nowLive && updated.session_url) {
-            // Record attendance silently for everyone
+            // Record attendance silently
             fetch(`/api/live-sessions/${updated.id}/join`, { method: 'POST' }).catch(() => {});
 
             if (isJitsiUrl(updated.session_url)) {
-              // In-app: open Jitsi immediately for students
-              // Staff/teachers may already be hosting — only auto-open for students
+              // Students only — delay 6s so teacher joins first and becomes moderator
               if (profile.role === 'student') {
-                setSessions(prev => {
-                  const full = prev.find(s => s.id === updated.id);
-                  if (full) setJitsiSession({ ...full, ...updated });
-                  return prev;
-                });
+                setTimeout(() => {
+                  setSessions(prev => {
+                    const full = prev.find(s => s.id === updated.id);
+                    if (full) setJitsiSession({ ...full, ...updated });
+                    return prev;
+                  });
+                }, 6000);
               }
             } else {
-              // External URL: show a dismissible toast with a countdown
+              // External URL: show dismissible toast with countdown
               setSessions(prev => {
                 const full = prev.find(s => s.id === updated.id);
                 if (full) setAutoJoinToast({ ...full, ...updated });
@@ -1681,8 +1732,7 @@ export default function LiveSessionsPage() {
           body: JSON.stringify({ session_url: resolvedUrl }),
         }).catch(() => {});
       }
-      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);
-    } else {
+      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);    } else {
       window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
     }
   }
@@ -1898,7 +1948,8 @@ export default function LiveSessionsPage() {
         <JitsiModal
           session={jitsiSession}
           userId={profile?.id ?? ''}
-          displayName={profile?.full_name ?? 'Student'}
+          displayName={profile?.full_name ?? 'Participant'}
+          isModerator={profile?.role === 'admin' || profile?.role === 'teacher'}
           onClose={() => setJitsiSession(null)}
         />
       )}
