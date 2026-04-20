@@ -72,6 +72,7 @@
     "framer-motion": "^12.34.3",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
+    "jose": "^6.2.2",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lottie-react": "^2.4.1",
