@@ -508,6 +508,63 @@ export class LiveSessionService {
         if (error) throw new AppError(error.message, 500);
         return true;
     }
+    async listQuestions(sessionId: string) {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from('live_session_questions')
+            .select('*, portal_users(full_name, avatar_url)')
+            .eq('session_id', sessionId)
+            .order('upvotes', { ascending: false })
+            .order('created_at', { ascending: true });
+
+        if (error) throw new AppError(error.message, 500);
+        return data ?? [];
+    }
+
+    async postQuestion(sessionId: string, userId: string, body: string) {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from('live_session_questions')
+            .insert([{
+                session_id: sessionId,
+                user_id: userId,
+                body: body.trim(),
+            }])
+            .select('*, portal_users(full_name, avatar_url)')
+            .single();
+
+        if (error) throw new AppError(error.message, 500);
+        return data;
+    }
+
+    async upvoteQuestion(questionId: string) {
+        const supabase = await createClient();
+        const { data, error } = await supabase.rpc('increment_question_upvotes', { question_id: questionId });
+        if (error) {
+            // Fallback if RPC doesn't exist
+            const { data: q } = await supabase.from('live_session_questions').select('upvotes').eq('id', questionId).single();
+            await supabase.from('live_session_questions').update({ upvotes: (q?.upvotes ?? 0) + 1 }).eq('id', questionId);
+        }
+        return true;
+    }
+
+    async answerQuestion(questionId: string, answer: string, answeredBy: string) {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from('live_session_questions')
+            .update({
+                answer: answer.trim(),
+                answered: true,
+                answered_by: answeredBy,
+                answered_at: new Date().toISOString(),
+            })
+            .eq('id', questionId)
+            .select()
+            .single();
+
+        if (error) throw new AppError(error.message, 500);
+        return data;
+    }
 }
 
 export const liveSessionService = new LiveSessionService();
