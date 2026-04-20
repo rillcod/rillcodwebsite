@@ -259,6 +259,11 @@ const TYPE_COLOR: Record<string, string> = {
   interactive: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   workshop: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  reading: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+  quiz: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  article: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  project: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
+  live: 'bg-red-500/20 text-red-500 border-red-500/30',
 };
 
 // --- Sub-components ---

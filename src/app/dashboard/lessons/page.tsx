@@ -29,6 +29,11 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   'hands-on':  BoltIcon,
   workshop:    BookOpenIcon,
   coding:      DocumentTextIcon,
+  reading:     AcademicCapIcon,
+  quiz:        ClipboardDocumentListIcon,
+  article:     DocumentTextIcon,
+  project:     TrophyIcon,
+  live:        PlayIcon,
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -38,6 +43,11 @@ const TYPE_COLOR: Record<string, string> = {
   'hands-on':  'bg-cyan-500/10 text-cyan-400',
   workshop:    'bg-orange-500/10 text-orange-400',
   coding:      'bg-emerald-500/10 text-emerald-400',
+  reading:     'bg-indigo-500/10 text-indigo-400',
+  quiz:        'bg-purple-500/10 text-purple-400',
+  article:     'bg-slate-500/10 text-slate-400',
+  project:     'bg-yellow-500/10 text-yellow-500',
+  live:        'bg-red-500/10 text-red-500',
 };
 
 export default function LessonsPage() {
