@@ -9,6 +9,7 @@ import {
   VideoCameraIcon, CalendarDaysIcon, ClockIcon, PencilIcon, TrashIcon,
   PlusIcon, XMarkIcon, LinkIcon, SignalIcon, FilmIcon, UserCircleIcon,
   ArrowRightIcon, UsersIcon, CheckCircleIcon, ChartBarIcon, PlayIcon, EyeIcon,
+  XCircleIcon as StopCircleIcon,
 } from '@/lib/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -656,20 +657,25 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
-function SessionCard({ session, canManage, onEdit, onDelete, onJoin, onPolls, onRooms, onRecording, onAttendance }: {
-  session: LiveSession; canManage: boolean;
+function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onStart, onEnd, onPolls, onRooms, onRecording, onAttendance }: {
+  session: LiveSession; canManage: boolean; userId: string;
   onEdit: (s: LiveSession) => void; onDelete: (id: string) => void;
-  onJoin: (id: string, url: string) => void; onPolls: (s: LiveSession) => void;
+  onJoin: (id: string, url: string | null) => void;
+  onStart: (s: LiveSession) => void;
+  onEnd: (s: LiveSession) => void;
+  onPolls: (s: LiveSession) => void;
   onRooms: (s: LiveSession) => void; onRecording: (s: LiveSession) => void;
   onAttendance: (s: LiveSession) => void;
 }) {
-  const isInApp = isJitsiUrl(session.session_url);
-  const platKey = isInApp ? 'jitsi' : session.platform;
+  const isInApp = isJitsiUrl(session.session_url) || (!session.session_url && session.platform === 'other');
+  const platKey = isJitsiUrl(session.session_url) ? 'jitsi' : session.platform;
   const platCfg = PLATFORM_CONFIG[platKey] ?? PLATFORM_CONFIG.other;
   const statusCfg = STATUS_CONFIG[session.status];
   const countdown = getCountdown(session.scheduled_at);
   const isLive = session.status === 'live';
-  const showJoin = (session.status === 'scheduled' || isLive) && !!session.session_url;
+  const isActive = session.status === 'scheduled' || isLive;
+  // Show join if active — for Jitsi we don't need a URL (auto-generated on click)
+  const showJoin = isActive && (!!session.session_url || isInApp);
   const showRecording = session.status === 'completed' && !!session.recording_url;
 
   return (
@@ -758,14 +764,40 @@ function SessionCard({ session, canManage, onEdit, onDelete, onJoin, onPolls, on
       </div>
 
       <div className="mt-auto border-t border-white/5">
+
+        {/* ── Host controls: Start Now / End Session ── */}
+        {canManage && session.host_id === userId && (
+          <div className="p-3">
+            {session.status === 'scheduled' && (
+              <button
+                onClick={() => onStart(session)}
+                className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-900/40 relative overflow-hidden group/start"
+              >
+                <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/start:translate-x-full transition-transform duration-500" />
+                <SignalIcon className="w-4 h-4 relative z-10" />
+                <span className="relative z-10">Start Session Now</span>
+              </button>
+            )}
+            {session.status === 'live' && (
+              <button
+                onClick={() => onEnd(session)}
+                className="w-full flex items-center justify-center gap-3 py-3 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                <StopCircleIcon className="w-4 h-4" />
+                End Session
+              </button>
+            )}
+          </div>
+        )}
+
         {(showJoin || showRecording) && (
           <div className="flex p-3 gap-2">
             {showJoin && (
               <button
-                onClick={() => onJoin(session.id, session.session_url!)}
+                onClick={() => onJoin(session.id, session.session_url)}
                 className={`flex-1 flex items-center justify-center gap-3 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm ${
                   isLive
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/30 animate-pulse'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/30'
                     : 'bg-orange-600 hover:bg-orange-500 text-white'
                 }`}
               >
@@ -1385,15 +1417,54 @@ export default function LiveSessionsPage() {
     } catch (err: any) { alert(err?.message ?? 'Failed to delete session'); }
   }
 
-  async function handleJoin(id: string, url: string) {
+  // ── Start / End session (host only) ────────────────────────────────────────
+  async function handleStart(session: LiveSession) {
+    try {
+      // Auto-generate Jitsi URL if none set
+      const sessionUrl = session.session_url || `https://meet.jit.si/Rillcod-${session.id.slice(0, 12)}`;
+      await fetch(`/api/live-sessions/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'live', session_url: sessionUrl }),
+      });
+      // Open the meeting immediately for the host
+      handleJoin(session.id, sessionUrl);
+    } catch (err: any) { alert(err?.message ?? 'Failed to start session'); }
+  }
+
+  async function handleEnd(session: LiveSession) {
+    if (!confirm('End this session and mark it as completed?')) return;
+    try {
+      await fetch(`/api/live-sessions/${session.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+      // Close Jitsi if open
+      if (jitsiSession?.id === session.id) setJitsiSession(null);
+    } catch (err: any) { alert(err?.message ?? 'Failed to end session'); }
+  }
+
+  async function handleJoin(id: string, url: string | null) {
     // Record attendance silently
     try { await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' }); } catch { /* silent */ }
 
-    if (isJitsiUrl(url)) {
+    // If no URL, auto-generate a Jitsi room for this session
+    const resolvedUrl = url || `https://meet.jit.si/Rillcod-${id.slice(0, 12)}`;
+
+    if (isJitsiUrl(resolvedUrl)) {
       const session = sessions.find(s => s.id === id) ?? null;
-      setJitsiSession(session);
+      // Patch session_url in DB if it was missing so others can join too
+      if (!url && session) {
+        fetch(`/api/live-sessions/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_url: resolvedUrl }),
+        }).catch(() => {});
+      }
+      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);
     } else {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -1536,10 +1607,13 @@ export default function LiveSessionsPage() {
                 <SessionCard
                   key={s.id}
                   session={s}
+                  userId={profile?.id ?? ''}
                   canManage={canManage && (isAdmin || s.host_id === profile?.id)}
                   onEdit={openEdit}
                   onDelete={handleDelete}
                   onJoin={handleJoin}
+                  onStart={handleStart}
+                  onEnd={handleEnd}
                   onPolls={setPollsSession}
                   onRooms={setRoomsSession}
                   onRecording={setRecordingSession}
