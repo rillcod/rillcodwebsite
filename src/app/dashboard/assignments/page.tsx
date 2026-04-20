@@ -8,7 +8,8 @@ import { fetchStudentAssignments } from '@/services/dashboard.service';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
-  ArrowUpTrayIcon, ExclamationTriangleIcon, AcademicCapIcon, DocumentTextIcon, CodeBracketIcon
+  ArrowUpTrayIcon, ExclamationTriangleIcon, AcademicCapIcon, DocumentTextIcon, CodeBracketIcon,
+  RocketLaunchIcon, CommandLineIcon
 } from '@/lib/icons';
 import ShareToParentModal from '@/components/share/ShareToParentModal';
 
@@ -266,6 +267,21 @@ export default function AssignmentsPage() {
         title={sharing?.title}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* ── Assignments & Exams Tab Bar ── */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+          </span>
+          <Link href="/dashboard/projects"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <RocketLaunchIcon className="w-4 h-4" /> Projects
+          </Link>
+          <Link href="/dashboard/cbt"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <CommandLineIcon className="w-4 h-4" /> CBT Exams
+          </Link>
+        </div>
 
         {/* ── HERO HEADER ── */}
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">

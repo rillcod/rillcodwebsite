@@ -8,7 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
-  BookOpenIcon
+  BookOpenIcon, CommandLineIcon
 } from '@/lib/icons';
 
 export default function CBTPage() {
@@ -108,7 +108,7 @@ export default function CBTPage() {
         {/* ── EXAM HUB TAB BAR ── */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
           <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
-            <AcademicCapIcon className="w-4 h-4" /> CBT Exams
+            <CommandLineIcon className="w-4 h-4" /> CBT Exams
           </span>
           <Link href="/dashboard/exams"
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">

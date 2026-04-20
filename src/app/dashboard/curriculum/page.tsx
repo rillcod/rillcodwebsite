@@ -720,6 +720,17 @@ export default function CurriculumPage() {
           </div>
         )}
 
+        {/* Pipeline breadcrumb — always visible when course selected */}
+        {selectedCourse && (
+          <div className="flex items-center gap-0 px-4 py-2 border-b border-border bg-card/50 shrink-0 text-[10px] font-bold uppercase tracking-widest overflow-x-auto">
+            <span className="text-orange-400 whitespace-nowrap">Step 1 · Course Syllabus</span>
+            <span className="mx-2 text-muted-foreground">→</span>
+            <a href="/dashboard/lesson-plans" className="text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors">Step 2 · Lesson Plans</a>
+            <span className="mx-2 text-muted-foreground">→</span>
+            <a href="/dashboard/lessons" className="text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors">Step 3 · Lessons</a>
+          </div>
+        )}
+
         {/* Generate Content Tab */}
         {activeTab === 'generate' && selectedCourse && (
           <div className="flex-1 px-4 md:px-6 py-6 max-w-2xl space-y-6">

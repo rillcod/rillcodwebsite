@@ -2,13 +2,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ClipboardDocumentCheckIcon, UserGroupIcon, CheckCircleIcon, XCircleIcon,
   ClockIcon, ExclamationCircleIcon, PlusIcon, ChevronDownIcon, CheckIcon,
   ArrowPathIcon, ArrowLeftIcon, PrinterIcon, TableCellsIcon, ChartPieIcon,
-  CalendarIcon
+  CalendarIcon, CalendarDaysIcon,
 } from '@/lib/icons';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -517,6 +518,16 @@ function AttendanceContent() {
     return (
       <div className="min-h-screen bg-background text-foreground">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+          {/* ── Schedule Tab Bar (student) ── */}
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+            <Link href="/dashboard/timetable"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <CalendarDaysIcon className="w-4 h-4" /> Timetable
+            </Link>
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-black">
+              <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+            </span>
+          </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
@@ -571,6 +582,23 @@ function AttendanceContent() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* ── My Classes Tab Bar (staff) ── */}
+        {!isMinimal && (
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+            <Link href="/dashboard/classes"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <UserGroupIcon className="w-4 h-4" /> Classes
+            </Link>
+            <Link href="/dashboard/timetable"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+              <CalendarDaysIcon className="w-4 h-4" /> Timetable
+            </Link>
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-black">
+              <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+            </span>
+          </div>
+        )}
 
         {!isMinimal && (
           <div className="flex flex-col md:flex-row md:items-center gap-6">

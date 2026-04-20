@@ -96,190 +96,239 @@ export default function DashboardNavigation() {
     const base: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: HomeIcon }];
 
     switch (profile.role) {
+      // ─────────────────────────────────────────────────────────────────────────
+      // ADMIN — Platform manager. Sees everything. Owns operations.
+      // ─────────────────────────────────────────────────────────────────────────
       case 'admin':
         return [
           ...base,
           { divider: true, label: 'People' },
-          { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
-          { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
-          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Parents & Feedback', href: '/dashboard/parents', icon: UserPlusIcon },
-          { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
-          { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
+          { name: 'Schools',           href: '/dashboard/schools',    icon: BuildingOfficeIcon },
+          { name: 'Teachers',          href: '/dashboard/teachers',   icon: AcademicCapIcon },
+          { name: 'Students',          href: '/dashboard/students',   icon: UserGroupIcon },
+          { name: 'Parents',           href: '/dashboard/parents',    icon: UserPlusIcon },
+          { name: 'Users',             href: '/dashboard/users',      icon: ShieldCheckIcon },
+          { name: 'Approvals',         href: '/dashboard/approvals',  icon: ClipboardDocumentCheckIcon },
+
+          // Step 1 → Step 2 → Step 3
+          { divider: true, label: 'Content Pipeline' },
+          { name: 'Course & Syllabus', href: '/dashboard/curriculum',      icon: BookOpenIcon },
+          { name: 'Lesson Plans',      href: '/dashboard/lesson-plans',    icon: ClipboardDocumentListIcon },
+          { name: 'Lessons',           href: '/dashboard/lessons',         icon: SparklesIcon },
+          { name: 'Flashcard Studio',  href: '/dashboard/flashcards',      icon: BoltIcon },
+          { name: 'Library',           href: '/dashboard/library',         icon: ArchiveBoxIcon },
+
           { divider: true, label: 'Academics' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'Generate Content', href: '/dashboard/curriculum?tab=generate', icon: SparklesIcon },
-          { name: 'Course Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
-          { name: 'Programs', href: '/dashboard/programs', icon: AcademicCapIcon },
-          { name: 'Courses', href: '/dashboard/courses', icon: PresentationChartLineIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
-          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
-          { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
-          { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
+          { name: 'Programs',          href: '/dashboard/programs',        icon: PresentationChartLineIcon },
+          { name: 'Courses',           href: '/dashboard/courses',         icon: BookOpenIcon },
+          { name: 'Classes',           href: '/dashboard/classes',         icon: UserGroupIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',       icon: CalendarDaysIcon },
+          { name: 'Assignments',       href: '/dashboard/assignments',     icon: ClipboardDocumentListIcon },
+          { name: 'Projects',          href: '/dashboard/projects',        icon: RocketLaunchIcon },
+          { name: 'CBT Exams',         href: '/dashboard/cbt',             icon: CommandLineIcon },
+          { name: 'Live Sessions',     href: '/dashboard/live-sessions',   icon: VideoCameraIcon },
+
+          { divider: true, label: 'Assessment' },
+          { name: 'Grades',            href: '/dashboard/grades',          icon: ClipboardDocumentCheckIcon },
+          { name: 'Grading Queue',     href: '/dashboard/grading',         icon: ClipboardDocumentListIcon },
+          { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
+          { name: 'Progress Reports',  href: '/dashboard/results',         icon: DocumentChartBarIcon },
+          { name: 'Certificates',      href: '/dashboard/certificates/management', icon: TrophyIcon },
+          { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
+
           { divider: true, label: 'Engagement' },
-          { name: 'Class Engagement', href: '/dashboard/engagement', icon: BoltIcon },
-          { name: 'Showcase Board', href: '/dashboard/showcase', icon: TrophyIcon },
-          { divider: true, label: 'Content' },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Gamification', href: '/dashboard/gamification', icon: TrophyIcon },
-          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
-          { name: 'Activity Hub', href: '/dashboard/activity-hub', icon: SparklesIcon },
-          { divider: true, label: 'Reports' },
-          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
-          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
-          { name: 'Manage Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
-          { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-          { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
+          { name: 'Class Engagement',  href: '/dashboard/engagement',      icon: BoltIcon },
+          { name: 'Gamification',      href: '/dashboard/gamification',    icon: FireIcon },
+          { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
+          { name: 'Showcase Board',    href: '/dashboard/showcase',        icon: SignalIcon },
+          { name: 'Code Playground',   href: '/dashboard/playground',      icon: CodeBracketIcon },
+          { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
+          { name: 'Activity Hub',      href: '/dashboard/activity-hub',    icon: SparklesIcon },
+
+          { divider: true, label: 'Reports & Analytics' },
+          { name: 'Analytics',         href: '/dashboard/analytics',       icon: ChartBarIcon },
+          { name: 'Report Builder',    href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Activity Logs',     href: '/dashboard/activity-logs',   icon: ClipboardDocumentListIcon },
+
           { divider: true, label: 'Finance' },
-          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
+          { name: 'Smart Finance',     href: '/dashboard/finance',         icon: BanknotesIcon },
+
           { divider: true, label: 'System' },
-          { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
-          { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
-          { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftRightIcon },
-          { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
-          { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
-          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
-          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+          { name: 'Moderation',        href: '/dashboard/moderation',      icon: ShieldCheckIcon },
+          { name: 'School Directory',  href: '/dashboard/directory',       icon: BuildingOfficeIcon },
+          { name: 'Customer Retention',href: '/dashboard/crm',             icon: UserPlusIcon },
+          { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
+          { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
+          { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
+          { name: 'Feedback & Support',href: '/dashboard/feedback',        icon: ChatBubbleLeftEllipsisIcon },
+          { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // TEACHER — Teaches classes, creates content, grades, tracks students.
+      // ─────────────────────────────────────────────────────────────────────────
       case 'teacher':
         return [
           ...base,
-          { divider: true, label: 'Teaching' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'Generate Content', href: '/dashboard/curriculum?tab=generate', icon: SparklesIcon },
-          { name: 'Course Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
-          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
-          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
-          { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
-          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          // Step 1 → Step 2 → Step 3
+          { divider: true, label: 'Content Pipeline' },
+          { name: 'Course & Syllabus', href: '/dashboard/curriculum',      icon: BookOpenIcon },
+          { name: 'Lesson Plans',      href: '/dashboard/lesson-plans',    icon: ClipboardDocumentListIcon },
+          { name: 'Lessons',           href: '/dashboard/lessons',         icon: SparklesIcon },
+          { name: 'Flashcard Studio',  href: '/dashboard/flashcards',      icon: BoltIcon },
+          { name: 'Library',           href: '/dashboard/library',         icon: ArchiveBoxIcon },
+
+          { divider: true, label: 'My Classes' },
+          { name: 'My Classes',        href: '/dashboard/classes',         icon: UserGroupIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',       icon: CalendarDaysIcon },
+          { name: 'Attendance',        href: '/dashboard/attendance',      icon: ClipboardDocumentCheckIcon },
+          { name: 'Live Sessions',     href: '/dashboard/live-sessions',   icon: VideoCameraIcon },
+
+          { divider: true, label: 'Assignments & Exams' },
+          { name: 'Assignments',       href: '/dashboard/assignments',     icon: ClipboardDocumentListIcon },
+          { name: 'Projects',          href: '/dashboard/projects',        icon: RocketLaunchIcon },
+          { name: 'CBT Exams',         href: '/dashboard/cbt',             icon: CommandLineIcon },
+          { name: 'Grading Queue',     href: '/dashboard/grading',         icon: ClipboardDocumentCheckIcon },
+          { name: 'Grades',            href: '/dashboard/grades',          icon: ChartBarIcon },
+          { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
+
           { divider: true, label: 'Students' },
-          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Parents & Feedback', href: '/dashboard/parents', icon: UserPlusIcon },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
-          { name: 'Gamification', href: '/dashboard/gamification', icon: TrophyIcon },
+          { name: 'Students',          href: '/dashboard/students',        icon: UserGroupIcon },
+          { name: 'Parents',           href: '/dashboard/parents',         icon: UserPlusIcon },
+          { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
+          { name: 'Gamification',      href: '/dashboard/gamification',    icon: FireIcon },
+
           { divider: true, label: 'Engagement' },
-          { name: 'Class Engagement', href: '/dashboard/engagement', icon: BoltIcon },
-          { name: 'Showcase Board', href: '/dashboard/showcase', icon: TrophyIcon },
+          { name: 'Class Engagement',  href: '/dashboard/engagement',      icon: BoltIcon },
+          { name: 'Showcase Board',    href: '/dashboard/showcase',        icon: SignalIcon },
+          { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
+          { name: 'Code Playground',   href: '/dashboard/playground',      icon: CodeBracketIcon },
+
           { divider: true, label: 'Reports' },
-          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
-          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
-          { name: 'Manage Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
-          { divider: true, label: 'Content' },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: AcademicCapIcon },
-          { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
-          { name: 'Grading Queue', href: '/dashboard/grading', icon: ClipboardDocumentCheckIcon },
-          { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon },
-          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'Progress Reports',  href: '/dashboard/results',         icon: DocumentChartBarIcon },
+          { name: 'Report Builder',    href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Certificates',      href: '/dashboard/certificates/management', icon: TrophyIcon },
+          { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
+
           { divider: true, label: 'More' },
-          { name: 'School Directory', href: '/dashboard/directory', icon: UserGroupIcon },
-          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
-          { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
-          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+          { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
+          { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // STUDENT — Learns, submits work, tracks own progress.
+      // ─────────────────────────────────────────────────────────────────────────
       case 'student':
         return [
           ...base,
-          { divider: true, label: 'Learn' },
-          { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
-          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { divider: true, label: 'Activities' },
-          { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
-          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
-          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
-          { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
-          { name: 'Showcase', href: '/dashboard/showcase', icon: TrophyIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { divider: true, label: 'Learning' },
+          { name: 'Learning Center',   href: '/dashboard/learning',        icon: RocketLaunchIcon },
+          { name: 'Flashcards',        href: '/dashboard/flashcards',      icon: BoltIcon },
+          { name: 'Library',           href: '/dashboard/library',         icon: ArchiveBoxIcon },
+          { name: 'Code Playground',   href: '/dashboard/playground',      icon: CodeBracketIcon },
+          { name: 'Live Sessions',     href: '/dashboard/live-sessions',   icon: VideoCameraIcon },
+
+          { divider: true, label: 'Assignments & Exams' },
+          { name: 'Assignments',       href: '/dashboard/assignments',     icon: ClipboardDocumentListIcon },
+          { name: 'Projects',          href: '/dashboard/projects',        icon: SparklesIcon },
+          { name: 'CBT Exams',         href: '/dashboard/cbt',             icon: CommandLineIcon },
+
+          { divider: true, label: 'Community' },
+          { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
+          { name: 'Showcase',          href: '/dashboard/showcase',        icon: SignalIcon },
+          { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
+
           { divider: true, label: 'Schedule' },
-          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
-          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',       icon: CalendarDaysIcon },
+          { name: 'Attendance',        href: '/dashboard/attendance',      icon: ClipboardDocumentCheckIcon },
+
           { divider: true, label: 'My Progress' },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
-          { name: 'Certificate Vault', href: '/dashboard/certificates', icon: TrophyIcon },
-          { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
-          { name: 'My Access Card', href: '/dashboard/my-card', icon: CreditCardIcon },
+          { name: 'Grades',            href: '/dashboard/grades',          icon: ChartBarIcon },
+          { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
+          { name: 'My Report Card',    href: '/dashboard/results',         icon: DocumentChartBarIcon },
+          { name: 'Certificates',      href: '/dashboard/certificates',    icon: TrophyIcon },
+          { name: 'My Portfolio',      href: '/dashboard/portfolio',       icon: AcademicCapIcon },
+
+          { divider: true, label: 'Account' },
+          { name: 'My Access Card',    href: '/dashboard/my-card',         icon: CreditCardIcon },
           ...(['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
             ? [{ name: 'My Payments', href: '/dashboard/my-payments', icon: BanknotesIcon }]
             : []),
-          { divider: true, label: 'More' },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
-          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+          { name: 'Messages',          href: '/dashboard/messages',        icon: EnvelopeIcon },
+          { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
+          { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
+          { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // SCHOOL — Partner school. Views, monitors, manages its own students.
+      // ─────────────────────────────────────────────────────────────────────────
       case 'school':
         return [
           ...base,
           { divider: true, label: 'My School' },
-          { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
-          { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
-          { name: 'Classes', href: '/dashboard/classes', icon: AcademicCapIcon },
-          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
-          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
-          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'School Overview',   href: '/dashboard/school-overview', icon: ChartBarIcon },
+          { name: 'My Students',       href: '/dashboard/students',        icon: UserGroupIcon },
+          { name: 'Classes',           href: '/dashboard/classes',         icon: UserGroupIcon },
+          { name: 'Card Studio',       href: '/dashboard/card-studio',     icon: CreditCardIcon },
+
+          { divider: true, label: 'Schedule' },
+          { name: 'Timetable',         href: '/dashboard/timetable',       icon: CalendarDaysIcon },
+          { name: 'Attendance',        href: '/dashboard/attendance',      icon: ClipboardDocumentCheckIcon },
+          { name: 'Live Sessions',     href: '/dashboard/live-sessions',   icon: VideoCameraIcon },
+
+          { divider: true, label: 'Curriculum' },
+          { name: 'Course & Syllabus', href: '/dashboard/curriculum',      icon: BookOpenIcon },
+          { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
+          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
+
           { divider: true, label: 'Reports' },
-          { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
-          { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Showcase Board', href: '/dashboard/showcase', icon: TrophyIcon },
-          { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
-          { divider: true, label: 'Billing' },
-          { name: 'My Billing', href: '/dashboard/school-billing', icon: BanknotesIcon },
+          { name: 'Student Reports',   href: '/dashboard/results',         icon: DocumentChartBarIcon },
+          { name: 'Grades',            href: '/dashboard/grades',          icon: ClipboardDocumentCheckIcon },
+          { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
+          { name: 'Showcase Board',    href: '/dashboard/showcase',        icon: SignalIcon },
+          { name: 'Performance',       href: '/dashboard/progress',        icon: PresentationChartLineIcon },
+
+          { divider: true, label: 'Finance' },
+          { name: 'My Billing',        href: '/dashboard/school-billing',  icon: BanknotesIcon },
+
           { divider: true, label: 'More' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'Course Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: AcademicCapIcon },
-          { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
-          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+          { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
+          { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
+          { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
 
+      // ─────────────────────────────────────────────────────────────────────────
+      // PARENT — Monitors child's progress. Read-only.
+      // ─────────────────────────────────────────────────────────────────────────
       case 'parent':
         return [
           ...base,
           { divider: true, label: 'My Children' },
-          { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon },
+          { name: 'My Children',       href: '/dashboard/my-children',     icon: UserGroupIcon },
+
           { divider: true, label: 'Academic Progress' },
-          { name: 'Report Cards', href: '/dashboard/parent-results', icon: DocumentChartBarIcon },
-          { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
-          { name: 'Grades', href: '/dashboard/parent-grades', icon: ClipboardDocumentListIcon },
-          { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
-          { name: "Children's Access Cards", href: '/dashboard/parent-card', icon: CreditCardIcon },
+          { name: 'Report Cards',      href: '/dashboard/parent-results',  icon: DocumentChartBarIcon },
+          { name: 'Grades',            href: '/dashboard/parent-grades',   icon: ChartBarIcon },
+          { name: 'Attendance',        href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Certificates',      href: '/dashboard/parent-certificates', icon: TrophyIcon },
+          { name: "Access Cards",      href: '/dashboard/parent-card',     icon: CreditCardIcon },
+
           { divider: true, label: 'Finance' },
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
-          { divider: true, label: 'Community' },
-          { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
+
           { divider: true, label: 'More' },
-          { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
-          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+          { name: 'Share Feedback',    href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
+          { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
+          { name: 'Messages',          href: '/dashboard/messages',        icon: EnvelopeIcon },
+          { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
+          { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
+          { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
 
       default:
@@ -293,17 +342,15 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
   const BOTTOM_NAV_NAMES = new Set(
     profile?.role === 'student'
-      ? ['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
-        ? ['Dashboard', 'Learning Center', 'My Payments', 'My Report Card', 'Messages']
-        : ['Dashboard', 'Learning Center', 'My Report Card', 'Messages']
+      ? ['Dashboard', 'Learning Center', 'CBT Exams', 'My Report Card', 'Messages']
       : profile?.role === 'school'
-        ? ['Dashboard', 'My Students', 'My Billing', 'Student Reports', 'WhatsApp Inbox']
+        ? ['Dashboard', 'My Students', 'Student Reports', 'My Billing', 'WhatsApp Inbox']
         : profile?.role === 'admin'
-          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'WhatsApp Inbox']
+          ? ['Dashboard', 'Students', 'Lessons', 'Progress Reports', 'WhatsApp Inbox']
           : profile?.role === 'teacher'
-            ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'WhatsApp Inbox']
+            ? ['Dashboard', 'My Classes', 'Lessons', 'Progress Reports', 'WhatsApp Inbox']
             : profile?.role === 'parent'
-              ? ['Dashboard', 'My Children', 'Report Cards', 'Messages']
+              ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'Messages']
               : ['Dashboard']
   );
   const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 5);

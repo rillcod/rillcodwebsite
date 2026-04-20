@@ -8,7 +8,8 @@ import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, AcademicCapIcon,
   ClockIcon, UserGroupIcon, ChartBarIcon, DocumentTextIcon,
   EyeIcon, PencilIcon, TrashIcon, BuildingOfficeIcon,
-  ArrowPathIcon, ExclamationTriangleIcon,
+  ArrowPathIcon, ExclamationTriangleIcon, CalendarDaysIcon,
+  ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -81,6 +82,21 @@ export default function ClassesPage() {
 
   return (
     <div className="space-y-8 pb-20">
+
+      {/* ── My Classes Tab Bar ── */}
+      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+          <UserGroupIcon className="w-4 h-4" /> Classes
+        </span>
+        <Link href="/dashboard/timetable"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <CalendarDaysIcon className="w-4 h-4" /> Timetable
+        </Link>
+        <Link href="/dashboard/attendance"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+        </Link>
+      </div>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

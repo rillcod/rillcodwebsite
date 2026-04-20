@@ -234,16 +234,22 @@ export default function LessonsPage() {
   return (
     <div className="space-y-8 pb-20">
 
-      {/* Lessons Hub Tab Bar */}
+      {/* Pipeline steps */}
       {isStaff && (
-        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
-            <BookOpenIcon className="w-4 h-4" /> Lessons
-          </span>
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+          <Link href="/dashboard/curriculum"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            <BookOpenIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">1·</span>Course Syllabus
+          </Link>
+          <span className="text-muted-foreground text-xs px-1">→</span>
           <Link href="/dashboard/lesson-plans"
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
+            <ClipboardDocumentListIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">2·</span>Lesson Plans
           </Link>
+          <span className="text-muted-foreground text-xs px-1">→</span>
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <SparklesIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-80 mr-0.5">3·</span>Lessons
+          </span>
         </div>
       )}
 
@@ -476,7 +482,7 @@ export default function LessonsPage() {
         </div>
       )}
 
-      {/* AI Lesson Plan Generator */}
+      {/* AI Lesson Plan Generator — quick shortcut (not part of the main pipeline) */}
       {isStaff && (
         <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
           <button
@@ -489,8 +495,8 @@ export default function LessonsPage() {
                 <SparklesIcon className="w-5 h-5 text-orange-400" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-foreground">AI Lesson Plan Generator</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Generate a full term lesson plan using AI</p>
+                <h3 className="text-sm font-bold text-foreground">Quick Lesson Plan Generator</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">One-off plan for a single topic — for the full pipeline use <a href="/dashboard/curriculum" className="text-orange-400 hover:underline">Course Syllabus → Lesson Plans</a></p>
               </div>
             </div>
             {planOpen

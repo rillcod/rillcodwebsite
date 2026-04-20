@@ -177,18 +177,20 @@ export default function LessonPlansPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Tab Bar */}
+      {/* Pipeline steps */}
       <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
         <Link href="/dashboard/curriculum"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-          <SparklesIcon className="w-4 h-4" /> Curriculum
+          <BookOpenIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">1·</span>Course Syllabus
         </Link>
+        <span className="text-muted-foreground text-xs px-1">→</span>
         <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
-          <ClipboardDocumentListIcon className="w-4 h-4" /> Lesson Plans
+          <ClipboardDocumentListIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-80 mr-0.5">2·</span>Lesson Plans
         </span>
+        <span className="text-muted-foreground text-xs px-1">→</span>
         <Link href="/dashboard/lessons"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-          <BookOpenIcon className="w-4 h-4" /> Lessons
+          <SparklesIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">3·</span>Lessons
         </Link>
       </div>
 
