@@ -22,13 +22,13 @@ interface PrintableReportData {
     practical_score?: number | null;
     attendance_score?: number | null;      // stores Assignments (20%) — legacy field name
     participation_score?: number | null;   // stores Attendance (10%) — legacy field name
-    engagement_metrics?: { classwork_score?: number; assessment_score?: number } | null;
+    engagement_metrics?: any | null;
     projects_grade?: string | null;
     homework_grade?: string | null;
     key_strengths?: string | null;
     areas_for_growth?: string | null;
     fee_status?: string | null;
-    fee_amount?: number | null;
+    fee_amount?: string | null;
     has_certificate?: boolean | null;
     certificate_text?: string | null;
 }
