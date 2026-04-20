@@ -105,10 +105,6 @@ export default async function Image() {
               lineHeight: 1.1,
               marginBottom: '20px',
               textAlign: 'center',
-              background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd700 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
             }}
           >
             Tech Education &

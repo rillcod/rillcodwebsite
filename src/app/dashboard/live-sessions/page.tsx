@@ -931,7 +931,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
           </div>
 
           {canManage && (
-            <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0 transition-all duration-300">
               <button onClick={() => onEdit(session)} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white transition-all rounded-sm">
                 <PencilIcon className="w-4 h-4" />
               </button>
@@ -1273,11 +1273,30 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-4 px-8 py-6 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
-          <button onClick={onClose} disabled={saving}
-            className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors disabled:opacity-50">
-            Cancel
-          </button>
+        <div className="flex items-center justify-between px-8 py-6 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
+          <div>
+            {isEdit && (
+              <button
+                onClick={() => {
+                  if (confirm('Delete this live session? This cannot be undone.')) {
+                    fetch(`/api/live-sessions/${initial.id}`, { method: 'DELETE' }).then(res => {
+                      if (res.ok) onClose();
+                      else alert('Failed to delete');
+                    });
+                  }
+                }}
+                className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all border border-rose-500/20"
+              >
+                Delete Session
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} disabled={saving}
+              className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors disabled:opacity-50">
+              Cancel
+            </button>
+          </div>
           <button
             onClick={() => onSave(form)}
             disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time}
