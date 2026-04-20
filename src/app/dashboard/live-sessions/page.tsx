@@ -808,3 +808,630 @@ function SessionCard({ session, canManage, onEdit, onDelete, onJoin, onPolls, on
     </motion.div>
   );
 }
+
+// ─── Session Form Modal ───────────────────────────────────────────────────────
+
+function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, error, onClose, onSave }: {
+  initial: SessionForm; isEdit: boolean; schools: School[]; programs: Program[];
+  isAdmin: boolean; saving: boolean; error: string | null;
+  onClose: () => void; onSave: (form: SessionForm) => void;
+}) {
+  const [form, setForm] = useState<SessionForm>(initial);
+  const set = (k: keyof SessionForm, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white font-medium focus:outline-none focus:border-orange-500/60 placeholder:text-white/20 transition-all";
+  const labelCls = "block text-[9px] font-black text-white/30 uppercase tracking-[0.35em] mb-2";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+      <div className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-orange-600 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-white/[0.015] flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-orange-600/10 border border-orange-500/20 flex items-center justify-center">
+              <VideoCameraIcon className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-white uppercase tracking-widest">{isEdit ? 'Edit Session' : 'Schedule Live Session'}</h2>
+              <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mt-0.5">Broadcast Uplink</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:text-orange-500 transition-all text-white/40">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          {error && (
+            <div className="px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className={labelCls}>Session Title <span className="text-orange-500">*</span></label>
+            <input type="text" value={form.title} onChange={e => set('title', e.target.value)}
+              placeholder="e.g. Introduction to Algorithms — Week 3" className={fieldCls} />
+          </div>
+
+          <div>
+            <label className={labelCls}>Description</label>
+            <textarea value={form.description} onChange={e => set('description', e.target.value)}
+              placeholder="Brief overview of what will be covered…" rows={3} className={`${fieldCls} resize-none`} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Platform</label>
+              <select
+                value={isJitsiUrl(form.session_url) ? 'jitsi' : form.platform}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === 'jitsi') {
+                    set('platform', 'other');
+                    set('session_url', `https://meet.jit.si/Rillcod-${Date.now().toString(36)}`);
+                  } else {
+                    set('platform', val as LiveSession['platform']);
+                    if (isJitsiUrl(form.session_url)) set('session_url', '');
+                  }
+                }}
+                className={`${fieldCls} appearance-none`}
+              >
+                <option value="zoom" className="bg-[#0a0a0a]">Zoom</option>
+                <option value="google_meet" className="bg-[#0a0a0a]">Google Meet</option>
+                <option value="teams" className="bg-[#0a0a0a]">Microsoft Teams</option>
+                <option value="discord" className="bg-[#0a0a0a]">Discord</option>
+                <option value="jitsi" className="bg-[#0a0a0a]">In-App Meeting (Jitsi)</option>
+                <option value="other" className="bg-[#0a0a0a]">Other / Custom</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Join URL</label>
+              <input type="url" value={form.session_url} onChange={e => set('session_url', e.target.value)}
+                placeholder="https://zoom.us/j/..." className={fieldCls} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelCls}>Date <span className="text-orange-500">*</span></label>
+              <input type="date" value={form.scheduled_date} onChange={e => set('scheduled_date', e.target.value)}
+                className={`${fieldCls} [color-scheme:dark]`} />
+            </div>
+            <div>
+              <label className={labelCls}>Time <span className="text-orange-500">*</span></label>
+              <input type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)}
+                className={`${fieldCls} [color-scheme:dark]`} />
+            </div>
+            <div>
+              <label className={labelCls}>Duration (min)</label>
+              <input type="number" min={5} max={480} value={form.duration_minutes}
+                onChange={e => set('duration_minutes', Number(e.target.value))} className={fieldCls} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {isAdmin && (
+              <div>
+                <label className={labelCls}>School (optional)</label>
+                <select value={form.school_id} onChange={e => set('school_id', e.target.value)}
+                  className={`${fieldCls} appearance-none`}>
+                  <option value="" className="bg-[#0a0a0a]">All schools (global)</option>
+                  {schools.map(s => <option key={s.id} value={s.id} className="bg-[#0a0a0a]">{s.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className={labelCls}>Program (optional)</label>
+              <select value={form.program_id} onChange={e => set('program_id', e.target.value)}
+                className={`${fieldCls} appearance-none`}>
+                <option value="" className="bg-[#0a0a0a]">No specific program</option>
+                {programs.map(p => <option key={p.id} value={p.id} className="bg-[#0a0a0a]">{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {isEdit && (
+            <div>
+              <label className={labelCls}>Status</label>
+              <select value={form.status} onChange={e => set('status', e.target.value as LiveSession['status'])}
+                className={`${fieldCls} appearance-none`}>
+                <option value="scheduled" className="bg-[#0a0a0a]">Scheduled</option>
+                <option value="live" className="bg-[#0a0a0a]">Live</option>
+                <option value="completed" className="bg-[#0a0a0a]">Completed</option>
+                <option value="cancelled" className="bg-[#0a0a0a]">Cancelled</option>
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className={labelCls}>Recording URL (optional)</label>
+            <input type="url" value={form.recording_url} onChange={e => set('recording_url', e.target.value)}
+              placeholder="https://drive.google.com/..." className={fieldCls} />
+          </div>
+
+          <div>
+            <label className={labelCls}>Notes (optional)</label>
+            <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
+              placeholder="Pre-session preparation, materials, links…" rows={3} className={`${fieldCls} resize-none`} />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-4 px-8 py-6 border-t border-white/5 bg-white/[0.01] flex-shrink-0">
+          <button onClick={onClose} disabled={saving}
+            className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(form)}
+            disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time}
+            className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-3"
+          >
+            {saving
+              ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <PlusIcon className="w-4 h-4" />}
+            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Schedule Session'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Jitsi In-App Meeting ─────────────────────────────────────────────────────
+
+function JitsiModal({ session, userId, displayName, onClose }: {
+  session: LiveSession; userId: string; displayName: string; onClose: () => void;
+}) {
+  const roomName = `Rillcod-${session.id.slice(0, 12)}`;
+  const src = `https://meet.jit.si/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"&config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.TOOLBAR_BUTTONS=["microphone","camera","desktop","fullscreen","hangup","chat","raisehand","tileview","participants-pane"]`;
+
+  // Record leave when modal closes
+  const handleClose = useCallback(async () => {
+    try { await fetch(`/api/live-sessions/${session.id}/leave`, { method: 'POST' }); } catch { /* silent */ }
+    onClose();
+  }, [session.id, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+      {/* Minimal top bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+          </span>
+          <span className="text-[10px] font-black text-white uppercase tracking-widest">{session.title}</span>
+          <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest">· In-App Meeting</span>
+        </div>
+        <button
+          onClick={handleClose}
+          className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all"
+        >
+          <XMarkIcon className="w-3.5 h-3.5" /> Leave Session
+        </button>
+      </div>
+      {/* Full-screen iframe */}
+      <iframe
+        src={src}
+        allow="camera; microphone; display-capture; autoplay; clipboard-write"
+        className="flex-1 w-full border-0"
+        title={session.title}
+      />
+    </div>
+  );
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: boolean; onAdd: () => void }) {
+  const messages: Record<FilterTab, { title: string; sub: string }> = {
+    upcoming: { title: 'No Uplinks Scheduled',  sub: 'Live and scheduled sessions will appear here.' },
+    past:     { title: 'No Past Sessions',       sub: 'Completed and cancelled sessions will appear here.' },
+    all:      { title: 'Broadcast Grid Empty',   sub: 'Schedule your first live session to get started.' },
+  };
+  const { title, sub } = messages[tab];
+  return (
+    <div className="flex flex-col items-center justify-center py-32 gap-6 bg-[#0a0a0a] border border-white/5">
+      <div className="w-20 h-20 bg-white/[0.02] border border-white/5 flex items-center justify-center">
+        <VideoCameraIcon className="w-10 h-10 text-white/10" />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-sm font-black text-white/20 uppercase tracking-[0.4em]">{title}</p>
+        <p className="text-xs text-white/10 font-medium max-w-xs">{sub}</p>
+      </div>
+      {canManage && (
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+        >
+          <PlusIcon className="w-4 h-4" /> Schedule Session
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function LiveSessionsPage() {
+  const { profile, loading: authLoading } = useAuth();
+  const [sessions, setSessions]     = useState<LiveSession[]>([]);
+  const [schools, setSchools]       = useState<School[]>([]);
+  const [programs, setPrograms]     = useState<Program[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [filter, setFilter]         = useState<FilterTab>('upcoming');
+
+  // Modals
+  const [showModal, setShowModal]           = useState(false);
+  const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
+  const [modalForm, setModalForm]           = useState<SessionForm>(blankForm());
+  const [modalError, setModalError]         = useState<string | null>(null);
+  const [saving, setSaving]                 = useState(false);
+  const [pollsSession, setPollsSession]     = useState<LiveSession | null>(null);
+  const [roomsSession, setRoomsSession]     = useState<LiveSession | null>(null);
+  const [jitsiSession, setJitsiSession]     = useState<LiveSession | null>(null);
+  const [recordingSession, setRecordingSession] = useState<LiveSession | null>(null);
+  const [attendanceSession, setAttendanceSession] = useState<LiveSession | null>(null);
+
+  const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isAdmin   = profile?.role === 'admin';
+
+  // ── Data loading ────────────────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
+    if (!profile) return;
+    setLoading(true); setError(null);
+    try {
+      const supabase = createClient();
+      let query = supabase
+        .from('live_sessions')
+        .select('*, program:programs(name)')
+        .order('scheduled_at', { ascending: true });
+
+      if ((profile.role === 'school' || profile.role === 'student') && profile.school_id)
+        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+
+      const { data: rawSessions, error: sessErr } = await query;
+      if (sessErr) throw sessErr;
+
+      const rows = (rawSessions ?? []) as unknown as LiveSession[];
+
+      // Batch-fetch hosts
+      const hostIds = [...new Set(rows.map(r => r.host_id).filter(Boolean))];
+      let hostsMap: Record<string, { full_name: string; role: string }> = {};
+      if (hostIds.length > 0) {
+        const { data: hosts } = await supabase
+          .from('portal_users').select('id, full_name, role').in('id', hostIds);
+        if (hosts) hosts.forEach(h => { hostsMap[h.id] = { full_name: h.full_name, role: h.role }; });
+      }
+
+      setSessions(rows.map(r => ({ ...r, host: hostsMap[r.host_id] ?? undefined })));
+
+      if (isAdmin) {
+        const { data: sc } = await supabase.from('schools').select('id, name').order('name');
+        setSchools(sc ?? []);
+      }
+      const { data: progs } = await supabase.from('programs').select('id, name').order('name');
+      setPrograms(progs ?? []);
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
+  }, [profile?.id, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Realtime subscription ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    loadData();
+
+    const db = createClient();
+    const sub = db
+      .channel('live_sessions_rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_sessions' }, payload => {
+        if (payload.eventType === 'UPDATE') {
+          setSessions(prev => prev.map(s => s.id === payload.new.id ? { ...s, ...payload.new } : s));
+        } else if (payload.eventType === 'INSERT') {
+          loadData(); // need host/program joins
+        } else if (payload.eventType === 'DELETE') {
+          setSessions(prev => prev.filter(s => s.id !== (payload.old as any).id));
+        }
+      })
+      .subscribe();
+
+    return () => { db.removeChannel(sub); };
+  }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Filtered list ───────────────────────────────────────────────────────────
+  const filtered = sessions.filter(s => {
+    if (filter === 'upcoming') return s.status === 'scheduled' || s.status === 'live';
+    if (filter === 'past')     return s.status === 'completed' || s.status === 'cancelled';
+    return true;
+  });
+
+  // ── CRUD handlers ───────────────────────────────────────────────────────────
+  function openCreate() {
+    setEditingSession(null); setModalForm(blankForm()); setModalError(null); setShowModal(true);
+  }
+
+  function openEdit(s: LiveSession) {
+    const d = new Date(s.scheduled_at);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setEditingSession(s);
+    setModalForm({
+      title: s.title, description: s.description ?? '', platform: s.platform,
+      session_url: s.session_url ?? '',
+      scheduled_date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+      scheduled_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      duration_minutes: s.duration_minutes, school_id: s.school_id ?? '',
+      program_id: s.program_id ?? '', status: s.status,
+      recording_url: s.recording_url ?? '', notes: s.notes ?? '',
+    });
+    setModalError(null); setShowModal(true);
+  }
+
+  async function handleSave(form: SessionForm) {
+    if (!profile) return;
+    setSaving(true); setModalError(null);
+    try {
+      const scheduled_at = new Date(`${form.scheduled_date}T${form.scheduled_time}`).toISOString();
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        platform: form.platform,
+        // Auto-generate Jitsi URL if platform is jitsi and no URL set
+        session_url: form.session_url.trim() || null,
+        scheduled_at,
+        duration_minutes: Number(form.duration_minutes),
+        school_id: form.school_id || null,
+        program_id: form.program_id || null,
+        status: form.status,
+        recording_url: form.recording_url.trim() || null,
+        notes: form.notes.trim() || null,
+      };
+
+      const url = editingSession
+        ? `/api/live-sessions/${editingSession.id}`
+        : '/api/live-sessions';
+      const method = editingSession ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
+      setShowModal(false);
+      await loadData();
+    } catch (err: any) {
+      setModalError(err?.message ?? 'Failed to save session');
+    } finally { setSaving(false); }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this live session? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/live-sessions/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
+      // Realtime will handle removal from state
+    } catch (err: any) { alert(err?.message ?? 'Failed to delete session'); }
+  }
+
+  async function handleJoin(id: string, url: string) {
+    // Record attendance silently
+    try { await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' }); } catch { /* silent */ }
+
+    if (isJitsiUrl(url)) {
+      const session = sessions.find(s => s.id === id) ?? null;
+      setJitsiSession(session);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  // ── Loading state ───────────────────────────────────────────────────────────
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-orange-600 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  const liveSessions    = sessions.filter(s => s.status === 'live');
+  const upcomingCount   = sessions.filter(s => s.status === 'scheduled' || s.status === 'live').length;
+  const pastCount       = sessions.filter(s => s.status === 'completed' || s.status === 'cancelled').length;
+
+  const TABS: { key: FilterTab; label: string; count: number }[] = [
+    { key: 'upcoming', label: 'Upcoming', count: upcomingCount },
+    { key: 'past',     label: 'Archive',  count: pastCount },
+    { key: 'all',      label: 'All',      count: sessions.length },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-orange-600/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* ── Header ── */}
+        <div className="relative bg-card/10 border border-white/10 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-orange-600/15 transition-all duration-1000" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
+
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="px-4 py-1.5 bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
+                <SignalIcon className="w-3 h-3" /> Sector: Broadcast Uplink
+              </div>
+              {liveSessions.length > 0 && (
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                  </span>
+                  <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest">
+                    {liveSessions.length} Channel{liveSessions.length !== 1 ? 's' : ''} Open
+                  </span>
+                </div>
+              )}
+            </div>
+            <div>
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase">
+                Virtual<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500">Hall.</span>
+                <span className="text-white/10 ml-4 not-italic font-black opacity-20 hidden md:inline">01</span>
+              </h1>
+              <p className="text-sm text-white/40 font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-orange-600/30 pl-6">
+                {canManage
+                  ? 'Manage broadcasts, track attendance, and engage students with live polls and breakout rooms.'
+                  : 'Welcome to the broadcast lobby. Join your scheduled classes and engage in interactive sessions.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-6 sm:items-end">
+            <div className="flex items-center gap-3">
+              {[
+                { label: 'Active', value: liveSessions.length, color: 'emerald' },
+                { label: 'Total',  value: sessions.length,     color: 'white' },
+              ].map(stat => (
+                <div key={stat.label} className="bg-white/[0.03] border border-white/10 p-5 min-w-[100px] text-center backdrop-blur-md">
+                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-400' : 'text-white'}`}>{stat.value}</p>
+                  <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-1">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+            {canManage && (
+              <button
+                onClick={openCreate}
+                className="group/btn flex items-center gap-4 px-10 py-5 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-orange-600/30 relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                <PlusIcon className="w-4 h-4 relative z-10" />
+                <span className="relative z-10">Broadcast New Session</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Error ── */}
+        {error && (
+          <div className="px-6 py-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest">
+            {error}
+          </div>
+        )}
+
+        {/* ── Live Banner ── */}
+        {filter !== 'past' && liveSessions.length > 0 && (
+          <div className="flex items-center gap-6 px-8 py-5 bg-emerald-500/5 border border-emerald-500/20">
+            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <SignalIcon className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">Broadcast Active</p>
+              <p className="text-[9px] font-bold text-emerald-500/50 uppercase tracking-[0.2em] mt-0.5">
+                {liveSessions.length} live session{liveSessions.length !== 1 ? 's' : ''} in progress — join now
+              </p>
+            </div>
+            <ArrowRightIcon className="w-4 h-4 text-emerald-400 ml-auto" />
+          </div>
+        )}
+
+        {/* ── Filter Tabs ── */}
+        <div className="flex items-center gap-1 bg-white/[0.02] border border-white/5 p-1.5 w-fit">
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setFilter(t.key)}
+              className={`flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
+                filter === t.key
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+                  : 'text-white/30 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span className={`text-[8px] font-black px-2 py-0.5 ${filter === t.key ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30'}`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Session Grid ── */}
+        {filtered.length === 0 ? (
+          <EmptyState tab={filter} canManage={canManage} onAdd={openCreate} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <AnimatePresence>
+              {filtered.map(s => (
+                <SessionCard
+                  key={s.id}
+                  session={s}
+                  canManage={canManage && (isAdmin || s.host_id === profile?.id)}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onJoin={handleJoin}
+                  onPolls={setPollsSession}
+                  onRooms={setRoomsSession}
+                  onRecording={setRecordingSession}
+                  onAttendance={setAttendanceSession}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+
+      {/* ── Modals ── */}
+      {showModal && (
+        <SessionModal
+          initial={modalForm}
+          isEdit={!!editingSession}
+          schools={schools}
+          programs={programs}
+          isAdmin={isAdmin}
+          saving={saving}
+          error={modalError}
+          onClose={() => setShowModal(false)}
+          onSave={handleSave}
+        />
+      )}
+      {pollsSession && (
+        <PollsModal
+          session={pollsSession}
+          canManage={canManage && (isAdmin || pollsSession.host_id === profile?.id)}
+          userId={profile?.id ?? ''}
+          onClose={() => setPollsSession(null)}
+        />
+      )}
+      {roomsSession && (
+        <RoomsModal
+          session={roomsSession}
+          canManage={canManage && (isAdmin || roomsSession.host_id === profile?.id)}
+          onClose={() => setRoomsSession(null)}
+        />
+      )}
+      {attendanceSession && (
+        <AttendanceModal
+          session={attendanceSession}
+          onClose={() => setAttendanceSession(null)}
+        />
+      )}
+      {recordingSession && recordingSession.recording_url && (
+        <RecordingModal
+          session={recordingSession}
+          onClose={() => setRecordingSession(null)}
+        />
+      )}
+      {jitsiSession && (
+        <JitsiModal
+          session={jitsiSession}
+          userId={profile?.id ?? ''}
+          displayName={profile?.full_name ?? 'Student'}
+          onClose={() => setJitsiSession(null)}
+        />
+      )}
+    </div>
+  );
+}
