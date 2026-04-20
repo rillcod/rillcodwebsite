@@ -2098,11 +2098,13 @@ export default function LessonDetailPage() {
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
   const [courseAssignments, setCourseAssignments] = useState<any[]>([]);
   const [programQuizzes, setProgramQuizzes] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'tasks' | 'plan'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'tasks'>('content');
+  const [addingResource, setAddingResource] = useState(false);
+  const [newResource, setNewResource] = useState({ title: '', file_url: '', file_type: 'link' });
+  const [savingResource, setSavingResource] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [completed, setCompleted] = useState(false);
@@ -2171,6 +2173,33 @@ export default function LessonDetailPage() {
     }
   };
 
+  const handleAddResource = async () => {
+    if (!newResource.title.trim() || !newResource.file_url.trim()) return;
+    setSavingResource(true);
+    try {
+      const res = await fetch(`/api/lessons/${id}/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newResource),
+      });
+      if (!res.ok) throw new Error('Failed to add resource');
+      const { data } = await res.json();
+      setMaterials(prev => [...prev, data]);
+      setNewResource({ title: '', file_url: '', file_type: 'link' });
+      setAddingResource(false);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSavingResource(false);
+    }
+  };
+
+  const handleDeleteResource = async (mid: string) => {
+    if (!confirm('Remove this resource?')) return;
+    await fetch(`/api/lessons/${id}/materials/${mid}`, { method: 'DELETE' });
+    setMaterials(prev => prev.filter(m => m.id !== mid));
+  };
+
   useEffect(() => {
     const mainEl = document.querySelector('main');
     if (!mainEl) return;
@@ -2218,11 +2247,8 @@ export default function LessonDetailPage() {
       const lessonObj = lessonData as any;
       setLesson(lessonObj);
 
-      const [plansRes, materialsRes] = await Promise.all([
-        db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
-        db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true }),
-      ]);
-      setPlans(plansRes.data);
+      const materialsRes = await db
+        .from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true });
       setMaterials(materialsRes.data ?? []);
 
       if (lessonObj.course_id) {
@@ -2467,6 +2493,14 @@ export default function LessonDetailPage() {
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
                   <BoltIcon className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                 </button>
+                {lesson.metadata?.lesson_plan_id && isStaff && (
+                  <Link
+                    href={`/dashboard/lesson-plans/${lesson.metadata.lesson_plan_id}`}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-black text-violet-400 hover:bg-violet-500/20 transition-all uppercase tracking-widest"
+                  >
+                    <AcademicCapIcon className="w-3.5 h-3.5" /> View Plan
+                  </Link>
+                )}
                 <div className={`px-6 py-2 rounded-full text-[10px] sm:text-[11px] font-black border uppercase tracking-[0.3em] shadow-3xl ${TYPE_COLOR[lesson.lesson_type] || 'bg-muted text-foreground border-border'}`}>
                   {lesson.lesson_type}
                 </div>
@@ -2501,7 +2535,6 @@ export default function LessonDetailPage() {
                 <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={BookOpenIcon} label="Lesson" />
                 <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
                 <TabBtn active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ClipboardDocumentListIcon} label="Assignments" count={courseAssignments.length + programQuizzes.length} />
-                <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={AcademicCapIcon} label="Lesson Plan" />
               </div>
             </div>
 
@@ -2699,32 +2732,113 @@ export default function LessonDetailPage() {
               )}
 
               {activeTab === 'materials' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
-                  {materials.map((m: any) => (
-                    <a key={m.id} href={m.file_url} target="_blank"
-                      className="group p-8 sm:p-10 bg-background border border-border rounded-none flex flex-col gap-10 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all shadow-2xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="p-5 bg-cyan-500/10 rounded-none text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
-                          <PaperClipIcon className="w-8 h-8" />
+                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Staff: add resource */}
+                  {isStaff && (
+                    <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
+                      {addingResource ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-card-foreground/60 uppercase tracking-widest">Add Resource</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              placeholder="Title"
+                              value={newResource.title}
+                              onChange={e => setNewResource(r => ({ ...r, title: e.target.value }))}
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                            />
+                            <input
+                              type="url"
+                              placeholder="URL (video, PDF, doc, link…)"
+                              value={newResource.file_url}
+                              onChange={e => setNewResource(r => ({ ...r, file_url: e.target.value }))}
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                            />
+                            <select
+                              value={newResource.file_type}
+                              onChange={e => setNewResource(r => ({ ...r, file_type: e.target.value }))}
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                            >
+                              <option value="link">Link</option>
+                              <option value="video">Video</option>
+                              <option value="pdf">PDF</option>
+                              <option value="doc">Document</option>
+                              <option value="image">Image</option>
+                              <option value="audio">Audio</option>
+                            </select>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleAddResource}
+                              disabled={savingResource || !newResource.title.trim() || !newResource.file_url.trim()}
+                              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
+                            >
+                              {savingResource ? 'Adding…' : 'Add Resource'}
+                            </button>
+                            <button onClick={() => { setAddingResource(false); setNewResource({ title: '', file_url: '', file_type: 'link' }); }}
+                              className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-card-foreground/60 text-xs font-bold rounded-xl transition-all">
+                              Cancel
+                            </button>
+                          </div>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-cyan-400 group-hover:border-cyan-500/40 group-hover:scale-110 transition-all shadow-xl">
-                          <ArrowDownTrayIcon className="w-5 h-5" />
-                        </div>
-                      </div>
-                      <div className="space-y-3 relative z-10">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.file_type || 'Resource'}</p>
-                        <h4 className="font-black text-2xl text-foreground group-hover:text-cyan-400 transition-colors leading-tight tracking-tight">{m.title}</h4>
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2">{m.file_size ? `${(m.file_size / 1024 / 1024).toFixed(2)} MB` : 'Cloud Link'}</p>
-                      </div>
-                    </a>
-                  ))}
-                  {materials.length === 0 && (
-                    <div className="col-span-full py-40 text-center bg-background border border-dashed border-border rounded-none shadow-2xl">
-                      <PaperClipIcon className="w-16 h-16 mx-auto text-foreground/10 mb-6 opacity-20" />
-                      <p className="text-xl font-black text-muted-foreground uppercase tracking-widest">No shared resources</p>
+                      ) : (
+                        <button
+                          onClick={() => setAddingResource(true)}
+                          className="flex items-center gap-2 text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors"
+                        >
+                          <PlusIcon className="w-4 h-4" /> Add Resource (video, PDF, link…)
+                        </button>
+                      )}
                     </div>
                   )}
+
+                  {/* Resource list */}
+                  {materials.length === 0 ? (
+                    <div className="py-20 text-center bg-card border border-dashed border-white/[0.08] rounded-2xl">
+                      <PaperClipIcon className="w-10 h-10 mx-auto text-card-foreground/20 mb-3" />
+                      <p className="text-sm font-bold text-card-foreground/40">No resources linked to this lesson yet.</p>
+                      {isStaff && <p className="text-xs text-card-foreground/30 mt-1">Use "Add Resource" above to attach videos, PDFs or links.</p>}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {materials.map((m: any) => {
+                        const isVideo = m.file_type === 'video';
+                        const isPdf = m.file_type === 'pdf';
+                        const iconColor = isVideo ? 'bg-red-500/10 text-red-400' : isPdf ? 'bg-rose-500/10 text-rose-400' : 'bg-cyan-500/10 text-cyan-400';
+                        const Icon = isVideo ? VideoCameraIcon : isPdf ? DocumentIcon : PaperClipIcon;
+                        return (
+                          <div key={m.id} className="group bg-card border border-white/[0.08] rounded-2xl p-5 flex items-center gap-4 hover:border-cyan-500/20 transition-all">
+                            <div className={`p-3 rounded-xl flex-shrink-0 ${iconColor}`}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-card-foreground/40">{m.file_type || 'Resource'}</p>
+                              <p className="text-sm font-bold text-card-foreground truncate">{m.title}</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <a href={m.file_url} target="_blank" rel="noopener noreferrer"
+                                className="p-2 hover:bg-cyan-500/10 text-card-foreground/40 hover:text-cyan-400 rounded-lg transition-all">
+                                <ArrowDownTrayIcon className="w-4 h-4" />
+                              </a>
+                              {isStaff && (
+                                <button onClick={() => handleDeleteResource(m.id)}
+                                  className="p-2 hover:bg-rose-500/10 text-card-foreground/20 hover:text-rose-400 rounded-lg transition-all">
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Library link */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <Link href="/dashboard/library" className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors">
+                      Browse Content Library →
+                    </Link>
+                  </div>
                 </div>
               )}
 
@@ -2820,152 +2934,6 @@ export default function LessonDetailPage() {
                   </div>
                 </div>
               )}
-
-              {activeTab === 'plan' && (
-                <div className="max-w-4xl mx-auto space-y-12 sm:space-y-24 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                  {/* If it's a full course plan (structured) */}
-                  {plans?.plan_data && Object.keys(plans.plan_data).length > 0 ? (
-                    <div className="space-y-20">
-                      <div className="bg-background/40 backdrop-blur-xl border border-border rounded-none p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/5 blur-[120px] -mr-48 -mt-48 group-hover:bg-cyan-600/10 transition-all duration-1000" />
-                        <div className="relative z-10 space-y-8">
-                          <div className="flex items-center gap-4">
-                            <div className="px-4 py-1.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-widest">Overview</div>
-                            <div className="h-px flex-1 bg-card shadow-sm" />
-                          </div>
-                          <h2 className="text-3xl sm:text-5xl font-black text-foreground leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
-                          <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
-                          <div className="flex flex-wrap gap-6 pt-6">
-                            <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Grade Level</p>
-                              <p className="text-lg font-black text-foreground">{plans.plan_data.grade_level}</p>
-                            </div>
-                            <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Duration</p>
-                              <p className="text-lg font-black text-foreground">{plans.plan_data.duration}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-12">
-                        <div className="flex items-center gap-6">
-                          <h3 className="text-xl font-bold text-foreground uppercase tracking-widest">Weekly Breakdown</h3>
-                          <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-8 relative pb-20">
-                          <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-card shadow-sm" />
-                          {plans.plan_data.weeks?.map((week: any, wIdx: number) => (
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              whileInView={{ opacity: 1, x: 0 }}
-                              transition={{ delay: wIdx * 0.1 }}
-                              key={wIdx}
-                              className="relative pl-20 sm:pl-32 group"
-                            >
-                              <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-muted group-hover:bg-cyan-500/50 transition-colors" />
-                              <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-none border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-foreground shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-background border-border text-muted-foreground'}`}>
-                                {week.week}
-                              </div>
-                              <div className="bg-card shadow-sm border border-border rounded-none p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
-                                <div className="space-y-6">
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Theme</p>
-                                    <h4 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
-                                    <div className="space-y-4">
-                                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Core Topics</p>
-                                      <div className="space-y-2">
-                                        {week.topics?.map((t: string, ti: number) => (
-                                          <div key={ti} className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500/40" /> {t}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Activities</p>
-                                      <div className="space-y-2">
-                                        {week.activities?.map((a: string, ai: number) => (
-                                          <div key={ai} className="flex items-center gap-3 text-sm text-muted-foreground font-medium italic">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500/40" /> {a}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-32">
-                        <div className="bg-card shadow-sm border border-border rounded-none p-10 sm:p-16 space-y-6">
-                          <h5 className="text-[11px] font-bold text-orange-400 uppercase tracking-widest">Assessment Strategy</h5>
-                          <p className="text-lg sm:text-2xl text-muted-foreground font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
-                        </div>
-                        <div className="bg-card shadow-sm border border-border rounded-none p-10 sm:p-16 space-y-6">
-                          <h5 className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Materials</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {plans.plan_data.materials?.map((m: string, mi: number) => (
-                              <span key={mi} className="px-5 py-2.5 bg-card shadow-sm rounded-none text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest border border-border">{m}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-12 sm:space-y-16">
-                      {plans?.objectives && (
-                        <div className="relative">
-                          <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-600 to-cyan-400 to-transparent rounded-full opacity-40"></div>
-                          <PlanBlock title="Target Learning Outcomes" content={plans.objectives} />
-                        </div>
-                      )}
-                      <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Learning Goals" content={
-                          plans?.objectives ||
-                          (lesson.objectives?.length ? lesson.objectives.join('\n\n') : null) ||
-                          lesson.description
-                        } />
-                      </div>
-                      <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Activities" content={
-                          plans?.activities ||
-                          (lesson.content_layout || [])
-                            .filter((b: any) => b.type === 'activity')
-                            .map((b: any) => [
-                              b.title ? `◆ ${b.title}` : null,
-                              b.instructions || null,
-                              b.steps?.length ? b.steps.map((s: string, si: number) => `  ${si + 1}. ${s}`).join('\n') : null
-                            ].filter(Boolean).join('\n'))
-                            .join('\n\n') ||
-                          lesson.objectives?.join('\n\n')
-                        } />
-                      </div>
-                      <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Assessment Strategy" content={
-                          plans?.assessment_methods ||
-                          (lesson.content_layout || [])
-                            .filter((b: any) => b.type === 'quiz' || b.type === 'assignment-block')
-                            .map((b: any) => b.type === 'quiz'
-                              ? `◈ Quiz: ${b.question}${b.options?.length ? '\n   Options: ' + b.options.join(' | ') : ''}`
-                              : `◆ ${b.title || 'Assignment'}\n   ${b.instructions || ''}\n${b.deliverables?.length ? '   Deliverables: ' + b.deliverables.join(', ') : ''}`
-                            )
-                            .join('\n\n')
-                        } />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -2995,16 +2963,4 @@ const LayoutIcon = ({ className }: any) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
 );
 
-const PlanBlock = ({ title, content }: any) => (
-  <div className="space-y-8 sm:space-y-10 group">
-    <div className="flex items-center gap-4">
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
-      <h4 className="text-[10px] sm:text-[11px] font-black uppercase text-cyan-400/60 tracking-[0.4em] sm:tracking-[0.5em]">{title}</h4>
-      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
-    </div>
-    <div className="relative p-10 sm:p-14 bg-card shadow-sm border border-border rounded-none sm:rounded-none shadow-2xl overflow-hidden group-hover:border-cyan-500/20 transition-all">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
-      <p className="text-xl sm:text-3xl text-muted-foreground leading-relaxed sm:leading-[1.8] font-medium italic whitespace-pre-wrap relative z-10">{content || 'Curriculum details for this module are still being finalized. Check back soon.'}</p>
-    </div>
-  </div>
 );

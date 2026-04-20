@@ -29,10 +29,17 @@ export async function GET(req: NextRequest) {
   const filterSchoolId = url.searchParams.get('school_id');
 
   // Fetch curricula with course and program info
-  const { data: curricula, error: currErr } = await admin
+  let currQuery = admin
     .from('course_curricula')
-    .select('id, course_id, school_id, version, content, created_at, updated_at, courses(id, title, programs(id, name))')
+    .select('id, course_id, school_id, version, content, is_visible_to_school, created_at, updated_at, courses(id, title, programs(id, name))')
     .order('created_at', { ascending: false });
+
+  // School role: only see curricula the teacher has made visible
+  if (profile.role === 'school') {
+    currQuery = currQuery.eq('is_visible_to_school', true);
+  }
+
+  const { data: curricula, error: currErr } = await currQuery;
 
   if (currErr) return NextResponse.json({ error: currErr.message }, { status: 500 });
 
@@ -131,6 +138,7 @@ export async function GET(req: NextRequest) {
       version: curr.version,
       total_weeks: totalWeeks,
       term_count: terms.length,
+      is_visible_to_school: curr.is_visible_to_school ?? true,
       per_school: perSchool,
     };
   });

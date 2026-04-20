@@ -1792,6 +1792,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          is_visible_to_school: boolean
           school_id: string | null
           updated_at: string
           version: number
@@ -1802,6 +1803,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          is_visible_to_school?: boolean
           school_id?: string | null
           updated_at?: string
           version?: number
@@ -1812,6 +1814,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          is_visible_to_school?: boolean
           school_id?: string | null
           updated_at?: string
           version?: number
@@ -3038,7 +3041,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           lesson_id: string | null
-          school_id: string
+          school_id: string | null
           tags: string[] | null
           title: string
           updated_at: string | null
@@ -3051,7 +3054,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
-          school_id: string
+          school_id?: string | null
           tags?: string[] | null
           title: string
           updated_at?: string | null
@@ -3064,7 +3067,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
-          school_id?: string
+          school_id?: string | null
           tags?: string[] | null
           title?: string
           updated_at?: string | null
@@ -4271,6 +4274,13 @@ export type Database = {
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
           },
+          {
+            foreignKeyName: "live_session_attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       live_session_breakout_participants: {
@@ -4367,6 +4377,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "live_session_breakout_rooms_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -4512,6 +4529,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "live_session_polls_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
           },
         ]
       }

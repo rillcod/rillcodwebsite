@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import {
   ChartBarIcon, BookOpenIcon, BuildingOfficeIcon, CheckCircleIcon,
-  ClockIcon, ExclamationTriangleIcon, ArrowPathIcon, DocumentTextIcon,
+  ExclamationTriangleIcon, ArrowPathIcon,
   AcademicCapIcon, SparklesIcon, ChevronDownIcon, ChevronRightIcon,
-  CalendarDaysIcon, UserGroupIcon, PresentationChartLineIcon,
+  PresentationChartLineIcon, EyeIcon, EyeSlashIcon,
 } from '@/lib/icons';
 
 // ── Nigerian Term Calendar ────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ interface SchoolProgress {
 interface CurriculumProgress {
   curriculum_id: string; course_id: string; course_title: string; program_name: string;
   version: number; total_weeks: number; term_count: number;
+  is_visible_to_school: boolean;
   per_school: SchoolProgress[];
 }
 
@@ -61,7 +62,7 @@ function relativeTime(iso: string | null) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumProgressPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [data, setData]         = useState<CurriculumProgress[]>([]);
   const [schools, setSchools]   = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -70,10 +71,13 @@ export default function CurriculumProgressPage() {
   const [filterTerm, setFilterTerm]     = useState('');
   const [fetchError, setFetchError]     = useState('');
   const [retryKey, setRetryKey]         = useState(0);
+  const [togglingId, setTogglingId]     = useState<string | null>(null);
 
-  const isSchool = profile?.role === 'school';
+  const isSchool    = profile?.role === 'school';
+  const canToggle   = profile?.role === 'admin' || profile?.role === 'teacher';
 
   useEffect(() => {
+    if (authLoading || !profile) return;
     setLoading(true);
     setFetchError('');
     const qs = filterSchool ? `?school_id=${filterSchool}` : '';
@@ -85,7 +89,7 @@ export default function CurriculumProgressPage() {
       })
       .catch(() => setFetchError('Failed to load progress data — please refresh.'))
       .finally(() => setLoading(false));
-  }, [filterSchool, retryKey]);
+  }, [filterSchool, retryKey, profile?.id, authLoading]);
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -95,11 +99,29 @@ export default function CurriculumProgressPage() {
     });
   }
 
+  async function toggleVisibility(currId: string, current: boolean) {
+    setTogglingId(currId);
+    try {
+      const res = await fetch(`/api/curricula/${currId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_visible_to_school: !current }),
+      });
+      if (res.ok) {
+        setData(prev => prev.map(c =>
+          c.curriculum_id === currId ? { ...c, is_visible_to_school: !current } : c
+        ));
+      }
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   // Summary stats
-  const totalCurricula  = data.length;
-  const totalCompleted  = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + (s.pct === 100 ? 1 : 0), 0), 0);
-  const totalWeeksDelivered = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.completed, 0), 0);
-  const upcomingCount   = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.upcoming_assessments.length, 0), 0);
+  const totalCurricula       = data.length;
+  const totalCompleted       = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + (s.pct === 100 ? 1 : 0), 0), 0);
+  const totalWeeksDelivered  = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.completed, 0), 0);
+  const upcomingCount        = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.upcoming_assessments.length, 0), 0);
 
   const filteredData = data.filter(c =>
     !filterTerm || c.per_school.some(s =>
@@ -107,11 +129,24 @@ export default function CurriculumProgressPage() {
     )
   );
 
+  if (authLoading || !profile) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const isStaff = ['admin', 'teacher', 'school'].includes(profile.role ?? '');
+  if (!isStaff) return (
+    <div className="flex items-center justify-center min-h-screen text-muted-foreground text-sm">
+      Staff access required.
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── Course Syllabus Tab Bar ── */}
+        {/* ── Tab Bar ── */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
           <Link href="/dashboard/curriculum"
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -127,10 +162,18 @@ export default function CurriculumProgressPage() {
           <div>
             <h1 className="text-2xl font-black">Curriculum Delivery Progress</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {isSchool ? 'Your school\'s curriculum delivery status' : 'Live delivery tracking across all partner schools'}
+              {isSchool ? "Your school's curriculum delivery status" : 'Live delivery tracking across all partner schools'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {canToggle && (
+              <Link
+                href="/dashboard/progression"
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition-colors"
+              >
+                <AcademicCapIcon className="w-4 h-4" /> Term Progression
+              </Link>
+            )}
             <Link
               href="/dashboard/curriculum"
               className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold transition-colors"
@@ -139,6 +182,17 @@ export default function CurriculumProgressPage() {
             </Link>
           </div>
         </div>
+
+        {/* School visibility info banner for school role */}
+        {isSchool && (
+          <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl text-sm">
+            <EyeIcon className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <p className="text-blue-300">
+              You can see delivery progress for curricula your teachers have shared with you.
+              Contact your assigned teacher to request access to hidden curricula.
+            </p>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -172,7 +226,7 @@ export default function CurriculumProgressPage() {
             <select
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="select-premium px-3 py-2 text-sm focus:border-orange-500"
+              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
             >
               <option value="">All Schools</option>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -180,7 +234,7 @@ export default function CurriculumProgressPage() {
             <select
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
-              className="select-premium px-3 py-2 text-sm focus:border-orange-500"
+              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
             >
               <option value="">All Terms</option>
               <option value="1">First Term</option>
@@ -204,18 +258,18 @@ export default function CurriculumProgressPage() {
             <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : fetchError ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-rose-500/20">
+          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-rose-500/20 rounded-xl">
             <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
             <p className="text-rose-400 font-bold text-sm">{fetchError}</p>
             <button
               onClick={() => setRetryKey(k => k + 1)}
-              className="text-xs px-4 py-2 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors font-bold"
+              className="text-xs px-4 py-2 border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors font-bold rounded-lg"
             >
               Retry
             </button>
           </div>
         ) : filteredData.length === 0 ? (
-          <div className="text-center py-16 bg-card border border-border">
+          <div className="text-center py-16 bg-card border border-border rounded-xl">
             <SparklesIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">No curricula found. Generate one from the Curriculum page.</p>
           </div>
@@ -228,37 +282,66 @@ export default function CurriculumProgressPage() {
                 : 0;
 
               return (
-                <div key={curr.curriculum_id} className="bg-card border border-border overflow-hidden">
+                <div key={curr.curriculum_id} className="bg-card border border-border overflow-hidden rounded-xl">
                   {/* Course header */}
-                  <button
-                    onClick={() => toggleExpand(curr.curriculum_id)}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors text-left"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{curr.program_name}</span>
-                        <span className="text-muted-foreground/30">›</span>
-                        <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">v{curr.version}</span>
+                  <div className="flex items-center gap-2 p-4">
+                    <button
+                      onClick={() => toggleExpand(curr.curriculum_id)}
+                      className="flex-1 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left rounded-lg min-w-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{curr.program_name}</span>
+                          <span className="text-muted-foreground/30">›</span>
+                          <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">v{curr.version}</span>
+                          {!curr.is_visible_to_school && !isSchool && (
+                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/30 uppercase tracking-wider">
+                              Hidden from schools
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-black text-base truncate">{curr.course_title}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {curr.term_count} terms · {curr.total_weeks} weeks · {curr.per_school.filter(s => s.school_id).length} school(s) tracking
+                        </p>
                       </div>
-                      <h3 className="font-black text-base truncate">{curr.course_title}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {curr.term_count} terms · {curr.total_weeks} weeks · {curr.per_school.filter(s => s.school_id).length} school(s) tracking
-                      </p>
-                    </div>
 
-                    {/* Overall progress bar */}
-                    <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0 w-32">
-                      <span className="text-xs font-black text-foreground">{avgPct}% avg</span>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${pctColor(avgPct)}`} style={{ width: `${avgPct}%` }} />
+                      {/* Overall progress bar */}
+                      <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0 w-32">
+                        <span className="text-xs font-black text-foreground">{avgPct}% avg</span>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${pctColor(avgPct)}`} style={{ width: `${avgPct}%` }} />
+                        </div>
                       </div>
-                    </div>
 
-                    {isExpanded
-                      ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                      : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                    }
-                  </button>
+                      {isExpanded
+                        ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                        : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                      }
+                    </button>
+
+                    {/* Visibility toggle — teachers/admins only */}
+                    {canToggle && (
+                      <button
+                        onClick={() => toggleVisibility(curr.curriculum_id, curr.is_visible_to_school)}
+                        disabled={togglingId === curr.curriculum_id}
+                        title={curr.is_visible_to_school ? 'Hide from schools' : 'Show to schools'}
+                        className={`p-2 rounded-lg border transition-all shrink-0 ${
+                          curr.is_visible_to_school
+                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                            : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'
+                        } disabled:opacity-40`}
+                      >
+                        {togglingId === curr.curriculum_id ? (
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        ) : curr.is_visible_to_school ? (
+                          <EyeIcon className="w-4 h-4" />
+                        ) : (
+                          <EyeSlashIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
 
                   {/* Expanded: per-school rows */}
                   {isExpanded && (
@@ -329,9 +412,9 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
           {/* Term breakdown */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[...school.term_progress].sort((a, b) => a.term - b.term).map(term => {
-              const { label, months, color } = TERM_LABELS[term.term] ?? { label: `Term ${term.term}`, months: '', color: 'text-muted-foreground' };
+              const { label, months, color } = TERM_LABELS[term.term] ?? { label: `Term ${term.term}`, months: '', color: 'text-muted-foreground bg-muted border-border' };
               return (
-                <div key={term.term} className="bg-background border border-border p-3 space-y-2">
+                <div key={term.term} className="bg-background border border-border p-3 space-y-2 rounded-lg">
                   <div className="flex items-center justify-between">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${color.split(' ')[0]}`}>{label}</span>
                     <span className="text-[10px] text-muted-foreground">{months}</span>
@@ -367,11 +450,11 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
             <div className="space-y-1">
               <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Upcoming</p>
               {school.upcoming_assessments.map((ev, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs bg-amber-500/5 border border-amber-500/20 px-3 py-2">
+                <div key={i} className="flex items-center gap-2 text-xs bg-amber-500/5 border border-amber-500/20 px-3 py-2 rounded-lg">
                   <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   <span className="text-foreground font-bold">{ev.topic}</span>
                   <span className="text-muted-foreground">— {TERM_LABELS[ev.term]?.label}, Week {ev.week}</span>
-                  <span className={`ml-auto text-[9px] px-1.5 py-0.5 ${ev.type === 'examination' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'} font-black uppercase tracking-wider`}>
+                  <span className={`ml-auto text-[9px] px-1.5 py-0.5 ${ev.type === 'examination' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'} font-black uppercase tracking-wider rounded`}>
                     {ev.type}
                   </span>
                 </div>
@@ -379,7 +462,7 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
             </div>
           )}
 
-          {/* Completion badges */}
+          {/* Skipped weeks */}
           {school.skipped > 0 && (
             <p className="text-[10px] text-zinc-500 font-bold">{school.skipped} week(s) skipped</p>
           )}

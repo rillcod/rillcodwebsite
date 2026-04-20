@@ -42,9 +42,17 @@ export async function POST(req: NextRequest) {
   const { title, lesson_id, course_id } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required', field: 'title' }, { status: 400 });
 
+  const insertPayload: Record<string, unknown> = {
+    title: title.trim(),
+    lesson_id: lesson_id || null,
+    course_id: course_id || null,
+    created_by: user.id,
+  };
+  if (profile.school_id) insertPayload.school_id = profile.school_id;
+
   const { data, error } = await (supabase as any)
     .from('flashcard_decks')
-    .insert({ title: title.trim(), lesson_id: lesson_id || null, course_id: course_id || null, created_by: user.id, school_id: profile.school_id })
+    .insert(insertPayload)
     .select()
     .single();
 
