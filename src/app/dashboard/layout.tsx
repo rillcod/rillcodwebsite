@@ -6,6 +6,7 @@ import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundar
 import SystemStatusBanners from '@/components/dashboard/SystemStatusBanners';
 import SessionExpiryWrapper from '@/components/dashboard/SessionExpiryWrapper';
 import PopupNotificationContainer from '@/components/notifications/PopupNotificationContainer';
+import LiveSessionWatcher from '@/components/dashboard/LiveSessionWatcher';
 import { Suspense } from 'react';
 import Script from 'next/script';
 
@@ -40,6 +41,7 @@ export default function DashboardLayout({
 
       {/* Global Dashboard Overlays */}
       <PopupNotificationContainer />
+      <LiveSessionWatcher />
       <CommandPalette />
 
       {/* Puter.js — free-tier AI SDK (browser only, no API key needed) */}

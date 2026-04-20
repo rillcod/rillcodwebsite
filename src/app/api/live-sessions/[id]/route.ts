@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendPushNotification, buildNotificationUrl } from '@/lib/push';
+import { notificationsService } from '@/services/notifications.service';
 
 function adminClient() {
   return createClient(
@@ -21,6 +23,52 @@ async function requireStaff() {
     .single();
   if (!profile || profile.role === 'student' || profile.role === 'school') return null;
   return profile;
+}
+
+// Notify all relevant students when a session goes live
+async function notifySessionLive(session: any) {
+  try {
+    const db = createAdminClient() as any;
+    let recipientIds: string[] = [];
+
+    if (session.program_id) {
+      const { data: enrollments } = await db
+        .from('enrollments')
+        .select('user_id')
+        .eq('program_id', session.program_id)
+        .eq('status', 'active');
+      recipientIds = (enrollments ?? []).map((e: any) => e.user_id).filter(Boolean);
+    } else if (session.school_id) {
+      const { data: users } = await db
+        .from('portal_users')
+        .select('id')
+        .eq('school_id', session.school_id)
+        .eq('role', 'student')
+        .eq('is_active', true);
+      recipientIds = (users ?? []).map((u: any) => u.id);
+    }
+
+    if (recipientIds.length === 0) return;
+
+    const url = buildNotificationUrl('live_session', session.id);
+    for (const userId of recipientIds) {
+      // In-app notification
+      await notificationsService.logNotification(
+        userId,
+        '🔴 Session is Live Now!',
+        `"${session.title}" has started. Join now.`,
+        'info',
+      );
+      // Push notification
+      await sendPushNotification(userId, {
+        title: '🔴 Session is Live Now!',
+        body: `"${session.title}" has started. Tap to join.`,
+        url,
+      });
+    }
+  } catch (e) {
+    console.error('[live-session] notifySessionLive error:', e);
+  }
 }
 
 // Auto-log a completed session to CRM interactions for the school and attendees
@@ -100,6 +148,11 @@ export async function PATCH(
   // Auto-log to CRM when a session is marked completed
   if (before?.status !== 'completed' && data?.status === 'completed') {
     autoLogCRM(data, (caller as any).full_name || 'Staff').catch(() => {});
+  }
+
+  // Push + in-app notification when session goes live
+  if (before?.status !== 'live' && data?.status === 'live') {
+    notifySessionLive(data).catch(() => {});
   }
 
   return NextResponse.json({ data });

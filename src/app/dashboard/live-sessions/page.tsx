@@ -1021,6 +1021,60 @@ function JitsiModal({ session, userId, displayName, onClose }: {
   );
 }
 
+// ─── Auto-Join Toast (external sessions) ─────────────────────────────────────
+
+function AutoJoinToast({ session, onJoin, onDismiss }: {
+  session: LiveSession; onJoin: () => void; onDismiss: () => void;
+}) {
+  const [secs, setSecs] = useState(8);
+
+  useEffect(() => {
+    if (secs <= 0) { onJoin(); return; }
+    const t = setTimeout(() => setSecs(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secs, onJoin]);
+
+  return (
+    <motion.div
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 80, opacity: 0 }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] w-full max-w-md"
+    >
+      <div className="bg-[#0a0a0a] border border-emerald-500/40 shadow-2xl shadow-emerald-900/40 p-5 flex items-center gap-4">
+        {/* Pulse dot */}
+        <div className="flex-shrink-0 w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Session is Live!</p>
+          <p className="text-xs font-bold text-white truncate mt-0.5">{session.title}</p>
+          <p className="text-[9px] text-white/30 mt-0.5">
+            Joining automatically in <span className="text-emerald-400 font-black">{secs}s</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={onJoin}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+          >
+            Join Now
+          </button>
+          <button
+            onClick={onDismiss}
+            className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/30 hover:text-white transition-all"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: boolean; onAdd: () => void }) {
@@ -1120,6 +1174,9 @@ export default function LiveSessionsPage() {
     }
   }, [profile?.id, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-join toast for external sessions ──────────────────────────────────
+  const [autoJoinToast, setAutoJoinToast] = useState<LiveSession | null>(null);
+
   // ── Realtime subscription ───────────────────────────────────────────────────
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -1130,7 +1187,35 @@ export default function LiveSessionsPage() {
       .channel('live_sessions_rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_sessions' }, payload => {
         if (payload.eventType === 'UPDATE') {
-          setSessions(prev => prev.map(s => s.id === payload.new.id ? { ...s, ...payload.new } : s));
+          const updated = payload.new as LiveSession;
+          setSessions(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+
+          // ── Auto-join when a session flips to "live" ──────────────────────
+          const wasLive = payload.old?.status === 'live';
+          const nowLive = updated.status === 'live';
+          if (!wasLive && nowLive && updated.session_url) {
+            // Record attendance silently for everyone
+            fetch(`/api/live-sessions/${updated.id}/join`, { method: 'POST' }).catch(() => {});
+
+            if (isJitsiUrl(updated.session_url)) {
+              // In-app: open Jitsi immediately for students
+              // Staff/teachers may already be hosting — only auto-open for students
+              if (profile.role === 'student') {
+                setSessions(prev => {
+                  const full = prev.find(s => s.id === updated.id);
+                  if (full) setJitsiSession({ ...full, ...updated });
+                  return prev;
+                });
+              }
+            } else {
+              // External URL: show a dismissible toast with a countdown
+              setSessions(prev => {
+                const full = prev.find(s => s.id === updated.id);
+                if (full) setAutoJoinToast({ ...full, ...updated });
+                return prev;
+              });
+            }
+          }
         } else if (payload.eventType === 'INSERT') {
           loadData(); // need host/program joins
         } else if (payload.eventType === 'DELETE') {
@@ -1432,6 +1517,20 @@ export default function LiveSessionsPage() {
           onClose={() => setJitsiSession(null)}
         />
       )}
+
+      {/* ── Auto-join toast for external sessions ── */}
+      <AnimatePresence>
+        {autoJoinToast && (
+          <AutoJoinToast
+            session={autoJoinToast}
+            onJoin={() => {
+              window.open(autoJoinToast.session_url!, '_blank', 'noopener,noreferrer');
+              setAutoJoinToast(null);
+            }}
+            onDismiss={() => setAutoJoinToast(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

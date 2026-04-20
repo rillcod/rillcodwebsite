@@ -178,7 +178,7 @@ export function buildNotificationUrl(type: NotificationType, resourceId?: string
     case 'parent_message':
       return resourceId ? `/dashboard/messages/${resourceId}` : '/dashboard/messages';
     case 'live_session':
-      return resourceId ? `/dashboard/learning?session=${resourceId}` : '/dashboard/learning';
+      return resourceId ? `/dashboard/live-sessions` : '/dashboard/live-sessions';
     default:
       return '/dashboard';
   }
