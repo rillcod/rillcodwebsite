@@ -565,6 +565,19 @@ export class LiveSessionService {
         if (error) throw new AppError(error.message, 500);
         return data;
     }
+
+    async deleteQuestion(questionId: string, userId: string, userRole: string) {
+        const supabase = await createClient();
+        let query = supabase.from('live_session_questions').delete().eq('id', questionId);
+
+        if (userRole === 'student') {
+            query = query.eq('user_id', userId);
+        }
+
+        const { error } = await query;
+        if (error) throw new AppError(error.message, 500);
+        return true;
+    }
 }
 
 export const liveSessionService = new LiveSessionService();

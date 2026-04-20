@@ -1,60 +1,51 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
+import { liveSessionService } from '@/services/live-session.service';
 import { AppError } from '@/lib/errors';
-import { createClient } from '@/lib/supabase/server';
+import { withValidation } from '@/proxies/validation.proxy';
 
-// PATCH — answer a question (staff) or upvote (anyone)
+const patchQuestionSchema = z.object({
+    action: z.enum(['upvote', 'answer']),
+    answer: z.string().optional(),
+});
+
+// PATCH — manage a question
 async function patchHandler(req: Request, ctx: ApiContext) {
     const qid = ctx.params?.qid;
     if (!qid) throw new AppError('Question ID missing', 400);
-    if (!ctx.user?.id) throw new AppError('Unauthorized', 401);
 
-    const body = await (req as any).json();
-    const supabase = await createClient();
+    const { data, errorResponse } = await withValidation(req as any, patchQuestionSchema);
+    if (errorResponse) return errorResponse;
 
-    if (body.action === 'upvote') {
-        const { data, error } = await supabase.rpc('increment_question_upvotes', { question_id: qid });
-        if (error) {
-            // Fallback: manual increment
-            const { data: q } = await supabase.from('live_session_questions').select('upvotes').eq('id', qid).single();
-            await supabase.from('live_session_questions').update({ upvotes: (q?.upvotes ?? 0) + 1 }).eq('id', qid);
-        }
-        return NextResponse.json({ success: true });
+    if (data!.action === 'upvote') {
+        await liveSessionService.upvoteQuestion(qid);
+        return NextResponse.json({ success: true, message: 'Upvoted' });
     }
 
-    if (body.action === 'answer') {
-        if (!['admin', 'teacher'].includes(ctx.user.role)) throw new AppError('Forbidden', 403);
-        const { data, error } = await supabase
-            .from('live_session_questions')
-            .update({
-                answered: true,
-                answer: body.answer?.trim() || null,
-                answered_by: ctx.user.id,
-                answered_at: new Date().toISOString(),
-            })
-            .eq('id', qid)
-            .select('*, portal_users(full_name, role)')
-            .single();
-        if (error) throw new AppError(error.message, 500);
-        return NextResponse.json({ success: true, data });
+    if (data!.action === 'answer') {
+        if (ctx.user?.role === 'student') throw new AppError('Forbidden', 403);
+        if (!ctx.user?.id) throw new AppError('Unauthorized', 401);
+        if (!data!.answer) throw new AppError('Answer body required', 400);
+
+        const question = await liveSessionService.answerQuestion(
+            qid,
+            data!.answer,
+            ctx.user.id
+        );
+        return NextResponse.json({ success: true, data: question });
     }
 
-    throw new AppError('Invalid action', 400);
+    return NextResponse.json({ success: false, message: 'Invalid action' }, { status: 400 });
 }
 
-// DELETE — remove a question (own or staff)
+// DELETE — remove a question
 async function deleteHandler(req: Request, ctx: ApiContext) {
     const qid = ctx.params?.qid;
     if (!qid) throw new AppError('Question ID missing', 400);
     if (!ctx.user?.id) throw new AppError('Unauthorized', 401);
 
-    const supabase = await createClient();
-    const { error } = await supabase
-        .from('live_session_questions')
-        .delete()
-        .eq('id', qid);
-
-    if (error) throw new AppError(error.message, 500);
+    await liveSessionService.deleteQuestion(qid, ctx.user.id, ctx.user.role);
     return NextResponse.json({ success: true });
 }
 
