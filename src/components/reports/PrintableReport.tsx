@@ -34,14 +34,17 @@ interface PrintableReportData {
 }
 
 interface OrgSettingsData {
-    logo_url?: string | null;
     org_name?: string | null;
     org_tagline?: string | null;
+    org_address?: string | null;
+    org_phone?: string | null;
+    org_email?: string | null;
+    logo_url?: string | null;
 }
 
 interface PrintableReportProps {
     report: PrintableReportData;
-    orgSettings?: OrgSettingsData;
+    orgSettings?: OrgSettingsData | null;
 }
 
 // WAEC grading scale
