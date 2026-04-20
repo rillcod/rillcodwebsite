@@ -17,6 +17,7 @@ import {
   CloudArrowUpIcon, UserPlusIcon
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import { getWAECGrade } from '@/lib/grading';
 
 
 export default function ClassDetailPage() {
@@ -103,7 +104,7 @@ export default function ClassDetailPage() {
       if (program_id) {
         const [lessonRes, asgnRes, cbtRes] = await Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
-          supabase.from('assignments').select('id, title, assignment_type, due_date, course_id, courses!inner(program_id)').eq('courses.program_id', program_id),
+          supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, courses!inner(program_id)').eq('courses.program_id', program_id),
           supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id)
         ]);
 
@@ -841,7 +842,7 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">({items.lessons.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href="/dashboard/lessons/add" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                    <Link href={`/dashboard/lessons/add?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
                       <PlusIcon className="w-3.5 h-3.5 text-orange-400" /> Add Lesson
                     </Link>
                   )}
@@ -891,7 +892,7 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href="/dashboard/assignments/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                    <Link href={`/dashboard/assignments/new?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
                       <PlusIcon className="w-3.5 h-3.5 text-blue-400" /> New Assignment
                     </Link>
                   )}
@@ -1013,9 +1014,17 @@ export default function ClassDetailPage() {
                       </button>
                     )}
                   </div>
-                  <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">
-                    View Full Gradebook →
-                  </button>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Link href="/dashboard/grading" className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap">
+                      Grading Queue →
+                    </Link>
+                    <Link href="/dashboard/reports/builder" className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors whitespace-nowrap">
+                      Build Report Cards →
+                    </Link>
+                    <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors whitespace-nowrap">
+                      Full Gradebook →
+                    </button>
+                  </div>
                 </div>
                 {items.assignments.length === 0 ? (
                   <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
@@ -1060,17 +1069,21 @@ export default function ClassDetailPage() {
                               const sub = items.submissions.find(s => s.assignment_id === a.id && (s.portal_user_id === enr.id || s.user_id === enr.id));
                               const score = sub?.grade;
                               const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
+                              const maxPts = a.max_points ?? 100;
+                              const waec = score !== null ? getWAECGrade(Math.round((score / maxPts) * 100)) : null;
                               return (
-                                <td key={a.id} className={`px-4 py-6 text-center border-l border-border transition-all relative ${manualEntry ? 'bg-emerald-500/[0.05]' : 'bg-amber-500/[0.01]'}`}>
+                                <td key={a.id} className={`px-4 py-4 text-center border-l border-border transition-all relative ${manualEntry ? 'bg-emerald-500/[0.05]' : 'bg-amber-500/[0.01]'}`}>
                                   {manualEntry ? (
                                     <div className="flex flex-col items-center gap-1">
                                       <input
                                         type="number"
+                                        min={0}
+                                        max={maxPts}
                                         defaultValue={score ?? ''}
                                         onBlur={async (e) => {
                                           const val = e.target.value;
                                           if (val !== '' && isNaN(Number(val))) return;
-                                          const numVal = val === '' ? null : Math.min(Number(val), a.max_points);
+                                          const numVal = val === '' ? null : Math.min(Number(val), maxPts);
                                           const key = `asm-${a.id}-${enr.id}`;
                                           if (numVal === score) return;
 
@@ -1080,7 +1093,7 @@ export default function ClassDetailPage() {
                                               const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ grade: numVal, status: 'graded', feedback: sub.feedback || null }),
+                                                body: JSON.stringify({ grade: numVal, status: numVal !== null ? 'graded' : sub.status, feedback: sub.feedback || null }),
                                               });
                                               if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
                                             } else {
@@ -1098,27 +1111,33 @@ export default function ClassDetailPage() {
                                             setMatrixSaving(p => ({ ...p, [key]: false }));
                                           }
                                         }}
-                                        className="w-14 h-10 bg-card shadow-sm border border-border rounded-none text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
+                                        className="w-14 h-9 bg-card shadow-sm border border-border rounded-none text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
                                       />
+                                      {waec && (
+                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
+                                      )}
                                       {matrixSaving[`asm-${a.id}-${enr.id}`] && (
                                         <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
                                       )}
                                     </div>
                                   ) : sub ? (
                                     score !== null ? (
-                                      <div className="space-y-2">
-                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
-                                          {score}
+                                      <div className="space-y-1 flex flex-col items-center">
+                                        <span className={`text-sm font-black ${waec ? waec.color : 'text-muted-foreground'}`}>
+                                          {score}<span className="text-[9px] text-muted-foreground">/{maxPts}</span>
                                         </span>
-                                        <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden mx-auto">
-                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                        {waec && (
+                                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
+                                        )}
+                                        <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden">
+                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-blue-500' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-orange-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
                                         </div>
                                       </div>
                                     ) : (
                                       <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-none border border-blue-500/10">Pending</span>
                                     )
                                   ) : (
-                                    <span className="text-[10px] text-white/5 font-black uppercase tracking-widest">—</span>
+                                    <span className="text-[10px] text-white/10 font-black uppercase tracking-widest">—</span>
                                   )}
                                 </td>
                               );
@@ -1171,9 +1190,9 @@ export default function ClassDetailPage() {
                 </div>
                 {([
                   { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
-                  { label: 'New Assignment', desc: 'Create a task', icon: ClipboardDocumentListIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', action: () => router.push('/dashboard/assignments/new') },
-                  { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push('/dashboard/lessons/add') },
-                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', action: () => router.push('/dashboard/cbt/new') },
+                  { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push(`/dashboard/lessons/add?class_id=${id}`) },
+                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}`) },
+                  { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
                 ] as const).map(btn => (
                   <button key={btn.label} onClick={btn.action}
                     className="flex items-center gap-3 w-full p-3 bg-card shadow-sm hover:bg-muted border border-border hover:border-orange-500/30 text-left transition-colors">

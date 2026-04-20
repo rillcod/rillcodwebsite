@@ -1,11 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { XMarkIcon, CheckIcon, EyeIcon, SparklesIcon } from '@/lib/icons';
-import type { CardTemplate, CreateCardRequest } from '@/types/flashcards';
-import { CARD_TEMPLATES } from './templates';
 import BuilderHeader from './BuilderHeader';
 import BuilderSidebar from './BuilderSidebar';
 import CardEditor from './CardEditor';
@@ -49,6 +46,7 @@ export default function EnhancedFlashcardBuilder({
   const searchParams = useSearchParams();
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showImportPanel, setShowImportPanel] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   useEffect(() => {
     const autoGen = searchParams.get('autoGenerate') === 'true';
@@ -60,12 +58,12 @@ export default function EnhancedFlashcardBuilder({
   const validCardCount = cards.filter(c => c.front.trim() && c.back.trim()).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-background border border-border w-full max-w-7xl h-[90vh] flex overflow-hidden rounded-lg shadow-2xl"
+        className="bg-background border border-border w-full max-w-7xl h-full sm:h-[90vh] flex flex-col overflow-hidden sm:rounded-lg shadow-2xl relative"
       >
         {/* Header */}
         <BuilderHeader
@@ -77,6 +75,7 @@ export default function EnhancedFlashcardBuilder({
           onShowImport={() => setShowImportPanel(true)}
           onSave={saveCards}
           onClose={onClose}
+          onToggleSidebar={() => setShowMobileSidebar(v => !v)}
         />
 
         {/* Notifications */}
@@ -85,17 +84,18 @@ export default function EnhancedFlashcardBuilder({
           {success && <SuccessNotification message={success} onClose={clearSuccess} />}
         </AnimatePresence>
 
-        <div className="flex w-full pt-20">
-          {/* Sidebar */}
+        <div className="flex flex-1 overflow-hidden pt-[60px]">
+          {/* Sidebar — desktop inline, mobile drawer */}
           <BuilderSidebar
             selectedTemplate={selectedTemplate}
             previewDevice={previewDevice}
             onTemplateChange={setSelectedTemplate}
             onDeviceChange={setPreviewDevice}
             onAddCard={addCard}
+            isOpen={showMobileSidebar}
+            onClose={() => setShowMobileSidebar(false)}
             onClearAll={() => {
               if (confirm('Clear all cards? This cannot be undone.')) {
-                // Reset to single empty card
                 cards.forEach((card, i) => i > 0 && removeCard(card.id));
                 updateCard(cards[0].id, 'front', '');
                 updateCard(cards[0].id, 'back', '');
@@ -112,7 +112,7 @@ export default function EnhancedFlashcardBuilder({
             onAddCard={addCard}
           />
 
-          {/* Preview Panel */}
+          {/* Preview Panel — desktop only */}
           {showPreview && (
             <CardPreview
               cards={cards.filter(c => c.front.trim() && c.back.trim())}

@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import Link from 'next/link';
 import {
   ArrowRightIcon, ArrowPathIcon, CheckCircleIcon,
   UserGroupIcon, AcademicCapIcon, ExclamationTriangleIcon,
-  SparklesIcon, ChevronDownIcon,
+  SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon,
 } from '@/lib/icons';
 import type {
-  StudentLevelEnrollment, PromotionDecision, DeliveryType,
+  StudentLevelEnrollment, PromotionDecision,
 } from '@/types/progression.types';
 
 // ── Term helpers ──────────────────────────────────────────────────────────────
@@ -127,22 +128,43 @@ export default function ProgressionPage() {
     </div>
   );
 
-  const decidedCount  = pending.filter(e => decisions[e.id]).length;
+  const decidedCount   = pending.filter(e => decisions[e.id]).length;
   const processedCount = submitted.length;
+  const decisionCounts = (['promote','repeat','complete','withdraw'] as PromotionDecision[]).map(d => ({
+    d, count: Object.values(decisions).filter(v => v === d).length,
+  })).filter(x => x.count > 0);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center shrink-0">
-          <ArrowRightIcon className="w-5 h-5 text-violet-400" />
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center shrink-0">
+            <ArrowRightIcon className="w-5 h-5 text-violet-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-foreground">Term-End Progression</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Review each student and decide: Promote, Repeat this level, or Complete the track.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-black text-foreground">Term-End Progression</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Review each student and decide: Promote to next level, Repeat this level, or Complete the track.
-          </p>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <Link
+            href="/dashboard/curriculum/progress"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-violet-500/10 border border-violet-500/30 text-violet-400 hover:bg-violet-500/20 transition-colors"
+          >
+            <PresentationChartLineIcon className="w-3.5 h-3.5" /> Delivery Progress
+          </Link>
+          {canPromote && (
+            <Link
+              href="/dashboard/reports/builder"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              <DocumentChartBarIcon className="w-3.5 h-3.5" /> Build Report Cards
+            </Link>
+          )}
         </div>
       </div>
 

@@ -1,10 +1,11 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DocumentTextIcon,
   DevicePhoneMobileIcon,
   ComputerDesktopIcon,
   PlusIcon,
-  TrashIcon
+  TrashIcon,
+  XMarkIcon
 } from '@/lib/icons';
 import type { CardTemplate } from '@/types/flashcards';
 import { CARD_TEMPLATES } from './templates';
@@ -16,6 +17,8 @@ interface BuilderSidebarProps {
   onDeviceChange: (device: 'mobile' | 'tablet' | 'desktop') => void;
   onAddCard: () => void;
   onClearAll: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function BuilderSidebar({
@@ -24,7 +27,9 @@ export default function BuilderSidebar({
   onTemplateChange,
   onDeviceChange,
   onAddCard,
-  onClearAll
+  onClearAll,
+  isOpen = true,
+  onClose,
 }: BuilderSidebarProps) {
   const devices = [
     { id: 'mobile' as const, icon: DevicePhoneMobileIcon, label: 'Mobile' },
@@ -32,9 +37,8 @@ export default function BuilderSidebar({
     { id: 'desktop' as const, icon: ComputerDesktopIcon, label: 'Desktop' }
   ];
 
-  return (
-    <div className="w-80 border-r border-border p-6 overflow-y-auto">
-      <div className="space-y-6">
+  const content = (
+    <div className="space-y-6">
         
         {/* Template Selection */}
         <motion.div
@@ -146,7 +150,49 @@ export default function BuilderSidebar({
             <li>• Mark difficulty for spaced repetition</li>
           </ul>
         </motion.div>
-      </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop: always-visible inline sidebar */}
+      <div className="hidden md:flex w-72 lg:w-80 border-r border-border p-5 overflow-y-auto flex-col">
+        {content}
+      </div>
+
+      {/* Mobile: slide-in drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="md:hidden fixed inset-0 bg-black/60 z-40"
+            />
+            {/* Drawer */}
+            <motion.div
+              key="sidebar-drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.25 }}
+              className="md:hidden fixed top-0 left-0 bottom-0 w-72 bg-background border-r border-border z-50 overflow-y-auto p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-bold">Settings</span>
+                <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+              {content}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
