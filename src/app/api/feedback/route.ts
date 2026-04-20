@@ -47,15 +47,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: feedbackErr.message }, { status: 500 });
     }
 
-    // Send notification to admin
-    await admin.from('notifications').insert({
-      user_id: 'admin', // Replace with actual admin user ID
-      type: 'feedback',
-      title: `New ${type}: ${subject.trim()}`,
-      message: `${user_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
-      link: `/dashboard/feedback/${feedback.id}`,
-      created_at: new Date().toISOString(),
-    });
+    // Notify all admin users of new feedback
+    const { data: admins } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .limit(10);
+    if (admins?.length) {
+      await admin.from('notifications').insert(
+        admins.map((a: { id: string }) => ({
+          user_id: a.id,
+          type: 'info',
+          title: `New ${type}: ${subject.trim()}`,
+          message: `${user_name || 'A user'} submitted ${type} feedback (${rating ? rating + ' stars' : 'no rating'})`,
+          link: `/dashboard/feedback/${feedback.id}`,
+          created_at: new Date().toISOString(),
+        }))
+      );
+    }
 
     // Auto-respond based on type
     let autoResponseMessage = '';

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       user_id:    sender.id,
       title:      `Email sent: ${subject}`,
       message:    `To: ${to_name ? `${to_name} <${to}>` : to} — ${body.slice(0, 120)}`,
-      type:       'email_sent',
+      type:       'info',
       is_read:    true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
