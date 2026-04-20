@@ -124,7 +124,7 @@ function ResultsPageInner() {
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
     const [loadingReport, setLoadingReport] = useState(false);
     // Students see the standard (official) report card by default; staff can switch
-    const [template, setTemplate] = useState<'standard' | 'modern'>(
+    const [template, setTemplate] = useState<'standard' | 'modern' | 'printable'>(
         profile?.role === 'student' ? 'standard' : 'modern'
     );
     const [modernTemplateId, setModernTemplateId] = useState<'industrial' | 'executive' | 'futuristic'>('industrial');
@@ -1032,17 +1032,23 @@ tbody tr:hover{background:#f3f4f6}
 
                                             {/* Template Toggle */}
                                             <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
-                                                <button 
+                                                <button
                                                   onClick={() => setTemplate('standard')}
                                                   className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Standard
                                                 </button>
-                                                <button 
+                                                <button
                                                   onClick={() => setTemplate('modern')}
                                                   className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Modern
+                                                </button>
+                                                <button
+                                                  onClick={() => setTemplate('printable')}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                >
+                                                    Printable
                                                 </button>
                                             </div>
 
@@ -1170,6 +1176,8 @@ tbody tr:hover{background:#f3f4f6}
                                             <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
+                                                ) : template === 'printable' ? (
+                                                    <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
                                                 ) : (
                                                     <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                                                 )}
@@ -1335,6 +1343,8 @@ tbody tr:hover{background:#f3f4f6}
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {template === 'standard' ? (
                         <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
+                    ) : template === 'printable' ? (
+                        <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
                     ) : (
                         <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                     )}
@@ -1347,6 +1357,8 @@ tbody tr:hover{background:#f3f4f6}
                     {reportToDisplay && (
                         template === 'modern' ? (
                             <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
+                        ) : template === 'printable' ? (
+                            <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
                         ) : (
                             <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         )
@@ -1360,6 +1372,8 @@ tbody tr:hover{background:#f3f4f6}
                     {captureReport && (
                         template === 'modern' ? (
                             <ModernReportCard report={captureReport} orgSettings={orgSettings} />
+                        ) : template === 'printable' ? (
+                            <PrintableReport report={captureReport} orgSettings={orgSettings} />
                         ) : (
                             <ReportCard report={captureReport} orgSettings={orgSettings} />
                         )
