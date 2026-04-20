@@ -355,6 +355,24 @@ export class LiveSessionService {
     }
 
     // Breakout room methods (still supported by DB)
+    async getSessionAttendance(sessionId: string) {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from('live_session_attendance')
+            .select(`
+                id,
+                portal_user_id,
+                joined_at,
+                left_at,
+                duration_minutes,
+                portal_users (full_name, role)
+            `)
+            .eq('session_id', sessionId)
+            .order('joined_at', { ascending: true });
+        if (error) throw new AppError(error.message, 500);
+        return data ?? [];
+    }
+
     async createBreakoutRoom(sessionId: string, name: string, maxParticipants?: number, createdBy?: string) {
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -376,11 +394,17 @@ export class LiveSessionService {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('live_session_breakout_rooms')
-            .select('*')
+            .select('*, live_session_breakout_participants(id)')
             .eq('session_id', sessionId)
             .order('created_at', { ascending: true });
         if (error) throw new AppError(error.message, 500);
-        return data ?? [];
+
+        return (data ?? []).map(room => ({
+            ...room,
+            participant_count: Array.isArray(room.live_session_breakout_participants)
+                ? room.live_session_breakout_participants.length
+                : 0,
+        }));
     }
 
     async addBreakoutParticipant(roomId: string, userId: string) {
@@ -440,13 +464,37 @@ export class LiveSessionService {
 
     async listPolls(sessionId: string) {
         const supabase = await createClient();
+
+        // Fetch polls with options
         const { data, error } = await supabase
             .from('live_session_polls')
             .select('*, live_session_poll_options(*)')
             .eq('session_id', sessionId)
             .order('created_at', { ascending: true });
         if (error) throw new AppError(error.message, 500);
-        return data ?? [];
+        if (!data || data.length === 0) return [];
+
+        // Fetch response counts per option for all polls in one query
+        const pollIds = data.map(p => p.id);
+        const { data: responses } = await supabase
+            .from('live_session_poll_responses')
+            .select('poll_id, option_id')
+            .in('poll_id', pollIds);
+
+        // Build a count map: option_id → count
+        const countMap: Record<string, number> = {};
+        for (const r of responses ?? []) {
+            countMap[r.option_id] = (countMap[r.option_id] ?? 0) + 1;
+        }
+
+        // Attach response_count to each option
+        return data.map(poll => ({
+            ...poll,
+            options: (poll.live_session_poll_options ?? []).map((opt: any) => ({
+                ...opt,
+                response_count: countMap[opt.id] ?? 0,
+            })),
+        }));
     }
 
     async submitPollResponse(pollId: string, optionIds: string[], userId: string) {
