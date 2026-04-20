@@ -1344,7 +1344,7 @@ function JitsiModal({ session, userId, displayName, isModerator, onClose }: {
             'microphone','camera','desktop','fullscreen',
             'hangup','chat','raisehand','tileview',
             'participants-pane','settings',
-            ...(isModerator ? ['mute-everyone','kick','recording'] : []),
+            ...(isModerator ? ['mute-everyone'] : []),
           ],
         },
       });
