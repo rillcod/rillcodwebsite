@@ -97,6 +97,9 @@ export default async function Image() {
           {/* Main Title */}
           <div
             style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               color: 'white',
               fontSize: '56px',
               fontWeight: 'bold',
@@ -105,9 +108,8 @@ export default async function Image() {
               textAlign: 'center',
             }}
           >
-            Tech Education &
-            <br />
-            Innovation Hub
+            <div style={{ display: 'flex' }}>Tech Education &amp;</div>
+            <div style={{ display: 'flex' }}>Innovation Hub</div>
           </div>
 
           {/* Subtitle */}
