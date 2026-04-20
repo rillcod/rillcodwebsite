@@ -90,6 +90,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: 'GPd05n2EkQyc0DKulfDYKGQly0TTc7-s87B-lD9J1P0',
+    other: {
+      'facebook-domain-verification': ['om5dhloa4kx0wth3b3ier3tfydih64'],
+    },
   },
   category: "education",
   other: {
