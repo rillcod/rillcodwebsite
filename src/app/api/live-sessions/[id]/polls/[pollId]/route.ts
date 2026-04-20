@@ -15,9 +15,11 @@ async function patchHandler(req: Request, ctx: ApiContext) {
         throw new AppError('Invalid status', 400);
 
     const supabase = await createClient();
-    const updates: Record<string, any> = { status };
-    if (status === 'live')   updates.started_at = new Date().toISOString();
-    if (status === 'closed') updates.ended_at   = new Date().toISOString();
+    const updates = { 
+        status,
+        ...(status === 'live' && { started_at: new Date().toISOString() }),
+        ...(status === 'closed' && { ended_at: new Date().toISOString() })
+    };
 
     const { data, error } = await supabase
         .from('live_session_polls')
