@@ -60,25 +60,25 @@ export interface OrgSettings {
 }
 
 const FEE_STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-    paid:        { bg: '#d1fae5', text: '#065f46', label: 'PAID' },
+    paid: { bg: '#d1fae5', text: '#065f46', label: 'PAID' },
     outstanding: { bg: '#fee2e2', text: '#991b1b', label: 'OUTSTANDING' },
-    partial:     { bg: '#fef3c7', text: '#92400e', label: 'PARTIAL PAYMENT' },
-    sponsored:   { bg: '#dbeafe', text: '#1e40af', label: 'SPONSORED' },
-    waived:      { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
+    partial: { bg: '#fef3c7', text: '#92400e', label: 'PARTIAL PAYMENT' },
+    sponsored: { bg: '#dbeafe', text: '#1e40af', label: 'SPONSORED' },
+    waived: { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
 };
 
 // WAEC-aligned grade scale (replaces generic A/B/C system)
 function waecGrade(score: number): { code: string; label: string; remark: string; color: string } {
     const s = Math.max(0, Math.min(100, Math.round(score)));
-    if (s >= 75) return { code: 'A1', label: 'DISTINCTION',  remark: 'Excellent — Outstanding performance', color: '#059669' };
-    if (s >= 70) return { code: 'B2', label: 'VERY GOOD',    remark: 'Very Good — Above average',           color: '#0891b2' };
-    if (s >= 65) return { code: 'B3', label: 'GOOD',         remark: 'Good — Solid understanding',          color: '#4f46e5' };
-    if (s >= 60) return { code: 'C4', label: 'CREDIT',       remark: 'Credit — Satisfactory',               color: '#0284c7' };
-    if (s >= 55) return { code: 'C5', label: 'CREDIT',       remark: 'Credit — Satisfactory',               color: '#0284c7' };
-    if (s >= 50) return { code: 'C6', label: 'CREDIT',       remark: 'Credit — Minimum credit pass',        color: '#0369a1' };
-    if (s >= 45) return { code: 'D7', label: 'PASS',         remark: 'Pass — Below average',                color: '#d97706' };
-    if (s >= 40) return { code: 'E8', label: 'MARGINAL',     remark: 'Marginal Pass — Needs improvement',   color: '#ea580c' };
-    return              { code: 'F9', label: 'FAIL',         remark: 'Fail — Must retake',                  color: '#dc2626' };
+    if (s >= 75) return { code: 'A1', label: 'DISTINCTION', remark: 'Excellent — Outstanding performance', color: '#059669' };
+    if (s >= 70) return { code: 'B2', label: 'VERY GOOD', remark: 'Very Good — Above average', color: '#0891b2' };
+    if (s >= 65) return { code: 'B3', label: 'GOOD', remark: 'Good — Solid understanding', color: '#4f46e5' };
+    if (s >= 60) return { code: 'C4', label: 'CREDIT', remark: 'Credit — Satisfactory', color: '#0284c7' };
+    if (s >= 55) return { code: 'C5', label: 'CREDIT', remark: 'Credit — Satisfactory', color: '#0284c7' };
+    if (s >= 50) return { code: 'C6', label: 'CREDIT', remark: 'Credit — Minimum credit pass', color: '#0369a1' };
+    if (s >= 45) return { code: 'D7', label: 'PASS', remark: 'Pass — Below average', color: '#d97706' };
+    if (s >= 40) return { code: 'E8', label: 'MARGINAL', remark: 'Marginal Pass — Needs improvement', color: '#ea580c' };
+    return { code: 'F9', label: 'FAIL', remark: 'Fail — Must retake', color: '#dc2626' };
 }
 
 export default function ModernReportCard({ report, orgSettings }: {
@@ -88,15 +88,15 @@ export default function ModernReportCard({ report, orgSettings }: {
     const tid = (report.template_id || 'futuristic') as 'futuristic' | 'industrial' | 'executive';
     const isFuturistic = tid === 'futuristic';
     const isIndustrial = tid === 'industrial';
-    const isExecutive  = tid === 'executive';
+    const isExecutive = tid === 'executive';
 
     // ── Org defaults (mirrors ReportCard) ──────────────────────────────
     const org = {
-        org_name:    orgSettings?.org_name    || 'Rillcod Technologies',
+        org_name: orgSettings?.org_name || 'Rillcod Technologies',
         org_tagline: orgSettings?.org_tagline || 'Excellence in Educational Technology',
-        org_phone:   orgSettings?.org_phone   || '08116600091',
-        org_email:   orgSettings?.org_email   || 'support@rillcod.com',
-        logo_url:    orgSettings?.logo_url    || '/logo.png',
+        org_phone: orgSettings?.org_phone || '08116600091',
+        org_email: orgSettings?.org_email || 'support@rillcod.com',
+        logo_url: orgSettings?.logo_url || '/logo.png',
     };
 
     const today = report.report_date
@@ -105,46 +105,46 @@ export default function ModernReportCard({ report, orgSettings }: {
 
     // ── WAEC 6-component scoring ─────────────────────────────────────────
     // Theory 20% · Classwork 10% · Practical 25% · Assignments 20% · Attendance 10% · Assessment 15%
-    const em           = (report.engagement_metrics as any) ?? {};
-    const theory       = Number(report.theory_score)          || 0;   // 20%
-    const classwork    = Number(em.classwork_score)           || 0;   // 10%
-    const practical    = Number(report.practical_score)       || 0;   // 25%
-    const assignments  = Number(report.attendance_score)      || 0;   // 20% (assignment completion %)
-    const attendance   = Number(report.participation_score)   || 0;   // 10% (class attendance %)
-    const assessment   = Number(em.assessment_score)          || 0;   // 15% (mid-term)
-    const computed     = Math.round(
+    const em = (report.engagement_metrics as any) ?? {};
+    const theory = Number(report.theory_score) || 0;   // 20%
+    const classwork = Number(em.classwork_score) || 0;   // 10%
+    const practical = Number(report.practical_score) || 0;   // 25%
+    const assignments = Number(report.attendance_score) || 0;   // 20% (assignment completion %)
+    const attendance = Number(report.participation_score) || 0;   // 10% (class attendance %)
+    const assessment = Number(em.assessment_score) || 0;   // 15% (mid-term)
+    const computed = Math.round(
         theory * 0.20 + classwork * 0.10 + practical * 0.25 +
         assignments * 0.20 + attendance * 0.10 + assessment * 0.15
     );
-    const overall      = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
-    const grade        = waecGrade(overall);
+    const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
+    const grade = waecGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
 
     const hasPayment = !!report.fee_status;
-    const feeStyle   = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
+    const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
     // ── Theme tokens (all hex — safe for html2canvas) ──────────────────
-    const accent      = isIndustrial ? '#000000' : isExecutive ? '#C5A059' : '#4f46e5';
-    const accentDark  = isExecutive  ? '#1A1A2E' : accent;
+    const accent = isIndustrial ? '#000000' : isExecutive ? '#C5A059' : '#4f46e5';
+    const accentDark = isExecutive ? '#1A1A2E' : accent;
     const accentLight = isIndustrial ? '#f5f5f5' : isExecutive ? '#FFFDF7' : '#eef2ff';
     const panelBorder = isIndustrial ? '2px solid #000000'
-                      : isExecutive  ? '1px solid #C5A059'
-                      :                '1px solid #e0e7ff';
-    const radius      = isIndustrial || isExecutive ? 0 : 16;
-    const radiusSm    = isIndustrial || isExecutive ? 0 : 10;
-    const radiusPill  = isIndustrial ? 0 : 999;
+        : isExecutive ? '1px solid #C5A059'
+            : '1px solid #e0e7ff';
+    const radius = isIndustrial || isExecutive ? 0 : 16;
+    const radiusSm = isIndustrial || isExecutive ? 0 : 10;
+    const radiusPill = isIndustrial ? 0 : 999;
 
     // ── WAEC 6-component metrics (all hex-safe for html2canvas) ──────────
     const M_INDUST = '#000000';
-    const M_EXEC   = ['#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E'];
-    const M_FUT    = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#f59e0b', '#8b5cf6'];
+    const M_EXEC = ['#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E'];
+    const M_FUT = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#f59e0b', '#8b5cf6'];
     const metrics = [
-        { label: 'Theory / Written',    weight: '20%', value: theory,      color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
-        { label: 'Classwork',           weight: '10%', value: classwork,   color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
-        { label: 'Practical / Projects',weight: '25%', value: practical,   color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
-        { label: 'Assignments',         weight: '20%', value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
-        { label: 'Attendance',          weight: '10%', value: attendance,  color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
-        { label: 'Mid-term Assessment', weight: '15%', value: assessment,  color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
+        { label: 'Theory / Written', weight: '20%', value: theory, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
+        { label: 'Classwork', weight: '10%', value: classwork, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
+        { label: 'Practical / Projects', weight: '25%', value: practical, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
+        { label: 'Assignments', weight: '20%', value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
+        { label: 'Attendance', weight: '10%', value: attendance, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
+        { label: 'Mid-term Assessment', weight: '15%', value: assessment, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
     ];
 
     return (
@@ -160,7 +160,8 @@ export default function ModernReportCard({ report, orgSettings }: {
                 fontFamily: isIndustrial ? "'Space Mono', monospace" : 'inherit',
             }}
         >
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
                 @media print {
                     @page { size: A4; margin: 0; }
@@ -188,9 +189,9 @@ export default function ModernReportCard({ report, orgSettings }: {
                 <>
                     <div style={{ position: 'absolute', inset: 0, border: '10px solid #1A1A2E', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', inset: '8mm', border: '1px solid #C5A059', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', top: '5mm', left: '5mm',  width: 30, height: 30, borderTop:    '3px solid #C5A059', borderLeft:  '3px solid #C5A059', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', top: '5mm', right: '5mm', width: 30, height: 30, borderTop:    '3px solid #C5A059', borderRight: '3px solid #C5A059', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', bottom: '5mm', left: '5mm',  width: 30, height: 30, borderBottom: '3px solid #C5A059', borderLeft:  '3px solid #C5A059', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '5mm', left: '5mm', width: 30, height: 30, borderTop: '3px solid #C5A059', borderLeft: '3px solid #C5A059', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '5mm', right: '5mm', width: 30, height: 30, borderTop: '3px solid #C5A059', borderRight: '3px solid #C5A059', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', bottom: '5mm', left: '5mm', width: 30, height: 30, borderBottom: '3px solid #C5A059', borderLeft: '3px solid #C5A059', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', bottom: '5mm', right: '5mm', width: 30, height: 30, borderBottom: '3px solid #C5A059', borderRight: '3px solid #C5A059', pointerEvents: 'none' }} />
                 </>
             )}
@@ -264,10 +265,10 @@ export default function ModernReportCard({ report, orgSettings }: {
                         </h3>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
                             {[
-                                { l: 'Class',    v: report.section_class },
-                                { l: 'School',   v: report.school_name },
+                                { l: 'Class', v: report.section_class },
+                                { l: 'School', v: report.school_name },
                                 { l: report.school_section === 'school' ? 'Term' : 'Duration', v: report.report_term || report.course_duration },
-                                { l: 'Status',   v: 'CERTIFIED', green: true },
+                                { l: 'Status', v: 'CERTIFIED', green: true },
                             ].map(f => (
                                 <div key={f.l}>
                                     <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>{f.l}</p>
@@ -339,8 +340,8 @@ export default function ModernReportCard({ report, orgSettings }: {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
                                 {[
                                     { l: 'Practical / Projects', v: report.projects_grade },
-                                    { l: 'Assignments',          v: report.homework_grade },
-                                    { l: 'Classwork',            v: report.participation_grade },
+                                    { l: 'Assignments', v: report.homework_grade },
+                                    { l: 'Classwork', v: report.participation_grade },
                                 ].map(g => (
                                     <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
                                         <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
