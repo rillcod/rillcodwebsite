@@ -4539,6 +4539,67 @@ export type Database = {
           },
         ]
       }
+      live_session_questions: {
+        Row: {
+          answer: string | null
+          answered: boolean | null
+          answered_at: string | null
+          answered_by: string | null
+          body: string
+          created_at: string
+          id: string
+          session_id: string
+          upvotes: number | null
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          answered?: boolean | null
+          answered_at?: string | null
+          answered_by?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          session_id: string
+          upvotes?: number | null
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          answered?: boolean | null
+          answered_at?: string | null
+          answered_by?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          upvotes?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_session_questions_session_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_session_questions_user_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_session_questions_user_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       live_sessions: {
         Row: {
           created_at: string

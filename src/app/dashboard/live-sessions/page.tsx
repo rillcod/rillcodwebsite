@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import {
   VideoCameraIcon, CalendarDaysIcon, ClockIcon, PencilIcon, TrashIcon,
   PlusIcon, XMarkIcon, LinkIcon, SignalIcon, FilmIcon, UserCircleIcon,
   ArrowRightIcon, UsersIcon, CheckCircleIcon, ChartBarIcon, PlayIcon, EyeIcon,
-  XCircleIcon as StopCircleIcon,
+  XCircleIcon as StopCircleIcon, ChatBubbleLeftEllipsisIcon,
 } from '@/lib/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -591,6 +591,218 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
   );
 }
 
+// ─── Live Q&A Modal ───────────────────────────────────────────────────────────
+
+function QAModal({ session, canManage, userId, onClose }: {
+  session: LiveSession; canManage: boolean; userId: string; onClose: () => void;
+}) {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [input, setInput]         = useState('');
+  const [sending, setSending]     = useState(false);
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const supabase  = createClient();
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/live-sessions/${session.id}/questions`);
+      const j   = await res.json();
+      setQuestions(j.data ?? []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [session.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Realtime — new questions appear instantly
+  useEffect(() => {
+    const ch = supabase
+      .channel(`qa_${session.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'live_session_questions',
+        filter: `session_id=eq.${session.id}`,
+      }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [session.id, load]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [questions.length]);
+
+  const submit = async () => {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    try {
+      await fetch(`/api/live-sessions/${session.id}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: input.trim() }),
+      });
+      setInput('');
+    } catch { /* silent */ }
+    finally { setSending(false); }
+  };
+
+  const answer = async (qid: string) => {
+    if (!answerText.trim()) return;
+    try {
+      await fetch(`/api/live-sessions/${session.id}/questions/${qid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'answer', answer: answerText.trim() }),
+      });
+      setAnswering(null); setAnswerText('');
+    } catch { /* silent */ }
+  };
+
+  const upvote = async (qid: string) => {
+    await fetch(`/api/live-sessions/${session.id}/questions/${qid}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'upvote' }),
+    });
+    load();
+  };
+
+  const remove = async (qid: string) => {
+    await fetch(`/api/live-sessions/${session.id}/questions/${qid}`, { method: 'DELETE' });
+    load();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <ChatBubbleLeftEllipsisIcon className="w-5 h-5 text-orange-400" />
+            <div>
+              <p className="text-sm font-black text-white uppercase tracking-widest">Live Q&A</p>
+              <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Questions list */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-7 h-7 border-4 border-orange-600 border-t-transparent animate-spin" />
+            </div>
+          ) : questions.length === 0 ? (
+            <div className="text-center py-12 space-y-2">
+              <ChatBubbleLeftEllipsisIcon className="w-10 h-10 text-white/10 mx-auto" />
+              <p className="text-white/20 text-xs font-bold uppercase tracking-widest">No questions yet</p>
+              <p className="text-white/10 text-[10px]">Be the first to ask something</p>
+            </div>
+          ) : questions.map((q: any) => {
+            const user = Array.isArray(q.portal_users) ? q.portal_users[0] : q.portal_users;
+            const isOwn = q.user_id === userId;
+            return (
+              <div key={q.id} className={`p-4 border space-y-2 ${q.answered ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-white/[0.06] bg-white/[0.02]'}`}>
+                {/* Question */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{user?.full_name ?? 'Student'}</span>
+                      {q.answered && (
+                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20">Answered</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-white font-medium leading-relaxed">{q.body}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Upvote */}
+                    <button
+                      onClick={() => upvote(q.id)}
+                      className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-orange-600/20 border border-white/10 hover:border-orange-500/30 text-white/30 hover:text-orange-400 transition-all"
+                    >
+                      <span className="text-[10px] font-black">▲</span>
+                      <span className="text-[10px] font-black">{q.upvotes ?? 0}</span>
+                    </button>
+                    {/* Delete (own or staff) */}
+                    {(isOwn || canManage) && (
+                      <button onClick={() => remove(q.id)} className="p-1.5 bg-white/5 hover:bg-rose-600/20 border border-white/10 hover:border-rose-500/30 text-white/20 hover:text-rose-400 transition-all">
+                        <TrashIcon className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Answer */}
+                {q.answered && q.answer && (
+                  <div className="pl-3 border-l-2 border-emerald-500/40 mt-2">
+                    <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest mb-1">Answer</p>
+                    <p className="text-xs text-white/70 leading-relaxed">{q.answer}</p>
+                  </div>
+                )}
+
+                {/* Answer input (staff only) */}
+                {canManage && !q.answered && (
+                  answering === q.id ? (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        value={answerText}
+                        onChange={e => setAnswerText(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && answer(q.id)}
+                        placeholder="Type your answer…"
+                        autoFocus
+                        className="flex-1 px-3 py-2 bg-white/[0.03] border border-emerald-500/30 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-all"
+                      />
+                      <button onClick={() => answer(q.id)} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                        Answer
+                      </button>
+                      <button onClick={() => { setAnswering(null); setAnswerText(''); }} className="px-3 py-2 bg-white/5 border border-white/10 text-white/30 hover:text-white text-[10px] font-black transition-all">
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setAnswering(q.id); setAnswerText(''); }}
+                      className="text-[9px] font-black text-emerald-400/50 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                    >
+                      + Answer this
+                    </button>
+                  )
+                )}
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
+          <div className="flex gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submit()}
+              placeholder={canManage ? 'Post an announcement or comment…' : 'Ask a question…'}
+              className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all"
+            />
+            <button
+              onClick={submit}
+              disabled={sending || !input.trim()}
+              className="px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+            >
+              {sending ? '…' : 'Send'}
+            </button>
+          </div>
+          <p className="text-[9px] text-white/20 mt-2">Press Enter to send</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Recording Modal ──────────────────────────────────────────────────────────
 
 function RecordingModal({ session, onClose }: { session: LiveSession; onClose: () => void }) {
@@ -657,7 +869,7 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
 
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
-function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onStart, onEnd, onPolls, onRooms, onRecording, onAttendance }: {
+function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onStart, onEnd, onPolls, onRooms, onRecording, onAttendance, onQA }: {
   session: LiveSession; canManage: boolean; userId: string;
   onEdit: (s: LiveSession) => void; onDelete: (id: string) => void;
   onJoin: (id: string, url: string | null) => void;
@@ -666,6 +878,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
   onPolls: (s: LiveSession) => void;
   onRooms: (s: LiveSession) => void; onRecording: (s: LiveSession) => void;
   onAttendance: (s: LiveSession) => void;
+  onQA: (s: LiveSession) => void;
 }) {
   const isInApp = isJitsiUrl(session.session_url) || (!session.session_url && session.platform === 'other');
   const platKey = isJitsiUrl(session.session_url) ? 'jitsi' : session.platform;
@@ -820,6 +1033,11 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
           <button onClick={() => onPolls(session)}
             className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-orange-400 hover:bg-white/[0.03] transition-all">
             <ChartBarIcon className="w-4 h-4" /> Polls
+          </button>
+          <div className="w-[1px] bg-white/[0.04]" />
+          <button onClick={() => onQA(session)}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-orange-400 hover:bg-white/[0.03] transition-all">
+            <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Q&A
           </button>
           <div className="w-[1px] bg-white/[0.04]" />
           <button onClick={() => onRooms(session)}
@@ -1242,6 +1460,7 @@ export default function LiveSessionsPage() {
   const [jitsiSession, setJitsiSession]     = useState<LiveSession | null>(null);
   const [recordingSession, setRecordingSession] = useState<LiveSession | null>(null);
   const [attendanceSession, setAttendanceSession] = useState<LiveSession | null>(null);
+  const [qaSession, setQaSession] = useState<LiveSession | null>(null);
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin   = profile?.role === 'admin';
@@ -1618,6 +1837,7 @@ export default function LiveSessionsPage() {
                   onRooms={setRoomsSession}
                   onRecording={setRecordingSession}
                   onAttendance={setAttendanceSession}
+                  onQA={setQaSession}
                 />
               ))}
             </AnimatePresence>
@@ -1658,6 +1878,14 @@ export default function LiveSessionsPage() {
         <AttendanceModal
           session={attendanceSession}
           onClose={() => setAttendanceSession(null)}
+        />
+      )}
+      {qaSession && (
+        <QAModal
+          session={qaSession}
+          canManage={canManage && (isAdmin || qaSession.host_id === profile?.id)}
+          userId={profile?.id ?? ''}
+          onClose={() => setQaSession(null)}
         />
       )}
       {recordingSession && recordingSession.recording_url && (
