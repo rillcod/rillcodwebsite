@@ -23,15 +23,15 @@ function CrownIcon({ className, style }: { className?: string; style?: React.CSS
 // WAEC-aligned grade (Nigerian standard)
 export function letterGrade(pct: number) {
     const s = Math.max(0, Math.min(100, Math.round(pct)));
-    if (s >= 75) return { g: 'A1', label: 'Distinction',  color: '#059669' };
-    if (s >= 70) return { g: 'B2', label: 'Very Good',    color: '#0891b2' };
-    if (s >= 65) return { g: 'B3', label: 'Good',         color: '#4f46e5' };
-    if (s >= 60) return { g: 'C4', label: 'Credit',       color: '#0284c7' };
-    if (s >= 55) return { g: 'C5', label: 'Credit',       color: '#0369a1' };
-    if (s >= 50) return { g: 'C6', label: 'Credit',       color: '#0369a1' };
-    if (s >= 45) return { g: 'D7', label: 'Pass',         color: '#d97706' };
+    if (s >= 75) return { g: 'A1', label: 'Distinction', color: '#059669' };
+    if (s >= 70) return { g: 'B2', label: 'Very Good', color: '#0891b2' };
+    if (s >= 65) return { g: 'B3', label: 'Good', color: '#4f46e5' };
+    if (s >= 60) return { g: 'C4', label: 'Credit', color: '#0284c7' };
+    if (s >= 55) return { g: 'C5', label: 'Credit', color: '#0369a1' };
+    if (s >= 50) return { g: 'C6', label: 'Credit', color: '#0369a1' };
+    if (s >= 45) return { g: 'D7', label: 'Pass', color: '#d97706' };
     if (s >= 40) return { g: 'E8', label: 'Marginal Pass', color: '#ea580c' };
-    return              { g: 'F9', label: 'Fail',         color: '#dc2626' };
+    return { g: 'F9', label: 'Fail', color: '#dc2626' };
 }
 
 function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
@@ -145,13 +145,13 @@ export default function ReportCard({ report, orgSettings }: {
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
-    const theory       = Number(report.theory_score)        || 0;  // 20%
-    const practical    = Number(report.practical_score)     || 0;  // 25%
-    const assignments  = Number(report.attendance_score)    || 0;  // 20% (DB field reused)
-    const attendance   = Number(report.participation_score) || 0;  // 10% (DB field reused)
-    const em           = (report as any).engagement_metrics ?? {};
-    const classwork    = Number(em.classwork_score)         || 0;  // 10%
-    const assessment   = Number(em.assessment_score)        || 0;  // 15%
+    const theory = Number(report.theory_score) || 0;  // 20%
+    const practical = Number(report.practical_score) || 0;  // 25%
+    const assignments = Number(report.attendance_score) || 0;  // 20% (DB field reused)
+    const attendance = Number(report.participation_score) || 0;  // 10% (DB field reused)
+    const em = (report as any).engagement_metrics ?? {};
+    const classwork = Number(em.classwork_score) || 0;  // 10%
+    const assessment = Number(em.assessment_score) || 0;  // 15%
     // WAEC weights: Theory 20% · Practical 25% · Assignments 20% · Attendance 10% · Classwork 10% · Assessment 15%
     const computed = Math.round(
         theory * 0.20 + practical * 0.25 + assignments * 0.20 +
@@ -328,13 +328,13 @@ export default function ReportCard({ report, orgSettings }: {
                                     ))}
                                     <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
                                 </div>
-                                <MetricBar label="Theory / Written (20%)"   value={theory}      color="#6366f1" />
-                                <MetricBar label="Practical / Projects (25%)" value={practical}   color="#06b6d4" />
-                                <MetricBar label="Assignments (20%)"          value={assignments} color="#10b981" />
-                                <MetricBar label="Attendance (10%)"           value={attendance}  color="#8b5cf6" />
+                                <MetricBar label="Theory / Written (20%)" value={theory} color="#6366f1" />
+                                <MetricBar label="Practical / Projects (25%)" value={practical} color="#06b6d4" />
+                                <MetricBar label="Assignments (20%)" value={assignments} color="#10b981" />
+                                <MetricBar label="Attendance (10%)" value={attendance} color="#8b5cf6" />
                                 {(classwork > 0 || assessment > 0) && <>
-                                    <MetricBar label="Classwork (10%)"            value={classwork}   color="#f97316" />
-                                    <MetricBar label="Mid-term Assessment (15%)"  value={assessment}  color="#f59e0b" />
+                                    <MetricBar label="Classwork (10%)" value={classwork} color="#f97316" />
+                                    <MetricBar label="Mid-term Assessment (15%)" value={assessment} color="#f59e0b" />
                                 </>}
                             </div>
 
@@ -360,8 +360,8 @@ export default function ReportCard({ report, orgSettings }: {
                 {(report.projects_grade || report.homework_grade || report.participation_grade) && (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
                         {[
-                            { label: 'Project Work',  value: report.projects_grade,    color: '#8b5cf6', bg: '#ede9fe' },
-                            { label: 'Homework',      value: report.homework_grade,     color: '#0891b2', bg: '#e0f2fe' },
+                            { label: 'Project Work', value: report.projects_grade, color: '#8b5cf6', bg: '#ede9fe' },
+                            { label: 'Homework', value: report.homework_grade, color: '#0891b2', bg: '#e0f2fe' },
                             { label: 'Participation', value: report.participation_grade, color: '#059669', bg: '#d1fae5' },
                         ].filter(q => q.value).map(q => (
                             <div key={q.label} style={{ flex: 1, minWidth: 0, backgroundColor: q.bg, border: `1px solid ${q.color}30`, borderRadius: 12, padding: '5px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>

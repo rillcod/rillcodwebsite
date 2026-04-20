@@ -9,42 +9,11 @@ import {
     TrophyIcon,
 } from '@/lib/icons';
 
-interface PrintableReportData {
-    id?: string | null;
-    student_name?: string | null;
-    course_name?: string | null;
-    report_term?: string | null;
-    report_date?: string | null;
-    section_class?: string | null;
-    school_name?: string | null;
-    overall_score?: number | null;
-    theory_score?: number | null;
-    practical_score?: number | null;
-    attendance_score?: number | null;      // stores Assignments (20%) — legacy field name
-    participation_score?: number | null;   // stores Attendance (10%) — legacy field name
-    engagement_metrics?: any | null;
-    projects_grade?: string | null;
-    homework_grade?: string | null;
-    key_strengths?: string | null;
-    areas_for_growth?: string | null;
-    fee_status?: string | null;
-    fee_amount?: string | null;
-    has_certificate?: boolean | null;
-    certificate_text?: string | null;
-}
-
-interface OrgSettingsData {
-    org_name?: string | null;
-    org_tagline?: string | null;
-    org_address?: string | null;
-    org_phone?: string | null;
-    org_email?: string | null;
-    logo_url?: string | null;
-}
+import { StudentReport, OrgSettings, parseEngagementMetrics } from '@/types/reports';
 
 interface PrintableReportProps {
-    report: PrintableReportData;
-    orgSettings?: OrgSettingsData | null;
+    report: StudentReport;
+    orgSettings?: OrgSettings | null;
 }
 
 // WAEC grading scale
@@ -91,7 +60,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
     const practical   = Number(report.practical_score)           || 0; // 25%
     const assignments = Number(report.attendance_score)          || 0; // 20% (DB: attendance_score)
     const attendance  = Number(report.participation_score)       || 0; // 10% (DB: participation_score)
-    const em          = report.engagement_metrics ?? {};
+    const em = parseEngagementMetrics(report.engagement_metrics);
     const classwork   = Number(em.classwork_score)               || 0; // 10%
     const assessment  = Number(em.assessment_score)              || 0; // 15%
 
