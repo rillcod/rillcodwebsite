@@ -59,6 +59,7 @@ export default function LessonsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   // AI lesson plan generator
@@ -228,7 +229,8 @@ export default function LessonsPage() {
     const q = search.toLowerCase();
     const matchText = (l.title ?? '').toLowerCase().includes(q) || (l.courses?.title ?? '').toLowerCase().includes(q);
     const matchStatus = filterStatus === 'all' || l.status === filterStatus;
-    return matchText && matchStatus;
+    const matchType = filterType === 'all' || l.lesson_type === filterType;
+    return matchText && matchStatus && matchType;
   });
 
   const completed = lessons.filter(l => l.status === 'completed').length;
@@ -343,6 +345,16 @@ export default function LessonsPage() {
           <option value="completed">Completed</option>
           <option value="scheduled">Scheduled</option>
           <option value="draft">Draft</option>
+        </select>
+        <select
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 cursor-pointer transition-colors"
+        >
+          <option value="all">All Types</option>
+          {Object.keys(TYPE_COLOR).map(t => (
+            <option key={t} value={t}>{t.replace(/[-_]/g, ' ').toUpperCase()}</option>
+          ))}
         </select>
       </div>
 
