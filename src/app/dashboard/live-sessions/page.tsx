@@ -868,27 +868,94 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
                   const val = e.target.value;
                   if (val === 'jitsi') {
                     set('platform', 'other');
+                    // Auto-generate Jitsi room URL instantly
                     set('session_url', `https://meet.jit.si/Rillcod-${Date.now().toString(36)}`);
                   } else {
                     set('platform', val as LiveSession['platform']);
+                    // Clear Jitsi URL when switching away
                     if (isJitsiUrl(form.session_url)) set('session_url', '');
                   }
                 }}
                 className={`${fieldCls} appearance-none`}
               >
-                <option value="zoom" className="bg-[#0a0a0a]">Zoom</option>
-                <option value="google_meet" className="bg-[#0a0a0a]">Google Meet</option>
-                <option value="teams" className="bg-[#0a0a0a]">Microsoft Teams</option>
-                <option value="discord" className="bg-[#0a0a0a]">Discord</option>
-                <option value="jitsi" className="bg-[#0a0a0a]">In-App Meeting (Jitsi)</option>
-                <option value="other" className="bg-[#0a0a0a]">Other / Custom</option>
+                <option value="jitsi"        className="bg-[#0a0a0a]">🎥 In-App Meeting (Free, instant)</option>
+                <option value="google_meet"  className="bg-[#0a0a0a]">📹 Google Meet</option>
               </select>
             </div>
-            <div>
-              <label className={labelCls}>Join URL</label>
-              <input type="url" value={form.session_url} onChange={e => set('session_url', e.target.value)}
-                placeholder="https://zoom.us/j/..." className={fieldCls} />
-            </div>
+
+            {/* Google Meet URL field with auto-open helper */}
+            {!isJitsiUrl(form.session_url) && (
+              <div>
+                <label className={labelCls}>
+                  Google Meet Link
+                  {!form.session_url && (
+                    <span className="ml-2 text-orange-500/70 normal-case font-bold tracking-normal">
+                      — paste after generating below
+                    </span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={form.session_url}
+                    onChange={e => set('session_url', e.target.value)}
+                    placeholder="https://meet.google.com/abc-defg-hij"
+                    className={`${fieldCls} flex-1`}
+                  />
+                </div>
+                {/* One-click: open Google Meet, auto-detect the generated link */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const meetWin = window.open('https://meet.google.com/new', '_blank');
+                    if (!meetWin) return;
+                    // Poll the new window's URL until Google redirects to the actual room
+                    const poll = setInterval(() => {
+                      try {
+                        const url = meetWin.location.href;
+                        // Google Meet room URLs look like: meet.google.com/xxx-xxxx-xxx
+                        if (url && url.includes('meet.google.com/') && !url.includes('/new') && !url.includes('accounts.google')) {
+                          clearInterval(poll);
+                          set('session_url', url.split('?')[0]); // strip any query params
+                          meetWin.close();
+                        }
+                      } catch {
+                        // Cross-origin error while Google is loading — keep polling
+                      }
+                    }, 500);
+                    // Stop polling after 2 minutes
+                    setTimeout(() => clearInterval(poll), 120000);
+                  }}
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400/60 hover:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  Generate Google Meet Link — auto-fills when ready
+                </button>
+              </div>
+            )}
+
+            {/* Jitsi: show the auto-generated room URL (read-only) */}
+            {isJitsiUrl(form.session_url) && (
+              <div>
+                <label className={labelCls}>Room URL <span className="text-emerald-500">auto-generated ✓</span></label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.session_url}
+                    readOnly
+                    className={`${fieldCls} flex-1 opacity-40 cursor-default select-all`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(form.session_url); }}
+                    className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/30 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex-shrink-0"
+                    title="Copy room URL"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -977,15 +1044,30 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
   );
 }
 
-// ─── Jitsi In-App Meeting ─────────────────────────────────────────────────────
+// ─── Jitsi In-App Meeting (meet.jit.si — free, unlimited) ────────────────────
 
 function JitsiModal({ session, userId, displayName, onClose }: {
   session: LiveSession; userId: string; displayName: string; onClose: () => void;
 }) {
   const roomName = `Rillcod-${session.id.slice(0, 12)}`;
-  const src = `https://meet.jit.si/${roomName}#userInfo.displayName="${encodeURIComponent(displayName)}"&config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.TOOLBAR_BUTTONS=["microphone","camera","desktop","fullscreen","hangup","chat","raisehand","tileview","participants-pane"]`;
 
-  // Record leave when modal closes
+  const params = [
+    'config.disableDeepLinking=true',
+    'config.prejoinPageEnabled=false',
+    'config.requireDisplayName=false',
+    'config.enableWelcomePage=false',
+    'config.disableModeratorIndicator=true',
+    'config.enableUserRolesBasedOnToken=false',
+    'config.startWithAudioMuted=false',
+    'config.startWithVideoMuted=false',
+    'config.p2p.enabled=true',
+    'config.hideConferenceSubject=false',
+    `userInfo.displayName=${encodeURIComponent(displayName)}`,
+    `userInfo.email=${encodeURIComponent(userId + '@rillcod.app')}`,
+  ].join('&');
+
+  const src = `https://meet.jit.si/${roomName}#${params}`;
+
   const handleClose = useCallback(async () => {
     try { await fetch(`/api/live-sessions/${session.id}/leave`, { method: 'POST' }); } catch { /* silent */ }
     onClose();
@@ -993,29 +1075,30 @@ function JitsiModal({ session, userId, displayName, onClose }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
-      {/* Minimal top bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
           </span>
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">{session.title}</span>
-          <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest">· In-App Meeting</span>
+          <span className="text-[10px] font-black text-white uppercase tracking-widest truncate max-w-[200px] sm:max-w-none">
+            {session.title}
+          </span>
         </div>
         <button
           onClick={handleClose}
           className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest transition-all"
         >
-          <XMarkIcon className="w-3.5 h-3.5" /> Leave Session
+          <XMarkIcon className="w-3.5 h-3.5" /> Leave
         </button>
       </div>
-      {/* Full-screen iframe */}
       <iframe
         src={src}
-        allow="camera; microphone; display-capture; autoplay; clipboard-write"
+        allow="camera; microphone; display-capture; autoplay; clipboard-write; fullscreen; speaker-selection"
+        allowFullScreen
         className="flex-1 w-full border-0"
         title={session.title}
+        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation"
       />
     </div>
   );

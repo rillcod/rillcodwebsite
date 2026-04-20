@@ -35,8 +35,23 @@ export default function LiveSessionWatcher() {
     fetch(`/api/live-sessions/${alert.id}/join`, { method: 'POST' }).catch(() => {});
 
     if (isJitsiUrl(alert.session_url)) {
-      // Navigate to live-sessions page — JitsiModal will auto-open via realtime there
-      router.push('/dashboard/live-sessions');
+      const roomName = `Rillcod-${alert.id.slice(0, 12)}`;
+      const params = [
+        'config.disableDeepLinking=true',
+        'config.prejoinPageEnabled=false',
+        'config.requireDisplayName=false',
+        'config.enableWelcomePage=false',
+        'config.disableModeratorIndicator=true',
+        'config.enableUserRolesBasedOnToken=false',
+        'config.startWithAudioMuted=false',
+        'config.startWithVideoMuted=false',
+      ].join('&');
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        router.push('/dashboard/live-sessions');
+      } else {
+        window.open(`https://meet.jit.si/${roomName}#${params}`, '_blank', 'noopener,noreferrer');
+      }
     } else if (alert.session_url) {
       window.open(alert.session_url, '_blank', 'noopener,noreferrer');
     } else {
