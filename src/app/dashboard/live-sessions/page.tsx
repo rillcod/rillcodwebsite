@@ -887,8 +887,8 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
   onAttendance: (s: LiveSession) => void;
   onQA: (s: LiveSession) => void;
 }) {
-  const isInApp = isJitsiUrl(session.session_url) || (!session.session_url && session.platform === 'other');
-  const platKey = isJitsiUrl(session.session_url) ? 'jitsi' : session.platform;
+  const isInApp = isJitsiUrl(session.session_url) || isLiveKitUrl(session.session_url) || (!session.session_url && session.platform === 'other');
+  const platKey = (isJitsiUrl(session.session_url) || isLiveKitUrl(session.session_url)) ? 'jitsi' : session.platform;
   const platCfg = PLATFORM_CONFIG[platKey] ?? PLATFORM_CONFIG.other;
   const statusCfg = STATUS_CONFIG[session.status];
   const countdown = getCountdown(session.scheduled_at);
@@ -1286,7 +1286,7 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
               <button
                 onClick={() => {
                   if (confirm('Delete this live session? This cannot be undone.')) {
-                    fetch(`/api/live-sessions/${initial.id}`, { method: 'DELETE' }).then(res => {
+                    fetch(`/api/live-sessions/${(initial as any).id}`, { method: 'DELETE' }).then(res => {
                       if (res.ok) onClose();
                       else alert('Failed to delete');
                     });
@@ -1588,7 +1588,7 @@ export default function LiveSessionsPage() {
             // Record attendance silently
             fetch(`/api/live-sessions/${updated.id}/join`, { method: 'POST' }).catch(() => {});
 
-            if (isJitsiUrl(updated.session_url)) {
+            if (isJitsiUrl(updated.session_url) || isLiveKitUrl(updated.session_url)) {
               // Students only — delay 6s so teacher joins first and becomes moderator
               if (profile.role === 'student') {
                 setTimeout(() => {
@@ -1726,12 +1726,11 @@ export default function LiveSessionsPage() {
     // Record attendance silently
     try { await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' }); } catch { /* silent */ }
 
-    // If no URL, auto-generate a Jitsi room for this session
-    const resolvedUrl = url || `https://meet.jit.si/Rillcod-${id.slice(0, 12)}`;
+    // If no URL, use LiveKit
+    const resolvedUrl = url || `livekit:${id}`;
 
-    if (isJitsiUrl(resolvedUrl)) {
+    if (isLiveKitUrl(resolvedUrl) || isJitsiUrl(resolvedUrl)) {
       const session = sessions.find(s => s.id === id) ?? null;
-      // Patch session_url in DB if it was missing so others can join too
       if (!url && session) {
         fetch(`/api/live-sessions/${id}`, {
           method: 'PATCH',
@@ -1739,7 +1738,8 @@ export default function LiveSessionsPage() {
           body: JSON.stringify({ session_url: resolvedUrl }),
         }).catch(() => {});
       }
-      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);    } else {
+      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);
+    } else {
       window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
     }
   }
