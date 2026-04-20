@@ -1,7 +1,5 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
-
 export const alt = 'Rillcod Technologies — Tech Education & Innovation Hub';
 export const size = {
   width: 1200,
