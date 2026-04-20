@@ -20,12 +20,18 @@ function CrownIcon({ className, style }: { className?: string; style?: React.CSS
     );
 }
 
+// WAEC-aligned grade (Nigerian standard)
 export function letterGrade(pct: number) {
-    if (pct >= 85) return { g: 'A', label: 'Excellent', color: '#1a6b3c' };
-    if (pct >= 70) return { g: 'B', label: 'Very Good', color: '#1a4d8c' };
-    if (pct >= 55) return { g: 'C', label: 'Good', color: '#7c6b15' };
-    if (pct >= 45) return { g: 'D', label: 'Pass', color: '#8c3a14' };
-    return { g: 'E', label: 'Fail', color: '#8c1414' };
+    const s = Math.max(0, Math.min(100, Math.round(pct)));
+    if (s >= 75) return { g: 'A1', label: 'Distinction',  color: '#059669' };
+    if (s >= 70) return { g: 'B2', label: 'Very Good',    color: '#0891b2' };
+    if (s >= 65) return { g: 'B3', label: 'Good',         color: '#4f46e5' };
+    if (s >= 60) return { g: 'C4', label: 'Credit',       color: '#0284c7' };
+    if (s >= 55) return { g: 'C5', label: 'Credit',       color: '#0369a1' };
+    if (s >= 50) return { g: 'C6', label: 'Credit',       color: '#0369a1' };
+    if (s >= 45) return { g: 'D7', label: 'Pass',         color: '#d97706' };
+    if (s >= 40) return { g: 'E8', label: 'Marginal Pass', color: '#ea580c' };
+    return              { g: 'F9', label: 'Fail',         color: '#dc2626' };
 }
 
 function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
@@ -139,12 +145,18 @@ export default function ReportCard({ report, orgSettings }: {
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
-    const theory = Number(report.theory_score) || 0;
-    const practical = Number(report.practical_score) || 0;
-    const attendance = Number(report.attendance_score) || 0;
-    const participation = Number(report.participation_score) || 0;
-    // Examination 40% · Evaluation 20% · Assignment 20% · Project Engagement 20%
-    const computed = Math.round(theory * 0.4 + practical * 0.2 + attendance * 0.2 + participation * 0.2);
+    const theory       = Number(report.theory_score)        || 0;  // 20%
+    const practical    = Number(report.practical_score)     || 0;  // 25%
+    const assignments  = Number(report.attendance_score)    || 0;  // 20% (DB field reused)
+    const attendance   = Number(report.participation_score) || 0;  // 10% (DB field reused)
+    const em           = (report as any).engagement_metrics ?? {};
+    const classwork    = Number(em.classwork_score)         || 0;  // 10%
+    const assessment   = Number(em.assessment_score)        || 0;  // 15%
+    // WAEC weights: Theory 20% · Practical 25% · Assignments 20% · Attendance 10% · Classwork 10% · Assessment 15%
+    const computed = Math.round(
+        theory * 0.20 + practical * 0.25 + assignments * 0.20 +
+        attendance * 0.10 + classwork * 0.10 + assessment * 0.15
+    );
     const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
@@ -316,18 +328,22 @@ export default function ReportCard({ report, orgSettings }: {
                                     ))}
                                     <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
                                 </div>
-                                <MetricBar label="Examination (40%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Evaluation (20%)" value={practical} color="#06b6d4" />
-                                <MetricBar label="Assignment (20%)" value={attendance} color="#10b981" />
-                                <MetricBar label="Project Engagement (20%)" value={participation} color="#8b5cf6" />
+                                <MetricBar label="Theory / Written (20%)"   value={theory}      color="#6366f1" />
+                                <MetricBar label="Practical / Projects (25%)" value={practical}   color="#06b6d4" />
+                                <MetricBar label="Assignments (20%)"          value={assignments} color="#10b981" />
+                                <MetricBar label="Attendance (10%)"           value={attendance}  color="#8b5cf6" />
+                                {(classwork > 0 || assessment > 0) && <>
+                                    <MetricBar label="Classwork (10%)"            value={classwork}   color="#f97316" />
+                                    <MetricBar label="Mid-term Assessment (15%)"  value={assessment}  color="#f59e0b" />
+                                </>}
                             </div>
 
                             {/* Right — weighted grade display */}
                             <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[32px] p-4 relative overflow-hidden border border-gray-200" style={{ borderLeft: '4px solid #1a1a2e' }}>
                                 <div className="relative z-10 text-center">
                                     <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2" />
-                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
-                                    <h3 className="text-7xl font-black" style={{ color: grade.color }}>{grade.g}</h3>
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">WAEC Grade</p>
+                                    <h3 className="text-5xl font-black tracking-tight" style={{ color: grade.color }}>{grade.g}</h3>
                                     <div className="mt-4 px-4 py-1.5 bg-white rounded-full border border-gray-200">
                                         <span className="text-xs font-black uppercase tracking-widest text-gray-700">{grade.label}</span>
                                     </div>

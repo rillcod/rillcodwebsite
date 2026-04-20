@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
     // Reduce duplicate module instances
     optimizePackageImports: [
       '@supabase/supabase-js',
+      '@livekit/components-react',
     ],
     // instrumentation.ts is enabled by default in Next.js 15
   },

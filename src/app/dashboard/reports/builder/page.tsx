@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
+import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -347,7 +348,7 @@ function ReportBuilderInner() {
     const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
     const [forceCertificate, setForceCertificate] = useState(false);
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
-    const [reportStyle, setReportStyle] = useState<'standard'|'modern'>('modern');
+    const [reportStyle, setReportStyle] = useState<'standard'|'modern'|'printable'>('modern');
     const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const [previewScale, setPreviewScale] = useState(0.85);
@@ -2132,7 +2133,11 @@ function ReportBuilderInner() {
                                             </button>
                                             <button onClick={() => setReportStyle('modern')}
                                                 className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
-                                                Modern Styles
+                                                Modern
+                                            </button>
+                                            <button onClick={() => setReportStyle('printable')}
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                Printable
                                             </button>
                                         </div>
 
@@ -2599,6 +2604,10 @@ function ReportBuilderInner() {
                                 className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
                                 Modern
                             </button>
+                            <button onClick={() => setReportStyle('printable')}
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                Printable
+                            </button>
                         </div>
 
                         {reportStyle === 'modern' && (
@@ -2675,6 +2684,8 @@ function ReportBuilderInner() {
                                 style={{ width: '210mm', minHeight: '297mm', transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
                                 {reportStyle === 'modern' ? (
                                     <ModernReportCard report={previewData} orgSettings={branding as any} />
+                                ) : reportStyle === 'printable' ? (
+                                    <PrintableReport report={previewData} orgSettings={branding as any} />
                                 ) : (
                                     <ReportCard report={previewData} orgSettings={branding as any} />
                                 )}
@@ -2688,6 +2699,8 @@ function ReportBuilderInner() {
                 <div ref={pdfRef}>
                     {reportStyle === 'modern' ? (
                         <ModernReportCard report={previewData} orgSettings={branding as any} />
+                    ) : reportStyle === 'printable' ? (
+                        <PrintableReport report={previewData} orgSettings={branding as any} />
                     ) : (
                         <ReportCard report={previewData} orgSettings={branding as any} />
                     )}
