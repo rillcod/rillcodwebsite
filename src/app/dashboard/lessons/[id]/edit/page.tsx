@@ -14,6 +14,19 @@ import {
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 import { SparklesIcon } from '@/lib/icons';
+import { normalizeLessonType } from '@/lib/lessons/lesson-type';
+
+function hydrateAiFromMetadata(metadata: unknown) {
+    const m = metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : {};
+    const mode = m.ai_lesson_mode;
+    const grade = m.ai_grade_level;
+    const model = m.last_ai_model;
+    return {
+        aiMode: mode === 'academic' || mode === 'project' || mode === 'interactive' ? mode : null,
+        aiGrade: typeof grade === 'string' && grade.trim() ? grade.trim() : null,
+        lastModel: typeof model === 'string' && model.trim() ? model.trim() : null,
+    };
+}
 
 export default function EditLessonPage() {
     const params = useParams();
@@ -59,6 +72,13 @@ export default function EditLessonPage() {
     const [materials, setMaterials] = useState<any[]>([]);
     const [newMaterial, setNewMaterial] = useState({ title: '', file_url: '', file_type: 'pdf' });
 
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
+    const [aiGrade, setAiGrade] = useState('JSS1–SS3');
+    const [lastModel, setLastModel] = useState<string | null>(null);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+
     const fetchData = useCallback(async () => {
         if (!profile || !id) return;
         const db = createClient();
@@ -80,7 +100,7 @@ export default function EditLessonPage() {
 
             let query = db
                 .from('courses')
-                .select('id, title, program_id, school_id')
+                .select('id, title, program_id, school_id, programs(name)')
                 .eq('is_active', true);
 
             if (profile?.school_id) {
@@ -109,6 +129,11 @@ export default function EditLessonPage() {
                 content_layout: (l.content_layout as any[]) || []
             });
 
+            const aiSnap = hydrateAiFromMetadata(l.metadata);
+            if (aiSnap.aiMode) setAiMode(aiSnap.aiMode as 'academic' | 'project' | 'interactive');
+            if (aiSnap.aiGrade) setAiGrade(aiSnap.aiGrade);
+            setLastModel(aiSnap.lastModel);
+
             if (planRes) {
                 const pd = planRes as any;
                 setPlan({
@@ -128,17 +153,12 @@ export default function EditLessonPage() {
         if (!authLoading && profile) fetchData();
     }, [authLoading, profile, fetchData]);
 
-    const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiError, setAiError] = useState<string | null>(null);
-    const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
-    const [aiGrade, setAiGrade] = useState('JSS1–SS3');
-    const [saveSuccess, setSaveSuccess] = useState(false);
-
     const handleAiGenerate = async () => {
         if (!form.title.trim()) { setAiError('Enter a lesson title first.'); return; }
         setAiGenerating(true);
         setAiError(null);
         try {
+            const selectedCourse = courses.find(c => c.id === form.course_id);
             const res = await fetch('/api/ai/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -148,18 +168,23 @@ export default function EditLessonPage() {
                     gradeLevel: aiGrade,
                     durationMinutes: parseInt(form.duration_minutes) || 60,
                     lessonMode: aiMode,
+                    contentType: form.lesson_type,
+                    subject: selectedCourse?.title || undefined,
+                    courseName: selectedCourse?.title || undefined,
+                    programName: (selectedCourse as any)?.programs?.name || undefined,
                 }),
             });
             const payload = await res.json();
             if (!res.ok) throw new Error(payload.error);
             const d = payload.data;
+            if (payload.model) setLastModel(payload.model);
             setForm(prev => ({
                 ...prev,
                 description: d.description || prev.description,
                 lesson_notes: d.lesson_notes || prev.lesson_notes,
                 duration_minutes: String(d.duration_minutes || prev.duration_minutes),
                 content_layout: d.content_layout || prev.content_layout,
-                lesson_type: d.lesson_type || prev.lesson_type,
+                lesson_type: normalizeLessonType(d.lesson_type, prev.lesson_type),
             }));
             const activityText = (d.content_layout || []).filter((b: any) => b.type === 'activity')
                 .map((b: any) => `${b.title || 'Activity'}: ${b.instructions || ''}`.trim()).join('\n\n');
@@ -180,10 +205,21 @@ export default function EditLessonPage() {
         setAiGenerating(true);
         setAiError(null);
         try {
+            const selectedCourse = courses.find(c => c.id === form.course_id);
             const res = await fetch('/api/ai/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'lesson-notes', topic: form.title, gradeLevel: aiGrade, durationMinutes: parseInt(form.duration_minutes) || 60 }),
+                body: JSON.stringify({
+                    type: 'lesson-notes',
+                    topic: form.title,
+                    gradeLevel: aiGrade,
+                    durationMinutes: parseInt(form.duration_minutes) || 60,
+                    lessonMode: aiMode,
+                    contentType: form.lesson_type,
+                    subject: selectedCourse?.title || undefined,
+                    courseName: selectedCourse?.title || undefined,
+                    programName: (selectedCourse as any)?.programs?.name || undefined,
+                }),
             });
             const payload = await res.json();
             if (!res.ok) throw new Error(payload.error);
@@ -199,6 +235,16 @@ export default function EditLessonPage() {
         setSaving(true);
         setError(null);
         try {
+            const prevMeta = lesson?.metadata && typeof lesson.metadata === 'object'
+                ? { ...(lesson.metadata as Record<string, unknown>) }
+                : {};
+            const nextMetadata = {
+                ...prevMeta,
+                ai_lesson_mode: aiMode,
+                ai_grade_level: aiGrade,
+                ...(lastModel ? { last_ai_model: lastModel } : {}),
+            };
+
             const res = await fetch(`/api/lessons/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -207,7 +253,7 @@ export default function EditLessonPage() {
                     description: form.description,
                     lesson_notes: form.lesson_notes,
                     course_id: form.course_id,
-                    lesson_type: form.lesson_type,
+                    lesson_type: normalizeLessonType(form.lesson_type, 'lesson'),
                     status: form.status,
                     duration_minutes: parseInt(form.duration_minutes),
                     order_index: form.order_index ? parseInt(form.order_index) : null,
@@ -215,9 +261,12 @@ export default function EditLessonPage() {
                     video_url: form.video_url,
                     content_layout: form.content_layout,
                     lesson_plan: plan,
+                    metadata: nextMetadata,
                 }),
             });
             if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Update failed'); }
+
+            setLesson((prev: any) => (prev ? { ...prev, metadata: nextMetadata } : prev));
 
             // Sync assignment-block content blocks → real assignments (create if not already existing)
             const assignmentBlocks = form.content_layout.filter((b: any) => b.type === 'assignment-block' && b.title?.trim());
@@ -396,6 +445,11 @@ export default function EditLessonPage() {
                                     <span className="text-[10px] text-muted-foreground ml-1">— regenerate content from current title</span>
                                 </div>
                                 <div className="p-5 space-y-4">
+                                    {lastModel && (
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Last full generation: <span className="text-foreground/80 font-mono text-[9px]">{lastModel.split('/').pop()}</span>
+                                        </p>
+                                    )}
                                     {aiError && (
                                         <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-none">
                                             {aiError}
@@ -406,6 +460,12 @@ export default function EditLessonPage() {
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
                                             <select value={aiGrade} onChange={e => setAiGrade(e.target.value)}
                                                 className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500">
+                                                {![
+                                                    'KG', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3',
+                                                    'SS1', 'SS2', 'SS3', 'SS1–SS3', 'JSS1–SS3',
+                                                ].includes(aiGrade) && (
+                                                    <option value={aiGrade}>{aiGrade} (saved)</option>
+                                                )}
                                                 {['KG','Basic 1–Basic 3','Basic 4–Basic 6','JSS1','JSS2','JSS3','JSS1–JSS3','SS1','SS2','SS3','SS1–SS3','JSS1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
                                             </select>
                                         </div>

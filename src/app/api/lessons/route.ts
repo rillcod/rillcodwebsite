@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { normalizeLessonType } from '@/lib/lessons/lesson-type';
 
 function adminClient() {
   return createClient(
@@ -101,10 +102,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const allowed = ['title', 'description', 'content', 'lesson_type', 'status',
       'duration_minutes', 'order_index', 'video_url', 'course_id',
-      'session_date', 'content_layout'];
+      'session_date', 'content_layout', 'lesson_notes', 'metadata'];
     const payload: Record<string, unknown> = { created_by: caller.id };
     for (const f of allowed) {
       if (f in body) payload[f] = body[f] ?? null;
+    }
+    if (typeof payload.lesson_type === 'string') {
+      payload.lesson_type = normalizeLessonType(payload.lesson_type, 'lesson');
     }
     payload.created_at = new Date().toISOString();
 

@@ -64,7 +64,7 @@ export async function PATCH(
 
   const allowed: Record<string, unknown> = {};
   const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type', 'status',
-    'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout', 'course_id'];
+    'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout', 'course_id', 'metadata'];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
   }
