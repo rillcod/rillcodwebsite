@@ -25,7 +25,7 @@ import {
 } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { isStaffRole } from '@/lib/dashboard/route-access';
+import { isPlatformStaffRole } from '@/lib/dashboard/route-access';
 
 export default function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -38,7 +38,8 @@ export default function CommandPalette() {
   const router = useRouter();
   const { profile } = useAuth();
   const db = createClient();
-  const staff = isStaffRole(profile?.role);
+  const staff = isPlatformStaffRole(profile?.role);
+  const canRosterSearch = staff || profile?.role === 'school';
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -64,9 +65,9 @@ export default function CommandPalette() {
         ? db.from('lessons').select('id, title').ilike('title', `%${query}%`).limit(3)
         : Promise.resolve({ data: [] as any[] });
       const [cRes, lRes, sRes] = await Promise.all([
-        staff ? db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
+        canRosterSearch ? db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
         lessonsQ,
-        staff ? db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
+        canRosterSearch ? db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
       ]);
 
       setResults({
@@ -78,7 +79,7 @@ export default function CommandPalette() {
 
     const timer = setTimeout(search, 300);
     return () => clearTimeout(timer);
-  }, [query, profile, db, staff]);
+  }, [query, profile, db, staff, canRosterSearch]);
 
   const runCommand = (command: () => void) => {
     setOpen(false);
@@ -121,7 +122,7 @@ export default function CommandPalette() {
             </CommandGroup>
           )}
 
-          {staff && results.classes.length > 0 && (
+          {canRosterSearch && results.classes.length > 0 && (
             <CommandGroup heading={<span className="text-[10px] font-black text-violet-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Learning Cells</span>}>
               {results.classes.map((c) => (
                 <CommandItem key={c.id} onSelect={() => runCommand(() => router.push(`/dashboard/classes/${c.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
@@ -134,7 +135,7 @@ export default function CommandPalette() {
             </CommandGroup>
           )}
 
-          {staff && results.students.length > 0 && (
+          {canRosterSearch && results.students.length > 0 && (
             <CommandGroup heading={<span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Students</span>}>
               {results.students.map((s) => (
                 <CommandItem key={s.id} onSelect={() => runCommand(() => router.push(`/dashboard/students/${s.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">

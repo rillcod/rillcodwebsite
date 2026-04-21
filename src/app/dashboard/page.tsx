@@ -45,7 +45,7 @@ const QUICK_ACTIONS = {
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
     { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
-    { name: 'Smart Finance', href: '/dashboard/finance', icon: BanknotesIcon, desc: 'Billing and payments' },
+    { name: 'School billing', href: '/dashboard/school-billing', icon: BanknotesIcon, desc: 'Invoices and payments for your school' },
   ],
 };
 

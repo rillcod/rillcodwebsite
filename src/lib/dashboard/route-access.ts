@@ -1,7 +1,17 @@
 import type { UserRole } from '@/types/auth.types';
 
+/** Rillcod platform operators (full dashboard tooling). Excludes partner `school`. */
+export function isPlatformStaffRole(role: string | undefined | null): role is 'admin' | 'teacher' {
+  return role === 'admin' || role === 'teacher';
+}
+
+export function isPartnerSchoolRole(role: string | undefined | null): role is 'school' {
+  return role === 'school';
+}
+
+/** Any non-learner role (includes partner schools). */
 export function isStaffRole(role: string | undefined | null): role is 'admin' | 'teacher' | 'school' {
-  return role === 'admin' || role === 'teacher' || role === 'school';
+  return isPlatformStaffRole(role) || isPartnerSchoolRole(role);
 }
 
 function normalizePath(pathname: string): string {
@@ -10,9 +20,16 @@ function normalizePath(pathname: string): string {
   return base;
 }
 
+function matchesPathPrefix(path: string, prefixes: readonly string[]): boolean {
+  for (const p of prefixes) {
+    if (path === p || path.startsWith(`${p}/`)) return true;
+  }
+  return false;
+}
+
 /**
  * Staff-only areas under /dashboard (prefix match).
- * Keep in sync with DashboardNavigation staff menus.
+ * Used to block students/parents — keep in sync with platform admin/teacher menus.
  */
 const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/users',
@@ -56,10 +73,54 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/certificates/management',
 ];
 
-function matchesStaffPrefix(path: string): boolean {
-  for (const p of STAFF_ONLY_PREFIXES) {
-    if (path === p || path.startsWith(`${p}/`)) return true;
-  }
+/**
+ * Partner school: platform-wide and cross-tenant tools (prefix match).
+ * Does NOT include routes in the school sidebar (overview, students, curriculum, inbox, …).
+ */
+const SCHOOL_PLATFORM_PREFIXES: string[] = [
+  '/dashboard/users',
+  '/dashboard/schools',
+  '/dashboard/teachers',
+  '/dashboard/parents',
+  '/dashboard/approvals',
+  '/dashboard/lesson-plans',
+  '/dashboard/lessons/add',
+  '/dashboard/analytics',
+  '/dashboard/settings',
+  '/dashboard/finance',
+  '/dashboard/directory',
+  '/dashboard/engagement',
+  '/dashboard/school-settings',
+  '/dashboard/bulk',
+  '/dashboard/payments/bulk',
+  '/dashboard/admin',
+  '/dashboard/whatsapp',
+  '/dashboard/cbt/new',
+  '/dashboard/programs',
+  '/dashboard/grading',
+  '/dashboard/gamification',
+  '/dashboard/moderation',
+  '/dashboard/crm',
+  '/dashboard/activity-hub',
+  '/dashboard/activity-logs',
+  '/dashboard/reports',
+  '/dashboard/billing',
+  '/dashboard/billing-automation',
+  '/dashboard/transactions',
+  '/dashboard/generate-content',
+  '/dashboard/certificates/management',
+];
+
+/** Lesson/course/CBT editors — partner schools monitor clients; content authoring stays with platform staff / teachers. */
+function isCrossTenantContentEditorPath(path: string): boolean {
+  if (/^\/dashboard\/lessons\/[^/]+\/edit$/.test(path)) return true;
+  if (/^\/dashboard\/classes\/[^/]+\/edit$/.test(path)) return true;
+  if (path.startsWith('/dashboard/classes/new')) return true;
+  if (path === '/dashboard/courses/new' || path.startsWith('/dashboard/courses/new/')) return true;
+  if (/^\/dashboard\/courses\/[^/]+\/edit$/.test(path)) return true;
+  if (/^\/dashboard\/cbt\/[^/]+\/edit$/.test(path)) return true;
+  if (path.startsWith('/dashboard/cbt/') && /\/sessions\/[^/]+\/grade$/.test(path)) return true;
+  if (/^\/dashboard\/flashcards\/[^/]+\/edit$/.test(path)) return true;
   return false;
 }
 
@@ -79,20 +140,24 @@ export function isDashboardPathBlockedForStudent(pathname: string): boolean {
   const path = normalizePath(pathname);
   if (!path.startsWith('/dashboard')) return false;
 
-  if (matchesStaffPrefix(path)) return true;
+  if (matchesPathPrefix(path, STAFF_ONLY_PREFIXES)) return true;
   if (isStudentManagementPath(path)) return true;
 
-  if (/^\/dashboard\/lessons\/[^/]+\/edit$/.test(path)) return true;
-  if (/^\/dashboard\/classes\/[^/]+\/edit$/.test(path)) return true;
-  if (path.startsWith('/dashboard/classes/new')) return true;
+  if (isCrossTenantContentEditorPath(path)) return true;
 
-  if (path === '/dashboard/courses/new' || path.startsWith('/dashboard/courses/new/')) return true;
-  if (/^\/dashboard\/courses\/[^/]+\/edit$/.test(path)) return true;
+  return false;
+}
 
-  if (/^\/dashboard\/cbt\/[^/]+\/edit$/.test(path)) return true;
-  if (path.startsWith('/dashboard/cbt/') && /\/sessions\/[^/]+\/grade$/.test(path)) return true;
+/**
+ * True when a partner school account should be redirected away from this path.
+ * Mirrors DB intent: school users are scoped by `school_id`; platform tables stay admin/teacher.
+ */
+export function isDashboardPathBlockedForSchool(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  if (!path.startsWith('/dashboard')) return false;
 
-  if (/^\/dashboard\/flashcards\/[^/]+\/edit$/.test(path)) return true;
+  if (matchesPathPrefix(path, SCHOOL_PLATFORM_PREFIXES)) return true;
+  if (isCrossTenantContentEditorPath(path)) return true;
 
   return false;
 }
@@ -106,6 +171,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/parent-card',
   '/dashboard/parent-invoices',
   '/dashboard/parent-feedback',
+  '/dashboard/feedback',
   '/dashboard/support',
   '/dashboard/profile',
   '/dashboard/messages',
@@ -136,7 +202,8 @@ export function isDashboardPathBlockedForParent(pathname: string): boolean {
 
 export function isDashboardPathBlockedForRole(pathname: string, role: UserRole | string | undefined | null): boolean {
   if (!role) return false;
-  if (isStaffRole(role)) return false;
+  if (role === 'school') return isDashboardPathBlockedForSchool(pathname);
+  if (isPlatformStaffRole(role)) return false;
   if (role === 'student') return isDashboardPathBlockedForStudent(pathname);
   if (role === 'parent') return isDashboardPathBlockedForParent(pathname);
   return false;

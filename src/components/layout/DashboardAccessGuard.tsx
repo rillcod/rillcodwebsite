@@ -4,10 +4,11 @@ import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
+import RouteDeniedNotice from '@/components/access/RouteDeniedNotice';
 
 /**
- * Redirects students and parents away from staff-only dashboard routes.
- * Defence in depth alongside nav hiding and API checks.
+ * Redirects students, parents, and partner schools away from routes their role must not use.
+ * Defence in depth alongside nav hiding, middleware, and API / RLS.
  */
 export default function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,11 +32,16 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
   }, [pathname, profile?.role, loading, profileLoading, router]);
 
   if (!loading && !profileLoading && profile?.role && isDashboardPathBlockedForRole(pathname, profile.role)) {
+    const isSchool = profile.role === 'school';
     return (
-      <div className="min-h-[40vh] flex flex-col items-center justify-center gap-3 px-4 text-center">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" aria-hidden />
-        <p className="text-sm text-muted-foreground">Opening your dashboard…</p>
-      </div>
+      <RouteDeniedNotice
+        title={isSchool ? 'Partner school access only' : 'This area is not available for your account'}
+        body={
+          isSchool
+            ? 'This page is for Rillcod platform staff or teachers. Your workspace is limited to your school’s students, classes, schedules, and billing. Use the sidebar or return to your dashboard.'
+            : 'You were redirected because this page is reserved for a different role. Use the menu or go back to your dashboard.'
+        }
+      />
     );
   }
 

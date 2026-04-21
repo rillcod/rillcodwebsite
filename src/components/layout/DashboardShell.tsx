@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import NewsletterPopup from '@/components/dashboard/NewsletterPopup';
 import StaffQRScanner from '@/components/qr/StaffQRScanner';
+import PartnerSchoolScopeBanner from '@/components/layout/PartnerSchoolScopeBanner';
 
 // Pages where the QR scanner should NOT appear
 const QR_HIDDEN_PATHS = [
@@ -55,6 +56,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       {profile && <NewsletterPopup userId={profile.id} />}
       {!QR_HIDDEN_PATHS.some(p => pathname?.startsWith(p)) && <StaffQRScanner />}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 md:py-6 mobile-landscape-padding print:p-0 print:max-w-none print:m-0 text-[15px]">
+        <PartnerSchoolScopeBanner />
         {children}
       </main>
     </div>
