@@ -1,36 +1,59 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createMiddlewareSupabase } from '@/lib/supabase/middleware';
+import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const host = request.headers.get('host');
   const userAgent = request.headers.get('user-agent') || '';
-  
-  // 1. Canonical Redirect: Ensure use of www.rillcod.com
-  // Only redirect in production environments where the host matches exactly
+
   if (host === 'rillcod.com') {
     const url = request.nextUrl.clone();
     url.host = 'www.rillcod.com';
     return NextResponse.redirect(url, 301);
   }
 
-  // 2. Crawler Access: Allow Facebook and WhatsApp crawlers
-  if (userAgent.includes('facebookexternalhit') || 
-      userAgent.includes('Facebot') ||
-      userAgent.includes('WhatsApp')) {
+  if (
+    userAgent.includes('facebookexternalhit') ||
+    userAgent.includes('Facebot') ||
+    userAgent.includes('WhatsApp')
+  ) {
     return NextResponse.next();
   }
 
-  return NextResponse.next();
+  const { supabase, getResponse } = createMiddlewareSupabase(request);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+
+  if (user && pathname.startsWith('/dashboard')) {
+    const { data: row } = await supabase
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const role = row?.role;
+    if (isDashboardPathBlockedForRole(pathname, role)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      url.search = '';
+      const redirectResponse = NextResponse.redirect(url);
+      getResponse().cookies.getAll().forEach((c) => {
+        redirectResponse.cookies.set(c.name, c.value);
+      });
+      return redirectResponse;
+    }
+  }
+
+  return getResponse();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
