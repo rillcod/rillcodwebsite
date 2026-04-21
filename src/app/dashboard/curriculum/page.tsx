@@ -12,6 +12,7 @@ import {
   RocketLaunchIcon, ArrowRightIcon, StarIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -137,7 +138,7 @@ interface WeekTracking {
   completed_at?: string;
 }
 
-interface Course { id: string; title: string; is_active: boolean }
+interface Course { id: string; title: string; is_active: boolean; program_id?: string | null }
 interface Program { id: string; name: string; courses: Course[] }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -392,63 +393,35 @@ export default function CurriculumPage() {
   }
 
   // ── Create lesson from curriculum week ───────────────────────────────────
+  // Redirects to Add Lesson page with pre-populated curriculum context
   async function createLessonFromWeek(week: CurriculumWeek) {
     if (!canTrack || !selectedCourse || !curriculum) return;
     setCreatingLesson(true);
     const plan = week.lesson_plan;
-    const res = await fetch('/api/lessons', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: `Week ${week.week}: ${week.topic}`,
-        description: (week.subtopics ?? []).join(', '),
-        lesson_type: 'lesson',
-        status: 'draft',
-        duration_minutes: plan?.duration_minutes ?? 60,
-        is_active: true,
-        course_id: selectedCourse.id,
-        content: plan ? {
-          objectives: plan.objectives,
-          teacher_activities: plan.teacher_activities,
-          student_activities: plan.student_activities,
-          classwork: plan.classwork,
-          resources: plan.resources,
-          engagement_tips: plan.engagement_tips,
-        } : null,
-        lesson_plan: plan ? {
-          objectives: plan.objectives,
-          activities: plan.teacher_activities,
-          assessment_methods: [`Assignment: ${plan.assignment?.title ?? ''}`, `Project: ${plan.project?.title ?? ''}`].filter(Boolean),
-          staff_notes: (plan.engagement_tips ?? []).join('\n'),
-          plan_data: {
-            curriculum_id: curriculum.id,
-            term: activeTerm,
-            week: week.week,
+    const params = buildAddLessonQueryFromCurriculum({
+      curriculumId: curriculum.id,
+      term: activeTerm,
+      weekNumber: week.week,
+      courseId: selectedCourse.id,
+      programId: selectedProgram?.id ?? selectedCourse.program_id,
+      title: `Week ${week.week}: ${week.topic}`,
+      description: (week.subtopics ?? []).join(', '),
+      durationMinutes: plan?.duration_minutes ?? 60,
+      plan: plan
+        ? {
+            objectives: plan.objectives,
+            teacher_activities: plan.teacher_activities,
+            student_activities: plan.student_activities,
             classwork: plan.classwork,
+            resources: plan.resources,
+            engagement_tips: plan.engagement_tips,
             assignment: plan.assignment,
             project: plan.project,
-          },
-        } : null,
-        metadata: {
-          source: 'curriculum',
-          curriculum_id: curriculum.id,
-          term: activeTerm,
-          week: week.week,
-        },
-      }),
+          }
+        : null,
     });
-    const json = await res.json();
+    router.push(`/dashboard/lessons/add?${params.toString()}`);
     setCreatingLesson(false);
-    if (res.ok) {
-      const planId = json.data?.lesson_plan_id ?? json.data?.id;
-      if (planId) {
-        router.push(`/dashboard/lesson-plans/${planId}`);
-      } else {
-        setLoadError('Lesson plan created but could not navigate — check Lesson Plans.');
-      }
-    } else {
-      setLoadError(json.error || 'Failed to create lesson plan.');
-    }
   }
 
   // ── Create Flashcards from curriculum week ───────────────────────────────
@@ -522,22 +495,35 @@ export default function CurriculumPage() {
         return;
       }
       if (genContentType === 'lesson') {
-        const res  = await fetch('/api/lessons', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: weekTag, description: (genWeek.subtopics ?? []).join(', '),
-            lesson_type: 'lesson', status: 'draft',
-            duration_minutes: plan?.duration_minutes ?? 60, is_active: true,
-            course_id: selectedCourse.id,
-            content: plan ? JSON.stringify({ objectives: plan.objectives, teacher_activities: plan.teacher_activities, student_activities: plan.student_activities, classwork: plan.classwork, resources: plan.resources }) : null,
-            lesson_plan: plan ? { objectives: plan.objectives, activities: plan.teacher_activities, assessment_methods: [plan.assignment?.title ? `Assignment: ${plan.assignment.title}` : '', plan.project?.title ? `Project: ${plan.project.title}` : ''].filter(Boolean), staff_notes: (plan.engagement_tips ?? []).join('\n'), plan_data: { curriculum_id: curriculum?.id, week: genWeek.week, classwork: plan.classwork, assignment: plan.assignment, project: plan.project } } : null,
-            metadata: { source: 'generate-content', curriculum_id: curriculum?.id, week: genWeek.week },
-          }),
+        if (!curriculum) {
+          setGenTabError('No syllabus loaded — open Course Syllabus first or pick a course with a curriculum.');
+          return;
+        }
+        const termForWeek = genWeek.termNumber ?? activeTerm;
+        const params = buildAddLessonQueryFromCurriculum({
+          curriculumId: curriculum.id,
+          term: termForWeek,
+          weekNumber: genWeek.week,
+          courseId: selectedCourse.id,
+          programId: selectedProgram?.id ?? selectedCourse.program_id,
+          title: weekTag,
+          description: (genWeek.subtopics ?? []).join(', '),
+          durationMinutes: plan?.duration_minutes ?? 60,
+          plan: plan
+            ? {
+                objectives: plan.objectives,
+                teacher_activities: plan.teacher_activities,
+                student_activities: plan.student_activities,
+                classwork: plan.classwork,
+                resources: plan.resources,
+                engagement_tips: plan.engagement_tips,
+                assignment: plan.assignment,
+                project: plan.project,
+              }
+            : null,
         });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to create lesson plan');
-        router.push(`/dashboard/lesson-plans/${json.data?.lesson_plan_id ?? json.data?.id}`);
+        params.set('flow_origin', 'generate-tab');
+        router.push(`/dashboard/lessons/add?${params.toString()}`);
         return;
       }
       if (genContentType === 'assignment') {
@@ -547,6 +533,28 @@ export default function CurriculumPage() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
+        router.push(`/dashboard/assignments/${json.data.id}`);
+        return;
+      }
+      if (genContentType === 'project') {
+        const proj = plan?.project;
+        const res = await fetch('/api/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: proj?.title || `${weekTag} — Project`,
+            description: weekTag,
+            instructions: proj?.description || (genWeek.subtopics ?? []).join('\n'),
+            assignment_type: 'project',
+            due_date: projDue,
+            max_points: 100,
+            is_active: true,
+            course_id: selectedCourse.id,
+            metadata: { source: 'generate-content', curriculum_id: curriculum?.id, week: genWeek.week },
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to create project');
         router.push(`/dashboard/assignments/${json.data.id}`);
         return;
       }
@@ -692,48 +700,79 @@ export default function CurriculumPage() {
       <main className="flex-1 overflow-y-auto flex flex-col">
         {/* Tab bar — shown when course selected */}
         {selectedCourse && (
-          <div className="flex items-center gap-0 border-b border-border bg-card px-4 shrink-0">
+          <div
+            className="flex overflow-x-auto snap-x snap-mandatory border-b border-border bg-card px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
+            role="tablist"
+            aria-label="Curriculum views"
+          >
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'syllabus'}
               onClick={() => setActiveTab('syllabus')}
-              className={`flex items-center gap-2 px-5 py-3.5 text-xs font-black uppercase tracking-widest border-b-2 transition-colors ${
+              className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
                 activeTab === 'syllabus'
                   ? 'border-orange-500 text-orange-400'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
               }`}
             >
-              <BookOpenIcon className="w-3.5 h-3.5" />
-              Course Syllabus
+              <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">Syllabus</span>
             </button>
             {canTrack && (
               <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'generate'}
                 onClick={() => setActiveTab('generate')}
-                className={`flex items-center gap-2 px-5 py-3.5 text-xs font-black uppercase tracking-widest border-b-2 transition-colors ${
+                className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
                   activeTab === 'generate'
                     ? 'border-orange-500 text-orange-400'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                 }`}
               >
-                <SparklesIcon className="w-3.5 h-3.5" />
-                Generate Content
+                <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
+                <span className="whitespace-nowrap">Generate</span>
               </button>
             )}
           </div>
         )}
 
-        {/* Pipeline breadcrumb — always visible when course selected */}
+        {/* Pipeline — mobile-first: stack on small screens, row from sm */}
         {selectedCourse && (
-          <div className="flex items-center gap-0 px-4 py-2 border-b border-border bg-card/50 shrink-0 text-[10px] font-bold uppercase tracking-widest overflow-x-auto">
-            <span className="text-orange-400 whitespace-nowrap">Step 1 · Course Syllabus</span>
-            <span className="mx-2 text-muted-foreground">→</span>
-            <a href="/dashboard/lesson-plans" className="text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors">Step 2 · Lesson Plans</a>
-            <span className="mx-2 text-muted-foreground">→</span>
-            <a href="/dashboard/lessons" className="text-muted-foreground hover:text-foreground whitespace-nowrap transition-colors">Step 3 · Lessons</a>
-          </div>
+          <nav
+            className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1 border-b border-border bg-card/50 shrink-0 text-[10px] font-bold uppercase tracking-widest"
+            aria-label="Teaching workflow"
+          >
+            <span className="text-orange-400 inline-flex min-h-[44px] sm:min-h-0 items-center">
+              Step 1 · Syllabus
+            </span>
+            <span className="hidden sm:inline text-muted-foreground" aria-hidden>
+              →
+            </span>
+            <Link
+              href="/dashboard/lesson-plans"
+              prefetch={false}
+              className="text-muted-foreground hover:text-foreground inline-flex min-h-[44px] sm:min-h-0 items-center rounded-sm px-1 -mx-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+            >
+              Step 2 · Lesson plans
+            </Link>
+            <span className="hidden sm:inline text-muted-foreground" aria-hidden>
+              →
+            </span>
+            <Link
+              href="/dashboard/lessons"
+              prefetch={false}
+              className="text-muted-foreground hover:text-foreground inline-flex min-h-[44px] sm:min-h-0 items-center rounded-sm px-1 -mx-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+            >
+              Step 3 · Lessons
+            </Link>
+          </nav>
         )}
 
         {/* Generate Content Tab */}
         {activeTab === 'generate' && selectedCourse && (
-          <div className="flex-1 px-4 md:px-6 py-6 max-w-2xl space-y-6">
+          <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-10">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0">
                 <SparklesIcon className="w-5 h-5 text-orange-400" />
@@ -808,18 +847,19 @@ export default function CurriculumPage() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 2 — What to Create</p>
                 </div>
                 <div className="p-5 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                     {CONTENT_TYPES.map(t => {
                       const Icon   = t.icon;
                       const active = genContentType === t.key;
                       return (
                         <button
+                          type="button"
                           key={t.key}
                           onClick={() => setGenContentType(t.key)}
-                          className={`flex flex-col items-center gap-2 p-4 border text-center transition-all ${active ? t.active : t.idle}`}
+                          className={`flex flex-col items-center justify-center gap-2 min-h-[88px] sm:min-h-[96px] p-3 sm:p-4 border text-center transition-all touch-manipulation ${active ? t.active : t.idle}`}
                         >
-                          <Icon className="w-5 h-5" />
-                          <span className="text-xs font-black leading-tight">{t.label}</span>
+                          <Icon className="w-5 h-5 shrink-0" aria-hidden />
+                          <span className="text-[11px] sm:text-xs font-black leading-tight">{t.label}</span>
                         </button>
                       );
                     })}
@@ -842,9 +882,10 @@ export default function CurriculumPage() {
             {/* Generate button */}
             {canGenerateContent && (
               <button
+                type="button"
                 onClick={handleGenerate}
                 disabled={genGenerating}
-                className="w-full py-4 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all"
+                className="w-full min-h-[52px] py-4 px-4 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
               >
                 {genGenerating ? (
                   <>

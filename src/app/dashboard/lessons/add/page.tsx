@@ -1,11 +1,17 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeLessonType } from '@/lib/lessons/lesson-type';
+import {
+  peekStashedCurriculumLessonPlan,
+  clearStashedCurriculumLessonPlan,
+  type CurriculumWeekPlanSlice,
+} from '@/lib/curriculum/add-lesson-from-curriculum';
 import {
   ArrowLeft, BookOpen,
   Sparkles, Save, Layout, Settings2, Loader2, ChevronDown, ChevronUp,
@@ -13,25 +19,43 @@ import {
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 
-const ALLOWED_LESSON_TYPES = [
-  'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
-  'coding', 'reading', 'quiz', 'assignment', 'article', 'project', 'lab',
-  'live', 'practice', 'checkpoint', 'robotics', 'electronics', 'mechanics',
-  'design', 'iot', 'ai',
-];
-function safeType(t: string | undefined, fallback: string): string {
-  return t && ALLOWED_LESSON_TYPES.includes(t) ? t : fallback;
+function parseLessonPlanFromQuery(raw: string | null): CurriculumWeekPlanSlice | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as CurriculumWeekPlanSlice;
+  } catch {
+    try {
+      return JSON.parse(decodeURIComponent(raw)) as CurriculumWeekPlanSlice;
+    } catch {
+      return null;
+    }
+  }
 }
 
 const YOUNG_LEARNER_GRADES = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'Basic 1–Basic 6', 'KG–Basic 3'];
 
-export default function AddLessonPage() {
+function AddLessonPageContent() {
   const router = useRouter();
+  const sp = useSearchParams();
   const { profile, loading: authLoading, profileLoading } = useAuth();
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const preProgramId = searchParams?.get('program_id');
-  const preCourseId = searchParams?.get('course_id');
-  const isMinimal = searchParams?.get('minimal') === 'true';
+  const preProgramId = sp.get('program_id');
+  const preCourseId = sp.get('course_id');
+  const isMinimal = sp.get('minimal') === 'true';
+
+  // Curriculum context from query params
+  const curriculumSource = sp.get('source') === 'curriculum';
+  const curriculumId = sp.get('curriculum_id');
+  const curriculumTerm = sp.get('term');
+  const curriculumWeek = sp.get('week');
+  const preTitle = sp.get('title');
+  const preDescription = sp.get('description');
+  const preDuration = sp.get('duration');
+  const preLessonPlan = sp.get('lesson_plan');
+  const lessonPlanKey = sp.get('lesson_plan_key');
+  const flowOrigin = sp.get('flow_origin');
+  const classIdFromUrl = sp.get('class_id');
+
+  const curriculumPlanAppliedRef = useRef<string | null>(null);
 
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
@@ -68,6 +92,79 @@ export default function AddLessonPage() {
     order_index: '',
     content_layout: [] as any[]
   });
+
+  // Initialize form from curriculum / syllabus deep links (URL or sessionStorage for large plans)
+  useEffect(() => {
+    if (!curriculumSource || !preTitle) return;
+
+    setForm(prev => ({
+      ...prev,
+      title: preTitle,
+      description: preDescription || prev.description,
+      duration_minutes: preDuration || prev.duration_minutes,
+    }));
+
+    const applyPlan = (planData: CurriculumWeekPlanSlice) => {
+      if (planData.objectives?.length) setAiObjectives(planData.objectives);
+      if (planData.teacher_activities || planData.student_activities || planData.classwork || planData.resources?.length) {
+        const layoutBlocks: any[] = [];
+        if (planData.objectives?.length) {
+          layoutBlocks.push({
+            type: 'objectives',
+            title: 'Learning Objectives',
+            items: planData.objectives,
+          });
+        }
+        if (planData.teacher_activities?.length) {
+          planData.teacher_activities.forEach((activity: string, i: number) => {
+            layoutBlocks.push({
+              type: 'activity',
+              title: `Teacher Activity ${i + 1}`,
+              instructions: activity,
+            });
+          });
+        }
+        if (planData.student_activities?.length) {
+          planData.student_activities.forEach((activity: string, i: number) => {
+            layoutBlocks.push({
+              type: 'activity',
+              title: `Student Activity ${i + 1}`,
+              instructions: activity,
+            });
+          });
+        }
+        if (planData.classwork) {
+          layoutBlocks.push({
+            type: 'assignment-block',
+            title: (planData.classwork as { title?: string }).title || 'Classwork',
+            instructions: (planData.classwork as { instructions?: string }).instructions,
+          });
+        }
+        if (planData.resources?.length) {
+          layoutBlocks.push({
+            type: 'resources',
+            title: 'Resources',
+            items: planData.resources,
+          });
+        }
+        setForm(prev => ({ ...prev, content_layout: layoutBlocks }));
+      }
+    };
+
+    if (lessonPlanKey && curriculumPlanAppliedRef.current !== lessonPlanKey) {
+      const stashed = peekStashedCurriculumLessonPlan(lessonPlanKey);
+      if (stashed) {
+        applyPlan(stashed);
+        curriculumPlanAppliedRef.current = lessonPlanKey;
+        return;
+      }
+    }
+
+    if (preLessonPlan) {
+      const planData = parseLessonPlanFromQuery(preLessonPlan);
+      if (planData) applyPlan(planData);
+    }
+  }, [curriculumSource, preTitle, preDescription, preDuration, preLessonPlan, lessonPlanKey]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -186,7 +283,7 @@ export default function AddLessonPage() {
                   content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0 ? d.content_layout : prev.content_layout,
                   video_url: d.video_url ?? prev.video_url,
                   duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
-                  lesson_type: safeType(d.lesson_type, prev.lesson_type),
+                  lesson_type: normalizeLessonType(d.lesson_type, prev.lesson_type),
                 }));
                 setAiOpen(false);
                 setShowLessonPreview(true);
@@ -210,7 +307,7 @@ export default function AddLessonPage() {
           content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0 ? d.content_layout : prev.content_layout,
           video_url: d.video_url ?? prev.video_url,
           duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
-          lesson_type: d.lesson_type ?? prev.lesson_type,
+          lesson_type: normalizeLessonType(d.lesson_type, prev.lesson_type),
         }));
         setAiOpen(false);
         setShowLessonPreview(true);
@@ -244,6 +341,8 @@ export default function AddLessonPage() {
           durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
           courseName: selectedCourse?.title || undefined,
           programName: (selectedCourse as any)?.programs?.name || undefined,
+          lessonMode: aiMode,
+          contentType: form.lesson_type,
         }),
       });
       const payload = await res.json();
@@ -278,7 +377,7 @@ export default function AddLessonPage() {
         description: form.description.trim() || null,
         lesson_notes: form.lesson_notes.trim() || null,
         course_id: form.course_id,
-        lesson_type: form.lesson_type,
+        lesson_type: normalizeLessonType(form.lesson_type, 'lesson'),
         status: form.status,
         video_url: form.video_url.trim() || null,
         content_layout: form.content_layout,
@@ -287,6 +386,28 @@ export default function AddLessonPage() {
       if (form.duration_minutes) payload.duration_minutes = parseInt(form.duration_minutes);
       if (form.order_index) payload.order_index = parseInt(form.order_index) || null;
       if (form.session_date) payload.session_date = new Date(form.session_date).toISOString();
+
+      const aiMeta = {
+        ai_lesson_mode: aiMode,
+        ai_grade_level: aiGrade,
+        ...(lastModel ? { last_ai_model: lastModel } : {}),
+      };
+
+      if (curriculumSource && curriculumId && curriculumWeek) {
+        payload.metadata = {
+          source: 'curriculum',
+          curriculum_id: curriculumId,
+          term: curriculumTerm ? parseInt(curriculumTerm, 10) : null,
+          week: parseInt(curriculumWeek, 10),
+          ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
+          ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
+          ...aiMeta,
+        };
+      } else if (classIdFromUrl) {
+        payload.metadata = { class_id: classIdFromUrl, ...aiMeta };
+      } else {
+        payload.metadata = { ...aiMeta };
+      }
 
       const res = await fetch('/api/lessons', {
         method: 'POST',
@@ -316,8 +437,18 @@ export default function AddLessonPage() {
         }
       }
 
-      // Save AI-generated plan data to lesson_plans for Protocol tab
-      if (data?.id && (aiObjectives.length > 0 || form.content_layout.length > 0)) {
+      // Save plan row for Protocol tab — always when curriculum-sourced (even sparse weeks), or when AI/blocks exist
+      const shouldUpsertLessonPlan =
+        !!data?.id &&
+        (
+          (curriculumSource && curriculumId && curriculumWeek) ||
+          aiObjectives.length > 0 ||
+          form.content_layout.length > 0
+        );
+
+      let savedLessonPlanId: string | null = data?.lesson_plan_id ?? null;
+
+      if (shouldUpsertLessonPlan) {
         const db = createClient();
         const activityText = form.content_layout
           .filter((b: any) => b.type === 'activity')
@@ -327,15 +458,39 @@ export default function AddLessonPage() {
           .filter((b: any) => b.type === 'quiz' || b.type === 'assignment-block')
           .map((b: any) => b.type === 'quiz' ? `◈ Quiz: ${b.question}` : `◆ ${b.title || 'Assignment'}: ${b.instructions || ''}`)
           .join('\n\n');
-        await db.from('lesson_plans').upsert({
+
+        const lessonPlanData: any = {
           lesson_id: data.id,
           objectives: aiObjectives.length > 0 ? aiObjectives.join('\n') : null,
           activities: activityText || null,
           assessment_methods: assessmentText || null,
-        }, { onConflict: 'lesson_id' });
+        };
+
+        if (curriculumSource && curriculumId && curriculumWeek) {
+          lessonPlanData.plan_data = {
+            curriculum_id: curriculumId,
+            term: curriculumTerm ? parseInt(curriculumTerm, 10) : null,
+            week: parseInt(curriculumWeek, 10),
+            source: 'curriculum',
+            ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
+          };
+        }
+
+        const { data: planRow } = await db
+          .from('lesson_plans')
+          .upsert(lessonPlanData, { onConflict: 'lesson_id' })
+          .select('id')
+          .single();
+        if (planRow?.id) savedLessonPlanId = planRow.id;
       }
 
-      router.push(`/dashboard/lessons/${data.id}`);
+      if (lessonPlanKey) clearStashedCurriculumLessonPlan(lessonPlanKey);
+
+      if (curriculumSource && savedLessonPlanId) {
+        router.push(`/dashboard/lesson-plans/${savedLessonPlanId}`);
+      } else {
+        router.push(`/dashboard/lessons/${data.id}`);
+      }
     } catch (e: any) {
       setError(e.message ?? 'Failed to create lesson');
     } finally {
@@ -351,16 +506,21 @@ export default function AddLessonPage() {
 
   return (
     <div className={`space-y-8 pb-20`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-bold text-sm rounded-none shadow-lg shadow-orange-900/30 transition-all disabled:opacity-50 touch-manipulation"
+          >
+            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> : <Save className="w-4 h-4" aria-hidden />}
+            {saving ? 'Creating…' : (isMinimal ? 'Create' : 'Create lesson')}
+          </button>
           {!isMinimal ? (
-            <Link href="/dashboard/lessons" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Back to Lessons
+            <Link href="/dashboard/lessons" className="flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation sm:order-first py-1">
+              <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden /> Back to lessons
             </Link>
           ) : <div />}
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none shadow-lg shadow-orange-900/30 transition-all disabled:opacity-50">
-            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? 'Creating...' : (isMinimal ? 'Create' : 'Create Lesson')}
-          </button>
         </div>
 
         <div>
@@ -375,6 +535,30 @@ export default function AddLessonPage() {
         {error && (
           <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none text-rose-400 text-sm font-medium">
             {error}
+          </div>
+        )}
+
+        {/* Curriculum Context Banner */}
+        {curriculumSource && curriculumId && curriculumWeek && (
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-none">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-none border border-emerald-500/30 shrink-0">
+                <BookOpen className="w-5 h-5 text-emerald-400" aria-hidden />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-emerald-400 uppercase tracking-widest">
+                  {flowOrigin === 'generate-tab' ? 'From Generate (syllabus)' : 'Creating from curriculum'}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Week {curriculumWeek}
+                  {curriculumTerm ? ` · Term ${curriculumTerm}` : ''}
+                  {classIdFromUrl ? ' · Linked to a class' : ''}
+                </p>
+              </div>
+              <span className="self-start sm:self-center px-3 py-2 sm:py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest rounded-none border border-emerald-500/30 whitespace-nowrap">
+                Curriculum sync
+              </span>
+            </div>
           </div>
         )}
 
@@ -715,16 +899,19 @@ export default function AddLessonPage() {
 
           <Field label="Brief Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Plan / Study Notes <span className="text-orange-400/60 normal-case font-medium text-[9px]">(intro & prerequisites shown to students before class)</span></label>
               <button type="button" onClick={handleGenerateNotesOnly}
-                className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50"
+                className="shrink-0 text-[9px] font-black text-orange-400 uppercase tracking-widest inline-flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50 min-h-[44px] sm:min-h-0 px-1 -mx-1 touch-manipulation"
                 disabled={aiGeneratingNotes || aiGenerating}>
                 {aiGeneratingNotes
                   ? <><Loader2 className="w-3 h-3 animate-spin" /> Writing...</>
-                  : <><Sparkles className="w-3 h-3" /> Generate Notes</>}
+                  : <><Sparkles className="w-3 h-3" /> Notes only (lighter)</>}
               </button>
             </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Two-step option: use <strong className="text-foreground/90">Notes only</strong> when you do not want the full lesson builder yet — it fills this box only, using your current <strong className="text-foreground/90">{aiMode}</strong> mode and <strong className="text-foreground/90">{form.lesson_type.replace(/[-_]/g, ' ')}</strong> type. Build blocks later, or run the full assistant above when you are ready.
+            </p>
             <textarea
               value={form.lesson_notes}
               onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
@@ -747,17 +934,35 @@ export default function AddLessonPage() {
         </div>
 
         {/* Sticky Save Bar */}
-        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 bg-background/95 backdrop-blur-xl border-t border-border flex items-center justify-between gap-4">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-            {form.content_layout.length} content block{form.content_layout.length !== 1 ? 's' : ''} · {form.title || 'Untitled lesson'}
+        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center sm:text-left">
+            {form.content_layout.length} block{form.content_layout.length !== 1 ? 's' : ''} · {form.title || 'Untitled'}
           </p>
-          <button onClick={handleSubmit} disabled={saving}
-            className="flex items-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30">
-            {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating...</> : <><Save className="w-4 h-4" /> Create Lesson</>}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
+          >
+            {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> Creating…</> : <><Save className="w-4 h-4" aria-hidden /> Create lesson</>}
           </button>
         </div>
 
     </div>
+  );
+}
+
+export default function AddLessonPage() {
+  return (
+    <Suspense
+      fallback={(
+        <div className="min-h-screen bg-background flex items-center justify-center" role="status">
+          <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+    >
+      <AddLessonPageContent />
+    </Suspense>
   );
 }
 

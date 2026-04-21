@@ -244,6 +244,14 @@ Return ONLY this JSON (no extra text):
         req.courseName ? `Course: "${req.courseName}"` : '',
       ].filter(Boolean).join(' | ');
 
+      const mode = req.lessonMode ?? 'academic';
+      const notesModeStyle =
+        mode === 'academic'
+          ? `NOTES MODE — ACADEMIC: Write like a clear textbook section. Prefer 1000–1600 words (shorter for young grades). Use ## / ### headings, definitions, "Key idea" callouts, and a strong recap. Lesson type context: ${req.contentType ?? 'lesson'}.`
+          : mode === 'project'
+            ? `NOTES MODE — PROJECT: Write a compact "builder's handbook" — mission, tools, numbered build checklist, test steps, and reflection. Prefer 800–1300 words. Imperative steps ("Do this next…"). Lesson type context: ${req.contentType ?? 'hands-on'}.`
+            : `NOTES MODE — INTERACTIVE: Write short "levels" (## Level 1 / 2 / 3) with checkpoints and quick challenges. Prefer 700–1100 words, punchy and encouraging. Lesson type context: ${req.contentType ?? 'interactive'}.`;
+
       if (isYoung) {
         return `Write simple, fun study notes for a Nigerian primary school student.
 Topic: "${req.topic}"
@@ -261,6 +269,7 @@ STRICT RULES for young learners:
 ${req.courseName ? `- Show how "${req.topic}" connects to the student's "${req.courseName}" course` : ''}
 - Keep it SHORT — around 400 words total
 - End with 3 simple fun questions like "Can you name 3 things that use ${req.topic}?"
+${notesModeStyle}
 
 Return ONLY this JSON (nothing else):
 {
@@ -274,6 +283,7 @@ Grade: ${grade}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 ${notesContextLine ? `Context: ${notesContextLine}` : ''}
+${notesModeStyle}
 
 MANDATORY STRUCTURE — follow this exact section order:
 1. ## Introduction — 2-3 paragraphs introducing the topic with a real-world hook
