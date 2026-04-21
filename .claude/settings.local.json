@@ -121,7 +121,9 @@
       "Bash(sed 's/\\(.*//')",
       "Bash(cat src/lib/api-fetch.ts)",
       "Bash(cat src/lib/api-fetch.tsx)",
-      "WebFetch(domain:www.rillcod.com)"
+      "WebFetch(domain:www.rillcod.com)",
+      "Bash(mkdir -p \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/api/billing/cycles/[id]/checkout\")",
+      "Bash(mkdir -p \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/api/billing/cycles/[id]/proofs\")"
     ]
   }
 }

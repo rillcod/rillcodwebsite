@@ -83,6 +83,8 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
+          // Allow camera & mic for LiveKit video meetings
+          { key: 'Permissions-Policy', value: 'camera=*, microphone=*, display-capture=*' },
         ],
       },
       {
