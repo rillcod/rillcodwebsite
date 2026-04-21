@@ -1,4 +1,5 @@
 import DashboardNavigation from '@/components/layout/DashboardNavigation';
+import DashboardAccessGuard from '@/components/layout/DashboardAccessGuard';
 import DashboardShell from '@/components/layout/DashboardShell';
 import CommandPalette from '@/components/layout/CommandPalette';
 import PasswordChangeGuard from '@/components/layout/PasswordChangeGuard';
@@ -35,7 +36,7 @@ export default function DashboardLayout({
       {/* Main Content Area — wrapped in ErrorBoundary (Req 9.1) */}
       <DashboardShell>
         <DashboardErrorBoundary>
-          {children}
+          <DashboardAccessGuard>{children}</DashboardAccessGuard>
         </DashboardErrorBoundary>
       </DashboardShell>
 
