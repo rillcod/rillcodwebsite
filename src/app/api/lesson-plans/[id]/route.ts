@@ -34,7 +34,11 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const db = createAdminClient();
 
   const { data, error } = await db.from('lesson_plans').select(`
-    *, lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes)
+    *,
+    courses(id, title),
+    classes(id, name),
+    schools(id, name),
+    lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes)
   `).eq('id', id).single();
 
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -44,8 +48,8 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     const allowed = canAccessLessonScope(
       { id: user.id, role: user.role, school_id: user.school_id },
       {
-        school_id: (data as any)?.lessons?.school_id ?? null,
-        created_by: (data as any)?.lessons?.created_by ?? null,
+        school_id: (data as any)?.lessons?.school_id ?? (data as any)?.school_id ?? null,
+        created_by: (data as any)?.lessons?.created_by ?? (data as any)?.created_by ?? null,
       },
       teacherSchoolIds,
     );
