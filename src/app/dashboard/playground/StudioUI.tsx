@@ -4,9 +4,8 @@ import {
   CodeBracketIcon, PlayIcon, TrashIcon, PlusIcon,
   CloudArrowUpIcon, Squares2X2Icon, CommandLineIcon,
   BeakerIcon, RocketLaunchIcon, SparklesIcon,
-  ArrowPathIcon, XMarkIcon, BookOpenIcon,
-  ClipboardDocumentListIcon, EyeIcon,
-  PuzzlePieceIcon, DocumentTextIcon, CheckCircleIcon,
+  ArrowPathIcon, XMarkIcon,
+  EyeIcon, DocumentTextIcon, CheckCircleIcon,
   ArrowUpTrayIcon, StarIcon, CalendarIcon,
   TrophyIcon, FireIcon, BoltIcon,
 } from '@/lib/icons';
@@ -176,9 +175,9 @@ export default function StudioUI(p: StudioUIProps) {
         {/* SIDEBAR */}
         <AnimatePresence>
           {sidebarOpen && (
-            <motion.aside initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
+            <motion.aside initial={{ x: -300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -300, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-              className="fixed top-0 left-0 h-full w-[280px] sm:w-72 bg-card border-r border-border flex flex-col z-[60] shadow-2xl md:relative md:shadow-none md:z-auto md:shrink-0">
+              className="fixed top-0 left-0 h-full w-[280px] sm:w-72 bg-card border-r border-border flex flex-col z-[60] shadow-2xl md:relative md:top-auto md:left-auto md:h-auto md:shadow-none md:z-auto md:shrink-0 md:w-64 lg:w-72">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/10 shrink-0">
                 <div className="flex items-center gap-2"><BeakerIcon className="w-4 h-4 text-orange-400" /><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Explorer</span></div>
                 <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors touch-manipulation"><XMarkIcon className="w-4 h-4" /></button>
@@ -388,7 +387,9 @@ export default function StudioUI(p: StudioUIProps) {
                     <button onClick={() => setDevice('mobile')}  className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase transition-all touch-manipulation ${device === 'mobile'  ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>📱</button>
                   </div>
                 )}
-                <span className="hidden sm:block text-[8px] font-mono text-muted-foreground/30 uppercase tracking-widest">{lang === 'scratch' ? 'drag & drop' : 'UTF-8'}</span>
+                <span className="hidden sm:block text-[8px] font-mono text-muted-foreground/30 uppercase tracking-widest">
+                  {lang === 'scratch' ? 'drag & drop' : `${code.split('\n').length} lines`}
+                </span>
               </div>
             </div>
 
@@ -483,8 +484,13 @@ export default function StudioUI(p: StudioUIProps) {
                 <div className="space-y-1">
                   {consoleLogs.length === 0 && !running && <p className="text-muted-foreground/40 italic text-[11px]">▶ Run your code to see output here…</p>}
                   {consoleLogs.map((log, i) => (
-                    <div key={i} className={`py-0.5 pl-3 border-l-2 text-[11px] leading-relaxed ${log.startsWith('❌') ? 'border-rose-500 text-rose-400' : 'border-emerald-500/30 text-foreground/80'}`}>{log}</div>
+                    <div key={i} className={`py-0.5 pl-3 border-l-2 text-[11px] leading-relaxed ${log.startsWith('❌') ? 'border-rose-500 text-rose-400' : log.startsWith('✅') ? 'border-emerald-500 text-emerald-400' : 'border-emerald-500/30 text-foreground/80'}`}>{log}</div>
                   ))}
+                  {running && (
+                    <div className="flex items-center gap-2 text-emerald-400/60 text-[10px] animate-pulse">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />executing…
+                    </div>
+                  )}
                 </div>
               )}
             </div>
