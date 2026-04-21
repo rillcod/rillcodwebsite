@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowPathIcon,
+  ArrowUpTrayIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CreditCardIcon,
+  PaperClipIcon,
   TrashIcon,
 } from '@/lib/icons';
 
@@ -53,9 +56,75 @@ function relDate(d: string) {
 
 const STATUS_OPTIONS = ['due', 'past_due', 'paid', 'cancelled', 'rolled_over'] as const;
 
+// ─── Proof Upload Component ───────────────────────────────────────────────────
+function BillingCycleProofUpload({ cycleId, onUploaded }: { cycleId: string; onUploaded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('note', note);
+    try {
+      const res = await fetch(`/api/billing/cycles/${cycleId}/proofs`, { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? 'Upload failed');
+      toast.success('Payment evidence uploaded. Admin will review within 24 hours.');
+      setOpen(false);
+      setNote('');
+      if (fileRef.current) fileRef.current.value = '';
+      onUploaded();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg transition-all"
+      >
+        <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Upload Proof
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Upload Payment Evidence</p>
+      <textarea
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        rows={2}
+        placeholder="Optional: add bank reference, transfer narration, or a note for admin…"
+        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-orange-500/50 resize-none"
+      />
+      <div className="flex items-center gap-2">
+        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+          <PaperClipIcon className="w-3.5 h-3.5" />
+          {uploading ? 'Uploading…' : 'Choose File'}
+          <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleFile} disabled={uploading} className="hidden" />
+        </label>
+        <button type="button" onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">Accepted: JPG, PNG, PDF — max 10 MB</p>
+    </div>
+  );
+}
+
 export function BillingCyclesTab({ profile }: { profile: any }) {
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const isPayingRole = isSchool;
   const [rows, setRows] = useState<BillingCycleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -65,6 +134,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
   const [patching, setPatching] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [payingRow, setPayingRow] = useState<string | null>(null); // id of row showing payment options
+  const [paystackLoading, setPaystackLoading] = useState<string | null>(null);
   const [contactUsers, setContactUsers] = useState<{ id: string; full_name: string | null; email: string | null; role: string | null }[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [savingForm, setSavingForm] = useState(false);
@@ -240,6 +310,20 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
     }
   }
 
+  async function initiatePaystack(rowId: string) {
+    setPaystackLoading(rowId);
+    try {
+      const res = await fetch(`/api/billing/cycles/${rowId}/checkout`, { method: 'POST' });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Paystack initialisation failed');
+      window.location.href = j.url;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Payment failed to initialise');
+    } finally {
+      setPaystackLoading(null);
+    }
+  }
+
   const rolledHint = useMemo(
     () => 'Rolled-over cycles are closed by automation when a new term cycle is created.',
     [],
@@ -256,11 +340,11 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           </p>
         </div>
       )}
-      {isSchool && (
+      {isPayingRole && (
         <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
           <p className="font-bold text-foreground">Your Billing Schedule</p>
           <p className="mt-1 text-xs">
-            View your current and upcoming billing cycles. Click <strong>Pay Now</strong> on any due cycle to complete payment via bank transfer or Paystack.
+            View current and upcoming billing cycles. Click <strong>Pay Now</strong> on any due cycle to pay online via Paystack or upload a bank transfer evidence.
           </p>
         </div>
       )}
@@ -354,8 +438,8 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                   </div>
                 </button>
 
-                {/* School: Pay Now button strip for due/past_due cycles */}
-                {isSchool && isDue && (
+                {/* Pay Now button strip for due/past_due cycles (school + teacher) */}
+                {isPayingRole && isDue && (
                   <div className="border-t border-border px-4 py-3 bg-amber-500/5 flex items-center justify-between gap-3">
                     <p className="text-xs text-amber-400 font-bold">
                       {row.status === 'past_due' ? 'This cycle is overdue — please pay immediately.' : 'Payment due for this billing cycle.'}
@@ -370,16 +454,16 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                   </div>
                 )}
 
-                {/* Payment options for school */}
-                {isSchool && showingPayment && (
-                  <div className="border-t border-border px-4 py-4 bg-muted/20 space-y-3">
+                {/* Payment options panel (school + teacher) */}
+                {isPayingRole && showingPayment && (
+                  <div className="border-t border-border px-4 py-4 bg-muted/20 space-y-4">
                     <p className="text-xs font-black text-foreground uppercase tracking-widest">Payment Options</p>
                     <div className="grid sm:grid-cols-2 gap-3">
                       {/* Bank Transfer */}
                       <div className="border border-border rounded-xl p-3 space-y-1.5">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Bank Transfer</p>
                         <p className="text-xs text-foreground font-bold">Transfer to Rillcod Technologies</p>
-                        <p className="text-[11px] text-muted-foreground">Use your invoice reference as the transfer narration, then contact support to confirm.</p>
+                        <p className="text-[11px] text-muted-foreground">Use your invoice reference as the transfer narration. Upload your proof below after transfer.</p>
                         <Link
                           href="/dashboard/finance?tab=setup"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
@@ -388,19 +472,28 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         </Link>
                       </div>
                       {/* Paystack */}
-                      <div className="border border-border rounded-xl p-3 space-y-1.5">
+                      <div className="border border-border rounded-xl p-3 space-y-2">
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Paystack (Card / Bank)</p>
                         <p className="text-xs text-foreground font-bold">Pay online instantly</p>
                         <p className="text-[11px] text-muted-foreground">
                           Amount: <span className="font-black text-foreground">{fmt(row.currency, Number(row.amount_due ?? 0))}</span>
                         </p>
-                        <Link
-                          href={`/dashboard/my-payments?ref=billing_cycle_${row.id}&amount=${row.amount_due}&currency=${row.currency}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:underline"
+                        <button
+                          type="button"
+                          disabled={paystackLoading === row.id}
+                          onClick={() => void initiatePaystack(row.id)}
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
                         >
-                          Pay via Paystack →
-                        </Link>
+                          <CreditCardIcon className="w-3.5 h-3.5" />
+                          {paystackLoading === row.id ? 'Loading…' : 'Pay via Paystack'}
+                        </button>
                       </div>
+                    </div>
+
+                    {/* Proof upload (available to school and teacher) */}
+                    <div className="border-t border-border pt-3">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Already Paid? Upload Evidence</p>
+                      <BillingCycleProofUpload cycleId={row.id} onUploaded={load} />
                     </div>
                   </div>
                 )}

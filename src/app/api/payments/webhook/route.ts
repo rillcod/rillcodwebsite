@@ -271,6 +271,20 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
     try {
         const receiptUrl = await paymentsService.generateReceipt(transaction.id);
 
+        // Notify all admins + teachers linked to this school of the confirmed payment
+        const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
+        const schoolId = (transaction as any).school_id as string | null;
+        const amtFormatted = `${(transaction as any).currency || 'NGN'} ${Number((transaction as any).amount).toLocaleString()}`;
+        const payer = isRegistrationPayment
+          ? String(gatewayResponse?.student_name || 'A registrant')
+          : 'A user';
+        void notifyStaffOfPayment({
+          schoolId,
+          title: 'Payment Confirmed',
+          message: `${payer} payment of ${amtFormatted} confirmed (ref: ${String((transaction as any).transaction_reference || '').slice(0, 12)}…).`,
+          actionUrl: '/dashboard/finance?tab=billing',
+        });
+
         const adminTo = env.ADMIN_OPS_EMAIL?.trim();
         if (
             isRegistrationPayment &&

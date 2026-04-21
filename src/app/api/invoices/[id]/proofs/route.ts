@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { r2Upload, r2SignedUrl, R2_BUCKET } from '@/lib/r2/client';
+import { notifyStaffOfPayment } from '@/lib/payments/notify-staff';
 
 function adminClient() {
   return createClient(
@@ -142,6 +143,14 @@ export async function POST(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const signedUrl = await r2SignedUrl(key, 3600).catch(() => null);
+
+  // Notify admins + teachers linked to the invoice's school (fire-and-forget)
+  void notifyStaffOfPayment({
+    schoolId: invoice.school_id,
+    title: 'Payment Evidence Submitted',
+    message: `A ${caller.role} submitted payment proof for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
+    actionUrl: '/dashboard/finance?tab=invoices',
+  });
 
   return NextResponse.json({ success: true, data: { ...data, signed_url: signedUrl } });
 }
