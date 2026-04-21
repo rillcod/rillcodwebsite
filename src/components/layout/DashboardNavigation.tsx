@@ -227,6 +227,7 @@ export default function DashboardNavigation() {
           ...base,
           { divider: true, label: 'Learning' },
           { name: 'Learning Center',   href: '/dashboard/learning',        icon: RocketLaunchIcon },
+          { name: 'My Lessons',       href: '/dashboard/lessons',         icon: BookOpenIcon },
           { name: 'Flashcards',        href: '/dashboard/flashcards',      icon: BoltIcon },
           { name: 'Library',           href: '/dashboard/library',         icon: ArchiveBoxIcon },
           { name: 'Code Playground',   href: '/dashboard/playground',      icon: CodeBracketIcon },

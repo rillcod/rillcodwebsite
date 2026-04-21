@@ -25,6 +25,7 @@ import {
 } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { isStaffRole } from '@/lib/dashboard/route-access';
 
 export default function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -37,6 +38,7 @@ export default function CommandPalette() {
   const router = useRouter();
   const { profile } = useAuth();
   const db = createClient();
+  const staff = isStaffRole(profile?.role);
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -57,22 +59,26 @@ export default function CommandPalette() {
     }
 
     const search = async () => {
+      const canSearchLessons = staff || profile.role === 'student';
+      const lessonsQ = canSearchLessons
+        ? db.from('lessons').select('id, title').ilike('title', `%${query}%`).limit(3)
+        : Promise.resolve({ data: [] as any[] });
       const [cRes, lRes, sRes] = await Promise.all([
-        db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3),
-        db.from('lessons').select('id, title').ilike('title', `%${query}%`).limit(3),
-        db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3),
+        staff ? db.from('classes').select('id, name').ilike('name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
+        lessonsQ,
+        staff ? db.from('students').select('id, full_name').ilike('full_name', `%${query}%`).limit(3) : Promise.resolve({ data: [] as any[] }),
       ]);
 
       setResults({
-        classes: cRes.data || [],
+        classes: (cRes as { data?: any[] }).data || [],
         lessons: lRes.data || [],
-        students: sRes.data || [],
+        students: (sRes as { data?: any[] }).data || [],
       });
     };
 
     const timer = setTimeout(search, 300);
     return () => clearTimeout(timer);
-  }, [query, profile, db]);
+  }, [query, profile, db, staff]);
 
   const runCommand = (command: () => void) => {
     setOpen(false);
@@ -115,7 +121,7 @@ export default function CommandPalette() {
             </CommandGroup>
           )}
 
-          {results.classes.length > 0 && (
+          {staff && results.classes.length > 0 && (
             <CommandGroup heading={<span className="text-[10px] font-black text-violet-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Learning Cells</span>}>
               {results.classes.map((c) => (
                 <CommandItem key={c.id} onSelect={() => runCommand(() => router.push(`/dashboard/classes/${c.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
@@ -128,7 +134,7 @@ export default function CommandPalette() {
             </CommandGroup>
           )}
 
-          {results.students.length > 0 && (
+          {staff && results.students.length > 0 && (
             <CommandGroup heading={<span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Students</span>}>
               {results.students.map((s) => (
                 <CommandItem key={s.id} onSelect={() => runCommand(() => router.push(`/dashboard/students/${s.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
@@ -144,24 +150,28 @@ export default function CommandPalette() {
           <CommandSeparator className="my-4 h-px bg-card shadow-sm" />
 
           <CommandGroup heading={<span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] px-4 py-2 block">Quick Actions</span>}>
-            <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/lessons'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-              <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-all">
-                <CommandLineIcon className="w-5 h-5" />
-              </div>
-              <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Lesson Hub</span>
-            </CommandItem>
+            {(staff || profile.role === 'student') && (
+              <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/lessons'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
+                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-all">
+                  <CommandLineIcon className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Lesson Hub</span>
+              </CommandItem>
+            )}
             <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/messages'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
               <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-violet-500/20 group-hover:text-violet-400 transition-all">
                 <EnvelopeIcon className="w-5 h-5" />
               </div>
               <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Messages</span>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-              <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-all">
-                <CogIcon className="w-5 h-5" />
-              </div>
-              <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Parameters</span>
-            </CommandItem>
+            {staff && (
+              <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
+                <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-all">
+                  <CogIcon className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Parameters</span>
+              </CommandItem>
+            )}
           </CommandGroup>
         </CommandList>
         
