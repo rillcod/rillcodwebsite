@@ -42,6 +42,9 @@ export async function GET(request: Request) {
 
   let query = db.from('lesson_plans').select(`
     *,
+    courses(id, title),
+    classes(id, name),
+    schools(id, name),
     lessons(id, title, course_id, school_id, created_by,
       courses(id, title, program_id)
     )
@@ -63,7 +66,10 @@ export async function GET(request: Request) {
     plans = plans.filter((p: any) =>
       canAccessLessonScope(
         { id: user.id, role: user.role, school_id: user.school_id },
-        { school_id: p?.lessons?.school_id ?? null, created_by: p?.lessons?.created_by ?? null },
+        {
+          school_id: p?.lessons?.school_id ?? p?.school_id ?? null,
+          created_by: p?.lessons?.created_by ?? p?.created_by ?? null,
+        },
         teacherSchoolIds,
       ),
     );
