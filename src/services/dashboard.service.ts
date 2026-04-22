@@ -60,10 +60,15 @@ export async function fetchStudentAssignments(portalUserId: string) {
     const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean);
     if (!programIds.length) return subs ?? [];
 
-    // 3. Find course IDs for those programs — exclude locked courses
+    // 3. Find course IDs for those programs — exclude locked courses, EXCEPT
+    // for our always-public flagship programmes (Young Innovator, Teen Developer)
+    // which are exempt from the lock per product policy.
     const { data: courseRows } = await client
-        .from('courses').select('id').in('program_id', programIds).eq('is_locked', false);
-    const courseIds = (courseRows ?? []).map((c: any) => c.id);
+        .from('courses')
+        .select('id, is_locked, is_active, programs(name)')
+        .in('program_id', programIds);
+    const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
+    const courseIds = (courseRows ?? []).filter(isCourseVisibleToLearners).map((c: any) => c.id);
     if (!courseIds.length) return subs ?? [];
 
     // 4. Fetch all active assignments for enrolled courses

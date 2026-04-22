@@ -131,16 +131,22 @@ export default function StudentLearningPage() {
 
       const pIds = Array.from(new Set(enrolledPrograms.map((p: any) => p.id).filter((id: any) => id !== null)));
 
-      // 5. Fetch Courses & Lessons
+      // 5. Fetch Courses & Lessons (respect admin lock for students, except
+      // for our always-public flagship programmes — see lib/courses/visibility)
       if (pIds.length) {
         const { data: rawCourses } = await db.from('courses')
-          .select('id, title, description, duration_hours, program_id, lessons(id), assignments(id)')
+          .select('id, title, description, duration_hours, program_id, is_locked, lessons(id), assignments(id), programs(name)')
           .in('program_id', pIds)
           .eq('is_active', true)
           .order('level_order', { ascending: true });
-        
+
+        const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
+        const visibleCourses = (rawCourses ?? []).filter((c: any) =>
+          isCourseVisibleToLearners(c),
+        );
+
         const cmap: Record<string, any[]> = {};
-        (rawCourses || []).forEach((c: any) => {
+        visibleCourses.forEach((c: any) => {
           if (c.program_id && !cmap[c.program_id]) cmap[c.program_id] = [];
           if (c.program_id) cmap[c.program_id].push(c);
         });
@@ -148,7 +154,7 @@ export default function StudentLearningPage() {
 
         const { data: recentLessons } = await db.from('lessons')
           .select('*, courses(title, programs(name))')
-          .in('course_id', rawCourses?.map(c => c.id) || [])
+          .in('course_id', visibleCourses.map((c: any) => c.id))
           .eq('status', 'active')
           .order('created_at', { ascending: false })
           .limit(6);

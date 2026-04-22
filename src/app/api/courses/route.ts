@@ -14,6 +14,7 @@ const createCourseSchema = z.object({
     start_date: z.string().optional(),
     end_date: z.string().optional(),
     is_published: z.boolean().optional(),
+    is_locked: z.boolean().optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {

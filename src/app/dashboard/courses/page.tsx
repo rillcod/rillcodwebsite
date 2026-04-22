@@ -10,8 +10,9 @@ import {
   BookOpenIcon, AcademicCapIcon, UserGroupIcon, ClockIcon, ChartBarIcon,
   PlusIcon, PlayIcon, CheckCircleIcon, StarIcon, MagnifyingGlassIcon,
   EyeIcon, PencilIcon, TrashIcon, BoltIcon, RocketLaunchIcon,
-  LockClosedIcon, LockOpenIcon,
+  LockClosedIcon, LockOpenIcon, GlobeAltIcon,
 } from '@/lib/icons';
+import { isAlwaysPublicProgramName } from '@/lib/courses/visibility';
 
 const GRADIENTS = [
   'from-orange-600 to-orange-400', 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
@@ -33,6 +34,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
 }) {
   const [assigning, setAssigning] = useState(false);
   const isUncategorized = !course.program_id;
+  const isAlwaysPublic = isAlwaysPublicProgramName(course.programs?.name);
 
   async function handleAssign(e: React.ChangeEvent<HTMLSelectElement>) {
     const pid = e.target.value;
@@ -50,8 +52,16 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-orange-400'}`}>
             {course.programs?.name ?? 'No Program'}
           </span>
-          <div className="flex items-center gap-1.5">
-            {course.is_locked && (
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {isAlwaysPublic && (
+              <span
+                className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-400 border-sky-500/20 flex items-center gap-1"
+                title="Flagship programme — always visible to every learner, regardless of lock state"
+              >
+                <GlobeAltIcon className="w-2.5 h-2.5" /> Public
+              </span>
+            )}
+            {course.is_locked && !isAlwaysPublic && (
               <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20 flex items-center gap-1">
                 <LockClosedIcon className="w-2.5 h-2.5" /> Locked
               </span>
@@ -93,13 +103,26 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
               </Link>
               <button
                 onClick={() => onToggleLock?.(course.id, !course.is_locked)}
-                disabled={locking === course.id}
-                title={course.is_locked ? 'Unlock course for students' : 'Lock course from students'}
-                className={`p-2 rounded-none transition-colors disabled:opacity-40 ${course.is_locked ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20' : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-400'}`}>
-                {course.is_locked
-                  ? <LockClosedIcon className="w-3.5 h-3.5" />
-                  : <LockOpenIcon className="w-3.5 h-3.5" />
+                disabled={locking === course.id || isAlwaysPublic}
+                title={
+                  isAlwaysPublic
+                    ? 'Flagship programme — always visible to every learner; lock has no effect'
+                    : course.is_locked
+                      ? 'Unlock course for students'
+                      : 'Lock course from students'
                 }
+                className={`p-2 rounded-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isAlwaysPublic
+                    ? 'text-sky-400 bg-sky-500/10'
+                    : course.is_locked
+                      ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                      : 'text-muted-foreground bg-card hover:bg-amber-500/10 hover:text-amber-400'
+                }`}>
+                {isAlwaysPublic
+                  ? <GlobeAltIcon className="w-3.5 h-3.5" />
+                  : course.is_locked
+                    ? <LockClosedIcon className="w-3.5 h-3.5" />
+                    : <LockOpenIcon className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={() => onDelete(course.id, course.title)}
@@ -299,6 +322,19 @@ export default function CoursesPage() {
         {/* Error */}
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
+        )}
+
+        {/* Visibility policy explainer (staff-only) */}
+        {canEdit && (
+          <div className="bg-sky-500/5 border border-sky-500/20 rounded-none px-5 py-3 flex items-start gap-3">
+            <GlobeAltIcon className="w-5 h-5 text-sky-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              <span className="font-black text-sky-400 uppercase tracking-widest mr-1">Visibility policy:</span>
+              <span className="text-foreground font-bold">Young Innovator</span> and{' '}
+              <span className="text-foreground font-bold">Teen Developer</span> courses are always visible to every learner — their lock toggle is disabled.
+              All other courses are <span className="font-bold">locked from students by default</span> once created; click the lock icon on a card to publish it to learners.
+            </div>
+          </div>
         )}
 
         {/* Uncategorised alert banner */}

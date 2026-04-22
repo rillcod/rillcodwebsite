@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { isAlwaysPublicProgramName, isCourseVisibleToLearners } from '@/lib/courses/visibility';
 
 function adminClient() {
   return createClient(
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     let query = adminClient()
       .from('programs')
-      .select('*, courses ( id, title, is_active )')
+      .select('*, courses ( id, title, is_active, is_locked, program_id )')
       .order('created_at', { ascending: false });
 
     if (isActiveParam !== null) {
@@ -68,7 +69,24 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, data: data ?? [] });
+
+    // Staff see the raw list (including locked courses) so they can manage
+    // visibility.  Learners / public callers only see unlocked courses, with
+    // an exception carve-out for our always-public flagship programmes
+    // (Young Innovator, Teen Developer — see `src/lib/courses/visibility.ts`).
+    const isStaffCaller = callerRole && ['admin', 'teacher', 'school'].includes(callerRole);
+    const rows = (data ?? []).map((row: any) => {
+      if (isStaffCaller) return row;
+      const alwaysPublic = isAlwaysPublicProgramName(row.name);
+      const visibleCourses = (row.courses ?? []).filter((c: any) =>
+        alwaysPublic
+          ? c.is_active !== false
+          : isCourseVisibleToLearners({ ...c, programs: { name: row.name } }),
+      );
+      return { ...row, courses: visibleCourses };
+    });
+
+    return NextResponse.json({ success: true, data: rows });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
