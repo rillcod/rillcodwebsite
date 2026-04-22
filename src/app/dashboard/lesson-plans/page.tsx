@@ -140,6 +140,9 @@ function LessonPlansPageInner() {
   const [autoClassMatch, setAutoClassMatch] = useState(true);
   const [autoPickedClassId, setAutoPickedClassId] = useState('');
   const scheduleStepRef = useRef<HTMLDivElement | null>(null);
+  /** Courses for the selected programme (fetched directly so we are not limited to the first N global rows). */
+  const [programScopedCourses, setProgramScopedCourses] = useState<Course[] | null>(null);
+  const [programCoursesLoading, setProgramCoursesLoading] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -199,6 +202,31 @@ function LessonPlansPageInner() {
       setForm(f => ({ ...f, school_id: selected.school_id ?? '' }));
     }
   }, [form.curriculum_version_id, curricula, form.school_id]);
+
+  // When a programme is chosen in the create-plan modal, load that programme's courses explicitly.
+  // The global `courses` list is capped at 500 rows — courses for the selected programme may not appear otherwise.
+  useEffect(() => {
+    if (!showForm || !form.program_id) {
+      setProgramScopedCourses(null);
+      setProgramCoursesLoading(false);
+      return;
+    }
+    const ac = new AbortController();
+    setProgramScopedCourses(null);
+    setProgramCoursesLoading(true);
+    fetch(`/api/courses?program_id=${encodeURIComponent(form.program_id)}&limit=500`, { signal: ac.signal })
+      .then(r => r.json())
+      .then(j => {
+        if (!ac.signal.aborted) setProgramScopedCourses(Array.isArray(j.data) ? j.data : []);
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setProgramScopedCourses([]);
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setProgramCoursesLoading(false);
+      });
+    return () => ac.abort();
+  }, [showForm, form.program_id]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -322,8 +350,20 @@ function LessonPlansPageInner() {
   // Courses scoped by the selected program (form + filter).
   const coursesForForm = useMemo(() => {
     if (!form.program_id) return courses;
+    if (programScopedCourses !== null) return programScopedCourses;
     return courses.filter(c => getCourseProgramId(c) === form.program_id);
-  }, [courses, form.program_id]);
+  }, [courses, form.program_id, programScopedCourses]);
+
+  // If the programme has exactly one course, select it so syllabus + class steps can advance in order.
+  useEffect(() => {
+    if (!showForm || !form.program_id) return;
+    if (!programScopedCourses || programScopedCourses.length !== 1) return;
+    const only = programScopedCourses[0];
+    setForm(f => {
+      if (f.course_id === only.id) return f;
+      return { ...f, course_id: only.id, curriculum_version_id: '' };
+    });
+  }, [showForm, form.program_id, programScopedCourses]);
 
   // Courses grouped by program for the dropdown.
   const groupedCourses = useMemo(() => {
@@ -818,13 +858,16 @@ function LessonPlansPageInner() {
                 </label>
                 <select
                   value={form.course_id}
+                  disabled={!!form.program_id && programCoursesLoading}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px] disabled:opacity-50"
                 >
                   <option value="">
-                    {coursesForForm.length === 0
-                      ? (form.program_id ? 'No courses in this programme' : 'No courses available')
-                      : 'Select course…'}
+                    {form.program_id && programCoursesLoading
+                      ? 'Loading courses for this programme…'
+                      : coursesForForm.length === 0
+                        ? (form.program_id ? 'No courses in this programme' : 'No courses available')
+                        : 'Select course…'}
                   </option>
                   {groupedCourses.groups.map(g => (
                     <optgroup key={g.programName} label={g.programName}>
@@ -839,6 +882,9 @@ function LessonPlansPageInner() {
                 </select>
                 {!form.program_id && coursesForForm.length > 8 && (
                   <p className="text-[11px] text-card-foreground/40 mt-1.5">Tip · Pick a programme to shorten this list.</p>
+                )}
+                {form.program_id && programCoursesLoading && (
+                  <p className="text-[11px] text-violet-300/90 mt-1.5">Loading courses for the selected programme…</p>
                 )}
               </div>
 
