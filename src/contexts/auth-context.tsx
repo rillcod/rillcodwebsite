@@ -288,6 +288,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchProfile, invalidateCache, refreshProfile]);
 
+  // If auth never resolves (e.g. rare Supabase client stall), don't leave the
+  // app on "Loading…" forever — recover via getSession() after a few seconds.
+  useEffect(() => {
+    if (!isLoading) return;
+    const t = window.setTimeout(() => {
+      if (!mountedRef.current) return;
+      void supabase.auth.getSession().then(({ data: { session: s } }) => {
+        if (!mountedRef.current) return;
+        setSession(s);
+        setUser(s?.user ?? null);
+        setIsLoading(false);
+        if (s?.user && !profileFetchStartedRef.current) {
+          profileFetchStartedRef.current = true;
+          setProfileLoading(true);
+          void fetchProfile(s.user.id)
+            .then((p) => {
+              if (mountedRef.current) {
+                setProfile(p);
+                setProfileLoading(false);
+              }
+            })
+            .catch(() => {
+              if (mountedRef.current) setProfileLoading(false);
+            });
+        } else if (!s?.user) {
+          setProfile(null);
+          setProfileLoading(false);
+        }
+      });
+    }, 12_000);
+    return () => window.clearTimeout(t);
+  }, [isLoading, fetchProfile]);
+
   // Apply the view-as override if we're allowed to. `actualRole` is always
   // the real JWT/DB role; `profile.role` is what the UI sees.
   const actualRole = profile?.role ?? null;
