@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-type DeckCardRow = { position?: number | null; created_at: string };
-
 // GET /api/flashcards/decks/[id] - Get deck details with cards
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -12,29 +10,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Keep this query minimal so deck view always loads, even if optional relation
+  // metadata or RLS on joined tables changes.
   const { data: deck, error } = await supabase
     .from('flashcard_decks')
-    .select(`
-      *,
-      flashcard_cards(*),
-      portal_users!flashcard_decks_created_by_fkey(full_name),
-      lessons(title),
-      courses(name)
-    `)
+    .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!deck) return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
-
-  const deckWithCards = deck as typeof deck & { flashcard_cards?: DeckCardRow[] };
-  if (Array.isArray(deckWithCards.flashcard_cards)) {
-    deckWithCards.flashcard_cards.sort((a, b) => {
-      const pos = (a.position ?? 0) - (b.position ?? 0);
-      if (pos !== 0) return pos;
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (!deck) return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
 
   return NextResponse.json({ data: deck });
 }

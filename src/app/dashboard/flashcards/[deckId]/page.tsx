@@ -41,6 +41,7 @@ export default function FlashcardDeckPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showBuilder, setShowBuilder] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Grid state
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
@@ -79,9 +80,15 @@ export default function FlashcardDeckPage() {
     try {
       const res = await fetch(`/api/flashcards/decks/${deckId}`);
       const json = await res.json();
-      if (res.ok) setDeck(json.data);
-      else router.push('/dashboard/flashcards');
-    } catch { router.push('/dashboard/flashcards'); }
+      if (res.ok) {
+        setDeck(json.data);
+        setLoadError(null);
+      } else {
+        setLoadError(json?.error || 'Failed to load this deck.');
+      }
+    } catch {
+      setLoadError('Network error while loading this deck.');
+    }
   }
 
   async function loadCards() {
@@ -226,7 +233,36 @@ export default function FlashcardDeckPage() {
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!deck) return null;
+  if (!deck) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 space-y-4">
+          <h2 className="text-lg font-black">Unable to open flashcard deck</h2>
+          <p className="text-sm text-muted-foreground">
+            {loadError ?? 'This deck may have been removed or you may not have access to it.'}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                loadDeck().finally(() => setLoading(false));
+              }}
+              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors"
+            >
+              Retry
+            </button>
+            <Link
+              href="/dashboard/flashcards"
+              className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-center text-sm font-bold rounded-xl transition-colors"
+            >
+              Back
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tpl = getTemplateStyle(presCard?.template);
 
