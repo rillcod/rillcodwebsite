@@ -152,6 +152,14 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
+  const role = profile?.role ?? '';
+
+  // Per SCHOOL_CURRICULUM_SYSTEM.md role matrix: only Admin, Teacher, School view curricula.
+  // Students/parents do not have curriculum visibility (they see programs, assignments, projects).
+  if (!['admin', 'teacher', 'school'].includes(role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
 
@@ -160,7 +168,17 @@ export async function GET(req: NextRequest) {
     .select('*, courses!course_id(title), portal_users!created_by(full_name)')
     .order('created_at', { ascending: false });
 
-  if (profile?.school_id) query = query.eq('school_id', profile.school_id);
+  // Schools see curricula shared across all schools (school_id NULL) OR their own school-specific curricula.
+  // They also must respect the teacher-controlled is_visible_to_school gate.
+  if (role === 'school') {
+    if (profile?.school_id) {
+      query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
+    } else {
+      query = query.is('school_id', null);
+    }
+    query = query.eq('is_visible_to_school', true);
+  }
+
   if (courseId) query = query.eq('course_id', courseId);
 
   const { data, error } = await query;
@@ -174,8 +192,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'school', 'teacher'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Only staff can create syllabi' }, { status: 403 });
+  // Per SCHOOL_CURRICULUM_SYSTEM.md: only Admin + Teacher can generate/regenerate curriculum.
+  // Schools view curriculum but never author it.
+  if (!profile || !['admin', 'teacher'].includes(profile.role ?? '')) {
+    return NextResponse.json(
+      { error: 'Only Rillcod admins and teachers can generate curricula. Schools view the curriculum but do not author it.' },
+      { status: 403 },
+    );
   }
 
   const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = await req.json();
