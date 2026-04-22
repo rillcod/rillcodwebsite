@@ -1814,7 +1814,13 @@ export default function MissionsPage() {
                                 [mission.id]: v || '',
                               }))
                             }
-                            language={mission.language}
+                            language={
+                              (mission.language === 'css' || mission.language === 'typescript')
+                                ? 'javascript'
+                                : mission.language === 'sql'
+                                ? 'javascript'
+                                : mission.language as 'html' | 'robotics' | 'javascript' | 'python'
+                            }
                             height={450}
                             title={mission.title}
                             showHeader={true}
