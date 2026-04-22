@@ -77,9 +77,9 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
         <p className="text-xs text-muted-foreground mt-1">
           Open{' '}
           <Link href="/dashboard/money" className="text-primary font-bold hover:underline">
-            Money Hub
-          </Link>{' '}
-          for your payment activity.
+          Money Hub
+        </Link>{' '}
+        for your payment activity.
         </p>
       </div>
     );

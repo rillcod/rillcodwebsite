@@ -1841,12 +1841,15 @@ export default function FinancePage() {
       <div className="min-h-screen bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Smart Finance</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+              {profile.role === 'school' ? 'School Finance' : 'Platform Finance'}
+            </h1>
           </div>
           <div className="rounded-none border border-border bg-card p-6 text-sm text-muted-foreground">
             <p className="font-bold text-foreground">No finance tools for this account</p>
-            <p className="mt-2">Students and parents use <Link className="text-primary underline font-semibold" href="/dashboard/my-payments">My payments</Link> or{' '}
-              <Link className="text-primary underline font-semibold" href="/dashboard/parent-invoices">Invoices &amp; payments</Link> instead.</p>
+            <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/money">My Money</Link> for your personal ledger, or{' '}
+              <Link className="text-primary underline font-semibold" href="/dashboard/my-payments">My payments</Link> /{' '}
+              <Link className="text-primary underline font-semibold" href="/dashboard/parent-invoices">Invoices &amp; payments</Link> to pay.</p>
             <Link href="/dashboard" className="inline-block mt-4 text-primary font-bold underline">Back to dashboard</Link>
           </div>
         </div>
@@ -1859,9 +1862,13 @@ export default function FinancePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Smart Finance</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+            {profile.role === 'school' ? 'School Finance' : 'Platform Finance'}
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Unified billing, payments, subscriptions and settlements
+            {profile.role === 'school'
+              ? 'Your school\u2019s invoices, receipts and collection accounts'
+              : 'Control panel \u2014 billing, payments, subscriptions, settlements, reconciliation'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-violet-400 font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school

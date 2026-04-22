@@ -153,8 +153,9 @@ export default function DashboardNavigation() {
           { name: 'Activity Logs',     href: '/dashboard/activity-logs',   icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Finance' },
+          // Admin runs the whole platform's money — control panel first, then ledger.
+          { name: 'Platform Finance',  href: '/dashboard/finance',         icon: BanknotesIcon },
           { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
-          { name: 'Smart Finance',     href: '/dashboard/finance',         icon: BanknotesIcon },
 
           { divider: true, label: 'System' },
           { name: 'Moderation',        href: '/dashboard/moderation',      icon: ShieldCheckIcon },
@@ -301,8 +302,10 @@ export default function DashboardNavigation() {
           { name: 'Performance',       href: '/dashboard/progress',        icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Finance' },
+          // School runs its own invoices/receipts in /dashboard/finance (scoped by RLS).
+          { name: 'School Finance',    href: '/dashboard/finance',         icon: BanknotesIcon },
           { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
-          { name: 'My Billing',        href: '/dashboard/school-billing',  icon: BanknotesIcon },
+          { name: 'My Billing',        href: '/dashboard/school-billing',  icon: BuildingOfficeIcon },
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
