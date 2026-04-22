@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import type { Database, Json } from '@/types/supabase';
 
 type ProjectRow = {
   id: string;
@@ -38,7 +39,7 @@ type LessonPlanSource = {
   course_id: string | null;
   term_start?: string | null;
   sessions_per_week: number | null;
-  plan_data: Record<string, unknown> | null;
+  plan_data: Json | null;
   courses: CourseWithProgram | null;
   classes: ClassRow | null;
 };
@@ -87,7 +88,7 @@ type GeneratedWeek = {
     pass_score: number;
     speed_target_minutes: number;
   };
-  metadata: Record<string, unknown>;
+  metadata: Json;
   progression_badge?: {
     id: string;
     label: string;
@@ -95,6 +96,8 @@ type GeneratedWeek = {
   };
 };
 type SelectedProject = { project: ProjectRow; isRepeat: boolean };
+type LessonPlanUpdate = Database['public']['Tables']['lesson_plans']['Update'];
+type ProjectUsageInsert = Database['public']['Tables']['curriculum_project_usage']['Insert'];
 
 function parseBasicLevel(className: string | null | undefined): number | null {
   if (!className) return null;
@@ -136,6 +139,10 @@ function resolveGradeKeyFromClassName(className: string | null | undefined): str
 
 function asObject(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+
+function toJson(value: unknown): Json {
+  return JSON.parse(JSON.stringify(value ?? null)) as Json;
 }
 
 function resolveTeenPhase(yearNumber: number, termNumber: number): string {
@@ -240,7 +247,7 @@ function buildWeekEntries(input: {
       metadata: {
         ...asObject(project.metadata),
         teen_phase: resolveTeenPhase(yearNumber, termNumber),
-      },
+      } as Json,
       ...(strictRoute
         ? {
             progression_badge: {
@@ -332,6 +339,7 @@ export async function POST(
   if (!plan.school_id) {
     return NextResponse.json({ error: 'Lesson plan is missing school context.' }, { status: 422 });
   }
+  const schoolId = plan.school_id;
   if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
     return NextResponse.json({ error: 'You can only generate progression for your school plans.' }, { status: 403 });
   }
@@ -596,13 +604,15 @@ export async function POST(
     },
   };
 
+  const updatePayload: LessonPlanUpdate = {
+    sessions_per_week: sessionsPerWeek,
+    plan_data: toJson(nextPlanData),
+    updated_at: new Date().toISOString(),
+  };
+
   const { error: planUpdateErr } = await supabase
     .from('lesson_plans')
-    .update({
-      sessions_per_week: sessionsPerWeek,
-      plan_data: nextPlanData,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id);
   if (planUpdateErr) return NextResponse.json({ error: planUpdateErr.message }, { status: 500 });
 
@@ -613,13 +623,13 @@ export async function POST(
       return { year: Number(match[1]), term: Number(match[2]) };
     })
     .filter((term): term is { year: number; term: number } => term !== null);
-  const usagePayload = targetTerms.flatMap(({ year, term }) => {
+  const usagePayload: ProjectUsageInsert[] = targetTerms.flatMap(({ year, term }) => {
     const key = `y${year}t${term}`;
     const selected = termSelections.get(key) ?? [];
     const generatedWeeks = termGeneratedWeekMap.get(key) ?? [];
     return selected.map(({ project, isRepeat }, idx) => ({
       project_id: project.id,
-      school_id: plan.school_id,
+      school_id: schoolId,
       course_id: plan.course_id,
       lesson_plan_id: plan.id,
       class_id: plan.class_id,
@@ -692,7 +702,7 @@ export async function POST(
         return {
           course_id: plan.course_id,
           class_id: plan.class_id,
-          school_id: plan.school_id,
+          school_id: schoolId,
           title: w.type === 'project' ? w.week.project.title : w.week.assignment.title,
           description: w.type === 'project' ? w.week.project.description : w.week.assignment.brief,
           instructions: w.type === 'project' ? w.week.project.deliverables.join('\n') : w.week.assignment.brief,
@@ -719,7 +729,7 @@ export async function POST(
     }
   }
 
-  if (autoFlashcards && plan.school_id) {
+  if (autoFlashcards && schoolId && plan.course_id) {
     const desiredDecks: Array<{ marker: string; title: string; week: GeneratedWeek }> = [];
     for (const key of generatedKeys) {
       const termObj = asObject(generatedTerms[key]);
@@ -737,7 +747,7 @@ export async function POST(
       .from('flashcard_decks')
       .select('id,progression_policy_snapshot,course_id')
       .eq('created_by', user.id)
-      .eq('school_id', plan.school_id)
+      .eq('school_id', schoolId)
       .eq('course_id', plan.course_id);
     if (existingDeckErr) return NextResponse.json({ error: existingDeckErr.message }, { status: 500 });
     const existingByMarker = new Map<string, { id: string }>();
@@ -767,7 +777,7 @@ export async function POST(
           title: deckDef.title,
           lesson_id: null,
           course_id: plan.course_id,
-          school_id: plan.school_id,
+          school_id: schoolId,
           created_by: user.id,
           school_progression_enabled: true,
           progression_track: track,

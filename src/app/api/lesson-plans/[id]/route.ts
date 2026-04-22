@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from '../authz';
 import { getProgressionTermStatus } from '@/lib/progression/termStatus';
+import type { Database, Json } from '@/types/supabase';
 
 async function getUser() {
   const supabase = await createClient();
@@ -31,6 +32,10 @@ function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function toJson(value: unknown): Json {
+  return JSON.parse(JSON.stringify(value ?? null)) as Json;
 }
 
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
@@ -124,7 +129,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           generated_terms: generatedTerms,
         },
       };
-      await db.from('progression_override_audit').insert({
+      const auditRow: Database['public']['Tables']['progression_override_audit']['Insert'] = {
         lesson_plan_id: id,
         school_id: planSchoolId,
         actor_id: user.id,
@@ -133,9 +138,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         term_number: term,
         action_type: 'term_status_change',
         reason: typeof update.reason === 'string' ? update.reason : null,
-        before_state: before,
-        after_state: { term_status: status },
-      });
+        before_state: toJson(before),
+        after_state: toJson({ term_status: status }),
+      };
+      await db.from('progression_override_audit').insert(auditRow);
     }
     delete patchBody.progression_term_status_update;
   }
@@ -161,7 +167,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           lockViolation = { week: weekNum, year, term };
           break;
         }
-        await db.from('progression_override_audit').insert({
+        const auditRow: Database['public']['Tables']['progression_override_audit']['Insert'] = {
           lesson_plan_id: id,
           school_id: planSchoolId,
           actor_id: user.id,
@@ -171,9 +177,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           week_number: weekNum,
           action_type: 'week_edit_while_locked',
           reason,
-          before_state: existingWeek,
-          after_state: nextWeek,
-        });
+          before_state: toJson(existingWeek),
+          after_state: toJson(nextWeek),
+        };
+        await db.from('progression_override_audit').insert(auditRow);
       }
     }
     if (lockViolation) {
