@@ -230,6 +230,23 @@ export default function LessonPlanDetailPage() {
           curriculumId={plan.curriculum_version_id ?? null}
           lessonPlanId={plan.id}
         />
+
+        {/* AI Lesson Assistant banner — discoverable entry point */}
+        {weeks.some(w => !linkedLessons.find(l => l.metadata?.week === w.week)) && (
+          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
+                <SparklesIcon className="w-4 h-4 text-violet-300" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-violet-300">AI Lesson Assistant</p>
+                <p className="text-xs text-card-foreground/70 mt-0.5 leading-snug">
+                  Click <span className="font-bold text-violet-300">Create Lesson</span> on any week below — the AI builder opens with topic, grade and subject pre-filled. Pick a mode (Academic · Project · Interactive) and generate a full rich lesson in seconds.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Back + Print */}

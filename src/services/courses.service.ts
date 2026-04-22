@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redisCache } from '@/lib/redis';
 import { AppError, NotFoundError, ValidationError } from '@/lib/errors';
 import type { Database } from '@/types/supabase';
+import { isAlwaysPublicProgramName } from '@/lib/courses/visibility';
 
 export interface CourseInput {
     program_id: string;
@@ -158,11 +159,25 @@ export class CoursesService {
         const isActive = input.is_published !== false;
         await assertActiveCourseHasPricedProgram(supabase, input.program_id, isActive);
 
-        const { is_published: _omit, ...inputRow } = input as CourseInput & { is_published?: boolean };
+        // Default lock policy: new courses are hidden from students until an
+        // admin unlocks them, EXCEPT courses in our always-public flagship
+        // programmes (Young Innovator, Teen Developer) which are always open.
+        // Callers may still override by passing `is_locked` explicitly.
+        const { data: programNameRow } = await supabase
+            .from('programs')
+            .select('name')
+            .eq('id', input.program_id)
+            .single();
+        const isFlagship = isAlwaysPublicProgramName(programNameRow?.name);
+        const explicitLock = (input as CourseInput & { is_locked?: boolean }).is_locked;
+        const is_locked = typeof explicitLock === 'boolean' ? explicitLock : !isFlagship;
+
+        const { is_published: _omit, is_locked: _omitLock, ...inputRow } = input as CourseInput & { is_published?: boolean; is_locked?: boolean };
         const insertRow: CourseInsert = {
             ...(inputRow as CourseInsert),
             school_id: tenantId,
             is_active: isActive,
+            is_locked,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };

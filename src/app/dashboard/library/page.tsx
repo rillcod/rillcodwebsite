@@ -14,10 +14,11 @@ import {
   ArchiveBoxIcon, StarIcon, ArrowPathIcon, ExclamationTriangleIcon,
   Bars3Icon, EyeIcon, PlayIcon,
   ChevronLeftIcon, ChevronRightIcon, ArrowsPointingOutIcon,
-  ClipboardDocumentListIcon,
+  ClipboardDocumentListIcon, Squares2X2Icon, ListBulletIcon,
 } from "@/lib/icons";
 import VideoPlayer from '@/components/media/VideoPlayer';
 import { motion, AnimatePresence } from 'framer-motion';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 type ContentItem = {
   id: string;
@@ -289,6 +290,7 @@ export default function ContentLibraryPage() {
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [viewerItem, setViewerItem] = useState<ContentItem | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "school";
   const canMutateLibrary = profile?.role === "admin" || profile?.role === "teacher";
@@ -325,6 +327,26 @@ export default function ContentLibraryPage() {
     items.forEach(i => { if (i.subject) set.add(i.subject); });
     return ['All', ...Array.from(set).sort()];
   }, [items]);
+
+  // Count per category (respects the current tab & subject filter so
+  // the pills update as the user narrows down).
+  const categoryCounts = useMemo(() => {
+    const base = items.filter(item => {
+      const matchTab = activeTab === 'all' ? true
+        : activeTab === 'school' ? item.school_id === profile?.school_id
+        : !item.school_id;
+      const matchSubject = subjectFilter === 'All' ? true : item.subject === subjectFilter;
+      return matchTab && matchSubject;
+    });
+    const counts: Record<string, number> = { All: base.length };
+    CATEGORIES.slice(1).forEach(cat => {
+      const types = CATEGORY_TO_TYPE[cat] ?? [];
+      counts[cat] = base.filter(i =>
+        types.includes(i.content_type.toLowerCase()) || i.category === cat
+      ).length;
+    });
+    return counts;
+  }, [items, activeTab, subjectFilter, profile?.school_id]);
 
   const filtered = useMemo(() => {
     let result = items.filter(item => {
@@ -377,34 +399,10 @@ export default function ContentLibraryPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* ── Content Pipeline Tab Bar (staff only) ── */}
+      {/* ── Content Pipeline Stepper (staff only) ── */}
       {(profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-            <Link href="/dashboard/curriculum"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-              <BookOpenIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">1·</span>Course Syllabus
-            </Link>
-            <span className="text-muted-foreground text-xs px-1">→</span>
-            <Link href="/dashboard/lesson-plans"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-              <ClipboardDocumentListIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">2·</span>Lesson Plans
-            </Link>
-            <span className="text-muted-foreground text-xs px-1">→</span>
-            <Link href="/dashboard/lessons"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-              <SparklesIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">3·</span>Lessons
-            </Link>
-            <span className="text-muted-foreground text-xs px-1">→</span>
-            <Link href="/dashboard/flashcards"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-              <BoltIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">4·</span>Flashcard Studio
-            </Link>
-            <span className="text-muted-foreground text-xs px-1">→</span>
-            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
-              <ArchiveBoxIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-80 mr-0.5">5·</span>Library
-            </span>
-          </div>
+          <PipelineStepper current="library" />
         </div>
       )}
 
@@ -433,9 +431,62 @@ export default function ContentLibraryPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Scope tabs (All / My School / Global) — only meaningful for
+            school & teacher roles; admins see everything via All. */}
+        {(isStaff) && (
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 mb-4 w-fit overflow-x-auto">
+            {[
+              { key: 'all',    label: 'All',       icon: ArchiveBoxIcon },
+              { key: 'school', label: 'My School', icon: BuildingOfficeIcon },
+              { key: 'global', label: 'Global',    icon: GlobeAltIcon },
+            ].map(t => {
+              const Icon = t.icon;
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key as any)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                    active
+                      ? 'bg-violet-600 text-white'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Category pills with counts — click to drill in */}
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto [-webkit-overflow-scrolling:touch] pb-1">
+          {CATEGORIES.map(cat => {
+            const count = categoryCounts[cat] ?? 0;
+            const active = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                  active
+                    ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'
+                }`}
+              >
+                <span>{cat}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${active ? 'bg-orange-500/20' : 'bg-muted'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Enhanced Search and Filters */}
-        <div className="bg-card border border-border p-6 mb-8 space-y-6">
+        <div className="bg-card border border-border p-4 sm:p-6 mb-6 space-y-4 sm:space-y-6 rounded-none">
           {/* Search Bar */}
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -443,33 +494,19 @@ export default function ContentLibraryPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search resources by title, subject, or tags..."
-              className="w-full bg-background border border-border pl-12 pr-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full bg-background border border-border pl-12 pr-4 py-3 sm:py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px]"
             />
           </div>
 
           {/* Filter Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Categories */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            {/* Subject */}
             <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Category</label>
-              <select
-                value={activeCategory}
-                onChange={e => setActiveCategory(e.target.value)}
-                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
-              >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Subjects */}
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Subject</label>
+              <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Subject</label>
               <select
                 value={subjectFilter}
                 onChange={e => setSubjectFilter(e.target.value)}
-                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors min-h-[40px]"
               >
                 {subjects.map(subject => (
                   <option key={subject} value={subject}>{subject}</option>
@@ -479,11 +516,11 @@ export default function ContentLibraryPage() {
 
             {/* Sort */}
             <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Sort By</label>
+              <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Sort By</label>
               <select
                 value={sortKey}
                 onChange={e => setSortKey(e.target.value as SortKey)}
-                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors min-h-[40px]"
               >
                 <option value="newest">Newest First</option>
                 <option value="most_used">Most Used</option>
@@ -491,18 +528,49 @@ export default function ContentLibraryPage() {
               </select>
             </div>
 
+            {/* Reset */}
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Reset</label>
+              <button
+                onClick={() => { setSearch(''); setActiveCategory('All'); setSubjectFilter('All'); setSortKey('newest'); }}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold bg-background border border-border hover:bg-muted transition-colors min-h-[40px]"
+              >
+                <ArrowPathIcon className="w-3.5 h-3.5" /> Clear filters
+              </button>
+            </div>
+
             {/* View Toggle */}
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">View</label>
-              <div className="flex border border-border">
-                <button className="flex-1 px-3 py-2.5 bg-orange-600 text-white text-xs font-bold">
-                  <Bars3Icon className="w-4 h-4 mx-auto" />
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">View</label>
+              <div className="flex border border-border min-h-[40px]" role="group" aria-label="Layout">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
+                    viewMode === 'grid' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <Squares2X2Icon className="w-4 h-4" /> Grid
                 </button>
-                <button className="flex-1 px-3 py-2.5 bg-background hover:bg-muted text-muted-foreground text-xs font-bold transition-colors">
-                  Grid
+                <button
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
+                    viewMode === 'list' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <ListBulletIcon className="w-4 h-4" /> List
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Result meta */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground font-bold uppercase tracking-widest">
+            <span>{filtered.length} resource{filtered.length === 1 ? '' : 's'}</span>
+            {(search || activeCategory !== 'All' || subjectFilter !== 'All') && (
+              <span className="text-orange-400">Filtered</span>
+            )}
           </div>
         </div>
 
@@ -537,8 +605,56 @@ export default function ContentLibraryPage() {
               </button>
             )}
           </div>
+        ) : viewMode === 'list' ? (
+          <div className="bg-card border border-border divide-y divide-border rounded-none">
+            {filtered.map((item, index) => (
+              <motion.button
+                key={item.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(index * 0.02, 0.4) }}
+                onClick={() => setViewerItem(item)}
+                className="w-full text-left flex items-center gap-3 sm:gap-4 p-3 sm:p-4 hover:bg-muted/30 transition-colors min-h-[72px]"
+              >
+                <div className={`shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${getTypeColor(item.content_type)} flex items-center justify-center text-white/80 rounded-none`}>
+                  {item.files?.thumbnail_url ? (
+                    <img src={item.files.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    getTypeIcon(item.content_type)
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm text-foreground truncate">{item.title}</h3>
+                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-border bg-muted text-muted-foreground">
+                      {item.content_type}
+                    </span>
+                    {item.is_approved && (
+                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Approved
+                      </span>
+                    )}
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1">
+                    <span>{item.subject || 'General'}</span>
+                    {item.grade_level && <span>• {item.grade_level}</span>}
+                    <span>• {item.usage_count ?? 0} uses</span>
+                    {item.rating_count ? (
+                      <span className="inline-flex items-center gap-0.5">
+                        • <StarIcon className="w-3 h-3 text-amber-400" /> {item.rating_average?.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <EyeIcon className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+              </motion.button>
+            ))}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filtered.map((item, index) => (
               <motion.div
                 key={item.id}
@@ -638,6 +754,213 @@ export default function ContentLibraryPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* Upload modal — mobile-first */}
+      <AnimatePresence>
+        {showUpload && canUpload && (
+          <UploadModal
+            onClose={() => setShowUpload(false)}
+            onCreated={(item) => {
+              setItems(prev => [item, ...prev]);
+              setNotice('Resource added to library');
+              setShowUpload(false);
+              setTimeout(() => setNotice(null), 3500);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/* ---- Upload modal ---------------------------------------------------- */
+
+function UploadModal({ onClose, onCreated }: {
+  onClose: () => void;
+  onCreated: (item: ContentItem) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [contentType, setContentType] = useState('document');
+  const [subject, setSubject] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
+  const [tags, setTags] = useState('');
+  const [url, setUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setErr('Title is required'); return; }
+    setSubmitting(true); setErr(null);
+    try {
+      // API schema accepts a narrower enum — normalise legacy labels
+      const typeMap: Record<string, string> = {
+        document: 'document', guide: 'document', project: 'interactive',
+        video: 'video', interactive: 'interactive',
+        presentation: 'presentation', quiz: 'quiz', asset: 'document',
+      };
+      const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
+      if (url.trim()) tagList.push(`url:${url.trim()}`);
+      const payload = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        contentType: typeMap[contentType] ?? 'document',
+        subject: subject.trim() || undefined,
+        gradeLevel: gradeLevel.trim() || undefined,
+        tags: tagList,
+      };
+      const res = await fetch('/api/content-library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? 'Upload failed');
+      onCreated(json.data as ContentItem);
+    } catch (e: any) {
+      setErr(e.message || 'Upload failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        className="bg-card border border-border rounded-t-2xl sm:rounded-none w-full sm:max-w-lg max-h-[92vh] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <ArchiveBoxIcon className="w-5 h-5 text-orange-400" />
+            <h2 className="font-black uppercase tracking-widest text-sm text-foreground">Add Resource</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg" aria-label="Close">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Title *</label>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              required
+              className="w-full bg-background border border-border px-3 py-2.5 text-sm min-h-[44px]"
+              placeholder="e.g. Intro to Scratch — PDF workbook"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Description</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              className="w-full bg-background border border-border px-3 py-2.5 text-sm"
+              placeholder="What will learners gain from this resource?"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Type</label>
+              <select
+                value={contentType}
+                onChange={e => setContentType(e.target.value)}
+                className="select-premium w-full px-3 py-2.5 text-sm min-h-[44px]"
+              >
+                <option value="document">Document</option>
+                <option value="video">Video</option>
+                <option value="guide">Guide</option>
+                <option value="project">Project</option>
+                <option value="interactive">Interactive</option>
+                <option value="presentation">Presentation</option>
+                <option value="asset">Asset</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Grade</label>
+              <input
+                value={gradeLevel}
+                onChange={e => setGradeLevel(e.target.value)}
+                className="w-full bg-background border border-border px-3 py-2.5 text-sm min-h-[44px]"
+                placeholder="e.g. P3 – JSS1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Subject</label>
+            <input
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              className="w-full bg-background border border-border px-3 py-2.5 text-sm min-h-[44px]"
+              placeholder="e.g. Scratch, Python, Robotics"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Resource URL</label>
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              type="url"
+              className="w-full bg-background border border-border px-3 py-2.5 text-sm min-h-[44px]"
+              placeholder="https://… (optional — link to external asset)"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Tip: for file uploads, first add the file via the Files page, then reference it here.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5 text-muted-foreground">Tags (comma-separated)</label>
+            <input
+              value={tags}
+              onChange={e => setTags(e.target.value)}
+              className="w-full bg-background border border-border px-3 py-2.5 text-sm min-h-[44px]"
+              placeholder="e.g. beginner, scratch, worksheet"
+            />
+          </div>
+
+          {err && (
+            <div className="bg-rose-500/10 border border-rose-500/30 p-3 text-rose-400 text-xs flex items-center gap-2">
+              <ExclamationTriangleIcon className="w-4 h-4" /> {err}
+            </div>
+          )}
+        </form>
+
+        <div className="flex gap-3 px-5 py-4 border-t border-border shrink-0 bg-card">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 bg-background border border-border text-xs font-black uppercase tracking-widest hover:bg-muted min-h-[44px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting || !title.trim()}
+            onClick={handleSubmit as any}
+            className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest min-h-[44px] inline-flex items-center justify-center gap-2"
+          >
+            {submitting ? (
+              <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+            ) : (<><PlusIcon className="w-3.5 h-3.5" /> Add Resource</>)}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
