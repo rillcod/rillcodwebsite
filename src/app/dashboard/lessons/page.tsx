@@ -14,6 +14,7 @@ import {
   ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
   AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon,
 } from '@/lib/icons';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -250,21 +251,7 @@ export default function LessonsPage() {
 
       {/* Pipeline steps */}
       {isStaff && (
-        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <Link href="/dashboard/curriculum"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <BookOpenIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">1·</span>Course Syllabus
-          </Link>
-          <span className="text-muted-foreground text-xs px-1">→</span>
-          <Link href="/dashboard/lesson-plans"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <ClipboardDocumentListIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-60 mr-0.5">2·</span>Lesson Plans
-          </Link>
-          <span className="text-muted-foreground text-xs px-1">→</span>
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
-            <SparklesIcon className="w-4 h-4" /> <span className="text-[10px] font-black uppercase tracking-wider opacity-80 mr-0.5">3·</span>Lessons
-          </span>
-        </div>
+        <PipelineStepper current="lessons" lessonPlanId={lessonPlanId} />
       )}
 
       {/* Header */}
@@ -279,10 +266,11 @@ export default function LessonsPage() {
         </div>
         {isStaff && (
           <Link
-            href="/dashboard/lessons/add"
+            href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex-shrink-0"
           >
             <PlusIcon className="w-4 h-4" /> Add Lesson
+            {lessonPlanId && <span className="text-[10px] opacity-70 uppercase tracking-widest">· for Plan</span>}
           </Link>
         )}
       </div>
@@ -374,7 +362,7 @@ export default function LessonsPage() {
           </p>
           {isStaff && !search && filterStatus === 'all' && (
             <Link
-              href="/dashboard/lessons/add"
+              href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
               className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Lesson

@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -738,36 +739,17 @@ export default function CurriculumPage() {
           </div>
         )}
 
-        {/* Pipeline — mobile-first: stack on small screens, row from sm */}
+        {/* Pipeline — shared 5-step stepper with course context preserved across steps */}
         {selectedCourse && (
-          <nav
-            className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1 border-b border-border bg-card/50 shrink-0 text-[10px] font-bold uppercase tracking-widest"
-            aria-label="Teaching workflow"
-          >
-            <span className="text-orange-400 inline-flex min-h-[44px] sm:min-h-0 items-center">
-              Step 1 · Syllabus
-            </span>
-            <span className="hidden sm:inline text-muted-foreground" aria-hidden>
-              →
-            </span>
-            <Link
-              href="/dashboard/lesson-plans"
-              prefetch={false}
-              className="text-muted-foreground hover:text-foreground inline-flex min-h-[44px] sm:min-h-0 items-center rounded-sm px-1 -mx-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-            >
-              Step 2 · Lesson plans
-            </Link>
-            <span className="hidden sm:inline text-muted-foreground" aria-hidden>
-              →
-            </span>
-            <Link
-              href="/dashboard/lessons"
-              prefetch={false}
-              className="text-muted-foreground hover:text-foreground inline-flex min-h-[44px] sm:min-h-0 items-center rounded-sm px-1 -mx-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-            >
-              Step 3 · Lessons
-            </Link>
-          </nav>
+          <div className="px-4 py-3 border-b border-border bg-card/50 shrink-0">
+            <PipelineStepper
+              current="syllabus"
+              courseId={selectedCourse.id}
+              programId={selectedCourse.program_id ?? selectedProgram?.id ?? null}
+              curriculumId={curriculum?.id ?? null}
+              courseTitle={selectedCourse.title}
+            />
+          </div>
         )}
 
         {/* Generate Content Tab */}
@@ -1261,10 +1243,11 @@ export default function CurriculumPage() {
                     <button
                       onClick={() => createLessonFromWeek(activeWeek)}
                       disabled={creatingLesson}
+                      title="Opens Step 3 · Lessons with this week's plan prefilled"
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
                     >
                       <PencilIcon className="w-3.5 h-3.5" />
-                      {creatingLesson ? 'Creating…' : 'Create Lesson Plan'}
+                      {creatingLesson ? 'Creating…' : 'Create Lesson'}
                     </button>
                     <button
                       onClick={() => createCbtFromWeek(activeWeek)}
