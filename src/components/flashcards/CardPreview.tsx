@@ -53,6 +53,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">Live Preview</h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="px-2 py-0.5 bg-muted rounded-full font-medium">{template.name}</span>
             <span>{currentIndex + 1} / {cards.length}</span>
           </div>
         </div>
@@ -144,9 +145,18 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
         </div>
 
         {/* Device Frame Indicator */}
-        <div className="text-center">
+        <div className="text-center space-y-2">
+          <div className="flex justify-center gap-1">
+            {cards.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
+                className={`w-2 h-2 rounded-full transition-all ${i === currentIndex ? 'bg-orange-500 w-4' : 'bg-muted hover:bg-muted-foreground/40'}`}
+              />
+            ))}
+          </div>
           <span className="text-xs text-muted-foreground">
-            Previewing on {device}
+            {showAnswer ? '↩ Answer' : '→ Question'} · {device}
           </span>
         </div>
       </motion.div>

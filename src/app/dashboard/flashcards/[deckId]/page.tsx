@@ -1,18 +1,16 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { 
-  ArrowLeftIcon,
-  PencilIcon,
-  TrashIcon,
-  PlayIcon,
-  DocumentTextIcon,
-  SparklesIcon
+  ArrowLeftIcon, PencilIcon, TrashIcon, PlayIcon,
+  DocumentTextIcon, SparklesIcon, EyeIcon, XMarkIcon,
+  CheckCircleIcon, ArrowPathIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
 
 interface Card {
@@ -46,6 +44,7 @@ export default function FlashcardDeckPage() {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editForm, setEditForm] = useState({ front: '', back: '' });
   const [saving, setSaving] = useState(false);
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
   const deckId = params.deckId as string;
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
@@ -94,12 +93,13 @@ export default function FlashcardDeckPage() {
       
       if (res.ok) {
         setCards(prev => prev.filter(c => c.id !== cardId));
+        toast.success('Card deleted');
       } else {
         const json = await res.json();
-        alert(json.error || 'Failed to delete card');
+        toast.error(json.error || 'Failed to delete card');
       }
-    } catch (error) {
-      alert('Failed to delete card');
+    } catch {
+      toast.error('Failed to delete card');
     }
   }
 
@@ -109,7 +109,7 @@ export default function FlashcardDeckPage() {
     setSaving(true);
     try {
       const res = await fetch(`/api/flashcards/cards/${editingCard.id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           front: editForm.front.trim(),
@@ -122,12 +122,13 @@ export default function FlashcardDeckPage() {
         setCards(prev => prev.map(c => c.id === editingCard.id ? json.data : c));
         setEditingCard(null);
         setEditForm({ front: '', back: '' });
+        toast.success('Card updated');
       } else {
         const json = await res.json();
-        alert(json.error || 'Failed to update card');
+        toast.error(json.error || 'Failed to update card');
       }
-    } catch (error) {
-      alert('Failed to update card');
+    } catch {
+      toast.error('Failed to update card');
     } finally {
       setSaving(false);
     }
@@ -284,26 +285,39 @@ export default function FlashcardDeckPage() {
                     </div>
                   </div>
                 ) : (
-                  /* View Mode */
+                  /* View Mode — click to flip */
                   <>
-                    <div className="p-6 space-y-4">
-                      <div>
-                        <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Question</p>
-                        <p className="text-sm font-medium text-foreground leading-relaxed">
-                          {card.front}
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {card.back}
-                        </p>
-                      </div>
+                    <div
+                      className="p-6 space-y-4 cursor-pointer select-none"
+                      onClick={() => {
+                        if (!isTeacher) {
+                          setFlippedCards(prev => {
+                            const next = new Set(prev);
+                            next.has(card.id) ? next.delete(card.id) : next.add(card.id);
+                            return next;
+                          });
+                        }
+                      }}
+                    >
+                      <AnimatePresence mode="wait">
+                        {!flippedCards.has(card.id) ? (
+                          <motion.div key="front" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Question</p>
+                            <p className="text-sm font-medium text-foreground leading-relaxed">{card.front}</p>
+                            {!isTeacher && <p className="text-[10px] text-muted-foreground/50 mt-3">Tap to reveal answer</p>}
+                          </motion.div>
+                        ) : (
+                          <motion.div key="back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
+                            <p className="text-sm text-foreground leading-relaxed">{card.back}</p>
+                            {!isTeacher && <p className="text-[10px] text-muted-foreground/50 mt-3">Tap to see question</p>}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                    
+
                     {isTeacher && (
-                      <div className="px-6 pb-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="px-6 pb-6 flex gap-2">
                         <button
                           onClick={() => startEdit(card)}
                           className="flex-1 flex items-center justify-center gap-2 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors"

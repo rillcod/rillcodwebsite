@@ -3,33 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  AcademicCapIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  StarIcon,
-  XMarkIcon,
-  PlusIcon,
-  ArrowPathIcon,
-  PencilIcon,
-  TrashIcon,
-  SparklesIcon,
-  BookOpenIcon,
-  EyeIcon,
-  ChartBarIcon,
-  DocumentTextIcon,
-  PhotoIcon,
-  BeakerIcon,
-  CubeIcon,
-  PaintBrushIcon,
-  DevicePhoneMobileIcon,
-  ComputerDesktopIcon,
-  BoltIcon,
-  ClipboardDocumentListIcon,
-  ArchiveBoxIcon,
+  AcademicCapIcon, ClockIcon, StarIcon, XMarkIcon,
+  PlusIcon, ArrowPathIcon, TrashIcon, SparklesIcon,
+  BookOpenIcon, EyeIcon, DocumentTextIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
@@ -107,14 +88,14 @@ export default function FlashcardsPage() {
         setDecks(prev => [json.data, ...prev]); 
         setNewTitle(''); 
         setShowCreate(false);
-        // Open builder for new deck
         setSelectedDeckId(json.data.id);
         setShowBuilder(true);
+        toast.success('Deck created! Add your first cards.');
       } else {
-        alert(json.error || 'Failed to create deck');
+        toast.error(json.error || 'Failed to create deck');
       }
-    } catch (error) {
-      alert('Failed to create deck');
+    } catch {
+      toast.error('Failed to create deck');
     } finally {
       setCreating(false);
     }
@@ -124,18 +105,16 @@ export default function FlashcardsPage() {
     if (!confirm(`Delete "${deckTitle}"? This will permanently remove all cards.`)) return;
     
     try {
-      const res = await fetch(`/api/flashcards/decks/${deckId}`, {
-        method: 'DELETE'
-      });
-      
+      const res = await fetch(`/api/flashcards/decks/${deckId}`, { method: 'DELETE' });
       if (res.ok) {
         setDecks(prev => prev.filter(d => d.id !== deckId));
+        toast.success('Deck deleted');
       } else {
         const json = await res.json();
-        alert(json.error || 'Failed to delete deck');
+        toast.error(json.error || 'Failed to delete deck');
       }
-    } catch (error) {
-      alert('Failed to delete deck');
+    } catch {
+      toast.error('Failed to delete deck');
     }
   }
 
