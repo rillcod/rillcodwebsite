@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { CardTemplate } from '@/types/flashcards';
+import type { FlashcardCard } from '@/types/flashcards';
 import { CARD_TEMPLATES } from '@/components/flashcards/templates';
 import {
   mapBuilderCardToCreateRequest,
@@ -34,7 +35,7 @@ export function useFlashcardBuilder(
         const json = await res.json();
         if (!res.ok || cancelled) return;
 
-        const incoming = Array.isArray(json.data) ? json.data : [];
+        const incoming: FlashcardCard[] = Array.isArray(json.data) ? (json.data as FlashcardCard[]) : [];
         if (incoming.length > 0) {
           const mapped = incoming.map((card, index) => mapApiCardToBuilderCard(card, index));
           setCards(mapped);
