@@ -3,6 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type AiGeneratedCard = {
+  front?: string;
+  back?: string;
+  tags?: string[];
+  difficulty?: string;
+};
+
 // POST /api/flashcards/decks/[id]/generate - AI generate flashcards
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -21,80 +28,41 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
-  const { topic, count = 10, difficulty = 'medium', content } = await req.json();
+  const { topic, count = 10, difficulty = 'medium', content, template = 'classic' } = await req.json();
   
   if (!topic?.trim() && !content?.trim()) {
     return NextResponse.json({ error: 'Topic or content is required' }, { status: 400 });
   }
 
   try {
-    // Use OpenRouter API for AI generation
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL
+        ? process.env.VERCEL_URL.startsWith('http')
+          ? process.env.VERCEL_URL
+          : `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000');
+
+    const aiResponse = await fetch(`${appUrl}/api/ai/generate`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
-        'X-Title': 'Rillcod Academy Flashcards'
+        Cookie: req.headers.get('cookie') || '',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert educational content creator. Generate flashcards that are:
-- Clear and concise
-- Educationally valuable
-- Appropriate for the specified difficulty level
-- Well-formatted for study
-
-Return ONLY a JSON array of flashcard objects with "front" and "back" properties. No additional text or formatting.`
-          },
-          {
-            role: 'user',
-            content: `Create ${count} flashcards about "${topic || 'the provided content'}" at ${difficulty} difficulty level.
-
-${content ? `Base the flashcards on this content:\n${content}` : ''}
-
-Requirements:
-- Front: Question, term, or concept
-- Back: Answer, definition, or explanation
-- ${difficulty} difficulty level
-- Educational and accurate
-- Varied question types (definitions, examples, applications, comparisons)
-
-Return as JSON array: [{"front": "question", "back": "answer"}, ...]`
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7
+        type: 'flashcard',
+        topic: topic || content || deck.title,
+        difficulty,
+        questionCount: count,
       })
     });
 
-    if (!openRouterResponse.ok) {
+    if (!aiResponse.ok) {
       throw new Error('AI generation failed');
     }
 
-    const aiResult = await openRouterResponse.json();
-    const aiContent = aiResult.choices?.[0]?.message?.content;
-
-    if (!aiContent) {
-      throw new Error('No content generated');
-    }
-
-    // Parse the AI response
-    let flashcards;
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = aiContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        flashcards = JSON.parse(jsonMatch[0]);
-      } else {
-        flashcards = JSON.parse(aiContent);
-      }
-    } catch (parseError) {
-      throw new Error('Failed to parse AI response');
-    }
+    const aiResult = await aiResponse.json();
+    const flashcards = aiResult?.data?.cards;
 
     if (!Array.isArray(flashcards) || flashcards.length === 0) {
       throw new Error('Invalid flashcards format');
@@ -107,11 +75,14 @@ Return as JSON array: [{"front": "question", "back": "answer"}, ...]`
       .eq('deck_id', id);
 
     // Insert generated flashcards
-    const cardsToInsert = flashcards.map((card: any, index: number) => ({
+    const cardsToInsert = flashcards.map((card: AiGeneratedCard, index: number) => ({
       deck_id: id,
       front: card.front?.trim() || '',
       back: card.back?.trim() || '',
-      position: (currentCount ?? 0) + index + 1
+      tags: Array.isArray(card.tags) ? card.tags : [],
+      difficulty_level: card.difficulty || difficulty || 'medium',
+      template,
+      position: (currentCount ?? 0) + index + 1,
     })).filter(card => card.front && card.back);
 
     if (cardsToInsert.length === 0) {
@@ -133,10 +104,11 @@ Return as JSON array: [{"front": "question", "back": "answer"}, ...]`
       message: `Generated ${insertedCards.length} flashcards successfully`
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Flashcard generation error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to generate flashcards';
     return NextResponse.json({ 
-      error: error.message || 'Failed to generate flashcards' 
+      error: message
     }, { status: 500 });
   }
 }

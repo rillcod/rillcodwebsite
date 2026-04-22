@@ -3,6 +3,15 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type FlashcardReviewRow = {
+  card_id: string;
+  next_review_at: string | null;
+  ease_factor: number | null;
+  repetitions: number | null;
+  confidence_level: number | null;
+  last_reviewed_at: string | null;
+};
+
 /**
  * GET /api/flashcards/decks/[id]/due
  * Get cards due for review using spaced repetition
@@ -26,17 +35,10 @@ export async function GET(
 
     let query = supabase
       .from('flashcard_cards')
-      .select(`
-        *,
-        flashcard_reviews!left(
-          next_review_at,
-          ease_factor,
-          repetitions,
-          confidence_level,
-          last_reviewed_at
-        )
-      `)
-      .eq('deck_id', deckId);
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
 
     // Apply filters based on mode
     switch (mode) {
@@ -69,12 +71,21 @@ export async function GET(
       );
     }
 
+    const cardIds = (cards ?? []).map((card) => card.id);
+    const { data: reviews } = cardIds.length
+      ? await supabase
+          .from('flashcard_reviews')
+          .select('card_id, next_review_at, ease_factor, repetitions, confidence_level, last_reviewed_at')
+          .eq('student_id', user.id)
+          .in('card_id', cardIds)
+      : { data: [] as FlashcardReviewRow[] };
+
+    const reviewByCardId = new Map((reviews ?? []).map((review) => [review.card_id, review]));
+
     // Process cards to determine due status
     const now = new Date();
     const processedCards = cards?.map(card => {
-      const review = Array.isArray(card.flashcard_reviews) 
-        ? card.flashcard_reviews.find((r: any) => r) 
-        : card.flashcard_reviews;
+      const review = reviewByCardId.get(card.id) ?? null;
 
       const isDue = !review?.next_review_at || new Date(review.next_review_at) <= now;
       const isNew = !review?.next_review_at;
@@ -95,11 +106,8 @@ export async function GET(
       ? processedCards.filter(card => card.isDue)
       : processedCards;
 
-    // Shuffle cards for better learning
-    const shuffled = [...filteredCards].sort(() => Math.random() - 0.5);
-
     return NextResponse.json({
-      data: shuffled,
+      data: filteredCards,
       meta: {
         total: filteredCards.length,
         mode,

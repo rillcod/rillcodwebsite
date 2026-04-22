@@ -76,16 +76,19 @@ export async function GET(
 
     switch (format) {
       case 'csv':
-        // CSV format: front,back,tags,difficulty,template
+        // CSV format: front,back,tags,difficulty,template,notes,front_image_url,back_image_url
         const csvRows = [
-          'front,back,tags,difficulty,template',
+          'front,back,tags,difficulty,template,notes,front_image_url,back_image_url',
           ...cards.map(card => {
             const front = `"${(card.front || '').replace(/"/g, '""')}"`;
             const back = `"${(card.back || '').replace(/"/g, '""')}"`;
             const tags = `"${(card.tags || []).join(';')}"`;
             const difficulty = card.difficulty_level || 'medium';
             const template = card.template || 'classic';
-            return `${front},${back},${tags},${difficulty},${template}`;
+            const notes = `"${(card.notes || '').replace(/"/g, '""')}"`;
+            const frontImage = `"${(card.front_image_url || '').replace(/"/g, '""')}"`;
+            const backImage = `"${(card.back_image_url || '').replace(/"/g, '""')}"`;
+            return `${front},${back},${tags},${difficulty},${template},${notes},${frontImage},${backImage}`;
           })
         ];
         content = csvRows.join('\n');

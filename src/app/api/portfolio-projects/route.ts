@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
-  const { title, description, category, tags, project_url, image_url } = body;
+  const { title, description, category, tags, project_url, image_url, source_type, source_id } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
       tags: Array.isArray(tags) ? tags : [],
       project_url: project_url?.trim() || null,
       image_url: image_url?.trim() || null,
+      source_type: source_type || null,
+      source_id: source_id || null,
       is_featured: false,
     })
     .select()

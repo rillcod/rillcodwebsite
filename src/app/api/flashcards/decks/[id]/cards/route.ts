@@ -16,7 +16,8 @@ export async function GET(
     .from('flashcard_cards')
     .select('*')
     .eq('deck_id', deckId)
-    .order('position', { ascending: true });
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });
@@ -48,6 +49,18 @@ export async function POST(
     position 
   } = body;
 
+  let nextPosition = position;
+  if (nextPosition === null || nextPosition === undefined) {
+    const { data: lastCard } = await supabase
+      .from('flashcard_cards')
+      .select('position')
+      .eq('deck_id', deckId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    nextPosition = (lastCard?.position ?? -1) + 1;
+  }
+
   const { data, error } = await supabase
     .from('flashcard_cards')
     .insert({
@@ -60,7 +73,7 @@ export async function POST(
       difficulty_level: difficulty_level || 'medium',
       notes,
       template: template || 'classic',
-      position: position ?? 0
+      position: nextPosition
     })
     .select()
     .single();

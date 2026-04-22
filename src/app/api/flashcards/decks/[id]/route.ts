@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type DeckCardRow = { position?: number | null; created_at: string };
+
 // GET /api/flashcards/decks/[id] - Get deck details with cards
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -24,6 +26,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!deck) return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
+
+  const deckWithCards = deck as typeof deck & { flashcard_cards?: DeckCardRow[] };
+  if (Array.isArray(deckWithCards.flashcard_cards)) {
+    deckWithCards.flashcard_cards.sort((a, b) => {
+      const pos = (a.position ?? 0) - (b.position ?? 0);
+      if (pos !== 0) return pos;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+  }
 
   return NextResponse.json({ data: deck });
 }

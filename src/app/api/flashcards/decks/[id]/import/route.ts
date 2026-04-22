@@ -3,6 +3,22 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+type JsonImportCard = {
+  front?: string;
+  question?: string;
+  back?: string;
+  answer?: string;
+  tags?: string[];
+  difficulty_level?: string;
+  difficulty?: string;
+  template?: string;
+  notes?: string;
+  front_image_url?: string;
+  frontImage?: string;
+  back_image_url?: string;
+  backImage?: string;
+};
+
 /**
  * POST /api/flashcards/decks/[id]/import
  * Import flashcards from CSV or JSON
@@ -41,12 +57,21 @@ export async function POST(
       );
     }
 
-    let cards: Array<{ front: string; back: string; tags?: string[]; difficulty_level?: string }> = [];
+    let cards: Array<{
+      front: string;
+      back: string;
+      tags?: string[];
+      difficulty_level?: string;
+      template?: string;
+      notes?: string;
+      front_image_url?: string;
+      back_image_url?: string;
+    }> = [];
 
     // Parse based on format
     switch (format) {
       case 'csv':
-        // Parse CSV: front,back,tags,difficulty
+        // Parse CSV: front,back,tags,difficulty,template,notes,front_image_url,back_image_url
         const lines = importData.split('\n').filter((line: string) => line.trim());
         const hasHeader = lines[0].toLowerCase().includes('front');
         const dataLines = hasHeader ? lines.slice(1) : lines;
@@ -57,7 +82,11 @@ export async function POST(
             front: parts[0] || '',
             back: parts[1] || '',
             tags: parts[2] ? parts[2].split(';').map(t => t.trim()) : [],
-            difficulty_level: parts[3] || 'medium'
+            difficulty_level: parts[3] || 'medium',
+            template: parts[4] || 'classic',
+            notes: parts[5] || '',
+            front_image_url: parts[6] || '',
+            back_image_url: parts[7] || ''
           };
         });
         break;
@@ -69,13 +98,17 @@ export async function POST(
           if (!Array.isArray(parsed)) {
             throw new Error('JSON must be an array');
           }
-          cards = parsed.map((item: any) => ({
+          cards = (parsed as JsonImportCard[]).map((item) => ({
             front: item.front || item.question || '',
             back: item.back || item.answer || '',
             tags: item.tags || [],
-            difficulty_level: item.difficulty_level || item.difficulty || 'medium'
+            difficulty_level: item.difficulty_level || item.difficulty || 'medium',
+            template: item.template || 'classic',
+            notes: item.notes || '',
+            front_image_url: item.front_image_url || item.frontImage || '',
+            back_image_url: item.back_image_url || item.backImage || '',
           }));
-        } catch (e) {
+        } catch (_e) {
           return NextResponse.json(
             { error: 'Invalid JSON format' },
             { status: 400 }
@@ -127,8 +160,11 @@ export async function POST(
       back: card.back,
       tags: card.tags || [],
       difficulty_level: card.difficulty_level || 'medium',
+      notes: card.notes || null,
+      front_image_url: card.front_image_url || null,
+      back_image_url: card.back_image_url || null,
       position: (currentCount || 0) + index + 1,
-      template: 'classic'
+      template: card.template || 'classic'
     }));
 
     const { data: insertedCards, error: insertError } = await supabase

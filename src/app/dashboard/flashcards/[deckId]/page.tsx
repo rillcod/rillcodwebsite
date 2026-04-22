@@ -1,18 +1,22 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, TrashIcon, PlayIcon,
   SparklesIcon, Squares2X2Icon, PresentationChartBarIcon,
   CheckCircleIcon, ArrowPathIcon, XMarkIcon,
-  ChevronLeftIcon, ChevronRightIcon, PlusIcon,
+  ChevronLeftIcon, ChevronRightIcon, PlusIcon, ArrowDownTrayIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import EnhancedFlashcardBuilder from '@/components/flashcards/EnhancedFlashcardBuilder';
+import { getTemplateStyle } from '@/components/flashcards/templates';
+import FlashcardMarkdown from '@/components/flashcards/FlashcardMarkdown';
+import { toPng } from 'html-to-image';
+import { createClient } from '@/lib/supabase/client';
 
 interface Card {
   id: string; front: string; back: string;
@@ -24,15 +28,6 @@ interface Deck {
   portal_users?: { full_name: string };
   lessons?: { title: string }; courses?: { name: string };
 }
-
-const TEMPLATES: Record<string, { front: string; back: string; text: string }> = {
-  classic:      { front: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-2 border-blue-200 dark:border-blue-700', back: 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-2 border-emerald-200 dark:border-emerald-700', text: 'text-gray-800 dark:text-gray-100' },
-  modern:       { front: 'bg-gradient-to-br from-violet-600 to-blue-600', back: 'bg-gradient-to-br from-orange-500 to-rose-500', text: 'text-white' },
-  neon:         { front: 'bg-black border-2 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.3)]', back: 'bg-black border-2 border-pink-400 shadow-[0_0_30px_rgba(244,114,182,0.3)]', text: 'text-cyan-300' },
-  minimal:      { front: 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700', back: 'bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700', text: 'text-zinc-900 dark:text-zinc-100' },
-  playful:      { front: 'bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-400', back: 'bg-gradient-to-br from-green-300 via-cyan-300 to-blue-400', text: 'text-gray-800 font-bold' },
-  professional: { front: 'bg-gradient-to-br from-slate-800 to-slate-900', back: 'bg-gradient-to-br from-slate-700 to-slate-800', text: 'text-white' },
-};
 
 type ViewMode = 'grid' | 'presentation';
 
@@ -59,6 +54,8 @@ export default function FlashcardDeckPage() {
   const [presEditing, setPresEditing] = useState(false);
   const [presEditForm, setPresEditForm] = useState({ front: '', back: '' });
   const [presSaving, setPresSaving] = useState(false);
+  const [archiveSavingId, setArchiveSavingId] = useState<string | null>(null);
+  const cardCaptureRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const deckId = params.deckId as string;
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
@@ -166,6 +163,64 @@ export default function FlashcardDeckPage() {
     } catch { toast.error('Failed to delete'); }
   }
 
+  async function saveCardImageToArchive(card: Card, cardNumber: number) {
+    if (profile?.role !== 'student') {
+      toast.error('Archive save is available for student accounts.');
+      return;
+    }
+    const node = cardCaptureRefs.current[card.id];
+    if (!node) {
+      toast.error('Card capture failed. Please try again.');
+      return;
+    }
+
+    setArchiveSavingId(card.id);
+    try {
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        backgroundColor: '#0b1220',
+        pixelRatio: 2,
+      });
+
+      const blob = await (await fetch(dataUrl)).blob();
+      const ext = 'png';
+      const db = createClient();
+      const path = `${profile.id}/flashcards/${deckId}-${card.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await db.storage
+        .from('portfolio-images')
+        .upload(path, blob, { contentType: 'image/png' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = db.storage.from('portfolio-images').getPublicUrl(path);
+      const archiveRes = await fetch('/api/portfolio-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${deck?.title || 'Flashcard Deck'} - Card ${cardNumber}`,
+          description: `Flashcard snapshot saved from "${deck?.title || 'deck'}".`,
+          category: 'Learning',
+          tags: ['flashcard', 'study', 'learning-archive'],
+          image_url: publicUrlData.publicUrl,
+          source_type: 'lesson',
+          source_id: card.id,
+        }),
+      });
+
+      if (!archiveRes.ok) {
+        const j = await archiveRes.json().catch(() => ({}));
+        throw new Error(j.error || 'Archive save failed');
+      }
+
+      toast.success('Saved to your learning archive.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to save image to archive.');
+    } finally {
+      setArchiveSavingId(null);
+    }
+  }
+
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -173,7 +228,7 @@ export default function FlashcardDeckPage() {
   );
   if (!deck) return null;
 
-  const tpl = TEMPLATES[presCard?.template ?? 'classic'] ?? TEMPLATES.classic;
+  const tpl = getTemplateStyle(presCard?.template);
 
   // ══════════════════════════════════════════════════════
   // PRESENTATION MODE — fullscreen slideshow
@@ -298,15 +353,15 @@ export default function FlashcardDeckPage() {
                       {presIndex + 1}/{cards.length}
                     </span>
 
-                    <motion.p
+                    <motion.div
                       key={presFlipped ? 'back' : 'front'}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
-                      className="text-xl sm:text-3xl font-bold leading-relaxed"
+                      className="text-xl sm:text-3xl font-bold leading-relaxed text-left w-full"
                     >
-                      {presFlipped ? presCard.back : presCard.front}
-                    </motion.p>
+                      <FlashcardMarkdown content={presFlipped ? presCard.back : presCard.front} />
+                    </motion.div>
 
                     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} transition={{ delay: 0.4 }}
                       className="text-xs sm:text-sm mt-6 font-medium">
@@ -445,7 +500,7 @@ export default function FlashcardDeckPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card, index) => {
-              const t = TEMPLATES[card.template ?? 'classic'] ?? TEMPLATES.classic;
+              const t = getTemplateStyle(card.template);
               return (
                 <motion.div key={card.id}
                   initial={{ opacity: 0, y: 16 }}
@@ -484,11 +539,15 @@ export default function FlashcardDeckPage() {
                     <>
                       {/* Flip preview */}
                       <div
-                        className={`p-5 min-h-[130px] flex flex-col justify-between ${!isTeacher ? 'cursor-pointer select-none' : ''}`}
+                        ref={(node) => {
+                          cardCaptureRefs.current[card.id] = node;
+                        }}
+                        className={`p-5 min-h-[130px] flex flex-col justify-between ${flippedCards.has(card.id) ? t.back : t.front} ${t.text} ${!isTeacher ? 'cursor-pointer select-none' : ''}`}
                         onClick={() => {
                           if (!isTeacher) setFlippedCards(prev => {
                             const next = new Set(prev);
-                            next.has(card.id) ? next.delete(card.id) : next.add(card.id);
+                            if (next.has(card.id)) next.delete(card.id);
+                            else next.add(card.id);
                             return next;
                           });
                         }}
@@ -497,12 +556,16 @@ export default function FlashcardDeckPage() {
                           {!flippedCards.has(card.id) ? (
                             <motion.div key="f" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
                               <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Question</p>
-                              <p className="text-sm font-medium text-foreground leading-relaxed line-clamp-4">{card.front}</p>
+                              <div className="text-sm font-medium text-foreground leading-relaxed line-clamp-4">
+                                <FlashcardMarkdown content={card.front} />
+                              </div>
                             </motion.div>
                           ) : (
                             <motion.div key="b" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
                               <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
-                              <p className="text-sm text-foreground leading-relaxed line-clamp-4">{card.back}</p>
+                              <div className="text-sm text-foreground leading-relaxed line-clamp-4">
+                                <FlashcardMarkdown content={card.back} />
+                              </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -521,8 +584,23 @@ export default function FlashcardDeckPage() {
                             <span className="text-[8px] px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-bold capitalize">{card.template}</span>
                           )}
                         </div>
+                        <div className="flex gap-1.5">
+                          {profile?.role === 'student' && (
+                            <button
+                              onClick={() => saveCardImageToArchive(card, index + 1)}
+                              disabled={archiveSavingId === card.id}
+                              className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-muted-foreground hover:text-emerald-400 transition-colors disabled:opacity-50"
+                              title="Save card image to archive"
+                            >
+                              {archiveSavingId === card.id ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
                         {isTeacher && (
-                          <div className="flex gap-1.5">
+                          <>
                             <button onClick={() => { setEditingCard(card); setEditForm({ front: card.front, back: card.back }); }}
                               className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors" title="Edit">
                               <PencilIcon className="w-3.5 h-3.5" />
@@ -531,8 +609,9 @@ export default function FlashcardDeckPage() {
                               className="p-1.5 hover:bg-rose-500/10 rounded-lg text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
                               <TrashIcon className="w-3.5 h-3.5" />
                             </button>
-                          </div>
+                          </>
                         )}
+                        </div>
                       </div>
                     </>
                   )}
