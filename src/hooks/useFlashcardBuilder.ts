@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { CardTemplate } from '@/types/flashcards';
 import { CARD_TEMPLATES } from '@/components/flashcards/templates';
 import {
   mapBuilderCardToCreateRequest,
   mapGeneratedCardToBuilderCard,
+  mapApiCardToBuilderCard,
   type FlashcardBuilderCard,
   type GeneratedFlashcardCard,
 } from '@/lib/flashcards/cards';
@@ -22,6 +23,37 @@ export function useFlashcardBuilder(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDeckCards() {
+      try {
+        const res = await fetch(`/api/flashcards/decks/${deckId}/cards`);
+        const json = await res.json();
+        if (!res.ok || cancelled) return;
+
+        const incoming = Array.isArray(json.data) ? json.data : [];
+        if (incoming.length > 0) {
+          const mapped = incoming.map((card, index) => mapApiCardToBuilderCard(card, index));
+          setCards(mapped);
+          const firstTemplateId = incoming[0]?.template;
+          const matchedTemplate = CARD_TEMPLATES.find((t) => t.id === firstTemplateId);
+          if (matchedTemplate) setSelectedTemplate(matchedTemplate);
+        }
+      } catch {
+        // keep default empty draft if load fails
+      } finally {
+        if (!cancelled) setInitialized(true);
+      }
+    }
+
+    loadDeckCards();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
 
   const addCard = useCallback(() => {
     setCards(prev => [...prev, { id: Date.now(), front: '', back: '' }]);
@@ -90,6 +122,7 @@ export function useFlashcardBuilder(
 
   return {
     cards,
+    initialized,
     selectedTemplate,
     previewDevice,
     showPreview,

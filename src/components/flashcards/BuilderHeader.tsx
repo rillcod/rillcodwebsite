@@ -78,14 +78,14 @@ export default function BuilderHeader({
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={onTogglePreview}
-          className={`hidden md:flex items-center gap-1.5 px-4 py-2 text-sm font-bold transition-colors rounded-lg ${
+          className={`flex items-center gap-1.5 px-2 sm:px-4 py-2 text-sm font-bold transition-colors rounded-lg ${
             showPreview
               ? 'bg-orange-600 hover:bg-orange-500 text-white'
               : 'bg-muted hover:bg-muted/80 text-foreground'
           }`}
         >
           <EyeIcon className="w-4 h-4" />
-          Preview
+          <span className="hidden sm:inline">Preview</span>
         </motion.button>
 
         <motion.button

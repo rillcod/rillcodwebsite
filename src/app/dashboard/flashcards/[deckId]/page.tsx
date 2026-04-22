@@ -542,9 +542,9 @@ export default function FlashcardDeckPage() {
                         ref={(node) => {
                           cardCaptureRefs.current[card.id] = node;
                         }}
-                        className={`p-5 min-h-[130px] flex flex-col justify-between ${flippedCards.has(card.id) ? t.back : t.front} ${t.text} ${!isTeacher ? 'cursor-pointer select-none' : ''}`}
+                        className={`p-5 min-h-[130px] flex flex-col justify-between ${flippedCards.has(card.id) ? t.back : t.front} ${t.text} cursor-pointer select-none`}
                         onClick={() => {
-                          if (!isTeacher) setFlippedCards(prev => {
+                          setFlippedCards(prev => {
                             const next = new Set(prev);
                             if (next.has(card.id)) next.delete(card.id);
                             else next.add(card.id);
@@ -569,11 +569,9 @@ export default function FlashcardDeckPage() {
                             </motion.div>
                           )}
                         </AnimatePresence>
-                        {!isTeacher && (
-                          <p className="text-[9px] text-muted-foreground/40 mt-2">
-                            {flippedCards.has(card.id) ? '🔄 Tap for question' : '👆 Tap to reveal'}
-                          </p>
-                        )}
+                        <p className="text-[9px] text-muted-foreground/40 mt-2">
+                          {flippedCards.has(card.id) ? '🔄 Tap for question' : '👆 Tap to reveal answer'}
+                        </p>
                       </div>
 
                       {/* Footer */}
