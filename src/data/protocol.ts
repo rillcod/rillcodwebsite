@@ -1653,14 +1653,593 @@ for (let i = 0; i < 3; i++) {
         aiPrompt: "Explain IoT (Internet of Things): what it is, how sensors connect to microcontrollers, how data is sent over MQTT/WiFi to a cloud platform, and real Nigerian use cases like smart classrooms and agriculture."
       }
   ]},
-  { id: 41, name: 'Phase 5: Control Lab', subtitle: 'Loops and Wait', color: 'border-violet-500/40', accentColor: 'text-violet-400', modules: [{ id: 'k5m1', title: 'Forever Repeat', description: 'Infinite cycles', language: 'robotics', icon: 'rocket', starterCode: 'Forever{}', aiPrompt: 'Explain loops.' }] },
-  { id: 42, name: 'Phase 6: Visual Sensing', subtitle: 'Touching Logic', color: 'border-cyan-500/40', accentColor: 'text-cyan-400', modules: [{ id: 'k6m1', title: 'Wall Check', description: 'Edge detection', language: 'robotics', icon: 'beaker', starterCode: 'ifTouchingEdge', aiPrompt: 'Explain sensing.' }] },
-  { id: 43, name: 'Phase 7: Logic Blocks', subtitle: 'Math Operators', color: 'border-rose-500/40', accentColor: 'text-rose-400', modules: [{ id: 'k7m1', title: 'Math Hub', description: 'Addition blocks', language: 'robotics', icon: 'bolt', starterCode: '1 + 1', aiPrompt: 'Explain math logic.' }] },
-  { id: 44, name: 'Phase 8: Data Storage', subtitle: 'Score Variables', color: 'border-fuchsia-500/40', accentColor: 'text-fuchsia-400', modules: [{ id: 'k8m1', title: 'Score Keeper', description: 'Saving points', language: 'robotics', icon: 'book', starterCode: 'Score = 0', aiPrompt: 'Explain variables.' }] },
-  { id: 45, name: 'Phase 9: My Blocks', subtitle: 'Custom Procedures', color: 'border-indigo-500/40', accentColor: 'text-indigo-400', modules: [{ id: 'k9m1', title: 'New Logic', description: 'Creating own blocks', language: 'robotics', icon: 'cpu', starterCode: 'Define()', aiPrompt: 'Explain procedures.' }] },
-  { id: 46, name: 'Phase 10: Physics Lab', subtitle: 'Gravity Simulation', color: 'border-slate-500/40', accentColor: 'text-slate-400', modules: [{ id: 'k10m1', title: 'Drop Logic', description: 'Simulating gravity', language: 'robotics', icon: 'rocket', starterCode: 'Y -= 1', aiPrompt: 'Explain physics.' }] },
-  { id: 47, name: 'Phase 11: Game Loop', subtitle: 'Levels and Lives', color: 'border-purple-500/40', accentColor: 'text-purple-400', modules: [{ id: 'k11m1', title: 'Master Game', description: 'State management', language: 'robotics', icon: 'star', starterCode: 'NextLevel', aiPrompt: 'Explain game state.' }] },
-  { id: 48, name: 'Phase 12: Creative Capstone', subtitle: 'Portfolio Launch', color: 'border-white/20', accentColor: 'text-white', modules: [{ id: 'k12m1', title: 'Project Final', description: 'Showcase piece', language: 'robotics', icon: 'book', starterCode: 'Launch()', aiPrompt: 'Review kid-tier.' }] }
+  {
+    id: 41, name: 'Phase 5: Control Lab', subtitle: 'Loops, Counters & Repetition',
+    color: 'border-violet-500/40', accentColor: 'text-violet-400',
+    modules: [
+      {
+        id: 'k5m1', title: 'Count & Repeat', description: 'Use loops to repeat actions automatically',
+        language: 'python', icon: 'rocket',
+        starterCode: `# 🔁 Loops make computers do repetitive work for us!
+# Real life: a traffic light repeats its cycle forever
+
+# Count from 1 to 10
+print("Counting up:")
+for i in range(1, 11):
+    print(f"  {i} 🔢")
+
+# Repeat a message 5 times
+print("\\nRocket launch countdown:")
+for count in range(5, 0, -1):
+    print(f"  T-minus {count}...")
+print("  🚀 LIFTOFF!")
+
+# While loop — keep going until condition is false
+fuel = 100
+print("\\nFuel burning:")
+while fuel > 0:
+    fuel -= 25
+    print(f"  Fuel remaining: {fuel}%")
+print("  Tank empty!")`,
+        aiPrompt: 'Explain for loops and while loops to a young student. Use real-world examples like traffic lights, countdowns, and fuel gauges. Keep it fun and simple.'
+      },
+      {
+        id: 'k5m2', title: 'Pattern Maker', description: 'Draw shapes with loops',
+        language: 'python', icon: 'star',
+        starterCode: `# 🎨 Use loops to draw patterns — like a printer!
+# Real life: printers repeat the same dot pattern to make images
+
+# Draw a triangle
+print("Triangle:")
+for row in range(1, 6):
+    print("⭐" * row)
+
+# Draw a square
+print("\\nSquare:")
+for row in range(5):
+    print("🟦" * 5)
+
+# Draw a diamond
+print("\\nDiamond:")
+size = 5
+for i in range(1, size + 1):
+    print(" " * (size - i) + "💎" * i)
+for i in range(size - 1, 0, -1):
+    print(" " * (size - i) + "💎" * i)`,
+        aiPrompt: 'Explain how nested loops and range() create patterns. Connect it to how printers, screens, and pixel art work.'
+      }
+    ]
+  },
+  {
+    id: 42, name: 'Phase 6: Smart Decisions', subtitle: 'If-Else & Conditions',
+    color: 'border-cyan-500/40', accentColor: 'text-cyan-400',
+    modules: [
+      {
+        id: 'k6m1', title: 'Yes or No?', description: 'Make your program choose between options',
+        language: 'python', icon: 'beaker',
+        starterCode: `# 🤔 Computers make decisions using if/else — just like you do!
+# Real life: a school gate opens IF you have a valid ID card
+
+# Temperature checker
+temp = 38
+
+if temp >= 38:
+    print("🌡 Fever detected! Rest and drink water.")
+elif temp >= 36:
+    print("✅ Normal temperature. You're healthy!")
+else:
+    print("🥶 Temperature too low. Wear a jacket!")
+
+# Grade classifier
+score = 85
+print(f"\\nScore: {score}")
+
+if score >= 90:
+    grade = "A — Excellent! 🏆"
+elif score >= 75:
+    grade = "B — Very Good! 🌟"
+elif score >= 60:
+    grade = "C — Good. Keep going! 💪"
+elif score >= 50:
+    grade = "D — Pass. Study harder! 📚"
+else:
+    grade = "F — Fail. Don't give up! 🔄"
+
+print(f"Grade: {grade}")
+
+# Traffic light logic
+light = "red"
+if light == "green":
+    print("\\n🟢 Go!")
+elif light == "yellow":
+    print("\\n🟡 Slow down!")
+else:
+    print("\\n🔴 Stop!")`,
+        aiPrompt: 'Explain if/elif/else to a young student using real-world examples like traffic lights, temperature checks, and school grades. Make it engaging and relatable.'
+      }
+    ]
+  },
+  {
+    id: 43, name: 'Phase 7: Math & Logic', subtitle: 'Numbers, Operators & Calculations',
+    color: 'border-rose-500/40', accentColor: 'text-rose-400',
+    modules: [
+      {
+        id: 'k7m1', title: 'Calculator Brain', description: 'Build a smart calculator with Python',
+        language: 'python', icon: 'bolt',
+        starterCode: `# 🧮 Computers are amazing calculators!
+# Real life: your phone's calculator, bank ATMs, school fee systems
+
+# Basic operations
+a = 24
+b = 6
+
+print(f"Numbers: {a} and {b}")
+print(f"  Add:      {a} + {b} = {a + b}")
+print(f"  Subtract: {a} - {b} = {a - b}")
+print(f"  Multiply: {a} × {b} = {a * b}")
+print(f"  Divide:   {a} ÷ {b} = {a / b}")
+print(f"  Remainder:{a} % {b} = {a % b}  (modulo)")
+print(f"  Power:    {b} ^ 2  = {b ** 2}")
+
+# Real-world: school fee calculator
+print("\\n--- School Fee Calculator ---")
+tuition    = 45000
+books      = 8500
+uniform    = 3200
+excursion  = 1500
+
+total = tuition + books + uniform + excursion
+discount = total * 0.05  # 5% early payment discount
+final = total - discount
+
+print(f"Tuition:   ₦{tuition:,}")
+print(f"Books:     ₦{books:,}")
+print(f"Uniform:   ₦{uniform:,}")
+print(f"Excursion: ₦{excursion:,}")
+print(f"Subtotal:  ₦{total:,}")
+print(f"Discount:  ₦{discount:,.0f} (5% early payment)")
+print(f"TOTAL DUE: ₦{final:,.0f}")`,
+        aiPrompt: 'Explain arithmetic operators in Python to young students. Use real Nigerian examples like school fees, market prices, and phone credit. Explain modulo with remainder examples.'
+      }
+    ]
+  },
+  {
+    id: 44, name: 'Phase 8: Data & Lists', subtitle: 'Storing & Organising Information',
+    color: 'border-fuchsia-500/40', accentColor: 'text-fuchsia-400',
+    modules: [
+      {
+        id: 'k8m1', title: 'Score Keeper', description: 'Use lists to store and manage data',
+        language: 'python', icon: 'book',
+        starterCode: `# 📋 Lists store multiple items — like a shopping list or class register!
+# Real life: a teacher's mark sheet, a playlist, a contact list
+
+# Class register
+students = ["Amara", "Chidi", "Fatima", "Emeka", "Ngozi"]
+print("Class Register:")
+for i, name in enumerate(students, 1):
+    print(f"  {i}. {name}")
+
+# Add a new student
+students.append("Tunde")
+print(f"\\nNew student added! Total: {len(students)}")
+
+# Scores list
+scores = [78, 92, 65, 88, 71, 95]
+print(f"\\nTest Scores: {scores}")
+print(f"  Highest: {max(scores)}")
+print(f"  Lowest:  {min(scores)}")
+print(f"  Average: {sum(scores)/len(scores):.1f}")
+print(f"  Total:   {sum(scores)}")
+
+# Find passing students (score >= 60)
+passing = [s for s in scores if s >= 60]
+print(f"  Passing: {len(passing)} out of {len(scores)}")
+
+# Sort scores
+scores.sort(reverse=True)
+print(f"  Ranked:  {scores}")`,
+        aiPrompt: 'Explain Python lists to young students. Use examples like class registers, score sheets, and shopping lists. Cover append, len, max, min, sum, and list comprehensions simply.'
+      }
+    ]
+  },
+  {
+    id: 45, name: 'Phase 9: Functions', subtitle: 'Reusable Code Blocks',
+    color: 'border-indigo-500/40', accentColor: 'text-indigo-400',
+    modules: [
+      {
+        id: 'k9m1', title: 'Recipe Functions', description: 'Write reusable code like a recipe',
+        language: 'python', icon: 'cpu',
+        starterCode: `# 🍳 Functions are like recipes — write once, use many times!
+# Real life: a recipe card, a phone's "call" button, a vending machine
+
+# Simple function
+def greet(name):
+    print(f"Hello, {name}! Welcome to Rillcod Academy 🚀")
+
+greet("Amara")
+greet("Chidi")
+greet("Fatima")
+
+# Function that returns a value
+def calculate_bmi(weight_kg, height_m):
+    bmi = weight_kg / (height_m ** 2)
+    if bmi < 18.5:
+        category = "Underweight"
+    elif bmi < 25:
+        category = "Healthy"
+    elif bmi < 30:
+        category = "Overweight"
+    else:
+        category = "Obese"
+    return bmi, category
+
+bmi, cat = calculate_bmi(60, 1.70)
+print(f"\\nBMI: {bmi:.1f} — {cat}")
+
+# Function with default parameter
+def power_up(base, exponent=2):
+    result = base ** exponent
+    print(f"{base}^{exponent} = {result}")
+
+power_up(5)       # uses default exponent=2
+power_up(3, 4)    # uses exponent=4
+power_up(2, 10)   # 2^10 = 1024`,
+        aiPrompt: 'Explain Python functions to young students. Use cooking recipes and real-world tools as analogies. Cover def, parameters, return values, and default arguments with fun examples.'
+      }
+    ]
+  },
+  {
+    id: 46, name: 'Phase 10: Web Basics', subtitle: 'Build Your First Webpage',
+    color: 'border-slate-500/40', accentColor: 'text-slate-400',
+    modules: [
+      {
+        id: 'k10m1', title: 'My First Website', description: 'Build a personal profile page with HTML & CSS',
+        language: 'html', icon: 'rocket',
+        starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    .avatar {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 20px;
+    }
+    h1 { color: #a78bfa; font-size: 1.8rem; margin-bottom: 8px; }
+    .role { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+    .skills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px; }
+    .skill {
+      background: rgba(124,58,237,0.2);
+      border: 1px solid rgba(124,58,237,0.4);
+      color: #a78bfa;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .btn {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: white; border: none;
+      padding: 12px 28px; border-radius: 12px;
+      font-weight: bold; cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .btn:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="avatar">🚀</div>
+    <h1>Your Name Here</h1>
+    <p class="role">Future Software Engineer 💻</p>
+    <div class="skills">
+      <span class="skill">Python</span>
+      <span class="skill">HTML</span>
+      <span class="skill">JavaScript</span>
+      <span class="skill">Robotics</span>
+    </div>
+    <button class="btn" onclick="this.textContent='🎉 Thanks!'">Say Hello!</button>
+  </div>
+</body>
+</html>`,
+        aiPrompt: 'Explain HTML and CSS to young students. Cover tags, attributes, styling, and how browsers render pages. Use the profile card example to show how design and code connect.'
+      }
+    ]
+  },
+  {
+    id: 47, name: 'Phase 11: JavaScript Basics', subtitle: 'Make Webpages Interactive',
+    color: 'border-purple-500/40', accentColor: 'text-purple-400',
+    modules: [
+      {
+        id: 'k11m1', title: 'Interactive Page', description: 'Add buttons, clicks, and live updates',
+        language: 'html', icon: 'star',
+        starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Interactive App</title>
+  <style>
+    body { font-family: sans-serif; background: #0f172a; color: white; padding: 30px; }
+    .container { max-width: 500px; margin: 0 auto; }
+    h1 { color: #7c3aed; margin-bottom: 20px; }
+    .score-box {
+      background: rgba(124,58,237,0.1);
+      border: 2px solid rgba(124,58,237,0.3);
+      border-radius: 16px; padding: 30px;
+      text-align: center; margin-bottom: 20px;
+    }
+    .score { font-size: 4rem; font-weight: black; color: #a78bfa; }
+    .label { color: #64748b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; }
+    .buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+    button {
+      flex: 1; padding: 14px;
+      border: none; border-radius: 12px;
+      font-weight: bold; font-size: 1rem;
+      cursor: pointer; transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.95); }
+    .add { background: #10b981; color: white; }
+    .sub { background: #ef4444; color: white; }
+    .reset { background: #334155; color: white; }
+    #history { margin-top: 20px; font-size: 0.85rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 Score Tracker</h1>
+    <div class="score-box">
+      <div class="label">Current Score</div>
+      <div class="score" id="scoreDisplay">0</div>
+    </div>
+    <div class="buttons">
+      <button class="add" onclick="changeScore(+10)">+10 Points</button>
+      <button class="sub" onclick="changeScore(-5)">-5 Points</button>
+      <button class="reset" onclick="resetScore()">Reset</button>
+    </div>
+    <div id="history">No moves yet...</div>
+  </div>
+
+  <script>
+    let score = 0;
+    let moves = [];
+
+    function changeScore(amount) {
+      score += amount;
+      moves.push(amount > 0 ? '+' + amount : amount);
+      document.getElementById('scoreDisplay').textContent = score;
+      document.getElementById('history').textContent = 'History: ' + moves.join(', ');
+    }
+
+    function resetScore() {
+      score = 0;
+      moves = [];
+      document.getElementById('scoreDisplay').textContent = 0;
+      document.getElementById('history').textContent = 'Score reset!';
+    }
+  </script>
+</body>
+</html>`,
+        aiPrompt: 'Explain JavaScript interactivity to young students. Cover onclick events, getElementById, variables, and how JS makes HTML pages come alive. Use the score tracker as a concrete example.'
+      }
+    ]
+  },
+  {
+    id: 48, name: 'Phase 12: Capstone Project', subtitle: 'Build & Launch Your Portfolio',
+    color: 'border-amber-500/40', accentColor: 'text-amber-400',
+    modules: [
+      {
+        id: 'k12m1', title: 'My Portfolio Site', description: 'Build a complete personal portfolio to showcase your skills',
+        language: 'html', icon: 'book',
+        starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Portfolio — Rillcod Academy</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #7c3aed;
+      --accent: #f59e0b;
+      --bg: #0f172a;
+      --card: rgba(255,255,255,0.04);
+    }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #e2e8f0; }
+    nav {
+      padding: 16px 32px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky; top: 0; background: rgba(15,23,42,0.9);
+      backdrop-filter: blur(10px);
+    }
+    .logo { font-weight: 900; color: var(--primary); font-size: 1.2rem; }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+    .hero {
+      padding: 80px 32px;
+      text-align: center;
+      background: radial-gradient(ellipse at top, rgba(124,58,237,0.15) 0%, transparent 70%);
+    }
+    .hero h1 { font-size: clamp(2rem, 5vw, 4rem); font-weight: 900; margin-bottom: 16px; }
+    .hero h1 span { color: var(--primary); }
+    .hero p { color: #94a3b8; max-width: 500px; margin: 0 auto 32px; line-height: 1.7; }
+    .cta {
+      background: var(--primary); color: white;
+      padding: 14px 32px; border: none; border-radius: 12px;
+      font-weight: bold; font-size: 1rem; cursor: pointer;
+    }
+    .section { padding: 60px 32px; max-width: 900px; margin: 0 auto; }
+    .section h2 { font-size: 1.5rem; font-weight: 900; margin-bottom: 32px; color: var(--accent); }
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; }
+    .skill-card {
+      background: var(--card); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 20px; text-align: center;
+    }
+    .skill-card .icon { font-size: 2rem; margin-bottom: 8px; }
+    .skill-card p { font-size: 0.8rem; color: #94a3b8; font-weight: bold; }
+    .projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .project-card {
+      background: var(--card); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; padding: 24px;
+    }
+    .project-card h3 { color: var(--primary); margin-bottom: 8px; }
+    .project-card p { color: #94a3b8; font-size: 0.85rem; line-height: 1.6; }
+    footer { text-align: center; padding: 40px; color: #475569; border-top: 1px solid rgba(255,255,255,0.05); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">🚀 YourName.dev</div>
+    <div class="nav-links">
+      <a href="#skills">Skills</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Hi, I'm <span>Your Name</span> 👋</h1>
+    <p>A young developer from Nigeria building the future with code. I love Python, web design, and robotics!</p>
+    <button class="cta" onclick="alert('Thanks for visiting! 🎉')">Say Hello</button>
+  </div>
+
+  <div class="section" id="skills">
+    <h2>⚡ My Skills</h2>
+    <div class="skills-grid">
+      <div class="skill-card"><div class="icon">🐍</div><p>Python</p></div>
+      <div class="skill-card"><div class="icon">🌐</div><p>HTML/CSS</p></div>
+      <div class="skill-card"><div class="icon">⚡</div><p>JavaScript</p></div>
+      <div class="skill-card"><div class="icon">🤖</div><p>Robotics</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="projects">
+    <h2>🏗 My Projects</h2>
+    <div class="projects-grid">
+      <div class="project-card">
+        <h3>Score Tracker App</h3>
+        <p>A JavaScript app that tracks game scores with add, subtract, and reset buttons.</p>
+      </div>
+      <div class="project-card">
+        <h3>School Fee Calculator</h3>
+        <p>A Python program that calculates total school fees with discounts and breakdowns.</p>
+      </div>
+      <div class="project-card">
+        <h3>Robot Square Pattern</h3>
+        <p>A robotics program that draws a perfect square using forward and turn commands.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer id="contact">
+    <p>Built with ❤️ at Rillcod Academy · © 2026</p>
+  </footer>
+</body>
+</html>`,
+        aiPrompt: 'Explain what a portfolio is and why developers need one. Walk through the HTML structure of this portfolio page — nav, hero, sections, grid layouts, and footer. Encourage students to personalise it with their real name and projects.'
+      },
+      {
+        id: 'k12m2', title: 'Python Final Project', description: 'Build a complete student report system',
+        language: 'python', icon: 'rocket',
+        starterCode: `# 🎓 CAPSTONE: Student Report System
+# This project combines everything you've learned!
+# Variables, lists, loops, functions, conditionals, and dictionaries
+
+SCHOOL_NAME = "Rillcod Academy"
+TERM = "Second Term 2026"
+
+# Student data
+students = [
+    {"name": "Amara Okafor",  "class": "JSS3", "scores": {"Maths": 88, "English": 92, "Science": 85, "Python": 95, "Robotics": 90}},
+    {"name": "Chidi Nwosu",   "class": "JSS3", "scores": {"Maths": 74, "English": 68, "Science": 79, "Python": 82, "Robotics": 71}},
+    {"name": "Fatima Bello",  "class": "JSS3", "scores": {"Maths": 95, "English": 88, "Science": 91, "Python": 97, "Robotics": 93}},
+    {"name": "Emeka Eze",     "class": "JSS3", "scores": {"Maths": 55, "English": 62, "Science": 58, "Python": 70, "Robotics": 65}},
+]
+
+def get_grade(score):
+    if score >= 90: return "A1"
+    elif score >= 80: return "B2"
+    elif score >= 70: return "B3"
+    elif score >= 60: return "C4"
+    elif score >= 50: return "C5"
+    elif score >= 45: return "C6"
+    elif score >= 40: return "D7"
+    elif score >= 30: return "E8"
+    else: return "F9"
+
+def get_remark(avg):
+    if avg >= 85: return "Excellent 🏆"
+    elif avg >= 70: return "Very Good 🌟"
+    elif avg >= 60: return "Good 👍"
+    elif avg >= 50: return "Average 📚"
+    else: return "Needs Improvement 💪"
+
+def print_report(student):
+    scores = student["scores"]
+    avg = sum(scores.values()) / len(scores)
+    print(f"\\n{'='*45}")
+    print(f"  {SCHOOL_NAME}")
+    print(f"  {TERM} — {student['class']}")
+    print(f"{'='*45}")
+    print(f"  Student: {student['name']}")
+    print(f"{'─'*45}")
+    print(f"  {'Subject':<12} {'Score':>6}  {'Grade':>5}")
+    print(f"{'─'*45}")
+    for subject, score in scores.items():
+        grade = get_grade(score)
+        bar = "█" * (score // 10) + "░" * (10 - score // 10)
+        print(f"  {subject:<12} {score:>6}  {grade:>5}  {bar}")
+    print(f"{'─'*45}")
+    print(f"  Average:     {avg:.1f}")
+    print(f"  Remark:      {get_remark(avg)}")
+    print(f"{'='*45}")
+
+# Print all reports
+for student in students:
+    print_report(student)
+
+# Class summary
+print(f"\\n{'='*45}")
+print(f"  CLASS SUMMARY — {TERM}")
+print(f"{'='*45}")
+averages = []
+for s in students:
+    avg = sum(s["scores"].values()) / len(s["scores"])
+    averages.append((s["name"], avg))
+    
+averages.sort(key=lambda x: x[1], reverse=True)
+for rank, (name, avg) in enumerate(averages, 1):
+    medal = ["🥇","🥈","🥉","  "][min(rank-1, 3)]
+    print(f"  {medal} {rank}. {name:<20} {avg:.1f}")`,
+        aiPrompt: 'This is a capstone project combining all Python concepts. Explain how it brings together variables, lists, dictionaries, functions, loops, and conditionals into a real-world school report system. Encourage students to add more subjects or students.'
+      }
+    ]
+  }
 ];
 
 export const PROTOCOL_PHASES: ProtocolPhase[] = [
