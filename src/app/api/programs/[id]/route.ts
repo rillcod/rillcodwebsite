@@ -152,6 +152,32 @@ export async function PUT(
       allowed.session_frequency_per_week = allowed.session_frequency_per_week === 2 ? 2 : 1;
     }
 
+    if ('progression_policy' in allowed && allowed.progression_policy && typeof allowed.progression_policy === 'object') {
+      const policy = allowed.progression_policy as Record<string, unknown>;
+      allowed.progression_policy = {
+        basic_1_3_track: 'young_innovator',
+        basic_4_6_tracks: ['python', 'html_css'],
+        basic_4_6_ai_module: 'intro_ai_tools',
+        jss_1_3_program: 'teen_developers',
+        jss_1_3_track: 'jss_web_app',
+        jss_1_3_tracks: ['jss_web_app', 'jss_python', 'python', 'html_css'],
+        jss_1_3_stack: ['react', 'tailwind', 'typescript'],
+        ss_1_2_program: 'teen_developers',
+        ss_1_2_track: 'ss_uiux_mobile',
+        ss_1_2_tracks: ['ss_uiux_mobile', 'python', 'html_css'],
+        ss_1_2_stack: ['ui_ux_design', 'capacitor_mobile_app'],
+        teen_developers_sequence: [
+          'javascript_foundation',
+          'react_development',
+          'ai_automation',
+          'ui_ux_design',
+          'mobile_capacitor',
+        ],
+        allow_additional_innovator_courses: true,
+        ...policy,
+      };
+    }
+
     const { data, error } = await adminClient()
       .from('programs')
       .update(allowed)

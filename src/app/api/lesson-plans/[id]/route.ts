@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from '../authz';
+import { getProgressionTermStatus } from '@/lib/progression/termStatus';
 
 async function getUser() {
   const supabase = await createClient();
@@ -24,6 +25,12 @@ async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string |
     if (sid) ids.add(sid);
   }
   return Array.from(ids);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
@@ -65,12 +72,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 
   const { id } = await context.params;
-  const body = await request.json();
+  const bodyRaw = await request.json().catch(() => ({} as unknown));
+  const body = asObject(bodyRaw);
   const db = createAdminClient();
 
   const { data: existingPlan, error: existingErr } = await db
     .from('lesson_plans')
-    .select('id, school_id, created_by, lessons(school_id, created_by)')
+    .select('id, school_id, created_by, plan_data, lessons(school_id, created_by)')
     .eq('id', id)
     .maybeSingle();
   if (existingErr || !existingPlan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -88,8 +96,100 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   );
   if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const existingPlanData = asObject((existingPlan as Record<string, unknown>).plan_data);
+  const patchBody: Record<string, unknown> = { ...body };
+  let nextPlanData = existingPlanData;
+
+  if (patchBody.progression_term_status_update && typeof patchBody.progression_term_status_update === 'object') {
+    const update = patchBody.progression_term_status_update as Record<string, unknown>;
+    const year = Number(update.year_number ?? 0);
+    const term = Number(update.term_number ?? 0);
+    const status = update.status;
+    if (
+      Number.isFinite(year) &&
+      Number.isFinite(term) &&
+      (status === 'draft' || status === 'approved' || status === 'locked')
+    ) {
+      const progression = asObject(nextPlanData.progression);
+      const generatedTerms = asObject(progression.generated_terms);
+      const key = `y${year}t${term}`;
+      const termObj = asObject(generatedTerms[key]);
+      const before = { term_status: termObj.term_status ?? 'draft' };
+      termObj.term_status = status;
+      generatedTerms[key] = termObj;
+      nextPlanData = {
+        ...nextPlanData,
+        progression: {
+          ...progression,
+          generated_terms: generatedTerms,
+        },
+      };
+      await db.from('progression_override_audit').insert({
+        lesson_plan_id: id,
+        school_id: planSchoolId,
+        actor_id: user.id,
+        actor_role: user.role,
+        year_number: year,
+        term_number: term,
+        action_type: 'term_status_change',
+        reason: typeof update.reason === 'string' ? update.reason : null,
+        before_state: before,
+        after_state: { term_status: status },
+      });
+    }
+    delete patchBody.progression_term_status_update;
+  }
+
+  if (patchBody.plan_data && typeof patchBody.plan_data === 'object') {
+    const proposedPlanData = asObject(patchBody.plan_data);
+    const existingWeeks = Array.isArray(existingPlanData.weeks) ? existingPlanData.weeks as Array<Record<string, unknown>> : [];
+    const nextWeeks = Array.isArray(proposedPlanData.weeks) ? proposedPlanData.weeks as Array<Record<string, unknown>> : existingWeeks;
+    let lockViolation: { week: number; year: number; term: number } | null = null;
+    for (const nextWeek of nextWeeks) {
+      const weekNum = Number(nextWeek.week ?? 0);
+      if (!Number.isFinite(weekNum) || weekNum <= 0) continue;
+      const existingWeek = existingWeeks.find((w) => Number(w.week ?? -1) === weekNum) ?? null;
+      if (!existingWeek) continue;
+      if (JSON.stringify(existingWeek) === JSON.stringify(nextWeek)) continue;
+      const syllabusRef = asObject(nextWeek.syllabus_ref);
+      const year = Number(syllabusRef.year_number ?? 1);
+      const term = Number(syllabusRef.term_number ?? 1);
+      const status = getProgressionTermStatus(existingPlanData, year, term);
+      if (status === 'locked') {
+        const reason = typeof nextWeek.override_reason === 'string' ? nextWeek.override_reason.trim() : '';
+        if (!reason) {
+          lockViolation = { week: weekNum, year, term };
+          break;
+        }
+        await db.from('progression_override_audit').insert({
+          lesson_plan_id: id,
+          school_id: planSchoolId,
+          actor_id: user.id,
+          actor_role: user.role,
+          year_number: year,
+          term_number: term,
+          week_number: weekNum,
+          action_type: 'week_edit_while_locked',
+          reason,
+          before_state: existingWeek,
+          after_state: nextWeek,
+        });
+      }
+    }
+    if (lockViolation) {
+      return NextResponse.json({
+        error: `Week ${lockViolation.week} belongs to locked term Y${lockViolation.year}T${lockViolation.term}. Provide override reason.`,
+      }, { status: 409 });
+    }
+    nextPlanData = {
+      ...nextPlanData,
+      ...proposedPlanData,
+    };
+  }
+  patchBody.plan_data = nextPlanData;
+
   const { data, error } = await db.from('lesson_plans')
-    .update({ ...body, updated_at: new Date().toISOString() } as any)
+    .update({ ...patchBody, updated_at: new Date().toISOString() } as any)
     .eq('id', id).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

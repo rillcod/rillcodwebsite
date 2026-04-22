@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -6072,6 +6097,83 @@ export type Database = {
           },
         ]
       }
+      progression_override_audit: {
+        Row: {
+          action_type: string
+          actor_id: string | null
+          actor_role: string | null
+          after_state: Json
+          before_state: Json
+          created_at: string
+          id: string
+          lesson_plan_id: string
+          reason: string | null
+          school_id: string | null
+          term_number: number | null
+          week_number: number | null
+          year_number: number | null
+        }
+        Insert: {
+          action_type: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after_state?: Json
+          before_state?: Json
+          created_at?: string
+          id?: string
+          lesson_plan_id: string
+          reason?: string | null
+          school_id?: string | null
+          term_number?: number | null
+          week_number?: number | null
+          year_number?: number | null
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          after_state?: Json
+          before_state?: Json
+          created_at?: string
+          id?: string
+          lesson_plan_id?: string
+          reason?: string | null
+          school_id?: string | null
+          term_number?: number | null
+          week_number?: number | null
+          year_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progression_override_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_override_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "progression_override_audit_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_override_audit_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_engagement: {
         Row: {
           assignment_id: string | null
@@ -9393,6 +9495,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
