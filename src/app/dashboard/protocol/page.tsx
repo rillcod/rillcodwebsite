@@ -172,7 +172,7 @@ export default function ProtocolPage() {
         
         {/* Back Button */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
             <ArrowLeftIcon className="w-4 h-4" />
             Back to Dashboard
           </Link>
@@ -185,18 +185,18 @@ export default function ProtocolPage() {
               <CommandLineIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <p className="text-[9px] sm:text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5 sm:mb-1 drop-shadow-md">Rillcod Academy</p>
-              <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight mb-1 sm:mb-2 drop-shadow-sm">Protocol</h1>
-              <p className="text-[11px] sm:text-sm text-white/50 font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
+              <p className="text-[9px] sm:text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5 sm:mb-1">Rillcod Academy</p>
+              <h1 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight mb-1 sm:mb-2">Protocol</h1>
+              <p className="text-[11px] sm:text-sm text-muted-foreground font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
             </div>
           </div>
           <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end bg-white/[0.03] md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-none border border-white/5 md:border-none">
             <div className="flex flex-col md:items-end">
               <div className="flex items-center gap-3 mb-1 sm:mb-2">
-                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total Mastery</span>
-                <span className="text-lg sm:text-xl font-black text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]">{Math.round(overallProgress)}%</span>
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Mastery</span>
+                <span className="text-lg sm:text-xl font-black text-orange-400">{Math.round(overallProgress)}%</span>
               </div>
-              <div className="w-32 sm:w-48 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div className="w-32 sm:w-48 h-1.5 bg-muted rounded-full overflow-hidden border border-border">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${overallProgress}%` }}
@@ -229,7 +229,7 @@ export default function ProtocolPage() {
                 <div className="h-3 bg-white/5 rounded animate-pulse w-1/2" />
               </div>
             ) : (
-              <p className="text-sm text-white/80 leading-relaxed font-semibold italic">"{studyTip}"</p>
+              <p className="text-sm text-foreground/80 leading-relaxed font-semibold italic">"{studyTip}"</p>
             )}
           </div>
           <button
@@ -255,7 +255,7 @@ export default function ProtocolPage() {
               className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 langFilter === value
                   ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]'
-                  : 'bg-white/[0.03] border-white/5 text-white/40 hover:text-white/80 hover:border-white/20 hover:bg-white/[0.06]'
+                  : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 hover:bg-muted/50'
               }`}
             >
               {label}
@@ -281,7 +281,7 @@ export default function ProtocolPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`group rounded-3xl border transition-all duration-500 overflow-hidden ${
-                  isExpanded ? 'bg-white/[0.03] border-white/10 shadow-2xl' : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.02] hover:border-white/10'
+                  isExpanded ? 'bg-card border-border shadow-2xl' : 'bg-muted/10 border-border/50 hover:bg-muted/20 hover:border-border'
                 }`}
               >
                 <button
@@ -298,7 +298,7 @@ export default function ProtocolPage() {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <h2 className={`text-xl font-black uppercase tracking-tight ${phaseCompletedCount === phaseModules.length ? 'text-emerald-400' : 'text-white'}`}>
+                      <h2 className={`text-xl font-black uppercase tracking-tight ${phaseCompletedCount === phaseModules.length ? 'text-emerald-400' : 'text-foreground'}`}>
                         {phase.name}
                       </h2>
                       {phaseCompletedCount === phaseModules.length && (
@@ -306,12 +306,12 @@ export default function ProtocolPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="text-xs text-white/40 font-black uppercase tracking-widest">{phaseModules.length} Modules</p>
+                      <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{phaseModules.length} Modules</p>
                       <div className="flex items-center gap-2 flex-1 max-w-[120px]">
                         <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
                           <div className={`h-full transition-all duration-700 ${phaseCompletedCount === phaseModules.length ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${phaseProgress}%` }} />
                         </div>
-                        <span className="text-[9px] font-black text-white/30 truncate">{Math.round(phaseProgress)}%</span>
+                        <span className="text-[9px] font-black text-muted-foreground truncate">{Math.round(phaseProgress)}%</span>
                       </div>
                     </div>
                   </div>
@@ -325,7 +325,7 @@ export default function ProtocolPage() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="border-t border-white/5 bg-black/40"
+                      className="border-t border-border bg-muted/10"
                     >
                       {phaseModules.map((module, idx) => {
                         const status = getModuleStatus(module.id, completedModules);
@@ -342,10 +342,10 @@ export default function ProtocolPage() {
                                   {status === 'completed' ? <CheckCircleIcon className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black uppercase tracking-wider text-white/90">
+                                  <p className="text-sm font-black uppercase tracking-wider text-foreground/90">
                                     {idx + 1}. {module.title}
                                   </p>
-                                  <p className="text-xs text-white/40 font-medium line-clamp-1">{module.description}</p>
+                                  <p className="text-xs text-muted-foreground font-medium line-clamp-1">{module.description}</p>
                                 </div>
                               </div>
 
