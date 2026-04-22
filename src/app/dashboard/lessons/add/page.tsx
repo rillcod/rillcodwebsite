@@ -15,7 +15,10 @@ import {
 import {
   ArrowLeft, BookOpen,
   Sparkles, Save, Layout, Settings2, Loader2, ChevronDown, ChevronUp,
-  GraduationCap, Hammer, Zap
+  GraduationCap, Hammer, Zap,
+  X, RefreshCw, Eye, Users, Clock,
+  CheckCircle2, Code2, FileText, Image as ImageIcon, Lightbulb,
+  ListChecks, Target, Video, PenLine,
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -769,122 +772,55 @@ function AddLessonPageContent() {
           )}
         </div>
 
-        {/* AI Generated — Preview Banner */}
+        {/* AI Generated — Preview Banner (mobile-first, stacks on xs) */}
         {!aiOpen && !aiGenerating && form.title && (
-          <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-500/30 rounded-none px-4 py-3">
-            <Sparkles className="w-4 h-4 text-violet-400 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Lesson Generated — "{form.title}"</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Review the generated content below or preview how it looks to students before saving.</p>
+          <div className="bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 border border-violet-500/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-violet-500/25 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-violet-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-black text-violet-300 uppercase tracking-widest">Lesson Generated</p>
+                <p className="text-sm font-bold text-foreground mt-0.5 truncate">{form.title}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Preview how this looks to students. You can regenerate or continue editing below.
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowLessonPreview(true)}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-none transition-all">
-              👁 Preview Lesson
-            </button>
-            <button type="button" onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
-              className="flex-shrink-0 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
-              Regenerate
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowLessonPreview(true)}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all min-h-[44px]"
+              >
+                <Eye className="w-3.5 h-3.5" /> Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-violet-500/30 hover:bg-violet-500/10 text-violet-300 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all min-h-[44px]"
+              >
+                <RefreshCw className="w-3 h-3" /> Regenerate
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Lesson Preview Modal */}
+        {/* Lesson Preview — mobile-first reader-style modal */}
         {showLessonPreview && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) setShowLessonPreview(false); }}>
-            <div className="bg-background border border-border rounded-none w-full max-w-3xl my-4 overflow-hidden shadow-2xl">
-              {/* Preview header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card shadow-sm">
-                <div>
-                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Lesson Preview</p>
-                  <p className="font-bold text-foreground text-sm mt-0.5 truncate">{form.title}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
-                    className="px-3 py-1.5 text-[10px] font-black text-muted-foreground border border-border hover:bg-muted rounded-none uppercase tracking-wider transition-all">
-                    ✕ Regenerate
-                  </button>
-                  <button onClick={() => setShowLessonPreview(false)}
-                    className="px-4 py-1.5 text-[10px] font-black bg-violet-600 hover:bg-violet-500 text-white rounded-none uppercase tracking-wider transition-all">
-                    ✓ Accept & Edit
-                  </button>
-                </div>
-              </div>
-
-              {/* Preview body */}
-              <div className="p-5 space-y-5 overflow-y-auto max-h-[75vh]">
-                {/* Meta */}
-                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  {form.lesson_type && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full capitalize">{form.lesson_type}</span>}
-                  {form.duration_minutes && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full">⏱ {form.duration_minutes} min</span>}
-                  {aiGrade && <span className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-full">{aiGrade}</span>}
-                  {lastModel && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-[10px]">🤖 {lastModel}</span>}
-                </div>
-
-                {/* Description */}
-                {form.description && (
-                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Description</p>
-                    <p className="text-sm text-foreground leading-relaxed">{form.description}</p>
-                  </div>
-                )}
-
-                {/* Objectives */}
-                {aiObjectives.length > 0 && (
-                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Learning Objectives</p>
-                    <ul className="space-y-1.5">
-                      {aiObjectives.map((obj, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                          <span className="text-violet-400 font-black flex-shrink-0">{i + 1}.</span>
-                          <span>{obj}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Content blocks summary */}
-                {form.content_layout && form.content_layout.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Content Blocks ({form.content_layout.length})</p>
-                    <div className="space-y-2">
-                      {(form.content_layout as any[]).map((block: any, i: number) => (
-                        <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-none px-4 py-3">
-                          <span className="text-[10px] font-black text-muted-foreground w-5 flex-shrink-0">{i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{block.title || block.type}</p>
-                            {block.content && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{typeof block.content === 'string' ? block.content.slice(0, 120) : ''}</p>}
-                          </div>
-                          <span className="text-[10px] font-black text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full flex-shrink-0 capitalize">{block.type?.replace('-', ' ')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Lesson notes excerpt */}
-                {form.lesson_notes && (
-                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Study Notes (excerpt)</p>
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line line-clamp-10">{form.lesson_notes.slice(0, 800)}{form.lesson_notes.length > 800 ? '…' : ''}</p>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                  <button onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
-                    className="px-4 py-2 text-xs font-black text-muted-foreground border border-border hover:bg-muted rounded-none uppercase tracking-wider transition-all">
-                    Discard & Regenerate
-                  </button>
-                  <button onClick={() => setShowLessonPreview(false)}
-                    className="px-5 py-2 text-xs font-black bg-violet-600 hover:bg-violet-500 text-white rounded-none uppercase tracking-wider transition-all">
-                    ✓ Accept — Continue Editing
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LessonPreviewModal
+            title={form.title}
+            description={form.description}
+            lessonType={form.lesson_type}
+            durationMinutes={form.duration_minutes}
+            grade={aiGrade}
+            model={lastModel ?? undefined}
+            objectives={aiObjectives}
+            contentLayout={form.content_layout as any[]}
+            lessonNotes={form.lesson_notes}
+            onClose={() => setShowLessonPreview(false)}
+            onRegenerate={() => { setAiOpen(true); setShowLessonPreview(false); }}
+          />
         )}
 
         {/* Lesson Plan Section */}
@@ -1052,4 +988,530 @@ function SelectField({ label, value, options, onChange }: any) {
       </select>
     </div>
   );
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * LessonPreviewModal
+ *
+ * Full-screen, mobile-first, reader-style preview of an AI-generated lesson.
+ * Shows the lesson exactly (or as close as we can) the way a student will
+ * experience it: hero, objectives checklist, content blocks, full study
+ * notes, sticky header + sticky footer with large touch targets.
+ *
+ * Also exposes a "Student view" toggle that hides teacher-only meta (model,
+ * block types) so the teacher can verify the learner experience before
+ * hitting Create Lesson.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+interface LessonPreviewModalProps {
+  title: string;
+  description?: string;
+  lessonType?: string;
+  durationMinutes?: string | number;
+  grade?: string;
+  model?: string;
+  objectives: string[];
+  contentLayout: any[];
+  lessonNotes?: string;
+  onClose: () => void;
+  onRegenerate: () => void;
+}
+
+function LessonPreviewModal({
+  title, description, lessonType, durationMinutes, grade, model,
+  objectives, contentLayout, lessonNotes, onClose, onRegenerate,
+}: LessonPreviewModalProps) {
+  const [tab, setTab] = useState<'reader' | 'outline' | 'notes'>('reader');
+  const [studentView, setStudentView] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  const totalBlocks = contentLayout?.length ?? 0;
+  const notesWords = lessonNotes ? lessonNotes.trim().split(/\s+/).filter(Boolean).length : 0;
+  const totalCompletion = [
+    title ? 1 : 0,
+    description ? 1 : 0,
+    objectives.length > 0 ? 1 : 0,
+    totalBlocks > 0 ? 1 : 0,
+    lessonNotes ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+  const completionPct = Math.round((totalCompletion / 5) * 100);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Lesson preview"
+    >
+      <div className="bg-background border border-border w-full sm:max-w-3xl sm:rounded-2xl rounded-none shadow-2xl flex flex-col max-h-screen sm:max-h-[92vh] overflow-hidden pb-[env(safe-area-inset-bottom)]">
+
+        {/* Sticky header */}
+        <div className="shrink-0 bg-card/95 backdrop-blur-md border-b border-border">
+          <div className="flex items-center gap-2 px-3 sm:px-5 py-3">
+            <button
+              onClick={onClose}
+              className="shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+              aria-label="Close preview"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                <Sparkles className="w-3 h-3" /> Lesson Preview
+                {!studentView && <span className="text-muted-foreground">· Teacher</span>}
+              </div>
+              <p className="text-sm sm:text-base font-bold text-foreground truncate">{title || 'Untitled lesson'}</p>
+            </div>
+            <button
+              onClick={() => setStudentView(v => !v)}
+              className={`shrink-0 hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-[11px] font-black uppercase tracking-widest border rounded-lg transition-all min-h-[40px] ${
+                studentView
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'bg-muted/40 border-border text-muted-foreground hover:bg-muted'
+              }`}
+              title="Toggle student-facing view"
+            >
+              <Users className="w-3.5 h-3.5" /> Student view
+            </button>
+          </div>
+
+          {/* Completion meter */}
+          <div className="px-3 sm:px-5 pb-2">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+              <span>Completion</span>
+              <span>{completionPct}%</span>
+            </div>
+            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 px-2 sm:px-3 pb-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            {([
+              { key: 'reader'  as const, label: 'Reader',  icon: BookOpen,   badge: undefined as string | undefined },
+              { key: 'outline' as const, label: 'Outline', icon: ListChecks, badge: undefined as string | undefined },
+              { key: 'notes'   as const, label: 'Notes',   icon: FileText,   badge: notesWords ? `${notesWords}w` : undefined },
+            ]).map(t => {
+              const Icon = t.icon;
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-[11px] font-black uppercase tracking-widest border-b-2 transition-colors min-h-[40px] ${
+                    active
+                      ? 'border-violet-500 text-violet-400'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {t.label}
+                  {t.badge && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t.badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
+          {tab === 'reader' && (
+            <article className="space-y-6 max-w-2xl mx-auto">
+              {/* Hero */}
+              <header className="space-y-3">
+                <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight">{title || 'Untitled lesson'}</h1>
+                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                  {lessonType && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 font-bold uppercase tracking-widest">
+                      <Layout className="w-3 h-3" /> {lessonType}
+                    </span>
+                  )}
+                  {durationMinutes && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground font-bold">
+                      <Clock className="w-3 h-3" /> {durationMinutes} min
+                    </span>
+                  )}
+                  {grade && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 font-bold">
+                      <GraduationCap className="w-3 h-3" /> {grade}
+                    </span>
+                  )}
+                  {!studentView && model && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground font-medium text-[10px]">
+                      {model}
+                    </span>
+                  )}
+                </div>
+                {description && (
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{description}</p>
+                )}
+              </header>
+
+              {/* Objectives */}
+              {objectives.length > 0 && (
+                <section className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="w-4 h-4 text-violet-400" />
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-violet-300">Learning Objectives</h2>
+                  </div>
+                  <ul className="space-y-2.5">
+                    {objectives.map((obj, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-violet-500/20 text-violet-300 text-[11px] font-black inline-flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        <p className="text-sm text-foreground leading-relaxed flex-1">{obj}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* Content blocks — reader style */}
+              {totalBlocks > 0 && (
+                <section className="space-y-5">
+                  <div className="flex items-center gap-2">
+                    <Layout className="w-4 h-4 text-orange-400" />
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Lesson Flow · {totalBlocks} section{totalBlocks === 1 ? '' : 's'}</h2>
+                  </div>
+                  {contentLayout.map((block: any, i: number) => (
+                    <LessonPreviewBlock key={i} index={i} block={block} showType={!studentView} />
+                  ))}
+                </section>
+              )}
+
+              {/* Notes callout */}
+              {lessonNotes && (
+                <section className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb className="w-4 h-4 text-amber-400" />
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-amber-300">Before the class</h2>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-3">
+                    Students see this as the lesson intro. Switch to the <button onClick={() => setTab('notes')} className="underline text-amber-300 hover:text-amber-200">Notes tab</button> for the full text.
+                  </p>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                    {lessonNotes.slice(0, 400)}{lessonNotes.length > 400 ? '…' : ''}
+                  </p>
+                </section>
+              )}
+
+              {/* Empty state */}
+              {totalBlocks === 0 && objectives.length === 0 && !lessonNotes && (
+                <div className="text-center py-10">
+                  <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-sm text-muted-foreground">No AI content generated yet.</p>
+                  <button onClick={onRegenerate} className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest min-h-[44px]">
+                    <Sparkles className="w-3.5 h-3.5" /> Generate with AI
+                  </button>
+                </div>
+              )}
+            </article>
+          )}
+
+          {tab === 'outline' && (
+            <div className="space-y-2 max-w-2xl mx-auto">
+              {totalBlocks === 0 && objectives.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">No outline yet — generate a lesson first.</p>
+              ) : (
+                <>
+                  {objectives.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-violet-300 mb-2">Objectives</p>
+                      <ol className="space-y-1.5 list-decimal list-inside text-sm text-foreground">
+                        {objectives.map((o, i) => <li key={i}>{o}</li>)}
+                      </ol>
+                    </div>
+                  )}
+                  {contentLayout.map((block: any, i: number) => {
+                    const { icon: Icon, color } = blockTypeStyle(block.type);
+                    return (
+                      <div key={i} className="flex items-start gap-3 p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
+                        <span className="shrink-0 w-8 h-8 rounded-lg bg-muted inline-flex items-center justify-center text-[11px] font-black text-muted-foreground">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-bold text-foreground truncate">{block.title || cleanBlockType(block.type)}</p>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${color}`}>
+                              <Icon className="w-2.5 h-2.5" /> {cleanBlockType(block.type)}
+                            </span>
+                          </div>
+                          {blockExcerpt(block) && (
+                            <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{blockExcerpt(block)}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          )}
+
+          {tab === 'notes' && (
+            <div className="max-w-2xl mx-auto">
+              {lessonNotes ? (
+                <article className="prose prose-sm sm:prose-base max-w-none text-foreground">
+                  <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <span>Lesson Notes</span>
+                    <span>{notesWords} words · ~{Math.max(1, Math.round(notesWords / 200))} min read</span>
+                  </div>
+                  <div className="text-sm sm:text-base text-foreground leading-relaxed whitespace-pre-line">
+                    {lessonNotes}
+                  </div>
+                </article>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-10">No study notes generated yet.</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Sticky footer — large CTAs */}
+        <div className="shrink-0 border-t border-border bg-card/95 backdrop-blur-md">
+          {/* Mobile-only student-view toggle (header keeps it desktop-only) */}
+          <div className="sm:hidden flex items-center justify-between px-4 py-2 border-b border-border">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">View as</span>
+            <button
+              onClick={() => setStudentView(v => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest border rounded-lg transition-all min-h-[36px] ${
+                studentView
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : 'bg-muted/40 border-border text-muted-foreground'
+              }`}
+            >
+              <Users className="w-3 h-3" /> {studentView ? 'Student' : 'Teacher'}
+            </button>
+          </div>
+          <div className="flex items-center gap-2 p-3 sm:p-4">
+            <button
+              onClick={onRegenerate}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-background border border-border hover:bg-muted text-xs font-black uppercase tracking-widest rounded-lg transition-all min-h-[48px]"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-[1.3] inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all min-h-[48px] shadow-lg shadow-violet-900/20"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Looks good — continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Render a single lesson block in reader-mode.  Falls back to a generic
+ *  card for block types we don't explicitly style. */
+function LessonPreviewBlock({ index, block, showType }: { index: number; block: any; showType: boolean }) {
+  const { icon: Icon, color } = blockTypeStyle(block.type);
+  const title = block.title?.trim();
+  const content = typeof block.content === 'string' ? block.content : '';
+  const code = block.code || (block.type === 'code' ? content : undefined);
+
+  // Quiz-ish block
+  if (['quiz', 'quiz-block', 'mcq', 'multiple-choice'].includes(block.type)) {
+    const items: any[] = Array.isArray(block.items) ? block.items : Array.isArray(block.questions) ? block.questions : [];
+    return (
+      <section className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-black inline-flex items-center justify-center">{index + 1}</span>
+            <h3 className="text-sm sm:text-base font-black text-foreground">{title || 'Quiz checkpoint'}</h3>
+          </div>
+          {showType && (
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${color}`}>
+              <Icon className="w-2.5 h-2.5" /> Quiz
+            </span>
+          )}
+        </div>
+        {items.length ? (
+          <ol className="space-y-3 list-decimal list-inside">
+            {items.slice(0, 3).map((q: any, i: number) => (
+              <li key={i} className="text-sm text-foreground">
+                <span className="font-bold">{q.question || q.prompt || q.text || 'Question'}</span>
+                {Array.isArray(q.options) && (
+                  <ul className="ml-5 mt-1.5 space-y-1">
+                    {q.options.slice(0, 4).map((opt: any, j: number) => (
+                      <li key={j} className="text-[13px] text-muted-foreground">{String.fromCharCode(65 + j)}. {typeof opt === 'string' ? opt : opt.text}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+            {items.length > 3 && (
+              <li className="text-[11px] text-muted-foreground list-none">+ {items.length - 3} more questions</li>
+            )}
+          </ol>
+        ) : content ? (
+          <p className="text-sm text-foreground whitespace-pre-line">{content}</p>
+        ) : null}
+      </section>
+    );
+  }
+
+  // Code block
+  if (code || block.type === 'code' || block.type === 'snippet') {
+    return (
+      <section className="rounded-xl border border-sky-500/25 bg-sky-500/5 overflow-hidden">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-sky-500/20 text-sky-300 text-[11px] font-black inline-flex items-center justify-center">{index + 1}</span>
+            <h3 className="text-sm sm:text-base font-black text-foreground truncate">{title || 'Code example'}</h3>
+          </div>
+          {showType && block.language && (
+            <span className="shrink-0 text-[9px] font-mono font-bold text-sky-300 uppercase tracking-widest">{block.language}</span>
+          )}
+        </div>
+        <pre className="text-[12px] sm:text-[13px] leading-relaxed font-mono text-foreground bg-black/40 p-4 overflow-x-auto whitespace-pre">
+          <code>{code}</code>
+        </pre>
+      </section>
+    );
+  }
+
+  // Assignment block
+  if (block.type === 'assignment-block' || block.type === 'assignment') {
+    return (
+      <section className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-black inline-flex items-center justify-center">{index + 1}</span>
+            <h3 className="text-sm sm:text-base font-black text-foreground">{title || 'Assignment'}</h3>
+          </div>
+          {showType && (
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${color}`}>
+              <PenLine className="w-2.5 h-2.5" /> Assignment
+            </span>
+          )}
+        </div>
+        {content && <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{content}</p>}
+        {Array.isArray(block.tasks) && block.tasks.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {block.tasks.map((t: any, i: number) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <CheckCircle2 className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                <span>{typeof t === 'string' ? t : t.title || t.text}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  }
+
+  // Image block
+  if (block.type === 'image' && block.src) {
+    return (
+      <section className="rounded-xl border border-border bg-card overflow-hidden">
+        <img src={block.src} alt={block.alt || title || ''} className="w-full max-h-[60vh] object-contain bg-black/30" />
+        {(title || block.caption) && (
+          <div className="p-3 sm:p-4 text-[12px] text-muted-foreground">
+            {title && <span className="font-bold text-foreground">{title}. </span>}
+            {block.caption}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // List block
+  if ((block.type === 'list' || block.type === 'checklist') && Array.isArray(block.items)) {
+    return (
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="shrink-0 w-6 h-6 rounded-full bg-muted text-muted-foreground text-[11px] font-black inline-flex items-center justify-center">{index + 1}</span>
+          <h3 className="text-sm sm:text-base font-black text-foreground">{title || 'Key points'}</h3>
+        </div>
+        <ul className="space-y-2">
+          {block.items.map((it: any, i: number) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-2 shrink-0" />
+              <span>{typeof it === 'string' ? it : it.text || it.title}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  // Generic / paragraph / heading / callout — full content (no clamp)
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="shrink-0 w-6 h-6 rounded-full bg-muted text-muted-foreground text-[11px] font-black inline-flex items-center justify-center">{index + 1}</span>
+          <h3 className="text-sm sm:text-base font-black text-foreground truncate">{title || cleanBlockType(block.type)}</h3>
+        </div>
+        {showType && (
+          <span className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${color}`}>
+            <Icon className="w-2.5 h-2.5" /> {cleanBlockType(block.type)}
+          </span>
+        )}
+      </div>
+      {content && (
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{content}</p>
+      )}
+    </section>
+  );
+}
+
+function cleanBlockType(type?: string): string {
+  if (!type) return 'Block';
+  return type.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function blockExcerpt(block: any): string {
+  const c = typeof block.content === 'string' ? block.content : '';
+  if (c) return c.slice(0, 180);
+  if (Array.isArray(block.items) && block.items.length > 0) {
+    return block.items.slice(0, 2).map((x: any) => typeof x === 'string' ? x : x.text || x.title).join(' · ');
+  }
+  return '';
+}
+
+function blockTypeStyle(type?: string): { icon: React.ComponentType<{ className?: string }>; color: string } {
+  switch (type) {
+    case 'code':
+    case 'snippet':
+      return { icon: Code2, color: 'bg-sky-500/10 border-sky-500/25 text-sky-300' };
+    case 'quiz':
+    case 'quiz-block':
+    case 'mcq':
+    case 'multiple-choice':
+      return { icon: CheckCircle2, color: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300' };
+    case 'assignment':
+    case 'assignment-block':
+      return { icon: PenLine, color: 'bg-rose-500/10 border-rose-500/25 text-rose-300' };
+    case 'image':
+      return { icon: ImageIcon, color: 'bg-violet-500/10 border-violet-500/25 text-violet-300' };
+    case 'video':
+      return { icon: Video, color: 'bg-red-500/10 border-red-500/25 text-red-300' };
+    case 'list':
+    case 'checklist':
+      return { icon: ListChecks, color: 'bg-amber-500/10 border-amber-500/25 text-amber-300' };
+    case 'callout':
+    case 'tip':
+      return { icon: Lightbulb, color: 'bg-amber-500/10 border-amber-500/25 text-amber-300' };
+    case 'heading':
+      return { icon: Target, color: 'bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-300' };
+    default:
+      return { icon: FileText, color: 'bg-muted border-border text-muted-foreground' };
+  }
 }
