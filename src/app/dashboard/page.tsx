@@ -45,7 +45,7 @@ const QUICK_ACTIONS = {
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
     { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
-    { name: 'School billing', href: '/dashboard/school-billing', icon: BanknotesIcon, desc: 'Invoices and payments for your school' },
+    { name: 'My Billing', href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts for your school' },
   ],
 };
 
@@ -249,8 +249,8 @@ export default function DashboardPage() {
       )}
       {role === 'student' && <StudentDashboardWidget />}
 
-      {/* Inbox preview — all staff roles */}
-      {['admin', 'teacher', 'school'].includes(role) && <InboxPreviewWidget />}
+      {/* Inbox preview — role-scoped for staff, parent and student */}
+      {['admin', 'teacher', 'school', 'parent', 'student'].includes(role) && <InboxPreviewWidget />}
 
       {role === 'parent' && (
         <ParentDashboard

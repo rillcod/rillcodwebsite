@@ -79,6 +79,7 @@ export default function IdentityCardsPage() {
   const [config, setConfig] = useState<Required<CardConfig>>(FALLBACK_CONFIG);
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Sorting / grouping state
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -88,6 +89,8 @@ export default function IdentityCardsPage() {
 
   const canAccess =
     profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const canDesign = profile?.role === 'admin' || profile?.role === 'teacher';
+  const canViewTeacherCards = profile?.role === 'admin';
 
   // ─── loaders ──────────────────────────────────────────────────────────────
 
@@ -133,10 +136,29 @@ export default function IdentityCardsPage() {
     setSelectedSchool('all');
     try {
       if (type === 'parent') {
-        const res = await fetch('/api/parents/manage', { cache: 'no-store' });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || 'Failed to load parents');
-        setRecords(mapParents(json?.data || []));
+        if (profile?.role === 'school') {
+          const res = await fetch('/api/portal-users?role=parent&scoped=true', { cache: 'no-store' });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json?.error || 'Failed to load parents');
+          const parentRows = (json?.data || []) as PortalUser[];
+          setRecords(
+            parentRows.map((r) => ({
+              id: r.id,
+              name: r.full_name || 'Unknown',
+              email: r.email || 'N/A',
+              roleLabel: 'Parent',
+              school: r.school_name || 'Rillcod Academy',
+              badge: 'Parent',
+              sectionClass: '',
+              profileUrl: `${window.location.origin}/dashboard/parent-feedback`,
+            })),
+          );
+        } else {
+          const res = await fetch('/api/parents/manage', { cache: 'no-store' });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json?.error || 'Failed to load parents');
+          setRecords(mapParents(json?.data || []));
+        }
       } else {
         const res = await fetch(`/api/portal-users?role=${type}&scoped=true`, { cache: 'no-store' });
         const json = await res.json();
@@ -160,15 +182,25 @@ export default function IdentityCardsPage() {
     const t = (searchParams.get('type') || '').toLowerCase();
     const q = searchParams.get('q') || '';
     const m = (searchParams.get('mode') || '').toLowerCase();
-    if (t === 'student' || t === 'parent' || t === 'teacher') setActiveType(t);
-    if (m === 'issuance' || m === 'design') setMode(m);
+    if (t === 'student' || t === 'parent' || t === 'teacher') {
+      if (t === 'teacher' && !canViewTeacherCards) setActiveType('student');
+      else setActiveType(t);
+    }
+    if (m === 'issuance' || m === 'design') {
+      if (m === 'design' && !canDesign) setMode('issuance');
+      else setMode(m);
+    }
     if (q) setQuery(q);
-  }, [searchParams]);
+  }, [searchParams, canDesign, canViewTeacherCards]);
 
   useEffect(() => {
     if (!canAccess) return;
     loadRecords(activeType);
   }, [activeType, canAccess]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeType, query, selectedClass, selectedSchool, groupMode, sortBy]);
 
   // ─── derived data ──────────────────────────────────────────────────────────
 
@@ -320,6 +352,15 @@ export default function IdentityCardsPage() {
     printCards(list, `Access Cards — ${className}`);
   };
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // ─── render ───────────────────────────────────────────────────────────────
 
   if (isLoading) return null;
@@ -365,6 +406,15 @@ export default function IdentityCardsPage() {
             </div>
 
             <div className="pt-1 flex items-center gap-2">
+              <label className="inline-flex items-center gap-2 px-2 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground cursor-pointer hover:bg-muted">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(r.id)}
+                  onChange={() => toggleSelected(r.id)}
+                  className="accent-orange-600"
+                />
+                Select
+              </label>
               <button
                 onClick={() => printCards([r], `${r.name} access card`)}
                 className="flex-1 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all inline-flex items-center justify-center gap-2"
@@ -391,18 +441,20 @@ export default function IdentityCardsPage() {
               <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-400 mb-2">Card Studio</p>
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight">Card Studio</h1>
               <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-                Manage design presets, issue cards for students, parents, and teachers, and print in bulk from one place.
+                Issue access cards for students and parents, and print in bulk from one place.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setMode('design')}
-                className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
-                  mode === 'design' ? 'bg-orange-600 text-white' : 'bg-card border border-border hover:bg-muted'
-                }`}
-              >
-                <SparklesIcon className="w-4 h-4" /> Design
-              </button>
+              {canDesign && (
+                <button
+                  onClick={() => setMode('design')}
+                  className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
+                    mode === 'design' ? 'bg-orange-600 text-white' : 'bg-card border border-border hover:bg-muted'
+                  }`}
+                >
+                  <SparklesIcon className="w-4 h-4" /> Design
+                </button>
+              )}
               <button
                 onClick={() => setMode('issuance')}
                 className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
@@ -422,12 +474,12 @@ export default function IdentityCardsPage() {
         </div>
 
         {/* ── Design mode ── */}
-        {mode === 'design' && (
+        {mode === 'design' && canDesign && (
           <div className="grid sm:grid-cols-3 gap-4">
             {([
               { type: 'student', label: 'Student Builder', desc: 'Configure student access cards' },
               { type: 'parent',  label: 'Parent Builder',  desc: 'Configure parent access cards' },
-              { type: 'teacher', label: 'Teacher Builder', desc: 'Configure teacher access cards' },
+              ...(canViewTeacherCards ? [{ type: 'teacher' as CardType, label: 'Teacher Builder', desc: 'Configure teacher access cards' }] : []),
             ] as Array<{ type: CardType; label: string; desc: string }>).map((item) => (
               <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-3">
                 <h3 className="text-lg font-black">{item.label}</h3>
@@ -452,7 +504,7 @@ export default function IdentityCardsPage() {
                 {([
                   { key: 'student', label: 'Students', icon: UserGroupIcon },
                   { key: 'parent',  label: 'Parents',  icon: UserPlusIcon },
-                  { key: 'teacher', label: 'Teachers', icon: AcademicCapIcon },
+                  ...(canViewTeacherCards ? [{ key: 'teacher' as CardType, label: 'Teachers', icon: AcademicCapIcon }] : []),
                 ] as Array<{ key: CardType; label: string; icon: any }>).map((tab) => (
                   <button
                     key={tab.key}
@@ -579,6 +631,34 @@ export default function IdentityCardsPage() {
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
+                {filtered.length > 0 && (
+                  <button
+                    onClick={() => setSelectedIds(new Set(filtered.map((r) => r.id)))}
+                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2"
+                  >
+                    Select Filtered ({filtered.length})
+                  </button>
+                )}
+                {selectedIds.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const selected = filtered.filter((r) => selectedIds.has(r.id));
+                        printCards(selected, `${activeType} access cards — selected`);
+                      }}
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white rounded-none transition-all inline-flex items-center gap-2"
+                    >
+                      <PrinterIcon className="w-4 h-4" />
+                      Print Selected ({selectedIds.size})
+                    </button>
+                    <button
+                      onClick={() => setSelectedIds(new Set())}
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2"
+                    >
+                      Clear Selection
+                    </button>
+                  </>
+                )}
                 {/* Print filtered (or selected class) */}
                 <button
                   onClick={() => {

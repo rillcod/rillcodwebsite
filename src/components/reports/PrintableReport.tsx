@@ -117,16 +117,28 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
         >
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    @page { size: A4; margin: 0; }
-                    body { margin: 0; padding: 0; }
+                    @page { size: A4 portrait; margin: 8mm; }
+                    html, body { margin: 0; padding: 0; width: 100%; height: auto; }
                     .printable-modern {
                         box-shadow: none !important;
-                        margin: 0 !important;
-                        width: 210mm !important;
-                        height: 297mm !important;
+                        margin: 0 auto !important;
+                        width: 194mm !important;
+                        height: auto !important;
+                        min-height: 0 !important;
+                        max-height: 281mm !important;
+                        padding: 10mm !important;
+                        overflow: hidden !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
+                    .printable-modern * {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
+                    }
+                    /* Prevent fixed hero text from spilling outside A4 printable area */
+                    .printable-modern h1 { font-size: 24px !important; line-height: 1.05 !important; }
+                    .printable-modern h2 { font-size: 38px !important; line-height: 1.05 !important; }
+                    .printable-modern h3 { font-size: 56px !important; line-height: 1 !important; }
                 }
             ` }} />
 

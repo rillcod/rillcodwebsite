@@ -84,7 +84,7 @@ export async function POST(
     email: caller.email || 'user@rillcod.com',
     amount: amountMinor,
     reference,
-    callback_url: `${baseUrl}/dashboard/finance?tab=billing&payment=success&ref=${reference}`,
+    callback_url: `${baseUrl}/dashboard/finance?tab=billing_cycles&payment=success&ref=${reference}`,
     metadata: {
       userId: caller.id,
       billingCycleId: id,

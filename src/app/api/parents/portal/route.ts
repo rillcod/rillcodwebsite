@@ -37,37 +37,61 @@ export async function GET(req: Request) {
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
     const { profile } = guard;
-    const admin = createAdminClient();
+    const admin: any = createAdminClient();
     const url = new URL(req.url);
     const section = url.searchParams.get('section') ?? 'children';
     const childId = url.searchParams.get('child_id') ?? '';
 
+    // Build parent-scoped student ids from explicit links + legacy parent_email mapping.
+    // Some environments may not have parent_student_links yet, so query defensively.
+    const parentEmail = (profile.email ?? '').trim().toLowerCase();
+    let linkedIds: string[] = [];
+    try {
+      const { data: linkedRows } = await (admin as any)
+        .from('parent_student_links')
+        .select('student_id')
+        .eq('parent_id', profile.id);
+      linkedIds = (linkedRows ?? [])
+        .map((r: any) => r.student_id as string | null)
+        .filter((v: string | null): v is string => Boolean(v));
+    } catch {
+      linkedIds = [];
+    }
+
     // ── Summary for all children ───────────────────────────────────────────
     if (section === 'summary') {
-      const { data: children, error: childErr } = await admin
+      let childQuery = admin
         .from('students')
         .select('*, user_id')
-        .eq('parent_email', profile.email)
         .order('full_name');
+      if (parentEmail && linkedIds.length > 0) {
+        childQuery = childQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childQuery;
+      } else if (parentEmail) {
+        childQuery = childQuery.ilike('parent_email', parentEmail) as typeof childQuery;
+      } else if (linkedIds.length > 0) {
+        childQuery = childQuery.in('id', linkedIds) as typeof childQuery;
+      } else {
+        return NextResponse.json({ success: true, children: [] });
+      }
+      const { data: children, error: childErr } = await childQuery;
 
       if (childErr) throw childErr;
       if (!children || children.length === 0) return NextResponse.json({ success: true, children: [] });
 
       // Pre-load teachers for these schools
-      const uniqueSchools = [...new Set(children.map(k => k.school_name).filter(Boolean))] as string[];
+      const uniqueSchools = [...new Set((children as any[]).map((k: any) => k.school_name).filter(Boolean))] as string[];
       const { data: teachers } = uniqueSchools.length > 0
         ? await admin.from('portal_users').select('full_name, phone, section_class, school_name').eq('role', 'teacher').in('school_name', uniqueSchools)
         : { data: [] };
 
       const teachersBySchool: Record<string, any[]> = {};
-      (teachers ?? []).forEach(t => {
+      (teachers ?? []).forEach((t: any) => {
         if (!t.school_name) return;
         if (!teachersBySchool[t.school_name]) teachersBySchool[t.school_name] = [];
         teachersBySchool[t.school_name].push(t);
       });
 
-      const userIds = children.map(c => c.user_id).filter(Boolean) as string[];
-      const studentIds = children.map(c => c.id);
+      const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
 
       // Batch fetch stats
       const [attRes, invRes, certRes, gradeRes] = await Promise.all([
@@ -77,29 +101,29 @@ export async function GET(req: Request) {
         userIds.length > 0 ? admin.from('student_progress_reports').select('student_id, overall_grade, report_date').in('student_id', userIds).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
       ]);
 
-      const results = children.map(child => {
-        const childAtt = (attRes.data ?? []).filter(a => a.user_id === child.user_id);
-        const present = childAtt.filter(a => a.status === 'present').length;
+      const results = (children as any[]).map((child: any) => {
+        const childAtt = (attRes.data ?? []).filter((a: any) => a.user_id === child.user_id);
+        const present = childAtt.filter((a: any) => a.status === 'present').length;
         const attendancePct = childAtt.length > 0 ? Math.round((present / childAtt.length) * 100) : null;
 
         const childClass = (child.current_class || child.section || child.grade_level || '').toLowerCase().replace(/\s+/g, '');
         const schoolTeachers = child.school_name ? (teachersBySchool[child.school_name] ?? []) : [];
         const matchedTeacher = childClass
-          ? schoolTeachers.find(t => {
+          ? schoolTeachers.find((t: any) => {
               const tc = (t.section_class || '').toLowerCase().replace(/\s+/g, '');
               return tc && (tc === childClass || tc.startsWith(childClass) || childClass.startsWith(tc));
             }) ?? null
           : null;
 
-        const latestGrade = (gradeRes.data ?? []).find(g => g.student_id === child.user_id)?.overall_grade ?? null;
+        const latestGrade = (gradeRes.data ?? []).find((g: any) => g.student_id === child.user_id)?.overall_grade ?? null;
 
         return {
           ...child,
           stats: {
             attendancePct,
             lastGrade: latestGrade,
-            unpaidInvoices: (invRes.data ?? []).filter(i => i.portal_user_id === child.user_id).length,
-            certificates: (certRes.data ?? []).filter(c => c.portal_user_id === child.user_id).length,
+            unpaidInvoices: (invRes.data ?? []).filter((i: any) => i.portal_user_id === child.user_id).length,
+            certificates: (certRes.data ?? []).filter((c: any) => c.portal_user_id === child.user_id).length,
             teacherName: matchedTeacher?.full_name ?? null,
             teacherPhone: matchedTeacher?.phone ?? null,
           }
@@ -111,11 +135,20 @@ export async function GET(req: Request) {
 
     // ── Children list ────────────────────────────────────────────────────────
     if (section === 'children') {
-      const { data: children, error } = await admin
+      let childQuery = admin
         .from('students')
         .select('id, full_name, school_name, grade_level, section, current_class, status, user_id')
-        .eq('parent_email', profile.email)
         .order('full_name');
+      if (parentEmail && linkedIds.length > 0) {
+        childQuery = childQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childQuery;
+      } else if (parentEmail) {
+        childQuery = childQuery.ilike('parent_email', parentEmail) as typeof childQuery;
+      } else if (linkedIds.length > 0) {
+        childQuery = childQuery.in('id', linkedIds) as typeof childQuery;
+      } else {
+        return NextResponse.json({ success: true, children: [] });
+      }
+      const { data: children, error } = await childQuery;
 
       if (error) throw error;
       return NextResponse.json({ success: true, children: children ?? [] });
@@ -127,12 +160,20 @@ export async function GET(req: Request) {
     }
 
     // Ownership check — the child must belong to this parent
-    const { data: child, error: childErr } = await admin
+    let childScopeQuery = admin
       .from('students')
       .select('id, full_name, school_name, user_id')
-      .eq('id', childId)
-      .eq('parent_email', profile.email)
-      .maybeSingle();
+      .eq('id', childId);
+    if (parentEmail && linkedIds.length > 0) {
+      childScopeQuery = childScopeQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childScopeQuery;
+    } else if (parentEmail) {
+      childScopeQuery = childScopeQuery.ilike('parent_email', parentEmail) as typeof childScopeQuery;
+    } else if (linkedIds.length > 0) {
+      childScopeQuery = childScopeQuery.in('id', linkedIds) as typeof childScopeQuery;
+    } else {
+      return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
+    }
+    const { data: child, error: childErr } = await childScopeQuery.maybeSingle();
 
     if (childErr) throw childErr;
     if (!child) {

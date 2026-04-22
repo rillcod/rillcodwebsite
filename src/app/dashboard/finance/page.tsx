@@ -1842,7 +1842,7 @@ export default function FinancePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-              {profile.role === 'school' ? 'School Finance' : 'Platform Finance'}
+              {profile.role === 'school' ? 'My Billing' : 'Finance Ops'}
             </h1>
           </div>
           <div className="rounded-none border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -1863,7 +1863,7 @@ export default function FinancePage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-            {profile.role === 'school' ? 'School Finance' : 'Platform Finance'}
+            {profile.role === 'school' ? 'My Billing' : 'Finance Ops'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {profile.role === 'school'

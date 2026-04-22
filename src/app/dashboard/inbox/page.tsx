@@ -222,14 +222,15 @@ export default function UnifiedInbox() {
   const isSchool  = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
   const isAdmin   = profile?.role === 'admin';
-  const hasAccess = ['teacher', 'admin', 'school', 'staff'].includes(profile?.role ?? '');
+  const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
+  const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
     { id: 'students'  as const, label: 'WhatsApp',                           icon: MessageSquare },
-    ...(!isSchool ? [{ id: 'parents' as const, label: 'Parents',             icon: Users }] : []),
+    ...(!isSchool && !isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents',             icon: Users }] : []),
     ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',           icon: GraduationCap }] : []),
-    { id: 'school'    as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 },
+    ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
   ];
 
   // ── Real-time ─────────────────────────────────────────────────────────────
@@ -279,6 +280,26 @@ export default function UnifiedInbox() {
     if (setLoad) setIsLoading(true);
     try {
       if (cat === 'students') {
+        if (isParentOrStudent) {
+          const res = await fetch('/api/inbox');
+          const json = await res.json();
+          const rows = json.data ?? [];
+          setConversations(rows.map((c: any) => ({
+            id: c.id,
+            type: 'students' as const,
+            phone_number: c.phone_number,
+            contact_name: c.contact_name || c.portal_users?.full_name || c.phone_number || 'Unknown',
+            last_message_at: c.last_message_at || '',
+            last_message_preview: c.last_message_preview || '',
+            unread_count: c.unread_count || 0,
+            school_name: c.school_name || null,
+            role: c.portal_users?.role || (profile?.role ?? 'student'),
+            portal_user_id: c.portal_user_id ?? undefined,
+            assigned_staff_id: c.assigned_staff_id,
+          })));
+          return;
+        }
+
         const query = supabase
           .from('whatsapp_conversations')
           .select('*, portal_user:portal_users!portal_user_id(full_name, phone, school_name, role)')
@@ -1034,7 +1055,7 @@ export default function UnifiedInbox() {
       <div className="text-center max-w-md">
         <X className="w-16 h-16 text-rose-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
-        <p className="text-white/50 mb-6">Messaging is restricted to staff members.</p>
+        <p className="text-white/50 mb-6">Your account does not have inbox access.</p>
         <Link href="/dashboard" className="px-6 py-2 bg-orange-600 text-white font-bold rounded-xl">Back to Dashboard</Link>
       </div>
     </div>

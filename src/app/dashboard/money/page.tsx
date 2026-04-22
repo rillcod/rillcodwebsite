@@ -410,7 +410,7 @@ export default function MoneyHubPage() {
           )}
           {isSchool && (
             <>
-              <ActionLink href="/dashboard/school-billing" icon={FileText} label="Billing cycles" />
+              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="My Billing" />
               <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Transactions" />
               <ActionLink href="/dashboard/payments/bulk" icon={Banknote} label="Bulk invoices" />
               <ActionLink href="/dashboard/finance?tab=setup" icon={CheckCircle2} label="Settings" />
@@ -419,7 +419,7 @@ export default function MoneyHubPage() {
           {role === 'teacher' && (
             <>
               <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Operations" />
-              <ActionLink href="/dashboard/finance?tab=billing" icon={FileText} label="Billing cycles" />
+              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="Billing cycles" />
             </>
           )}
           {role === 'student' && (

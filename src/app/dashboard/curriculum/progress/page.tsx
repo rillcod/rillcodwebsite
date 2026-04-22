@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import {
@@ -43,6 +43,26 @@ interface CurriculumProgress {
   per_school: SchoolProgress[];
 }
 
+interface ScopedStudent {
+  id: string;
+  school_id?: string | null;
+  school_name?: string | null;
+  section_class?: string | null;
+}
+
+interface SchoolClassGridCell {
+  schoolId: string;
+  schoolName: string;
+  classLabel: string;
+  studentCount: number;
+  curriculaCount: number;
+  completedWeeks: number;
+  totalWeeks: number;
+  avgPct: number;
+  upcomingCount: number;
+  latestActivity: string | null;
+}
+
 function pctColor(pct: number) {
   if (pct >= 75) return 'bg-emerald-500';
   if (pct >= 40) return 'bg-amber-500';
@@ -65,7 +85,9 @@ export default function CurriculumProgressPage() {
   const { profile, loading: authLoading } = useAuth();
   const [data, setData]         = useState<CurriculumProgress[]>([]);
   const [schools, setSchools]   = useState<{ id: string; name: string }[]>([]);
+  const [scopedStudents, setScopedStudents] = useState<ScopedStudent[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [gridLoading, setGridLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState('');
   const [filterTerm, setFilterTerm]     = useState('');
@@ -90,6 +112,16 @@ export default function CurriculumProgressPage() {
       .catch(() => setFetchError('Failed to load progress data — please refresh.'))
       .finally(() => setLoading(false));
   }, [filterSchool, retryKey, profile?.id, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    setGridLoading(true);
+    fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setScopedStudents((j.data ?? []) as ScopedStudent[]))
+      .catch(() => setScopedStudents([]))
+      .finally(() => setGridLoading(false));
+  }, [profile?.id, authLoading]);
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -128,6 +160,84 @@ export default function CurriculumProgressPage() {
       s.term_progress.find(t => t.term === Number(filterTerm) && t.completed > 0)
     )
   );
+
+  const schoolClassGrid = useMemo(() => {
+    const roster = new Map<string, { schoolName: string; classes: Map<string, number> }>();
+    for (const student of scopedStudents) {
+      const sid = student.school_id;
+      if (!sid) continue;
+      const schoolName =
+        student.school_name?.trim()
+        || schools.find((s) => s.id === sid)?.name
+        || 'Unknown school';
+      const classLabel = student.section_class?.trim() || 'Unassigned class';
+      if (!roster.has(sid)) {
+        roster.set(sid, { schoolName, classes: new Map() });
+      }
+      const bucket = roster.get(sid)!;
+      bucket.classes.set(classLabel, (bucket.classes.get(classLabel) ?? 0) + 1);
+    }
+
+    // Keep schools visible even before student rows arrive.
+    for (const s of schools) {
+      if (!roster.has(s.id)) {
+        roster.set(s.id, { schoolName: s.name, classes: new Map([['Unassigned class', 0]]) });
+      }
+    }
+
+    const cells: SchoolClassGridCell[] = [];
+
+    for (const [schoolId, schoolData] of roster) {
+      const schoolRows = filteredData
+        .map((curr) => {
+          const row = curr.per_school.find((p) => p.school_id === schoolId);
+          return row ? { curr, row } : null;
+        })
+        .filter(Boolean) as { curr: CurriculumProgress; row: SchoolProgress }[];
+
+      let completedWeeks = 0;
+      let totalWeeks = 0;
+      let upcomingCount = 0;
+      let latestActivity: string | null = null;
+      for (const sr of schoolRows) {
+        completedWeeks += sr.row.completed;
+        totalWeeks += sr.curr.total_weeks;
+        upcomingCount += sr.row.upcoming_assessments.length;
+        if (!latestActivity || (sr.row.last_activity && new Date(sr.row.last_activity).getTime() > new Date(latestActivity).getTime())) {
+          latestActivity = sr.row.last_activity;
+        }
+      }
+      const avgPct = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+      const curriculaCount = schoolRows.length;
+
+      const classes = Array.from(schoolData.classes.entries()).sort((a, b) => {
+        const aNum = Number(a[0].replace(/\D/g, ''));
+        const bNum = Number(b[0].replace(/\D/g, ''));
+        if (Number.isFinite(aNum) && Number.isFinite(bNum) && !Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum;
+        return a[0].localeCompare(b[0]);
+      });
+
+      for (const [classLabel, studentCount] of classes) {
+        cells.push({
+          schoolId,
+          schoolName: schoolData.schoolName,
+          classLabel,
+          studentCount,
+          curriculaCount,
+          completedWeeks,
+          totalWeeks,
+          avgPct,
+          upcomingCount,
+          latestActivity,
+        });
+      }
+    }
+
+    return cells.sort((a, b) => {
+      if (a.schoolName !== b.schoolName) return a.schoolName.localeCompare(b.schoolName);
+      return a.classLabel.localeCompare(b.classLabel);
+    });
+  }, [scopedStudents, schools, filteredData]);
 
   if (authLoading || !profile) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -251,6 +361,74 @@ export default function CurriculumProgressPage() {
             )}
           </div>
         )}
+
+        {/* School x class operational grid */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-wider">School-Class Delivery Grid</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Operational view for teachers handling multiple schools. Each tile shows school syllabus progress for that class stream.
+              </p>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 border border-border bg-card">
+              {schoolClassGrid.length} grid cell{schoolClassGrid.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          {gridLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {[1, 2, 3].map((s) => (
+                <div key={s} className="h-36 bg-card border border-border animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : schoolClassGrid.length === 0 ? (
+            <div className="bg-card border border-border rounded-xl p-6 text-sm text-muted-foreground">
+              No scoped school/class records yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {schoolClassGrid.map((cell) => (
+                <div key={`${cell.schoolId}-${cell.classLabel}`} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider truncate">{cell.schoolName}</p>
+                      <h3 className="font-black text-base truncate">{cell.classLabel}</h3>
+                    </div>
+                    <span className="text-[10px] px-2 py-1 bg-muted/40 border border-border font-bold">
+                      {cell.studentCount} students
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-background border border-border rounded-lg py-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold">Curricula</p>
+                      <p className="text-sm font-black">{cell.curriculaCount}</p>
+                    </div>
+                    <div className="bg-background border border-border rounded-lg py-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold">Weeks</p>
+                      <p className="text-sm font-black">{cell.completedWeeks}/{cell.totalWeeks}</p>
+                    </div>
+                    <div className="bg-background border border-border rounded-lg py-2">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold">Upcoming</p>
+                      <p className="text-sm font-black">{cell.upcomingCount}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Lesson status</span>
+                      <span className="font-black">{cell.avgPct}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${pctColor(cell.avgPct)}`} style={{ width: `${cell.avgPct}%` }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Last activity: {relativeTime(cell.latestActivity) ?? 'No activity yet'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Curricula list */}
         {loading ? (

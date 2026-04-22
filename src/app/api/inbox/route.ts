@@ -9,7 +9,7 @@ function adminClient() {
   );
 }
 
-async function requireStaff(req: NextRequest) {
+async function requireInboxUser(req: NextRequest) {
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   
@@ -24,17 +24,17 @@ async function requireStaff(req: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
-    throw new Error('Forbidden: Staff access required');
+  if (!profile || !['admin', 'teacher', 'school', 'parent', 'student'].includes(profile.role)) {
+    throw new Error('Forbidden: Inbox access denied');
   }
 
   return profile;
 }
 
-// GET /api/inbox — list WhatsApp conversations for staff
+// GET /api/inbox — list WhatsApp conversations for role-scoped users
 export async function GET(req: NextRequest) {
   try {
-    const caller = await requireStaff(req);
+    const caller = await requireInboxUser(req);
     const admin = adminClient();
 
     const { searchParams } = new URL(req.url);
@@ -44,12 +44,15 @@ export async function GET(req: NextRequest) {
     if (conversationId) {
       const limit = parseInt(searchParams.get('limit') || '100', 10);
 
-      // Verify conversation exists
-      const { data: conversation, error: convErr } = await admin
+      // Verify conversation exists and is in scope for caller
+      let convScope = admin
         .from('whatsapp_conversations')
-        .select('id')
-        .eq('id', conversationId)
-        .single();
+        .select('id, portal_user_id')
+        .eq('id', conversationId);
+      if (caller.role === 'parent' || caller.role === 'student') {
+        convScope = convScope.eq('portal_user_id', caller.id);
+      }
+      const { data: conversation, error: convErr } = await convScope.single();
 
       if (convErr || !conversation) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
@@ -76,8 +79,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: messages });
     }
 
-    // Otherwise, fetch conversations list
-    const { data: conversations, error } = await admin
+    // Otherwise, fetch role-scoped conversation list
+    let convQuery = admin
       .from('whatsapp_conversations')
       .select(`
         *,
@@ -85,6 +88,10 @@ export async function GET(req: NextRequest) {
       `)
       .order('last_message_at', { ascending: false })
       .limit(100);
+    if (caller.role === 'parent' || caller.role === 'student') {
+      convQuery = convQuery.eq('portal_user_id', caller.id);
+    }
+    const { data: conversations, error } = await convQuery;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -92,7 +99,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: conversations });
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Staff access required' ? 403 : 500;
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Inbox access denied' ? 403 : 500;
     return NextResponse.json({ error: err.message }, { status });
   }
 }

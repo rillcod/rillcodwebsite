@@ -211,7 +211,39 @@ export async function POST(request: Request) {
 
   const { data, error } = await db.from('billing_cycles').insert(insertPayload).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data }, { status: 201 });
+
+  // Auto-generate linked invoice for this cycle (school or individual).
+  const invoiceInsert: Record<string, unknown> = {
+    invoice_number: `BCY-${Date.now().toString(36).toUpperCase()}`,
+    school_id: owner_type === 'school' ? owner_school_id : null,
+    portal_user_id: owner_type === 'individual' ? owner_user_id : null,
+    amount: amount_due,
+    currency,
+    due_date,
+    status: status === 'paid' ? 'paid' : 'sent',
+    stream: owner_type === 'school' ? 'school' : 'individual',
+    billing_cycle_id: data.id,
+    notes: `Auto-generated from billing cycle: ${term_label}`,
+    items: Array.isArray(body.items) ? body.items : [],
+  };
+  const { data: invoice, error: invoiceErr } = await db
+    .from('invoices')
+    .insert(invoiceInsert as any)
+    .select('id, invoice_number, status')
+    .single();
+  if (invoiceErr) {
+    return NextResponse.json(
+      { error: `Billing cycle created but invoice generation failed: ${invoiceErr.message}`, data },
+      { status: 500 },
+    );
+  }
+
+  await db
+    .from('billing_cycles')
+    .update({ invoice_id: invoice.id, updated_at: new Date().toISOString() })
+    .eq('id', data.id);
+
+  return NextResponse.json({ data: { ...data, invoice_id: invoice.id }, invoice }, { status: 201 });
 }
 
 /**
