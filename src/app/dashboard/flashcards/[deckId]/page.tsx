@@ -218,119 +218,102 @@ export default function FlashcardDeckPage() {
 
         {/* Cards Grid */}
         {cards.length === 0 ? (
-          <div className="text-center py-20 bg-card border border-border">
-            <DocumentTextIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-bold text-foreground mb-2">No Cards Yet</h3>
+          <div className="text-center py-20 bg-card border border-border rounded-2xl">
+            <div className="text-6xl mb-4">🃏</div>
+            <h3 className="text-lg font-black text-foreground mb-2">No Cards Yet</h3>
             <p className="text-muted-foreground text-sm mb-6">
-              {isTeacher 
-                ? 'Add flashcards to this deck using the builder or AI generation.'
-                : 'This deck doesn\'t have any cards yet. Ask your teacher to add some!'}
+              {isTeacher ? 'Add flashcards using the builder or AI generation.' : 'Ask your teacher to add some cards!'}
             </p>
             {isTeacher && (
-              <button
-                onClick={() => setShowBuilder(true)}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-none transition-colors"
-              >
+              <button onClick={() => setShowBuilder(true)}
+                className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-colors">
                 Add First Card
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {cards.map((card, index) => (
               <motion.div
                 key={card.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card border border-border overflow-hidden hover:border-orange-500/30 transition-all group"
+                transition={{ delay: index * 0.04 }}
+                className="bg-card border border-border rounded-2xl overflow-hidden hover:border-orange-500/30 hover:shadow-lg transition-all group"
               >
                 {editingCard?.id === card.id ? (
-                  /* Edit Mode */
-                  <div className="p-6 space-y-4">
+                  <div className="p-5 space-y-3">
+                    <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Editing Card {index + 1}</p>
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-2">Front (Question)</label>
-                      <textarea
-                        value={editForm.front}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, front: e.target.value }))}
-                        className="w-full h-20 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500"
-                        placeholder="Enter the question..."
-                      />
+                      <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Question</label>
+                      <textarea value={editForm.front} onChange={e => setEditForm(p => ({ ...p, front: e.target.value }))}
+                        className="w-full h-20 bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors"
+                        placeholder="Enter the question…" />
                     </div>
-                    
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground mb-2">Back (Answer)</label>
-                      <textarea
-                        value={editForm.back}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, back: e.target.value }))}
-                        className="w-full h-20 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500"
-                        placeholder="Enter the answer..."
-                      />
+                      <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Answer</label>
+                      <textarea value={editForm.back} onChange={e => setEditForm(p => ({ ...p, back: e.target.value }))}
+                        className="w-full h-20 bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors"
+                        placeholder="Enter the answer…" />
                     </div>
-                    
                     <div className="flex gap-2">
-                      <button
-                        onClick={cancelEdit}
-                        className="flex-1 py-2 bg-muted text-muted-foreground text-sm font-bold hover:bg-muted/80 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={updateCard}
-                        disabled={saving || !editForm.front.trim() || !editForm.back.trim()}
-                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold transition-colors"
-                      >
-                        {saving ? 'Saving...' : 'Save'}
+                      <button onClick={cancelEdit} className="flex-1 py-2 bg-muted text-muted-foreground text-sm font-black rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
+                      <button onClick={updateCard} disabled={saving || !editForm.front.trim() || !editForm.back.trim()}
+                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-colors">
+                        {saving ? 'Saving…' : 'Save'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  /* View Mode — click to flip */
                   <>
+                    {/* Flip card preview */}
                     <div
-                      className="p-6 space-y-4 cursor-pointer select-none"
+                      className={`p-5 space-y-3 min-h-[140px] flex flex-col justify-between ${!isTeacher ? 'cursor-pointer select-none' : ''}`}
                       onClick={() => {
-                        if (!isTeacher) {
-                          setFlippedCards(prev => {
-                            const next = new Set(prev);
-                            next.has(card.id) ? next.delete(card.id) : next.add(card.id);
-                            return next;
-                          });
-                        }
+                        if (!isTeacher) setFlippedCards(prev => {
+                          const next = new Set(prev);
+                          next.has(card.id) ? next.delete(card.id) : next.add(card.id);
+                          return next;
+                        });
                       }}
                     >
                       <AnimatePresence mode="wait">
                         {!flippedCards.has(card.id) ? (
                           <motion.div key="front" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                            <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Question</p>
+                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Question</p>
                             <p className="text-sm font-medium text-foreground leading-relaxed">{card.front}</p>
-                            {!isTeacher && <p className="text-[10px] text-muted-foreground/50 mt-3">Tap to reveal answer</p>}
                           </motion.div>
                         ) : (
                           <motion.div key="back" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-                            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
+                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2">Answer</p>
                             <p className="text-sm text-foreground leading-relaxed">{card.back}</p>
-                            {!isTeacher && <p className="text-[10px] text-muted-foreground/50 mt-3">Tap to see question</p>}
                           </motion.div>
                         )}
                       </AnimatePresence>
+                      {!isTeacher && (
+                        <p className="text-[9px] text-muted-foreground/40 mt-2">
+                          {flippedCards.has(card.id) ? '🔄 Tap for question' : '👆 Tap to reveal answer'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Card number + template badge */}
+                    <div className="px-5 pb-3 flex items-center justify-between">
+                      <span className="text-[9px] text-muted-foreground/40 font-black uppercase tracking-widest">#{index + 1}</span>
+                      {card.template && card.template !== 'classic' && (
+                        <span className="text-[8px] px-2 py-0.5 bg-muted rounded-full text-muted-foreground font-bold capitalize">{card.template}</span>
+                      )}
                     </div>
 
                     {isTeacher && (
-                      <div className="px-6 pb-6 flex gap-2">
-                        <button
-                          onClick={() => startEdit(card)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors"
-                        >
-                          <PencilIcon className="w-3 h-3" />
-                          Edit
+                      <div className="px-5 pb-5 flex gap-2 border-t border-border pt-3">
+                        <button onClick={() => startEdit(card)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-black rounded-xl transition-colors">
+                          <PencilIcon className="w-3 h-3" /> Edit
                         </button>
-                        <button
-                          onClick={() => deleteCard(card.id)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 text-xs font-bold transition-colors"
-                        >
-                          <TrashIcon className="w-3 h-3" />
-                          Delete
+                        <button onClick={() => deleteCard(card.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-black rounded-xl transition-colors">
+                          <TrashIcon className="w-3 h-3" /> Delete
                         </button>
                       </div>
                     )}
