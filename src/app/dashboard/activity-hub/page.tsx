@@ -83,9 +83,9 @@ export default function ActivityHubPage() {
   const currentTab = TABS.find(t => t.id === activeTab)!;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* ── Background Aesthetics ── */}
-      <div className="fixed inset-0 pointer-events-none opacity-20">
+      <div className="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20">
         <div className={`absolute top-0 right-0 w-[500px] h-[500px] bg-${currentTab.accentColor}-600/20 blur-[120px] transition-all duration-1000`} />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px]" />
       </div>
@@ -96,7 +96,7 @@ export default function ActivityHubPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="px-4 py-1.5 bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
+              <div className="px-4 py-1.5 bg-muted/50 border border-border text-muted-foreground text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
                 <SparklesIcon className="w-3 h-3" />
                 Sector: Activity Hub
               </div>
@@ -118,18 +118,18 @@ export default function ActivityHubPage() {
                 className={`flex flex-col gap-2 p-5 border transition-all duration-500 min-w-[160px] text-left group overflow-hidden relative ${
                   activeTab === tab.id 
                     ? `bg-${tab.accentColor}-600/10 border-${tab.accentColor}-600/30` 
-                    : 'bg-white/[0.02] border-white/5 hover:border-white/20'
+                    : 'bg-muted/20 border-border hover:border-muted-foreground/30'
                 }`}
               >
                 {activeTab === tab.id && (
                   <motion.div layoutId="activeBG" className={`absolute inset-0 bg-${tab.accentColor}-600/5`} />
                 )}
-                <tab.icon className={`w-5 h-5 relative z-10 ${activeTab === tab.id ? tab.color : 'text-white/20'}`} />
+                <tab.icon className={`w-5 h-5 relative z-10 ${activeTab === tab.id ? tab.color : 'text-muted-foreground/40'}`} />
                 <div className="relative z-10">
-                  <p className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'text-white' : 'text-white/30'}`}>
+                  <p className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground/50'}`}>
                     {tab.name}
                   </p>
-                  <div className={`h-0.5 mt-2 transition-all duration-500 ${activeTab === tab.id ? `w-full bg-${tab.accentColor}-600` : 'w-4 bg-white/10'}`} />
+                  <div className={`h-0.5 mt-2 transition-all duration-500 ${activeTab === tab.id ? `w-full bg-${tab.accentColor}-600` : 'w-4 bg-border'}`} />
                 </div>
               </button>
             ))}
@@ -145,7 +145,7 @@ export default function ActivityHubPage() {
               className={`flex items-center gap-3 px-6 py-3 border whitespace-nowrap transition-all ${
                 activeTab === tab.id 
                   ? `bg-${tab.accentColor}-600 border-${tab.accentColor}-500 text-white font-black` 
-                  : 'bg-white/5 border-white/10 text-white/40 font-bold'
+                  : 'bg-muted/30 border-border text-muted-foreground font-bold hover:bg-muted/50'
               } text-[10px] uppercase tracking-widest`}
             >
               <tab.icon className="w-4 h-4" />
@@ -155,14 +155,14 @@ export default function ActivityHubPage() {
         </div>
 
         {/* ── Hero/Banner per Tab ── */}
-        <div className="bg-white/[0.03] border border-white/10 overflow-hidden relative group">
+        <div className="bg-card border border-border overflow-hidden relative group">
           <div className={`absolute top-0 right-0 w-[400px] h-[400px] bg-${currentTab.accentColor}-600/10 blur-[100px] -mr-32 -mt-32 pointer-events-none`} />
           <div className="p-8 sm:p-12 relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-8">
             <div className="space-y-4 max-w-xl">
               <h2 className={`text-2xl sm:text-3xl font-black uppercase tracking-tight ${currentTab.color}`}>
                 {currentTab.name}
               </h2>
-              <p className="text-sm sm:text-base text-white/50 font-medium leading-relaxed">
+              <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
                 {currentTab.description}. Engage with interactive tools, secure your intellectual property, and track your industrial progress.
               </p>
             </div>
@@ -173,7 +173,7 @@ export default function ActivityHubPage() {
         </div>
 
         {/* ── Dynamic Content Render ── */}
-        <div className="min-h-[600px] bg-card/5 border border-white/10 relative overflow-hidden">
+        <div className="min-h-[600px] bg-card/30 border border-border relative overflow-hidden">
           <AnimatePresence mode="wait">
              <motion.div
                key={activeTab}
