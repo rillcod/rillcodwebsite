@@ -9,7 +9,7 @@ import {
   ClipboardDocumentListIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon,
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
-  RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon,
+  RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -208,6 +208,18 @@ export default function CurriculumPage() {
   const [genGenerating, setGenGenerating] = useState(false);
   const [genTabError, setGenTabError] = useState('');
   const [loadError, setLoadError] = useState('');
+  /** Filter sidebar programs / courses (builder mode). */
+  const [catalogQuery, setCatalogQuery] = useState('');
+  /** All syllabus rows for the selected course (global vs school-scoped, versions). */
+  const [curriculumList, setCurriculumList] = useState<CurriculumDoc[]>([]);
+  // Form state for generation modal
+  const [form, setForm] = useState({
+    grade_level: 'JSS1',
+    subject_area: '',
+    term_count: '3',
+    weeks_per_term: '8',
+    notes: '',
+  });
 
   const isAdmin   = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -219,14 +231,22 @@ export default function CurriculumPage() {
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
 
-  // Form state for generation modal
-  const [form, setForm] = useState({
-    grade_level: 'JSS1',
-    subject_area: '',
-    term_count: '3',
-    weeks_per_term: '8',
-    notes: '',
-  });
+  const filteredPrograms = useMemo(() => {
+    const q = catalogQuery.trim().toLowerCase();
+    if (!q) return programs;
+    return programs
+      .map((p) => {
+        const pn = (p.name || '').toLowerCase();
+        const courseMatch = (p.courses ?? []).filter((c) => {
+          const t = (c.title || '').toLowerCase();
+          return t.includes(q) || pn.includes(q) || t.split(/\s+/).some((w) => w.length > 1 && w.startsWith(q));
+        });
+        if (pn.includes(q)) return { ...p, courses: p.courses ?? [] };
+        if (courseMatch.length) return { ...p, courses: courseMatch };
+        return null;
+      })
+      .filter(Boolean) as Program[];
+  }, [programs, catalogQuery]);
 
   // ── Load programs ────────────────────────────────────────────────────────
   // Honors `?program=<id>` and `?course=<id>` for deep-linking from the
@@ -239,6 +259,9 @@ export default function CurriculumPage() {
       .then((j) => {
         const progs: Program[] = j.data ?? [];
         setPrograms(progs);
+        // Open every programme by default so teachers can see all courses at a glance
+        // (collapsing only programs is an easy way to scan a long list).
+        setExpandedPrograms(new Set(progs.map((p) => p.id)));
         if (deepProgramId) {
           const p = progs.find((x) => x.id === deepProgramId);
           if (p) {
@@ -258,11 +281,47 @@ export default function CurriculumPage() {
       .catch(() => setLoadError('Failed to load programs — please refresh the page.'));
   }, [searchParams]);
 
+  // When filtering, expand every programme that still has a visible course
+  useEffect(() => {
+    if (!catalogQuery.trim()) return;
+    setExpandedPrograms(new Set(filteredPrograms.map((p) => p.id)));
+  }, [catalogQuery, filteredPrograms]);
+
+  function pickCurriculumForScope(items: CurriculumDoc[], schoolId: string | null | undefined) {
+    if (items.length === 0) return null;
+    if (items.length === 1) return items[0];
+    if (schoolId) {
+      const forSchool = items.find((c) => c.school_id === schoolId);
+      if (forSchool) return forSchool;
+    }
+    const globalRow = items.find((c) => c.school_id == null);
+    if (globalRow) return globalRow;
+    return items[0];
+  }
+
+  const selectCurriculumVersion = useCallback(
+    async (id: string) => {
+      const doc = curriculumList.find((c) => c.id === id);
+      if (!doc) return;
+      setCurriculum(doc);
+      setActiveWeek(null);
+      setGenWeek(null);
+      setGenContentType(null);
+      try {
+        const tRes = await fetch(`/api/curricula/${id}/track`);
+        const tJson = await tRes.json();
+        setTracking(tJson.data ?? []);
+      } catch { /* keep prior tracking */ }
+    },
+    [curriculumList],
+  );
+
   // ── Load curriculum for selected course ──────────────────────────────────
   const loadCurriculum = useCallback(async (courseId: string) => {
     setLoadingCurr(true);
     setLoadError('');
     setCurriculum(null);
+    setCurriculumList([]);
     setTracking([]);
     setActiveWeek(null);
     try {
@@ -270,19 +329,22 @@ export default function CurriculumPage() {
       if (!res.ok) throw new Error('Failed to load syllabus');
       const json = await res.json();
       const items: CurriculumDoc[] = json.data ?? [];
+      setCurriculumList(items);
       if (items.length > 0) {
-        const curr = items[0];
-        setCurriculum(curr);
-        const tRes = await fetch(`/api/curricula/${curr.id}/track`);
-        const tJson = await tRes.json();
-        setTracking(tJson.data ?? []);
+        const curr = pickCurriculumForScope(items, profile?.school_id);
+        if (curr) {
+          setCurriculum(curr);
+          const tRes = await fetch(`/api/curricula/${curr.id}/track`);
+          const tJson = await tRes.json();
+          setTracking(tJson.data ?? []);
+        }
       }
     } catch {
       setLoadError('Could not load the syllabus — please try again.');
     } finally {
       setLoadingCurr(false);
     }
-  }, []);
+  }, [profile?.school_id]);
 
   function selectCourse(prog: Program, course: Course) {
     setSelectedProgram(prog);
@@ -316,7 +378,12 @@ export default function CurriculumPage() {
       });
       const json = await res.json();
       if (!res.ok) { setGenError(json.error || 'Generation failed'); return; }
-      setCurriculum(json.data);
+      const doc = json.data as CurriculumDoc;
+      setCurriculum(doc);
+      setCurriculumList((prev) => {
+        const others = prev.filter((p) => p.id !== doc.id);
+        return [doc, ...others];
+      });
       setTracking([]);
       setShowGenerate(false);
     } catch {
@@ -652,9 +719,73 @@ export default function CurriculumPage() {
   const genSelectedTypeDef = CONTENT_TYPES.find(t => t.key === genContentType);
   const canGenerateContent = !!selectedCourse && !!genWeek && !!genContentType;
 
+  const expandAllPrograms = useCallback(() => {
+    setExpandedPrograms(new Set(programs.map((p) => p.id)));
+  }, [programs]);
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col md:flex-row h-full min-h-screen bg-background text-foreground">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {/* Builder scope — search + context (always find another course) */}
+      <div className="shrink-0 border-b border-border bg-gradient-to-b from-card to-background z-20">
+        <div className="px-4 py-3 md:py-3.5 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Syllabus builder</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Pick a <span className="text-foreground/90 font-bold">program</span> and <span className="text-foreground/90 font-bold">course</span>, then work the syllabus and Generate tab. Search narrows the list; all programmes start expanded so you can see every course.
+            </p>
+            <p className="text-[10px] text-muted-foreground/75 mt-1.5 max-w-3xl leading-relaxed">
+              <span className="text-foreground/70 font-bold">Course vs class:</span> the syllabus is shared for the whole course. To generate or schedule for a specific school <span className="text-foreground/70 font-bold">class</span> (e.g. JSS1A), use <Link href="/dashboard/lesson-plans" className="text-orange-400 font-bold underline underline-offset-2">Lesson Plans</Link> — that is where class, school, and week filters live.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">
+            <div className="relative flex-1 min-w-0">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="search"
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Filter programmes & courses…"
+                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                aria-label="Filter programmes and courses"
+              />
+            </div>
+            {canTrack && programs.length > 0 && (
+              <button
+                type="button"
+                onClick={expandAllPrograms}
+                className="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest border border-border bg-card hover:bg-muted/30 text-foreground"
+              >
+                Expand all
+              </button>
+            )}
+          </div>
+        </div>
+        {canTrack && selectedCourse && curriculumList.length > 1 && (
+          <div className="px-4 pb-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-border/50 pt-3">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">
+              Syllabus copy for this course
+            </label>
+            <select
+              value={curriculum?.id ?? ''}
+              onChange={(e) => { void selectCurriculumVersion(e.target.value); }}
+              className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            >
+              {curriculumList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.school_id ? `School-scoped (v${c.version})` : `Platform (v${c.version})`} —{' '}
+                  {new Date(c.created_at).toLocaleDateString()}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground sm:ml-auto max-w-prose">
+              Multiple versions can exist (e.g. one per school). Choose which copy you are editing and generating from.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
 
       {/* ── Mobile scope bar — sticky, shows current Program › Course and
              gives one-tap access to Browse, Preview-as-role, Publish toggle.
@@ -736,9 +867,11 @@ export default function CurriculumPage() {
         <div className="px-4 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Course & Syllabus</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Catalog</h2>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">Program → Course → Syllabus</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Use the search bar above to filter. Click another course anytime — your work is per course.
+          </p>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
@@ -749,7 +882,18 @@ export default function CurriculumPage() {
               </div>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No tracks found</p>
             </div>
-          ) : programs.map(prog => {
+          ) : filteredPrograms.length === 0 ? (
+            <div className="px-4 py-8 text-center space-y-2">
+              <p className="text-xs text-muted-foreground">No programmes or courses match &ldquo;{catalogQuery.trim()}&rdquo;.</p>
+              <button
+                type="button"
+                onClick={() => setCatalogQuery('')}
+                className="text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1"
+              >
+                Clear search
+              </button>
+            </div>
+          ) : filteredPrograms.map(prog => {
             const isExpanded = expandedPrograms.has(prog.id);
             const activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
             return (
@@ -1724,6 +1868,7 @@ export default function CurriculumPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
