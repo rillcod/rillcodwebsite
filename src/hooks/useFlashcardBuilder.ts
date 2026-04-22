@@ -1,24 +1,19 @@
 import { useState, useCallback } from 'react';
-import type { CardTemplate, CreateCardRequest } from '@/types/flashcards';
+import type { CardTemplate } from '@/types/flashcards';
 import { CARD_TEMPLATES } from '@/components/flashcards/templates';
-
-interface BuilderCard {
-  id: number;
-  front: string;
-  back: string;
-  frontImage?: string;
-  backImage?: string;
-  tags?: string[];
-  difficulty?: 'easy' | 'medium' | 'hard';
-  notes?: string;
-}
+import {
+  mapBuilderCardToCreateRequest,
+  mapGeneratedCardToBuilderCard,
+  type FlashcardBuilderCard,
+  type GeneratedFlashcardCard,
+} from '@/lib/flashcards/cards';
 
 export function useFlashcardBuilder(
   deckId: string,
   onCardCreated: () => void,
   onClose: () => void
 ) {
-  const [cards, setCards] = useState<BuilderCard[]>([
+  const [cards, setCards] = useState<FlashcardBuilderCard[]>([
     { id: Date.now(), front: '', back: '' }
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState<CardTemplate>(CARD_TEMPLATES[0]);
@@ -36,7 +31,7 @@ export function useFlashcardBuilder(
     setCards(prev => prev.length > 1 ? prev.filter(card => card.id !== id) : prev);
   }, []);
 
-  const updateCard = useCallback((id: number, field: keyof BuilderCard, value: unknown) => {
+  const updateCard = useCallback((id: number, field: keyof FlashcardBuilderCard, value: unknown) => {
     setCards(prev =>
       prev.map(card => (card.id === id ? { ...card, [field]: value } : card))
     );
@@ -54,18 +49,8 @@ export function useFlashcardBuilder(
     setError(null);
 
     try {
-      const promises = validCards.map(card => {
-        const cardData: CreateCardRequest = {
-          front: card.front,
-          back: card.back,
-          template: selectedTemplate.id,
-          front_image_url: card.frontImage,
-          back_image_url: card.backImage,
-          tags: card.tags,
-          difficulty_level: card.difficulty,
-          notes: card.notes
-        };
-
+      const promises = validCards.map((card, index) => {
+        const cardData = mapBuilderCardToCreateRequest(card, index, selectedTemplate.id);
         return fetch(`/api/flashcards/decks/${deckId}/cards`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -84,7 +69,7 @@ export function useFlashcardBuilder(
       setSuccess(`Successfully saved ${validCards.length} cards!`);
       onCardCreated();
       setTimeout(() => onClose(), 1500);
-    } catch (err) {
+    } catch (_err) {
       setError('Network error. Please check your connection and try again.');
     } finally {
       setSaving(false);
@@ -94,15 +79,11 @@ export function useFlashcardBuilder(
   const clearError = useCallback(() => setError(null), []);
   const clearSuccess = useCallback(() => setSuccess(null), []);
 
-  const importCards = useCallback((newCards: { front: string; back: string }[]) => {
+  const importCards = useCallback((newCards: GeneratedFlashcardCard[]) => {
     setCards(prev => {
       // Filter out empty cards first if we're importing a bunch
       const existing = prev.filter(c => c.front.trim() || c.back.trim());
-      const formatted = newCards.map((c, i) => ({
-        id: Date.now() + i + Math.random(),
-        front: c.front,
-        back: c.back
-      }));
+      const formatted = newCards.map((c, i) => mapGeneratedCardToBuilderCard(c, i));
       return [...existing, ...formatted];
     });
   }, []);

@@ -6,6 +6,8 @@ import {
   ArrowLeftIcon, FireIcon, TrophyIcon,
   ArrowPathIcon, HomeIcon, StarIcon, BoltIcon,
 } from '@/lib/icons';
+import { getTemplateStyle } from '@/components/flashcards/templates';
+import FlashcardMarkdown from './FlashcardMarkdown';
 
 interface Card {
   id: string;
@@ -24,14 +26,6 @@ interface StudentFlashcardReviewProps {
   onExit: () => void;
 }
 
-const TEMPLATES: Record<string, { front: string; back: string; text: string; glow?: string }> = {
-  classic:      { front: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-2 border-blue-200 dark:border-blue-700',      back: 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-2 border-emerald-200 dark:border-emerald-700', text: 'text-gray-800 dark:text-gray-100' },
-  modern:       { front: 'bg-gradient-to-br from-violet-600 to-blue-600',       back: 'bg-gradient-to-br from-orange-500 to-rose-500',       text: 'text-white',      glow: 'shadow-violet-500/30' },
-  neon:         { front: 'bg-black border-2 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)]',  back: 'bg-black border-2 border-pink-400 shadow-[0_0_20px_rgba(244,114,182,0.4)]',  text: 'text-cyan-300',   glow: 'shadow-cyan-400/40' },
-  minimal:      { front: 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700',     back: 'bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700',    text: 'text-zinc-900 dark:text-zinc-100' },
-  playful:      { front: 'bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-400',              back: 'bg-gradient-to-br from-green-300 via-cyan-300 to-blue-400',                  text: 'text-gray-800 font-bold', glow: 'shadow-pink-400/30' },
-  professional: { front: 'bg-gradient-to-br from-slate-800 to-slate-900',                            back: 'bg-gradient-to-br from-slate-700 to-slate-800',                              text: 'text-white',      glow: 'shadow-slate-900/50' },
-};
 
 const CONFIDENCE_BUTTONS = [
   { label: 'Forgot',  emoji: '😵', value: 1, color: 'bg-rose-600   hover:bg-rose-500',   key: '1' },
@@ -190,7 +184,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
   );
 
   const currentCard = cards[currentIndex];
-  const tpl = TEMPLATES[currentCard?.template ?? 'classic'] ?? TEMPLATES.classic;
+  const tpl = getTemplateStyle(currentCard?.template);
   const accuracy = sessionStats.correct + sessionStats.incorrect > 0
     ? Math.round((sessionStats.correct / (sessionStats.correct + sessionStats.incorrect)) * 100) : 0;
 
@@ -356,15 +350,15 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
                 )}
 
                 {/* Text */}
-                <motion.p
+                <motion.div
                   key={showAnswer ? 'back-text' : 'front-text'}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-lg sm:text-xl font-bold leading-relaxed"
+                  className="text-lg sm:text-xl font-bold leading-relaxed text-left w-full"
                 >
-                  {showAnswer ? currentCard.back : currentCard.front}
-                </motion.p>
+                  <FlashcardMarkdown content={showAnswer ? currentCard.back : currentCard.front} />
+                </motion.div>
 
                 {/* Flip hint */}
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} transition={{ delay: 0.4 }}

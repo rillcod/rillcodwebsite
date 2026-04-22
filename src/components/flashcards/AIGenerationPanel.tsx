@@ -6,21 +6,21 @@ import {
   XMarkIcon, 
   SparklesIcon, 
   ArrowPathIcon,
-  CheckIcon,
   ExclamationTriangleIcon
 } from '@/lib/icons';
 import type { CardTemplate } from '@/types/flashcards';
+import type { GeneratedFlashcardCard } from '@/lib/flashcards/cards';
 
 interface AIGenerationPanelProps {
   deckId: string;
   selectedTemplate: CardTemplate;
   onClose: () => void;
-  onCardsGenerated: (cards: { front: string; back: string; difficulty: string; tags: string[] }[]) => void;
+  onCardsGenerated: (cards: GeneratedFlashcardCard[]) => void;
   initialTopic?: string;
 }
 
 export default function AIGenerationPanel({
-  deckId,
+  deckId: _deckId,
   selectedTemplate,
   onClose,
   onCardsGenerated,
@@ -57,13 +57,18 @@ export default function AIGenerationPanel({
       if (!res.ok) throw new Error(json.error || 'Failed to generate cards');
 
       if (json.data && json.data.cards) {
-        onCardsGenerated(json.data.cards);
+        const normalizedCards = json.data.cards.map((card: Record<string, unknown>) => ({
+          ...card,
+          difficulty: typeof card.difficulty === 'string' ? card.difficulty : difficulty,
+          template: typeof card.template === 'string' ? card.template : selectedTemplate.id,
+        }));
+        onCardsGenerated(normalizedCards);
         onClose();
       } else {
         throw new Error('AI returned an empty set of cards. Please try a different topic.');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to generate cards');
     } finally {
       setGenerating(false);
     }
@@ -153,7 +158,7 @@ export default function AIGenerationPanel({
           <div className="bg-orange-500/5 border border-orange-500/10 p-4 rounded-none space-y-2">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Template Context</p>
             <p className="text-xs text-muted-foreground italic">
-              Cards will be generated with the "{selectedTemplate.name}" style applied automatically.
+              Cards will be generated with the &quot;{selectedTemplate.name}&quot; style applied automatically.
             </p>
           </div>
         </div>

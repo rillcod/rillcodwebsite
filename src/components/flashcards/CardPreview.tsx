@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeftIcon, ArrowRightIcon } from '@/lib/icons';
 import type { CardTemplate } from '@/types/flashcards';
+import FlashcardMarkdown from './FlashcardMarkdown';
 
 interface Card { front: string; back: string; frontImage?: string; backImage?: string; }
 
@@ -76,15 +77,15 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
                 <img src={img} alt="" className="w-full max-h-20 object-cover rounded-lg mb-3" />
               )}
 
-              <motion.p
+              <motion.div
                 key={showAnswer ? 'b' : 'f'}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-sm font-semibold leading-snug"
+                className="text-sm font-semibold leading-snug text-left w-full"
               >
-                {showAnswer ? card.back : card.front}
-              </motion.p>
+                <FlashcardMarkdown content={showAnswer ? card.back : card.front} />
+              </motion.div>
 
               <p className="text-[9px] mt-3 opacity-50">
                 {showAnswer ? 'Click for question' : 'Click to reveal'}
