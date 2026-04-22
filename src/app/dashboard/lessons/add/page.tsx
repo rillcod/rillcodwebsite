@@ -61,6 +61,10 @@ function AddLessonPageContent() {
   // Step 2 → Step 3 handoff: creating a lesson for an existing term plan's week.
   const termPlanId = sp.get('lesson_plan_id');
   const termPlanWeek = sp.get('week');
+  const preTopicFromWeek = sp.get('topic');
+  const preSubjectFromWeek = sp.get('subject');
+  const preWeekNotes = sp.get('lesson_notes');
+  const preWeekDescription = sp.get('description');
 
   const curriculumPlanAppliedRef = useRef<string | null>(null);
 
@@ -172,6 +176,26 @@ function AddLessonPageContent() {
       if (planData) applyPlan(planData);
     }
   }, [curriculumSource, preTitle, preDescription, preDuration, preLessonPlan, lessonPlanKey]);
+
+  // Step 2 → Step 3 handoff defaults from term-plan week context.
+  useEffect(() => {
+    if (!termPlanId) return;
+    if (preTitle) {
+      setForm(prev => ({ ...prev, title: preTitle }));
+    }
+    if (preWeekDescription) {
+      setForm(prev => ({ ...prev, description: prev.description || preWeekDescription }));
+    }
+    if (preWeekNotes) {
+      setForm(prev => ({ ...prev, lesson_notes: prev.lesson_notes || preWeekNotes }));
+    }
+    if (preTopicFromWeek) {
+      setAiTopic(prev => prev || preTopicFromWeek);
+    }
+    if (preSubjectFromWeek) {
+      setAiSubject(prev => prev || preSubjectFromWeek);
+    }
+  }, [termPlanId, preTitle, preWeekDescription, preWeekNotes, preTopicFromWeek, preSubjectFromWeek]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
