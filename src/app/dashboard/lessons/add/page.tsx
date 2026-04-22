@@ -18,6 +18,7 @@ import {
   GraduationCap, Hammer, Zap
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 function parseLessonPlanFromQuery(raw: string | null): CurriculumWeekPlanSlice | null {
   if (!raw) return null;
@@ -54,6 +55,9 @@ function AddLessonPageContent() {
   const lessonPlanKey = sp.get('lesson_plan_key');
   const flowOrigin = sp.get('flow_origin');
   const classIdFromUrl = sp.get('class_id');
+  // Step 2 → Step 3 handoff: creating a lesson for an existing term plan's week.
+  const termPlanId = sp.get('lesson_plan_id');
+  const termPlanWeek = sp.get('week');
 
   const curriculumPlanAppliedRef = useRef<string | null>(null);
 
@@ -401,6 +405,16 @@ function AddLessonPageContent() {
           week: parseInt(curriculumWeek, 10),
           ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
           ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
+          ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
+          ...aiMeta,
+        };
+      } else if (termPlanId) {
+        // Step 2 → Step 3 handoff: creating a lesson for a specific week of a term plan.
+        payload.metadata = {
+          lesson_plan_id: termPlanId,
+          ...(termPlanWeek ? { week: parseInt(termPlanWeek, 10) } : {}),
+          ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
+          ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
           ...aiMeta,
         };
       } else if (classIdFromUrl) {
@@ -486,7 +500,11 @@ function AddLessonPageContent() {
 
       if (lessonPlanKey) clearStashedCurriculumLessonPlan(lessonPlanKey);
 
-      if (curriculumSource && savedLessonPlanId) {
+      // Return to the term lesson plan detail when this lesson was created for
+      // a specific week of a term plan (Step 2 → Step 3 flow).
+      if (termPlanId && !curriculumSource) {
+        router.push(`/dashboard/lesson-plans/${termPlanId}`);
+      } else if (curriculumSource && savedLessonPlanId) {
         router.push(`/dashboard/lesson-plans/${savedLessonPlanId}`);
       } else {
         router.push(`/dashboard/lessons/${data.id}`);
@@ -504,8 +522,22 @@ function AddLessonPageContent() {
     </div>
   );
 
+  const currentCourse = courses.find((c: any) => c.id === form.course_id);
+
   return (
     <div className={`space-y-8 pb-20`}>
+      {/* Shared pipeline stepper — only when we're in the standard flow (hide for modal-embed via minimal) */}
+      {!isMinimal && (
+        <PipelineStepper
+          current="lessons"
+          courseId={form.course_id || preCourseId || null}
+          programId={selectedProgramId || preProgramId || currentCourse?.program_id || null}
+          courseTitle={currentCourse?.title ?? null}
+          curriculumId={curriculumId}
+          lessonPlanId={termPlanId}
+        />
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
@@ -517,11 +549,40 @@ function AddLessonPageContent() {
             {saving ? 'Creating…' : (isMinimal ? 'Create' : 'Create lesson')}
           </button>
           {!isMinimal ? (
-            <Link href="/dashboard/lessons" className="flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation sm:order-first py-1">
-              <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden /> Back to lessons
+            <Link
+              href={termPlanId ? `/dashboard/lesson-plans/${termPlanId}` : '/dashboard/lessons'}
+              className="flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation sm:order-first py-1"
+            >
+              <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+              {termPlanId ? 'Back to term plan' : 'Back to lessons'}
             </Link>
           ) : <div />}
         </div>
+
+        {/* Term-plan context banner */}
+        {termPlanId && !curriculumSource && (
+          <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-none">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="w-10 h-10 bg-violet-500/20 flex items-center justify-center rounded-none border border-violet-500/30 shrink-0">
+                <BookOpen className="w-5 h-5 text-violet-400" aria-hidden />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-violet-400 uppercase tracking-widest">
+                  Creating lesson for Term Plan
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  This lesson will be linked back to the Term Lesson Plan{termPlanWeek ? ` · Week ${termPlanWeek}` : ''}.
+                </p>
+              </div>
+              <Link
+                href={`/dashboard/lesson-plans/${termPlanId}`}
+                className="self-start sm:self-center px-3 py-2 sm:py-1 bg-violet-500/20 text-violet-400 text-xs font-bold uppercase tracking-widest rounded-none border border-violet-500/30 whitespace-nowrap hover:bg-violet-500/30"
+              >
+                View plan →
+              </Link>
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="flex items-center gap-2 mb-1">

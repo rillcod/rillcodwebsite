@@ -10,6 +10,7 @@ import {
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 interface WeekEntry {
   week: number;
@@ -220,12 +221,23 @@ export default function LessonPlanDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto print:p-0 print:space-y-4">
+      {/* Shared pipeline */}
+      <div className="print:hidden">
+        <PipelineStepper
+          current="plans"
+          courseId={plan.course_id ?? null}
+          courseTitle={courseTitle}
+          curriculumId={plan.curriculum_version_id ?? null}
+          lessonPlanId={plan.id}
+        />
+      </div>
+
       {/* Back + Print */}
       <div className="flex items-center justify-between print:hidden">
-        <Link href="/dashboard/lesson-plans" className="flex items-center gap-2 text-card-foreground/50 hover:text-card-foreground text-sm font-bold transition-colors">
+        <Link href="/dashboard/lesson-plans" className="flex items-center gap-2 text-card-foreground/50 hover:text-card-foreground text-sm font-bold transition-colors min-h-[44px]">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Plans
         </Link>
-        <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-card-foreground/70 font-bold transition-all">
+        <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-card-foreground/70 font-bold transition-all min-h-[44px]">
           <PrinterIcon className="w-4 h-4" /> Export PDF
         </button>
       </div>
@@ -457,8 +469,17 @@ export default function LessonPlanDetailPage() {
               <div className="space-y-2">
                 {weeks.map(w => {
                   const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
+                  const addLessonHref =
+                    `/dashboard/lessons/add?` +
+                    new URLSearchParams({
+                      lesson_plan_id: plan.id,
+                      week: String(w.week),
+                      ...(plan.course_id ? { course_id: plan.course_id } : {}),
+                      ...(w.topic ? { title: w.topic } : {}),
+                      flow_origin: 'lesson-plan',
+                    }).toString();
                   return (
-                    <div key={w.week} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                    <div key={w.week} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/5 rounded-xl">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-black text-violet-400">Week {w.week}</span>
@@ -477,6 +498,16 @@ export default function LessonPlanDetailPage() {
                           )}
                         </div>
                       </div>
+                      {!weekLesson && (
+                        <Link
+                          href={addLessonHref}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold border border-emerald-500/30 text-emerald-400 rounded-md hover:bg-emerald-500/10 transition-colors whitespace-nowrap min-h-[36px]"
+                          title="Create lesson for this week"
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5" />
+                          Create Lesson
+                        </Link>
+                      )}
                     </div>
                   );
                 })}
