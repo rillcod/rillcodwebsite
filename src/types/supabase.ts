@@ -823,6 +823,13 @@ export type Database = {
             foreignKeyName: "billing_cycles_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "billing_cycles_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3564,6 +3571,13 @@ export type Database = {
             foreignKeyName: "instalment_plans_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "instalment_plans_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3658,6 +3672,13 @@ export type Database = {
             foreignKeyName: "invoice_payment_proofs_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_proofs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -3710,6 +3731,7 @@ export type Database = {
           reminder_3_sent_at: string | null
           school_id: string | null
           status: string | null
+          stream: string
           updated_at: string | null
         }
         Insert: {
@@ -3730,6 +3752,7 @@ export type Database = {
           reminder_3_sent_at?: string | null
           school_id?: string | null
           status?: string | null
+          stream?: string
           updated_at?: string | null
         }
         Update: {
@@ -3750,9 +3773,17 @@ export type Database = {
           reminder_3_sent_at?: string | null
           school_id?: string | null
           status?: string | null
+          stream?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["transaction_id"]
+          },
           {
             foreignKeyName: "invoices_payment_transaction_id_fkey"
             columns: ["payment_transaction_id"]
@@ -5342,6 +5373,13 @@ export type Database = {
             foreignKeyName: "payment_transactions_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -6040,6 +6078,7 @@ export type Database = {
           pdf_url: string | null
           receipt_number: string
           school_id: string | null
+          stream: string
           student_id: string | null
           transaction_id: string | null
         }
@@ -6052,6 +6091,7 @@ export type Database = {
           pdf_url?: string | null
           receipt_number: string
           school_id?: string | null
+          stream?: string
           student_id?: string | null
           transaction_id?: string | null
         }
@@ -6064,6 +6104,7 @@ export type Database = {
           pdf_url?: string | null
           receipt_number?: string
           school_id?: string | null
+          stream?: string
           student_id?: string | null
           transaction_id?: string | null
         }
@@ -6088,6 +6129,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["transaction_id"]
           },
           {
             foreignKeyName: "receipts_transaction_id_fkey"
@@ -7881,6 +7929,13 @@ export type Database = {
             foreignKeyName: "support_tickets_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -8737,6 +8792,49 @@ export type Database = {
           total_teachers: number | null
         }
         Relationships: []
+      }
+      finance_ledger: {
+        Row: {
+          amount: number | null
+          currency: string | null
+          invoice_id: string | null
+          invoice_number: string | null
+          method: string | null
+          paid_at: string | null
+          portal_user_id: string | null
+          receipt_id: string | null
+          receipt_number: string | null
+          receipt_url: string | null
+          reference: string | null
+          school_id: string | null
+          status: string | null
+          stream: string | null
+          transacted_at: string | null
+          transaction_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_performance_summary: {
         Row: {
