@@ -76,8 +76,10 @@ export async function GET(request: NextRequest) {
       } else {
         query = query.eq('created_by', caller.id) as any;
       }
-    } else if (caller.role === 'school' && caller.school_id) {
-      // School role: scope to their school's lessons only
+    } else if (caller.role === 'school') {
+      if (!caller.school_id) {
+        return NextResponse.json({ error: 'School context required: account must be linked to a school.' }, { status: 403 });
+      }
       query = query.eq('school_id', caller.school_id) as any;
     }
     // admin: no filter — all lessons visible

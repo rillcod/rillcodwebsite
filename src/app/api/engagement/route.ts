@@ -19,9 +19,28 @@ async function getCallerProfile() {
   return data ?? null;
 }
 
+async function assertSchoolCanViewStudent(
+  profile: { id: string; role: string; school_id: string | null },
+  studentPortalUserId: string,
+) {
+  if (profile.role !== 'school') return;
+  if (!profile.school_id) {
+    throw new Error('School context required');
+  }
+  const { data: target } = await createAdminClient()
+    .from('portal_users')
+    .select('school_id')
+    .eq('id', studentPortalUserId)
+    .maybeSingle();
+  if (!target || target.school_id !== profile.school_id) {
+    throw new Error('Forbidden');
+  }
+}
+
 // ── GET /api/engagement ───────────────────────────────────────────────────────
 // Query params: student_id (optional), include (csv: xp,badges,streak,assignments,showcase)
 export async function GET(req: NextRequest) {
+  try {
   const profile = await getCallerProfile();
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -29,11 +48,12 @@ export async function GET(req: NextRequest) {
   const studentId = url.searchParams.get('student_id') ?? profile.id;
   const include   = (url.searchParams.get('include') ?? 'xp,badges,streak,assignments').split(',');
 
-  // Students may only fetch their own data
   const isStaff = ['admin', 'teacher', 'school'].includes(profile.role);
   if (!isStaff && studentId !== profile.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  await assertSchoolCanViewStudent(profile, studentId);
 
   const db = createEngagementAdminClient();
   const et = engagementTables;
@@ -82,6 +102,13 @@ export async function GET(req: NextRequest) {
   ]);
 
   return NextResponse.json({ data: result });
+  } catch (e: any) {
+    const msg = String(e?.message ?? e);
+    if (msg === 'Forbidden') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (msg === 'School context required') return NextResponse.json({ error: msg }, { status: 403 });
+    console.error('[api/engagement GET]', e);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
 }
 
 // ── POST /api/engagement — award XP, check + grant badges, update streak ─────

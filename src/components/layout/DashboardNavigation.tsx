@@ -17,7 +17,7 @@ import {
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
   CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon,
-  SparklesIcon, BoltIcon,
+  SparklesIcon, BoltIcon, QuestionMarkCircleIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -325,6 +325,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'More' },
           { name: 'Share Feedback',    href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
+          { name: 'Support',           href: '/dashboard/support',         icon: QuestionMarkCircleIcon },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
           { name: 'Messages',          href: '/dashboard/messages',        icon: EnvelopeIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },

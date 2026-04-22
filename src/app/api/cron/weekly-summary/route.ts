@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleRequest(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') ?? req.headers.get('authorization')?.replace('Bearer ', '');
-  if (secret !== process.env.CRON_SECRET) {
+  if (!isValidCronSecret(extractCronSecret(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

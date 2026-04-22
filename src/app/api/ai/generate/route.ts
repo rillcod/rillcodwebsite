@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { isPlatformStaffRole, isPartnerSchoolRole, PARTNER_SCHOOL_AI_GENERATE_TYPES } from '@/lib/dashboard/route-access';
 
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
 const client = new OpenAI({
@@ -855,8 +856,11 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role || '');
-    const isParent = profile?.role === 'parent';
+    const role = profile?.role;
+    const isPlatform = isPlatformStaffRole(role);
+    const isSchoolPartner = isPartnerSchoolRole(role);
+    const isStudent = role === 'student';
+    const isParent = role === 'parent';
 
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: 'AI service not configured.' }, { status: 503 });
@@ -865,10 +869,29 @@ export async function POST(req: NextRequest) {
     const body: GenerateRequest = await req.json();
     const { type } = body;
 
-    // Security: students/parents can use lesson-hook, missions, and homework; staff gets everything
-    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'code-generation', 'homework' as any];
-    if (!isStaff && !STUDENT_ALLOWED.includes(type)) {
-      return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
+    // Security: platform staff (admin/teacher) = full professional surface; partner school = narrow ops/commms;
+    // students/parents = learning-assist types only (aligned with dashboard / partner lockdown).
+    const STUDENT_PARENT_ALLOWED: GenerateType[] = [
+      'lesson-hook',
+      'daily-missions',
+      'code-generation',
+      'homework' as GenerateType,
+    ];
+    const canUseType =
+      isPlatform ||
+      (isSchoolPartner && (PARTNER_SCHOOL_AI_GENERATE_TYPES as readonly string[]).includes(type)) ||
+      ((isStudent || isParent) && STUDENT_PARENT_ALLOWED.includes(type));
+
+    if (!canUseType) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden: This AI action is not available for your account type.',
+          hint: isSchoolPartner
+            ? 'Partner school accounts can use report feedback and newsletter drafting only.'
+            : undefined,
+        },
+        { status: 403 },
+      );
     }
 
     if (!body.topic?.trim() && !body.prompt?.trim()) {

@@ -2,23 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2Upload, r2SignedUrl, r2Delete } from '@/lib/r2/client';
+import { isCrmPlatformRole } from '@/lib/server/api-rbac';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
-async function requireStaff() {
+async function requireCrmStaff() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('Unauthorized');
   const db = createAdminClient();
   const { data: profile } = await db.from('portal_users').select('id, role, full_name, school_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) throw new Error('Forbidden');
+  if (!profile || !isCrmPlatformRole(profile.role)) throw new Error('Forbidden');
   return { profile, db };
 }
 
 // GET /api/crm/attachments?contact_id=xxx
 export async function GET(req: NextRequest) {
   try {
-    const { db } = await requireStaff();
+    const { db } = await requireCrmStaff();
     const contact_id = new URL(req.url).searchParams.get('contact_id');
     if (!contact_id) return NextResponse.json({ error: 'contact_id required' }, { status: 400 });
 
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
 // POST /api/crm/attachments  (multipart/form-data)
 export async function POST(req: NextRequest) {
   try {
-    const { profile, db } = await requireStaff();
+    const { profile, db } = await requireCrmStaff();
     const formData = await req.formData();
 
     const file = formData.get('file') as File | null;
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
 // DELETE /api/crm/attachments?id=xxx
 export async function DELETE(req: NextRequest) {
   try {
-    const { db } = await requireStaff();
+    const { db } = await requireCrmStaff();
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
@@ -100,6 +101,8 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const msg = e.message as string;
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

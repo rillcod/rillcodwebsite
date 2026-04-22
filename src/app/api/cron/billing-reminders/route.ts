@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { env } from '@/config/env';
@@ -246,10 +247,7 @@ export async function POST(request: Request) {
 }
 
 async function handleRequest(request: Request) {
-  const secret = request.headers.get('x-cron-secret') || request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET;
-  
-  if (cronSecret && secret !== cronSecret) {
+  if (!isValidCronSecret(extractCronSecret(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
