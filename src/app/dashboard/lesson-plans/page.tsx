@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -97,6 +97,17 @@ function termDates(term: string, academicYear: string): { start: string; end: st
   return null;
 }
 
+function getCourseProgramId(course: Course): string {
+  return (course.program_id ?? course.programs?.id ?? '').trim();
+}
+
+function getCurrentTermLabel(): string {
+  const m = new Date().getMonth() + 1;
+  if (m >= 9) return 'First Term';
+  if (m >= 5) return 'Third Term';
+  return 'Second Term';
+}
+
 function LessonPlansPageInner() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const sp = useSearchParams();
@@ -120,6 +131,13 @@ function LessonPlansPageInner() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [prefilledFromUrl, setPrefilledFromUrl] = useState(false);
+  const [autoClassMatch, setAutoClassMatch] = useState(true);
+  const [autoPickedClassId, setAutoPickedClassId] = useState('');
+  const scheduleStepRef = useRef<HTMLDivElement | null>(null);
+
+  const isAdmin = profile?.role === 'admin';
+  const isTeacher = profile?.role === 'teacher';
+  const canManage = isAdmin || isTeacher;
 
   const [form, setForm] = useState({
     academic_year: currentAcademicYear(),
@@ -154,16 +172,37 @@ function LessonPlansPageInner() {
       .catch(() => setCurricula([]));
   }, [form.course_id, qpCurriculumId]);
 
-  const isAdmin = profile?.role === 'admin';
-  const isTeacher = profile?.role === 'teacher';
-  const canManage = isAdmin || isTeacher;
+  // Keep school context aligned for non-admin users so Step 2/3 filters don't
+  // accidentally hide school-scoped syllabus options.
+  useEffect(() => {
+    if (!profile?.id) return;
+    if (isAdmin) return;
+    const profileSchoolId = profile?.school_id ?? '';
+    if (!profileSchoolId) return;
+    if (form.school_id) return;
+    setForm(f => ({ ...f, school_id: profileSchoolId }));
+  }, [profile?.id, profile?.school_id, isAdmin, form.school_id]);
+
+  // If a curriculum is preselected (from pipeline query params), inherit its
+  // school scope so Step 2 "Import weeks from syllabus" behaves predictably.
+  useEffect(() => {
+    if (!form.curriculum_version_id || curricula.length === 0) return;
+    const selected = curricula.find(c => c.id === form.curriculum_version_id);
+    if (!selected) return;
+    if (selected.school_id && selected.school_id !== form.school_id) {
+      setForm(f => ({ ...f, school_id: selected.school_id ?? '' }));
+    }
+  }, [form.curriculum_version_id, curricula, form.school_id]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [plansRes, coursesRes, classesRes, programsRes] = await Promise.all([
         fetch('/api/lesson-plans'),
-        fetch('/api/courses'),
+        // Lesson-plan form needs broad course coverage across programmes.
+        // /api/courses is paginated by default; request a high limit to avoid
+        // "programme selected but no courses visible" in Step 2.
+        fetch('/api/courses?limit=500'),
         fetch('/api/classes'),
         fetch('/api/programs?is_active=true'),
       ]);
@@ -221,6 +260,8 @@ function LessonPlansPageInner() {
       sessions_per_week: '5',
       curriculum_version_id: '',
     });
+    setAutoClassMatch(true);
+    setAutoPickedClassId('');
   }
 
   async function save() {
@@ -258,10 +299,24 @@ function LessonPlansPageInner() {
     }
   }
 
+  const programOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of programs) {
+      if (!p.id) continue;
+      map.set(p.id, p.name || 'Programme');
+    }
+    for (const c of courses) {
+      const pid = getCourseProgramId(c);
+      if (!pid) continue;
+      if (!map.has(pid)) map.set(pid, c.programs?.name ?? 'Programme');
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [programs, courses]);
+
   // Courses scoped by the selected program (form + filter).
   const coursesForForm = useMemo(() => {
     if (!form.program_id) return courses;
-    return courses.filter(c => c.program_id === form.program_id);
+    return courses.filter(c => getCourseProgramId(c) === form.program_id);
   }, [courses, form.program_id]);
 
   // Courses grouped by program for the dropdown.
@@ -269,9 +324,10 @@ function LessonPlansPageInner() {
     const groups = new Map<string, { programName: string; list: Course[] }>();
     const others: Course[] = [];
     for (const c of coursesForForm) {
-      if (c.program_id) {
-        const key = c.program_id;
-        const name = c.programs?.name ?? programs.find(p => p.id === key)?.name ?? 'Programme';
+      const pid = getCourseProgramId(c);
+      if (pid) {
+        const key = pid;
+        const name = c.programs?.name ?? programOptions.find(p => p.id === key)?.name ?? 'Programme';
         if (!groups.has(key)) groups.set(key, { programName: name, list: [] });
         groups.get(key)!.list.push(c);
       } else {
@@ -279,14 +335,14 @@ function LessonPlansPageInner() {
       }
     }
     return { groups: Array.from(groups.values()), others };
-  }, [coursesForForm, programs]);
+  }, [coursesForForm, programOptions]);
 
   const filtered = useMemo(() => {
     return plans.filter(p => {
       if (filterProgramId) {
         const cId = p.course_id ?? p.lessons?.course_id ?? null;
         const course = cId ? courses.find(c => c.id === cId) : null;
-        if (!course || course.program_id !== filterProgramId) return false;
+        if (!course || getCourseProgramId(course) !== filterProgramId) return false;
       }
       if (filterClassId && p.class_id !== filterClassId) return false;
       if (filterTerm && !(p.term ?? '').toLowerCase().startsWith(filterTerm.toLowerCase())) return false;
@@ -349,13 +405,35 @@ function LessonPlansPageInner() {
   }, [allClasses, form.school_id, form.course_id, courses]);
 
   const visibleCurricula = useMemo(() => {
+    const selectedId = form.curriculum_version_id;
     if (!form.school_id) {
       // No explicit school selected: only show platform templates.
-      return curricula.filter(c => !c.school_id);
+      return curricula.filter(c => !c.school_id || (selectedId && c.id === selectedId));
     }
     // School selected: allow that school's copy or platform fallback.
-    return curricula.filter(c => !c.school_id || c.school_id === form.school_id);
-  }, [curricula, form.school_id]);
+    return curricula.filter(c =>
+      !c.school_id ||
+      c.school_id === form.school_id ||
+      (selectedId ? c.id === selectedId : false),
+    );
+  }, [curricula, form.school_id, form.curriculum_version_id]);
+
+  const autoMatchClassHints = useMemo(() => {
+    const selectedCurriculum = curricula.find(c => c.id === form.curriculum_version_id);
+    const content = selectedCurriculum?.content ?? {};
+    const selectedCourse = courses.find(c => c.id === form.course_id);
+
+    const gradeHints = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    const syllabusHints = [
+      content?.grade_level,
+      content?.class_name,
+      content?.target_class,
+      content?.class,
+      content?.audience?.grade_level,
+    ].filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0);
+
+    return [...gradeHints, ...syllabusHints];
+  }, [curricula, form.curriculum_version_id, courses, form.course_id]);
 
   // Whether we actually narrowed the list by course grades — used for UI hint.
   const classesNarrowedByGrade = useMemo(() => {
@@ -367,6 +445,71 @@ function LessonPlansPageInner() {
       : allClasses;
     return formClasses.length > 0 && formClasses.length < bySchool.length;
   }, [courses, form.course_id, form.school_id, allClasses, formClasses.length]);
+
+  useEffect(() => {
+    if (!autoClassMatch) return;
+    if (form.class_id) return;
+    if (formClasses.length === 0) return;
+    if (autoMatchClassHints.length === 0) return;
+
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, '');
+    const hints = autoMatchClassHints.map(norm).filter(Boolean);
+    if (hints.length === 0) return;
+
+    const match = formClasses.find(c => {
+      const classNorm = norm(c.name ?? '');
+      return hints.some(h => classNorm.includes(h));
+    });
+
+    if (match && match.id !== form.class_id) {
+      setForm(f => ({ ...f, class_id: match.id }));
+      setAutoPickedClassId(match.id);
+    }
+  }, [autoClassMatch, form.class_id, formClasses, autoMatchClassHints]);
+
+  // Auto mode should drive the flow forward:
+  // - pick current term if empty
+  // - pick the single available syllabus copy when obvious
+  // - move focus to final step once context is ready
+  useEffect(() => {
+    if (!autoClassMatch || !showForm) return;
+
+    if (!form.term) {
+      setForm(f => ({ ...f, term: getCurrentTermLabel() }));
+      return;
+    }
+
+    if (
+      form.course_id &&
+      !form.curriculum_version_id &&
+      visibleCurricula.length === 1
+    ) {
+      setForm(f => ({ ...f, curriculum_version_id: visibleCurricula[0].id }));
+      return;
+    }
+
+    const readyForLastStep =
+      !!form.term &&
+      !!form.course_id &&
+      !!form.term_start &&
+      !!form.term_end &&
+      (isAdmin ? !!form.school_id : true);
+
+    if (readyForLastStep) {
+      scheduleStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [
+    autoClassMatch,
+    showForm,
+    form.term,
+    form.course_id,
+    form.curriculum_version_id,
+    form.term_start,
+    form.term_end,
+    form.school_id,
+    visibleCurricula,
+    isAdmin,
+  ]);
 
   if (authLoading || profileLoading || !profile) {
     return (
@@ -441,7 +584,7 @@ function LessonPlansPageInner() {
             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
           >
             <option value="">All programmes</option>
-            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           {(filterClassId || filterTerm || filterStatus || filterProgramId || search) && (
             <button
@@ -650,7 +793,7 @@ function LessonPlansPageInner() {
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
                 >
                   <option value="">All programmes</option>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
 
@@ -726,11 +869,31 @@ function LessonPlansPageInner() {
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
                   Class <span className="text-card-foreground/30 normal-case font-normal">(optional)</span>
                 </label>
-                <select value={form.class_id} onChange={e => setForm(f => ({ ...f, class_id: e.target.value }))}
+                <select
+                  value={form.class_id}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setForm(f => ({ ...f, class_id: next }));
+                    if (next) setAutoClassMatch(false);
+                  }}
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
                   <option value="">— Not assigned to a class —</option>
                   {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <label className="inline-flex items-center gap-2 text-[11px] text-card-foreground/60">
+                    <input
+                      type="checkbox"
+                      checked={autoClassMatch}
+                      onChange={e => setAutoClassMatch(e.target.checked)}
+                      className="accent-violet-500"
+                    />
+                    Auto-match class from syllabus/course grade
+                  </label>
+                  {autoPickedClassId && form.class_id === autoPickedClassId && (
+                    <span className="text-[11px] text-emerald-400">Auto-selected class; you can still change it manually.</span>
+                  )}
+                </div>
                 {classesNarrowedByGrade && (
                   <p className="text-[10px] text-cyan-300/80 mt-1.5 flex items-center gap-1">
                     <span className="font-black uppercase tracking-widest text-cyan-400/80">Grade-matched</span>
@@ -743,7 +906,7 @@ function LessonPlansPageInner() {
               </div>
 
               {/* ── Step 4: Schedule ── */}
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 pt-1">4 · Schedule</p>
+              <p ref={scheduleStepRef} className="text-[10px] font-black uppercase tracking-widest text-violet-400 pt-1">4 · Schedule</p>
               <div>
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
                   Lessons per week
