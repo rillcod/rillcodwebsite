@@ -51,7 +51,7 @@ const QUICK_ACTIONS = {
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
-  const { user, profile, loading: authLoading, profileLoading } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading, refreshProfile, signOut } = useAuth();
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
   const [parentChildren, setParentChildren] = useState<any[]>([]);
@@ -124,13 +124,46 @@ export default function DashboardPage() {
     );
   }
 
-  // Profile loading
-  if (profileLoading || !profile) {
+  // Profile still fetching
+  if (profileLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">Setting up your workspace…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Session exists but profile could not be loaded (API error, no profile row, expired cookies).
+  // Previously this branch matched `!profile` forever and showed an infinite spinner.
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md w-full border border-rose-500/25 bg-rose-500/5 p-6 sm:p-8 text-center space-y-4">
+          <ExclamationTriangleIcon className="w-12 h-12 text-rose-400 mx-auto" />
+          <h2 className="text-lg font-black text-foreground">We couldn&apos;t load your account</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            You still appear to be signed in, but your profile did not load. This often happens after a network hiccup,
+            a server timeout, or if your session needs refreshing. Try again, or sign out and log back in.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => { void refreshProfile(); }}
+              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition"
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => { void signOut(); }}
+              className="px-5 py-2.5 border border-border text-foreground font-bold text-sm rounded-none hover:bg-muted transition"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
     );

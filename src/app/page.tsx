@@ -11,14 +11,35 @@ export default function Home() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        // User is signed in — go straight to dashboard
-        router.replace('/dashboard');
-      } else {
+    // Never leave the home route spinning forever if getSession() hangs (browser tab sleep, network stall).
+    let settled = false;
+    const maxWait = 12_000;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setChecked(true);
+    }, maxWait);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        if (data.session) router.replace('/dashboard');
+        else setChecked(true);
+      })
+      .catch(() => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
         setChecked(true);
-      }
-    });
+      });
+
+    return () => {
+      settled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [router]);
 
   // While checking auth, show nothing (avoids landing page flash)
