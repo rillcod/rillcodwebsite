@@ -244,10 +244,10 @@ export default function FeedbackPage() {
             <a href="mailto:support@rillcod.com" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
               📧 support@rillcod.com
             </a>
-            <a href="tel:+2348116600000" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
-              📞 081 1660 0000
+            <a href="tel:08116600091" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
+              📞 08116600091
             </a>
-            <a href="https://wa.me/2348116600000" target="_blank" rel="noopener noreferrer" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
+            <a href="https://wa.me/2348116600091" target="_blank" rel="noopener noreferrer" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
               💬 WhatsApp Us
             </a>
           </div>
