@@ -116,7 +116,20 @@ export async function POST(request: NextRequest) {
 
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
-    const { delivery_type } = body;
+    const { delivery_type, program_scope, school_progression_enabled, session_frequency_per_week, progression_policy } = body;
+    const normalizedScope =
+      program_scope === 'summer_school' || program_scope === 'online' || program_scope === 'bootcamp'
+        ? program_scope
+        : 'regular_school';
+    const normalizedFreq = session_frequency_per_week === 2 ? 2 : 1;
+    const rawPolicy = progression_policy && typeof progression_policy === 'object' ? progression_policy : {};
+    const normalizedPolicy = {
+      basic_1_3_track: 'young_innovator',
+      basic_4_6_tracks: ['python', 'html_css'],
+      basic_4_6_ai_module: 'intro_ai_tools',
+      allow_additional_innovator_courses: true,
+      ...rawPolicy,
+    };
 
     const { data, error } = await adminClient()
       .from('programs')
@@ -129,6 +142,11 @@ export async function POST(request: NextRequest) {
         max_students: max_students || null,
         is_active: is_active ?? true,
         delivery_type: delivery_type === 'optional' ? 'optional' : 'compulsory',
+        program_scope: normalizedScope,
+        school_progression_enabled:
+          normalizedScope === 'regular_school' ? Boolean(school_progression_enabled) : false,
+        session_frequency_per_week: normalizedFreq,
+        progression_policy: normalizedPolicy,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

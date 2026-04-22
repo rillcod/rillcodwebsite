@@ -40,6 +40,8 @@ export default function FlashcardsPage() {
   const [dueCount, setDueCount] = useState<number>(0);
 
   // Context from curriculum/lesson pipeline
+  const programIdParam = searchParams.get('program_id') ?? '';
+  const curriculumIdParam = searchParams.get('curriculum_id') ?? '';
   const courseIdParam = searchParams.get('course_id') ?? '';
   const lessonIdParam = searchParams.get('lesson_id') ?? '';
   const topicParam    = searchParams.get('topic')     ?? '';
@@ -60,7 +62,11 @@ export default function FlashcardsPage() {
   async function loadDecks() {
     setLoading(true);
     try {
-      const res = await fetch('/api/flashcards/decks');
+      const params = new URLSearchParams();
+      if (courseIdParam) params.set('course_id', courseIdParam);
+      if (lessonIdParam) params.set('lesson_id', lessonIdParam);
+      const qs = params.toString();
+      const res = await fetch(`/api/flashcards/decks${qs ? `?${qs}` : ''}`);
       const json = await res.json();
       setDecks(json.data ?? []);
 
@@ -142,7 +148,14 @@ export default function FlashcardsPage() {
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
         {/* ── Content Pipeline (staff only) ── */}
-        {isTeacher && <PipelineStepper current="flashcards" />}
+        {isTeacher && (
+          <PipelineStepper
+            current="flashcards"
+            courseId={courseIdParam || null}
+            programId={programIdParam || null}
+            curriculumId={curriculumIdParam || null}
+          />
+        )}
 
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">

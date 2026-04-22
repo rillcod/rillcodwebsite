@@ -39,14 +39,101 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only teachers can create flashcard decks' }, { status: 403 });
   }
 
-  const { title, lesson_id, course_id } = await req.json();
+  const {
+    title,
+    lesson_id,
+    course_id,
+    progression_track,
+    progression_delivery_mode,
+    progression_weekly_frequency,
+  } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required', field: 'title' }, { status: 400 });
+
+  let progressionContext: {
+    enabled: boolean;
+    track: 'young_innovator' | 'scratch' | 'python' | 'html' | null;
+    deliveryMode: 'optional' | 'compulsory' | null;
+    weeklyFrequency: 1 | 2 | null;
+    policySnapshot: Record<string, unknown>;
+  } = {
+    enabled: false,
+    track: null,
+    deliveryMode: null,
+    weeklyFrequency: null,
+    policySnapshot: {},
+  };
+
+  if (profile.role === 'school' && course_id) {
+    const { data: courseRow } = await supabase
+      .from('courses')
+      .select(
+        `
+          id,
+          program_id,
+          programs(
+            id,
+            program_scope,
+            school_progression_enabled,
+            session_frequency_per_week,
+            delivery_type,
+            progression_policy
+          )
+        `,
+      )
+      .eq('id', course_id)
+      .maybeSingle();
+
+    const program = (courseRow as any)?.programs;
+    const eligible =
+      !!program &&
+      program.program_scope === 'regular_school' &&
+      program.school_progression_enabled === true;
+
+    if (eligible) {
+      const requestedTrack =
+        progression_track === 'young_innovator' ||
+        progression_track === 'scratch' ||
+        progression_track === 'python' ||
+        progression_track === 'html'
+          ? progression_track
+          : null;
+      const requestedMode =
+        progression_delivery_mode === 'optional' || progression_delivery_mode === 'compulsory'
+          ? progression_delivery_mode
+          : null;
+      const requestedFreq = progression_weekly_frequency === 2 ? 2 : progression_weekly_frequency === 1 ? 1 : null;
+
+      const programPolicy = (program.progression_policy && typeof program.progression_policy === 'object')
+        ? program.progression_policy
+        : {};
+      const normalizedSnapshot = {
+        basic_1_3_track: 'young_innovator',
+        basic_4_6_tracks: ['python', 'html_css'],
+        basic_4_6_ai_module: 'intro_ai_tools',
+        allow_additional_innovator_courses: true,
+        ...programPolicy,
+      };
+
+      progressionContext = {
+        enabled: true,
+        track: requestedTrack ?? 'young_innovator',
+        deliveryMode: requestedMode ?? (program.delivery_type === 'optional' ? 'optional' : 'compulsory'),
+        weeklyFrequency: requestedFreq ?? (program.session_frequency_per_week === 2 ? 2 : 1),
+        policySnapshot: normalizedSnapshot,
+      };
+    }
+  }
 
   const insertPayload: Record<string, unknown> = {
     title: title.trim(),
     lesson_id: lesson_id || null,
     course_id: course_id || null,
     created_by: user.id,
+    school_progression_enabled: progressionContext.enabled,
+    progression_track: progressionContext.track,
+    progression_delivery_mode: progressionContext.deliveryMode,
+    progression_weekly_frequency: progressionContext.weeklyFrequency,
+    progression_policy_snapshot: progressionContext.policySnapshot,
   };
   if (profile.school_id) insertPayload.school_id = profile.school_id;
 
