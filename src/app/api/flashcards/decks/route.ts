@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import type { Database, Json } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
 type ProgramRow = {
@@ -15,6 +16,7 @@ type CourseProgramRow = {
   program_id: string | null;
   programs: ProgramRow | null;
 };
+type FlashcardDeckInsert = Database['public']['Tables']['flashcard_decks']['Insert'];
 
 // GET /api/flashcards/decks
 export async function GET(req: NextRequest) {
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
       | null;
     deliveryMode: 'optional' | 'compulsory' | null;
     weeklyFrequency: 1 | 2 | null;
-    policySnapshot: Record<string, unknown>;
+    policySnapshot: Json;
   } = {
     enabled: false,
     track: null,
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const insertPayload: Record<string, unknown> = {
+  const insertPayload: FlashcardDeckInsert = {
     title: title.trim(),
     lesson_id: lesson_id || null,
     course_id: course_id || null,
