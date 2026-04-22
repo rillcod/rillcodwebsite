@@ -253,8 +253,34 @@ export class PaymentsService {
         return true;
     }
 
-    // Task 23.1: Receipt Generation
-    async generateReceipt(transactionId: string) {
+    /**
+     * Task 23.1 — Receipt Generation (legacy entry point).
+     *
+     * All new code paths should import `issueReceiptForTransaction`
+     * from `@/lib/finance/issue` directly. This wrapper is kept so
+     * older callers (webhook, approve, receipt route) still work and
+     * to preserve the original signature `(transactionId) => url`.
+     *
+     * The new issuer:
+     *   • Detects SCHOOL vs INDIVIDUAL stream from the invoice.
+     *   • Renders the correct branded PDF (two templates).
+     *   • Writes stream-specific receipt numbers (REC-SCH / REC-).
+     *   • Stores the PDF under receipts/{stream}/{id}.pdf.
+     */
+    async generateReceipt(transactionId: string): Promise<string> {
+        const { issueReceiptForTransaction } = await import('@/lib/finance/issue');
+        const res = await issueReceiptForTransaction(transactionId);
+        return res.url;
+    }
+
+    /**
+     * Deprecated monolithic receipt generator — retained only for
+     * reference / fallback. Not wired in any code path as of
+     * 2026-04-22.  Delete in a later sweep once telemetry confirms
+     * no external callers rely on it.
+     */
+    // @ts-ignore — intentionally unreachable
+    async _legacyGenerateReceipt(transactionId: string) {
         if (!PdfPrinter) {
             throw new AppError('pdfmake not installed or failed to load', 500);
         }

@@ -1605,6 +1605,30 @@ export function PaymentsHub({ embedded = false }: { embedded?: boolean }) {
     <>
     <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 ${embedded ? 'py-0 space-y-6' : 'py-8 space-y-8'}`}>
 
+        {/* Superseded banner — direct users to the unified Money Hub */}
+        <Link
+          href="/dashboard/money"
+          className="group block rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-emerald-500/10 p-4 sm:p-5 hover:border-violet-500/60 transition-colors"
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white inline-flex items-center justify-center shrink-0">
+              <ArrowTrendingUpIcon className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500/80">New · unified</p>
+              <p className="text-sm sm:text-base font-black text-foreground">
+                The Money Hub consolidates School &amp; Individual streams, receipts and reconciliation in one place.
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                This legacy Payments &amp; Finance surface is kept for advanced setup; day-to-day work lives at /dashboard/money.
+              </p>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-violet-500 group-hover:text-violet-400">
+              Open Money Hub →
+            </span>
+          </div>
+        </Link>
+
         {/* Header */}
         {!embedded && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

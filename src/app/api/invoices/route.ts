@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
   const admin = adminClient();
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
+  const stream = searchParams.get('stream'); // 'school' | 'individual'
   const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10) || 100, 500);
 
   let query = admin
@@ -51,6 +52,10 @@ export async function GET(request: NextRequest) {
     .select('*, portal_users(full_name, email), schools(name)')
     .order('created_at', { ascending: false })
     .limit(limit);
+
+  if (stream === 'school' || stream === 'individual') {
+    query = query.eq('stream', stream);
+  }
 
   if (caller.role === 'admin') {
     const schoolIdParam = searchParams.get('school_id');
@@ -83,13 +88,26 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ data: data ?? [] });
 }
 
-// POST /api/invoices — create invoice
+// POST /api/invoices — create invoice.
+// Callers may pass an explicit `stream` ('school' | 'individual'); otherwise
+// we classify from (school_id / portal_user_id / billing_cycle_id).
 export async function POST(request: NextRequest) {
   const caller = await requireWriter();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { school_id, portal_user_id, amount, notes, due_date, items, status } = body;
+  const {
+    school_id, portal_user_id, amount, notes, due_date, items, status,
+    stream: streamFromBody, billing_cycle_id,
+  } = body;
+
+  const { classifyInvoiceStream } = await import('@/lib/finance/streams');
+  const stream = classifyInvoiceStream({
+    stream: streamFromBody ?? null,
+    school_id: school_id ?? null,
+    portal_user_id: portal_user_id ?? null,
+    billing_cycle_id: billing_cycle_id ?? null,
+  });
 
   const admin = adminClient();
   const { data, error } = await admin
@@ -102,6 +120,8 @@ export async function POST(request: NextRequest) {
       due_date: due_date || null,
       items: items || [],
       status: status || 'sent',
+      stream,
+      billing_cycle_id: billing_cycle_id || null,
     }])
     .select()
     .single();
