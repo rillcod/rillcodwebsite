@@ -5,8 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, TrashIcon, PlayIcon,
-  SparklesIcon, EyeIcon, Squares2X2Icon, PresentationChartBarIcon,
-  ArrowRightIcon, CheckCircleIcon, ArrowPathIcon, XMarkIcon,
+  SparklesIcon, Squares2X2Icon, PresentationChartBarIcon,
+  CheckCircleIcon, ArrowPathIcon, XMarkIcon,
   ChevronLeftIcon, ChevronRightIcon, PlusIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
@@ -395,7 +395,7 @@ export default function FlashcardDeckPage() {
               </button>
               <button onClick={() => { setPresIndex(0); setPresFlipped(false); setViewMode('presentation'); }}
                 disabled={cards.length === 0}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 ${viewMode === 'presentation' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 text-muted-foreground hover:text-foreground`}>
                 <PresentationChartBarIcon className="w-3.5 h-3.5" /> Present
               </button>
             </div>
