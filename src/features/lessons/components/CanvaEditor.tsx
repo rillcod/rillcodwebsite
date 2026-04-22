@@ -230,7 +230,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             <ControlBtn onClick={() => moveBlock(i, 'down')} icon={ChevronDownIcon} disabled={i === layout.length - 1} title="Move down" />
                                         </div>
                                     </div>
-                                    <button onClick={() => removeBlock(i)} className="p-1.5 hover:text-rose-400 text-white/20 hover:bg-rose-500/10 rounded-none transition-colors">
+                                    <button type="button" onClick={() => removeBlock(i)} className="p-1.5 hover:text-rose-400 text-white/20 hover:bg-rose-500/10 rounded-none transition-colors">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -378,6 +378,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                                         className="flex-1 bg-black/40 border border-white/5 rounded px-3 py-1 text-xs text-white"
                                                     />
                                                     <button 
+                                                        type="button"
                                                         onClick={() => {
                                                             const next = (block.steps || []).filter((_, idx) => idx !== sIdx);
                                                             updateBlock(i, { steps: next });
@@ -389,6 +390,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                                 </div>
                                             ))}
                                             <button 
+                                                type="button"
                                                 onClick={() => updateBlock(i, { steps: [...(block.steps || []), ''] })} 
                                                 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-300"
                                             >
@@ -699,10 +701,10 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                                 <span className="w-6 h-6 rounded bg-violet-500/20 flex items-center justify-center text-[10px] font-black text-violet-400">{sIdx + 1}</span>
                                                 <input value={s} onChange={e => { const next = [...(block.steps || [])]; next[sIdx] = e.target.value; updateBlock(i, { steps: next }); }}
                                                     className="flex-1 bg-black/30 border border-white/5 px-3 py-1 text-xs text-white focus:outline-none" />
-                                                <button onClick={() => { const next = (block.steps || []).filter((_, idx) => idx !== sIdx); updateBlock(i, { steps: next }); }} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
+                                                <button type="button" onClick={() => { const next = (block.steps || []).filter((_, idx) => idx !== sIdx); updateBlock(i, { steps: next }); }} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateBlock(i, { steps: [...(block.steps || []), ''] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Step</button>
+                                        <button type="button" onClick={() => updateBlock(i, { steps: [...(block.steps || []), ''] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Step</button>
                                     </div>
                                 )}
 
@@ -717,10 +719,10 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                                     placeholder="Term..." className="bg-black/30 border border-white/5 px-3 py-1 text-xs font-bold text-white focus:outline-none" />
                                                 <input value={t.definition} onChange={e => { const next = [...(block.terms || [])]; next[tIdx] = { ...next[tIdx], definition: e.target.value }; updateBlock(i, { terms: next }); }}
                                                     placeholder="Definition..." className="bg-black/30 border border-white/5 px-3 py-1 text-xs text-white/60 focus:outline-none" />
-                                                <button onClick={() => updateBlock(i, { terms: (block.terms || []).filter((_, idx) => idx !== tIdx) })} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
+                                                <button type="button" onClick={() => updateBlock(i, { terms: (block.terms || []).filter((_, idx) => idx !== tIdx) })} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateBlock(i, { terms: [...(block.terms || []), { term: '', definition: '' }] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Term</button>
+                                        <button type="button" onClick={() => updateBlock(i, { terms: [...(block.terms || []), { term: '', definition: '' }] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Term</button>
                                     </div>
                                 )}
 
@@ -734,10 +736,10 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             <div key={rIdx} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                                                 <input value={row.col1} onChange={e => { const next = [...(block.rows || [])]; next[rIdx] = { ...next[rIdx], col1: e.target.value }; updateBlock(i, { rows: next }); }} placeholder="Cell..." className="bg-black/30 border border-white/5 px-3 py-1 text-xs text-white focus:outline-none" />
                                                 <input value={row.col2} onChange={e => { const next = [...(block.rows || [])]; next[rIdx] = { ...next[rIdx], col2: e.target.value }; updateBlock(i, { rows: next }); }} placeholder="Cell..." className="bg-black/30 border border-white/5 px-3 py-1 text-xs text-white focus:outline-none" />
-                                                <button onClick={() => updateBlock(i, { rows: (block.rows || []).filter((_, idx) => idx !== rIdx) })} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
+                                                <button type="button" onClick={() => updateBlock(i, { rows: (block.rows || []).filter((_, idx) => idx !== rIdx) })} className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"><TrashIcon className="w-3 h-3" /></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateBlock(i, { rows: [...(block.rows || []), { col1: '', col2: '' }] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Row</button>
+                                        <button type="button" onClick={() => updateBlock(i, { rows: [...(block.rows || []), { col1: '', col2: '' }] })} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1"><PlusIcon className="w-3 h-3" /> Add Row</button>
                                     </div>
                                 )}
 

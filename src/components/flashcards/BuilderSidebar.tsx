@@ -53,6 +53,7 @@ export default function BuilderSidebar({
           <div className="grid grid-cols-2 gap-2">
             {CARD_TEMPLATES.map((template, index) => (
               <motion.button
+                type="button"
                 key={template.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -85,6 +86,7 @@ export default function BuilderSidebar({
           <div className="flex gap-2">
             {devices.map((device, index) => (
               <motion.button
+                type="button"
                 key={device.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -114,6 +116,7 @@ export default function BuilderSidebar({
           <h3 className="text-sm font-bold text-foreground mb-3">Quick Actions</h3>
           <div className="space-y-2">
             <motion.button
+              type="button"
               whileHover={{ scale: 1.02, x: 5 }}
               whileTap={{ scale: 0.98 }}
               onClick={onAddCard}
@@ -124,6 +127,7 @@ export default function BuilderSidebar({
             </motion.button>
             
             <motion.button
+              type="button"
               whileHover={{ scale: 1.02, x: 5 }}
               whileTap={{ scale: 0.98 }}
               onClick={onClearAll}
@@ -180,11 +184,11 @@ export default function BuilderSidebar({
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="md:hidden fixed top-0 left-0 bottom-0 w-72 bg-background border-r border-border z-50 overflow-y-auto p-5"
+              className="md:hidden fixed top-0 left-0 bottom-0 w-[85vw] max-w-72 bg-background border-r border-border z-50 overflow-y-auto p-5"
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-bold">Settings</span>
-                <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
+                <button type="button" onClick={onClose} className="p-1 hover:bg-muted rounded-lg transition-colors">
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
