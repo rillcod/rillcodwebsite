@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+type ProgramRow = {
+  id: string;
+  program_scope: string | null;
+  school_progression_enabled: boolean | null;
+  session_frequency_per_week: number | null;
+  delivery_type: string | null;
+  progression_policy: Record<string, unknown> | null;
+};
+type CourseProgramRow = {
+  id: string;
+  program_id: string | null;
+  programs: ProgramRow | null;
+};
 
 // GET /api/flashcards/decks
 export async function GET(req: NextRequest) {
@@ -51,7 +64,16 @@ export async function POST(req: NextRequest) {
 
   let progressionContext: {
     enabled: boolean;
-    track: 'young_innovator' | 'scratch' | 'python' | 'html' | null;
+    track:
+      | 'young_innovator'
+      | 'scratch'
+      | 'python'
+      | 'html'
+      | 'html_css'
+      | 'jss_web_app'
+      | 'jss_python'
+      | 'ss_uiux_mobile'
+      | null;
     deliveryMode: 'optional' | 'compulsory' | null;
     weeklyFrequency: 1 | 2 | null;
     policySnapshot: Record<string, unknown>;
@@ -64,7 +86,7 @@ export async function POST(req: NextRequest) {
   };
 
   if (profile.role === 'school' && course_id) {
-    const { data: courseRow } = await supabase
+    const { data: courseData } = await supabase
       .from('courses')
       .select(
         `
@@ -82,8 +104,9 @@ export async function POST(req: NextRequest) {
       )
       .eq('id', course_id)
       .maybeSingle();
+    const courseRow = courseData as unknown as CourseProgramRow | null;
 
-    const program = (courseRow as any)?.programs;
+    const program = courseRow?.programs;
     const eligible =
       !!program &&
       program.program_scope === 'regular_school' &&
@@ -94,7 +117,11 @@ export async function POST(req: NextRequest) {
         progression_track === 'young_innovator' ||
         progression_track === 'scratch' ||
         progression_track === 'python' ||
-        progression_track === 'html'
+        progression_track === 'html' ||
+        progression_track === 'html_css' ||
+        progression_track === 'jss_web_app' ||
+        progression_track === 'jss_python' ||
+        progression_track === 'ss_uiux_mobile'
           ? progression_track
           : null;
       const requestedMode =
@@ -110,6 +137,21 @@ export async function POST(req: NextRequest) {
         basic_1_3_track: 'young_innovator',
         basic_4_6_tracks: ['python', 'html_css'],
         basic_4_6_ai_module: 'intro_ai_tools',
+        jss_1_3_program: 'teen_developers',
+        jss_1_3_track: 'jss_web_app',
+        jss_1_3_tracks: ['jss_web_app', 'jss_python', 'python', 'html_css'],
+        jss_1_3_stack: ['react', 'tailwind', 'typescript'],
+        ss_1_2_program: 'teen_developers',
+        ss_1_2_track: 'ss_uiux_mobile',
+        ss_1_2_tracks: ['ss_uiux_mobile', 'python', 'html_css'],
+        ss_1_2_stack: ['ui_ux_design', 'capacitor_mobile_app'],
+        teen_developers_sequence: [
+          'javascript_foundation',
+          'react_development',
+          'ai_automation',
+          'ui_ux_design',
+          'mobile_capacitor',
+        ],
         allow_additional_innovator_courses: true,
         ...programPolicy,
       };
@@ -137,7 +179,7 @@ export async function POST(req: NextRequest) {
   };
   if (profile.school_id) insertPayload.school_id = profile.school_id;
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('flashcard_decks')
     .insert(insertPayload)
     .select()
