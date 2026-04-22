@@ -2,14 +2,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeftIcon, ArrowRightIcon } from '@/lib/icons';
 import type { CardTemplate } from '@/types/flashcards';
-import Image from 'next/image';
 
-interface Card {
-  front: string;
-  back: string;
-  frontImage?: string;
-  backImage?: string;
-}
+interface Card { front: string; back: string; frontImage?: string; backImage?: string; }
 
 interface CardPreviewProps {
   cards: Card[];
@@ -17,149 +11,115 @@ interface CardPreviewProps {
   device: 'mobile' | 'tablet' | 'desktop';
 }
 
+const DEVICE_SIZES = {
+  mobile:  'w-56 h-80',
+  tablet:  'w-72 h-80',
+  desktop: 'w-80 h-56',
+};
+
 export default function CardPreview({ cards, template, device }: CardPreviewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
-  const deviceStyles = {
-    mobile: 'w-64 h-96',
-    tablet: 'w-80 h-96',
-    desktop: 'w-96 h-64'
-  };
-
   if (cards.length === 0) {
     return (
-      <div className="w-96 border-l border-border p-6 overflow-y-auto">
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold">Live Preview</h3>
-          <div className="flex items-center justify-center h-64 bg-muted/20 border border-dashed border-muted-foreground/30 rounded-lg">
-            <p className="text-muted-foreground text-sm">Add cards to see preview</p>
+      <div className="w-80 border-l border-border p-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black uppercase tracking-widest">Live Preview</h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border rounded-2xl min-h-[200px]">
+          <div className="text-center space-y-2">
+            <div className="text-4xl">🃏</div>
+            <p className="text-xs text-muted-foreground font-medium">Add cards to preview</p>
           </div>
         </div>
       </div>
     );
   }
 
-  const currentCard = cards[currentIndex];
-  const currentImage = showAnswer ? currentCard.backImage : currentCard.frontImage;
+  const card = cards[currentIndex];
+  const img = showAnswer ? card.backImage : card.frontImage;
+
+  const prev = () => { setCurrentIndex(i => Math.max(0, i - 1)); setShowAnswer(false); };
+  const next = () => { setCurrentIndex(i => Math.min(cards.length - 1, i + 1)); setShowAnswer(false); };
 
   return (
-    <div className="w-96 border-l border-border p-6 overflow-y-auto">
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">Live Preview</h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="px-2 py-0.5 bg-muted rounded-full font-medium">{template.name}</span>
-            <span>{currentIndex + 1} / {cards.length}</span>
-          </div>
+    <div className="w-80 border-l border-border p-5 flex flex-col gap-4 overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-black uppercase tracking-widest">Live Preview</h3>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 bg-muted rounded-full text-[10px] font-bold text-muted-foreground">{template.name}</span>
+          <span className="text-[10px] text-muted-foreground">{currentIndex + 1}/{cards.length}</span>
         </div>
+      </div>
 
-        <div className="flex justify-center">
-          <div className={`${deviceStyles[device]} relative`}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${currentIndex}-${showAnswer}`}
-                initial={{ rotateY: showAnswer ? -90 : 90, opacity: 0 }}
-                animate={{ rotateY: 0, opacity: 1 }}
-                exit={{ rotateY: showAnswer ? 90 : -90, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`w-full h-full ${
-                  showAnswer ? template.backStyle : template.frontStyle
-                } ${template.textStyle} p-6 flex flex-col items-center justify-center text-center cursor-pointer rounded-lg shadow-lg overflow-hidden`}
-                onClick={() => setShowAnswer(!showAnswer)}
+      {/* Card */}
+      <div className="flex justify-center" style={{ perspective: '1000px' }}>
+        <div className={`${DEVICE_SIZES[device]} relative cursor-pointer`} onClick={() => setShowAnswer(v => !v)}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${currentIndex}-${showAnswer}`}
+              initial={{ rotateY: showAnswer ? -90 : 90, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              exit={{ rotateY: showAnswer ? 90 : -90, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className={`w-full h-full rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-xl overflow-hidden relative
+                ${showAnswer ? template.backStyle : template.frontStyle} ${template.textStyle}`}
+            >
+              {/* Side label */}
+              <span className="absolute top-2 left-3 text-[8px] font-black uppercase tracking-widest opacity-40">
+                {showAnswer ? 'Answer' : 'Question'}
+              </span>
+
+              {img && (
+                <img src={img} alt="" className="w-full max-h-20 object-cover rounded-lg mb-3" />
+              )}
+
+              <motion.p
+                key={showAnswer ? 'b' : 'f'}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-sm font-semibold leading-snug"
               >
-                {currentImage && (
-                  <div className="relative w-full h-32 mb-4 rounded-lg overflow-hidden">
-                    <Image
-                      src={currentImage}
-                      alt={showAnswer ? 'Back' : 'Front'}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="text-sm font-medium leading-relaxed"
-                >
-                  {showAnswer ? currentCard.back : currentCard.front}
-                </motion.p>
+                {showAnswer ? card.back : card.front}
+              </motion.p>
 
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.7 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-xs mt-4"
-                >
-                  {showAnswer ? 'Click to see question' : 'Click to reveal answer'}
-                </motion.p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+              <p className="text-[9px] mt-3 opacity-50">
+                {showAnswer ? 'Click for question' : 'Click to reveal'}
+              </p>
+            </motion.div>
+          </AnimatePresence>
         </div>
+      </div>
 
-        <div className="flex justify-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setCurrentIndex(Math.max(0, currentIndex - 1));
-              setShowAnswer(false);
-            }}
-            disabled={currentIndex === 0}
-            className="px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold rounded transition-colors flex items-center gap-1"
-          >
-            <ArrowLeftIcon className="w-3 h-3" />
-            Previous
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAnswer(!showAnswer)}
-            className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded transition-colors"
-          >
-            {showAnswer ? 'Show Question' : 'Show Answer'}
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setCurrentIndex(Math.min(cards.length - 1, currentIndex + 1));
-              setShowAnswer(false);
-            }}
-            disabled={currentIndex === cards.length - 1}
-            className="px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold rounded transition-colors flex items-center gap-1"
-          >
-            Next
-            <ArrowRightIcon className="w-3 h-3" />
-          </motion.button>
-        </div>
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-2 shrink-0">
+        <button onClick={prev} disabled={currentIndex === 0}
+          className="p-2 bg-muted hover:bg-muted/80 disabled:opacity-30 rounded-xl transition-colors">
+          <ArrowLeftIcon className="w-3.5 h-3.5" />
+        </button>
 
-        {/* Device Frame Indicator */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center gap-1">
-            {cards.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
-                className={`w-2 h-2 rounded-full transition-all ${i === currentIndex ? 'bg-orange-500 w-4' : 'bg-muted hover:bg-muted-foreground/40'}`}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {showAnswer ? '↩ Answer' : '→ Question'} · {device}
-          </span>
-        </div>
-      </motion.div>
+        <button onClick={() => setShowAnswer(v => !v)}
+          className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl transition-colors">
+          {showAnswer ? 'Show Question' : 'Show Answer'}
+        </button>
+
+        <button onClick={next} disabled={currentIndex === cards.length - 1}
+          className="p-2 bg-muted hover:bg-muted/80 disabled:opacity-30 rounded-xl transition-colors">
+          <ArrowRightIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Dot navigation */}
+      <div className="flex justify-center gap-1 shrink-0">
+        {cards.map((_, i) => (
+          <button key={i} onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
+            className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'bg-orange-500 w-5' : 'bg-muted w-1.5 hover:bg-muted-foreground/40'}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
