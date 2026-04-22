@@ -598,59 +598,195 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* 🎮 Simulation Cards — Teen Developers */}
+            {/* 🚀 Teen Developers — Learning Paths */}
             <div className="bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 rounded-2xl overflow-hidden">
-              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <span className="text-base">🚀</span>
-                <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Teen Developers</p>
-                <span className="ml-auto text-[8px] font-black text-violet-400/50 uppercase tracking-widest">Ages 12–18</span>
+              <div className="px-4 pt-4 pb-3 border-b border-violet-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">🚀</span>
+                  <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Teen Developers</p>
+                  <span className="ml-auto text-[8px] font-black text-violet-400/50 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded-full">Ages 12–18</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Hands-on projects, real code, real skills</p>
               </div>
-              <div className="px-3 pb-3 space-y-2">
-                {[
-                  { emoji: '🌐', title: 'Build a Portfolio Site', desc: 'HTML + CSS + JS in 30 min', path: '/dashboard/playground?lang=html', color: 'orange' },
-                  { emoji: '🐍', title: 'Python Data Pipeline', desc: 'Process real student data', path: '/dashboard/playground?lang=python', color: 'blue' },
-                  { emoji: '🤖', title: 'Obstacle Robot', desc: 'Ultrasonic sensor + motors', path: '/dashboard/playground?lang=robotics', color: 'cyan' },
-                  { emoji: '⚡', title: 'Live Score Tracker', desc: 'JavaScript + DOM events', path: '/dashboard/playground?lang=javascript', color: 'yellow' },
-                  { emoji: '🗄️', title: 'SQL School Database', desc: 'Query student records', path: '/dashboard/missions?lang=sql', color: 'emerald' },
-                ].map((sim, i) => (
-                  <a key={i} href={sim.path}
-                    className="flex items-center gap-3 p-2.5 bg-card/60 border border-border hover:border-violet-500/30 hover:bg-violet-500/5 rounded-xl transition-all group">
-                    <span className="text-xl leading-none shrink-0">{sim.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black text-foreground group-hover:text-violet-400 transition-colors truncate">{sim.title}</p>
-                      <p className="text-[8px] text-muted-foreground">{sim.desc}</p>
-                    </div>
-                    <span className="ml-auto text-muted-foreground/30 group-hover:text-violet-400 transition-colors shrink-0">→</span>
-                  </a>
-                ))}
+
+              {/* Track 1: Web Dev */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[8px] font-black text-violet-400/60 uppercase tracking-widest mb-2 px-1">🌐 Web Development</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '🎨', title: 'Portfolio Site', desc: 'HTML + CSS glassmorphism card', path: '/dashboard/playground?lang=html', badge: 'Beginner' },
+                    { emoji: '⚡', title: 'Live Score Tracker', desc: 'JavaScript DOM + onclick events', path: '/dashboard/playground?lang=javascript', badge: 'Beginner' },
+                    { emoji: '📱', title: 'Responsive Dashboard', desc: 'CSS Grid + animations', path: '/dashboard/missions?lang=css', badge: 'Intermediate' },
+                    { emoji: '🔷', title: 'TypeScript App', desc: 'Typed interfaces + generics', path: '/dashboard/missions?lang=typescript', badge: 'Advanced' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-violet-500/40 hover:bg-violet-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-violet-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Track 2: Python & Data */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest mb-2 px-1">🐍 Python & Data Science</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '📊', title: 'Student Report System', desc: 'Classes, dicts, loops, grades', path: '/dashboard/protocol?phase=5', badge: 'Beginner' },
+                    { emoji: '🔢', title: 'Sorting Algorithms', desc: 'Bubble sort vs selection sort', path: '/dashboard/missions?lang=python', badge: 'Intermediate' },
+                    { emoji: '🧬', title: 'OOP School System', desc: 'Inheritance, methods, super()', path: '/dashboard/missions?lang=python', badge: 'Intermediate' },
+                    { emoji: '⚙️', title: 'Decorators & Generators', desc: 'Advanced Python patterns', path: '/dashboard/missions?lang=python', badge: 'Advanced' },
+                    { emoji: '📈', title: 'Data Pipeline', desc: 'Process & rank student datasets', path: '/dashboard/missions?lang=python', badge: 'Advanced' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-blue-500/40 hover:bg-blue-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-blue-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Track 3: Robotics & IoT */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics & IoT</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '💡', title: 'Blink LED', desc: 'Arduino setup() + loop() basics', path: '/dashboard/missions?lang=robotics', badge: 'Beginner' },
+                    { emoji: '🎛️', title: 'Potentiometer Dimmer', desc: 'analogRead → PWM brightness', path: '/dashboard/missions?lang=robotics', badge: 'Beginner' },
+                    { emoji: '📡', title: 'Distance Alert System', desc: 'HC-SR04 ultrasonic + LED zones', path: '/dashboard/missions?lang=robotics', badge: 'Intermediate' },
+                    { emoji: '🚗', title: 'Obstacle-Avoiding Robot', desc: 'L298N motors + autonomous logic', path: '/dashboard/missions?lang=robotics', badge: 'Advanced' },
+                    { emoji: '🌡️', title: 'IoT Sensor Node', desc: 'Temp/humidity → MQTT publish', path: '/dashboard/protocol?phase=40', badge: 'Advanced' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-cyan-500/40 hover:bg-cyan-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Track 4: Databases */}
+              <div className="px-3 pt-3 pb-3">
+                <p className="text-[8px] font-black text-emerald-400/60 uppercase tracking-widest mb-2 px-1">🗄️ Databases & Backend</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '🔍', title: 'SQL SELECT & WHERE', desc: 'Query a student database', path: '/dashboard/missions?lang=sql', badge: 'Beginner' },
+                    { emoji: '🔗', title: 'SQL JOINs', desc: 'Link students to courses', path: '/dashboard/missions?lang=sql', badge: 'Intermediate' },
+                    { emoji: '🏗️', title: 'API Design Concepts', desc: 'REST endpoints & JSON responses', path: '/dashboard/protocol', badge: 'Advanced' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-emerald-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+                <a href="/dashboard/missions" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-xl text-[9px] font-black text-violet-400 uppercase tracking-widest transition-all">
+                  View All Missions →
+                </a>
               </div>
             </div>
 
-            {/* 🌟 Simulation Cards — Young Innovators */}
+            {/* ⭐ Young Innovators — Learning Paths */}
             <div className="bg-gradient-to-br from-amber-600/10 to-orange-600/10 border border-amber-500/20 rounded-2xl overflow-hidden">
-              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <span className="text-base">⭐</span>
-                <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Young Innovators</p>
-                <span className="ml-auto text-[8px] font-black text-amber-400/50 uppercase tracking-widest">Ages 6–12</span>
+              <div className="px-4 pt-4 pb-3 border-b border-amber-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">⭐</span>
+                  <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Young Innovators</p>
+                  <span className="ml-auto text-[8px] font-black text-amber-400/50 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full">Ages 6–12</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Fun, visual, step-by-step coding adventures</p>
               </div>
-              <div className="px-3 pb-3 space-y-2">
-                {[
-                  { emoji: '🔢', title: 'Count & Loop', desc: 'Print patterns with Python', path: '/dashboard/protocol?phase=41', color: 'violet' },
-                  { emoji: '🎨', title: 'My First Website', desc: 'Build a colourful profile page', path: '/dashboard/protocol?phase=46', color: 'orange' },
-                  { emoji: '🤖', title: 'Robot Square', desc: 'Draw shapes with robot commands', path: '/dashboard/playground?lang=robotics', color: 'cyan' },
-                  { emoji: '🧮', title: 'School Fee Calc', desc: 'Python maths with ₦ money', path: '/dashboard/protocol?phase=43', color: 'emerald' },
-                  { emoji: '🎮', title: 'Score Tracker App', desc: 'JavaScript buttons & clicks', path: '/dashboard/protocol?phase=47', color: 'pink' },
-                ].map((sim, i) => (
-                  <a key={i} href={sim.path}
-                    className="flex items-center gap-3 p-2.5 bg-card/60 border border-border hover:border-amber-500/30 hover:bg-amber-500/5 rounded-xl transition-all group">
-                    <span className="text-xl leading-none shrink-0">{sim.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black text-foreground group-hover:text-amber-400 transition-colors truncate">{sim.title}</p>
-                      <p className="text-[8px] text-muted-foreground">{sim.desc}</p>
-                    </div>
-                    <span className="ml-auto text-muted-foreground/30 group-hover:text-amber-400 transition-colors shrink-0">→</span>
-                  </a>
-                ))}
+
+              {/* Track 1: Python for Kids */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[8px] font-black text-amber-400/60 uppercase tracking-widest mb-2 px-1">🐍 Python Adventures</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '👋', title: 'Hello World!', desc: 'Print your name with Python', path: '/dashboard/protocol?phase=1', badge: '⭐ Start Here' },
+                    { emoji: '🔢', title: 'Count & Loop', desc: 'Print patterns with for loops', path: '/dashboard/protocol?phase=41', badge: '⭐⭐' },
+                    { emoji: '🤔', title: 'Yes or No?', desc: 'If-else decisions with examples', path: '/dashboard/protocol?phase=42', badge: '⭐⭐' },
+                    { emoji: '🧮', title: 'School Fee Calc', desc: 'Maths with ₦ Nigerian money', path: '/dashboard/protocol?phase=43', badge: '⭐⭐' },
+                    { emoji: '📋', title: 'Class Register', desc: 'Lists, scores, and averages', path: '/dashboard/protocol?phase=44', badge: '⭐⭐⭐' },
+                    { emoji: '🍳', title: 'Recipe Functions', desc: 'Write reusable code blocks', path: '/dashboard/protocol?phase=45', badge: '⭐⭐⭐' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-amber-500/40 hover:bg-amber-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-amber-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className="text-[8px] text-amber-400/60 shrink-0">{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Track 2: Web for Kids */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[8px] font-black text-orange-400/60 uppercase tracking-widest mb-2 px-1">🌐 Web Design</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '🎨', title: 'My Profile Page', desc: 'Build a colourful HTML card', path: '/dashboard/protocol?phase=46', badge: '⭐⭐' },
+                    { emoji: '🎮', title: 'Score Tracker App', desc: 'Buttons + JavaScript clicks', path: '/dashboard/protocol?phase=47', badge: '⭐⭐⭐' },
+                    { emoji: '🏆', title: 'My Portfolio', desc: 'Showcase all your projects', path: '/dashboard/protocol?phase=48', badge: '⭐⭐⭐⭐' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-orange-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className="text-[8px] text-orange-400/60 shrink-0">{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Track 3: Robotics for Kids */}
+              <div className="px-3 pt-3 pb-3">
+                <p className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-2 px-1">🤖 Robotics Fun</p>
+                <div className="space-y-1.5">
+                  {[
+                    { emoji: '⬆️', title: 'Move Forward', desc: 'robot.forward() basics', path: '/dashboard/playground?lang=robotics', badge: '⭐' },
+                    { emoji: '🔲', title: 'Draw a Square', desc: 'forward + turnRight × 4', path: '/dashboard/playground?lang=robotics', badge: '⭐⭐' },
+                    { emoji: '🌈', title: 'Rainbow Spiral', desc: 'Loops + setColor patterns', path: '/dashboard/playground?lang=robotics', badge: '⭐⭐⭐' },
+                  ].map((sim, i) => (
+                    <a key={i} href={sim.path}
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-cyan-500/40 hover:bg-cyan-500/5 rounded-xl transition-all group">
+                      <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-foreground group-hover:text-cyan-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
+                      </div>
+                      <span className="text-[8px] text-cyan-400/60 shrink-0">{sim.badge}</span>
+                    </a>
+                  ))}
+                </div>
+                <a href="/dashboard/protocol" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 rounded-xl text-[9px] font-black text-amber-400 uppercase tracking-widest transition-all">
+                  Start Learning Path →
+                </a>
               </div>
             </div>
 
