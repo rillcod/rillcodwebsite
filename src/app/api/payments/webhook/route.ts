@@ -282,7 +282,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
           schoolId,
           title: 'Payment Confirmed',
           message: `${payer} payment of ${amtFormatted} confirmed (ref: ${String((transaction as any).transaction_reference || '').slice(0, 12)}…).`,
-          actionUrl: '/dashboard/finance?tab=billing',
+          actionUrl: '/dashboard/finance?tab=billing_cycles',
         });
 
         const adminTo = env.ADMIN_OPS_EMAIL?.trim();

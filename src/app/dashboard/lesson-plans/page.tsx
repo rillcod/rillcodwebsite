@@ -62,7 +62,13 @@ interface Course {
 interface Class { id: string; name: string; school_id?: string | null }
 interface School { id: string; name: string }
 interface Program { id: string; name: string }
-interface Curriculum { id: string; version: number; content: any }
+interface Curriculum {
+  id: string;
+  version: number;
+  school_id?: string | null;
+  content: any;
+  schools?: { id: string; name: string } | null;
+}
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
@@ -341,6 +347,15 @@ function LessonPlansPageInner() {
     // fall back to the school-scoped list so the teacher isn't stuck.
     return matching.length > 0 ? matching : bySchool;
   }, [allClasses, form.school_id, form.course_id, courses]);
+
+  const visibleCurricula = useMemo(() => {
+    if (!form.school_id) {
+      // No explicit school selected: only show platform templates.
+      return curricula.filter(c => !c.school_id);
+    }
+    // School selected: allow that school's copy or platform fallback.
+    return curricula.filter(c => !c.school_id || c.school_id === form.school_id);
+  }, [curricula, form.school_id]);
 
   // Whether we actually narrowed the list by course grades — used for UI hint.
   const classesNarrowedByGrade = useMemo(() => {
@@ -677,14 +692,14 @@ function LessonPlansPageInner() {
                   </label>
                   <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    <option value="">{curricula.length === 0 ? 'No syllabus available for this course' : '— Skip, start blank —'}</option>
-                    {curricula.map(c => (
+                    <option value="">{visibleCurricula.length === 0 ? 'No syllabus available for this school scope' : '— Skip, start blank —'}</option>
+                    {visibleCurricula.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.content?.course_title ?? `Syllabus v${c.version}`}
+                        {c.content?.course_title ?? 'Syllabus'} · v{c.version} · {c.school_id ? (c.schools?.name ?? 'School') : 'Platform'}
                       </option>
                     ))}
                   </select>
-                  {curricula.length === 0 && (
+                  {visibleCurricula.length === 0 && (
                     <p className="text-[11px] text-amber-400 mt-1.5">
                       No syllabus for this course yet — <Link href={`/dashboard/curriculum?course_id=${form.course_id}`} className="underline">generate one first</Link> for richer prefills.
                     </p>

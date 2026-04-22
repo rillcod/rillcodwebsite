@@ -48,11 +48,10 @@ export default function EnhancedFlashcardBuilder({
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
+  const topicFromUrl = searchParams.get('topic') ?? '';
+
   useEffect(() => {
-    const autoGen = searchParams.get('autoGenerate') === 'true';
-    if (autoGen) {
-      setShowAiPanel(true);
-    }
+    if (searchParams.get('autoGenerate') === 'true') setShowAiPanel(true);
   }, [searchParams]);
 
   const validCardCount = cards.filter(c => c.front.trim() && c.back.trim()).length;
@@ -128,7 +127,7 @@ export default function EnhancedFlashcardBuilder({
           <AIGenerationPanel
             deckId={deckId}
             selectedTemplate={selectedTemplate}
-            initialTopic={searchParams.get('topic') || ''}
+            initialTopic={topicFromUrl || searchParams.get('topic') || ''}
             onClose={() => setShowAiPanel(false)}
             onCardsGenerated={(newCards) => {
               importCards(newCards);

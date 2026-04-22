@@ -28,6 +28,8 @@ interface Deck {
 
 export default function FlashcardsPage() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
+
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -35,23 +37,23 @@ export default function FlashcardsPage() {
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
-
   const [dueCount, setDueCount] = useState<number>(0);
+
+  // Context from curriculum/lesson pipeline
+  const courseIdParam = searchParams.get('course_id') ?? '';
+  const lessonIdParam = searchParams.get('lesson_id') ?? '';
+  const topicParam    = searchParams.get('topic')     ?? '';
+  const autoGenParam  = searchParams.get('autoGenerate') === 'true';
 
   const isTeacher = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
-  const searchParams = useSearchParams();
-
   useEffect(() => { 
     loadDecks(); 
-    
     // Handle auto-generation redirect from curriculum
-    const autoGen = searchParams.get('autoGenerate') === 'true';
     const deckId = searchParams.get('deckId');
-    if (autoGen && deckId) {
+    if (autoGenParam && deckId) {
       setSelectedDeckId(deckId);
       setShowBuilder(true);
-      // We'll pass the topic to the builder via state or it can read searchParams
     }
   }, [searchParams]);
 
@@ -81,7 +83,11 @@ export default function FlashcardsPage() {
       const res = await fetch('/api/flashcards/decks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle }),
+        body: JSON.stringify({
+          title: newTitle,
+          course_id: courseIdParam || null,
+          lesson_id: lessonIdParam || null,
+        }),
       });
       const json = await res.json();
       if (res.ok) { 
@@ -391,27 +397,40 @@ export default function FlashcardsPage() {
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-foreground">Create New Deck</h2>
-                  <button 
-                    onClick={() => setShowCreate(false)}
-                    className="p-2 hover:bg-muted rounded-none transition-colors"
-                  >
+                  <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-muted rounded-xl transition-colors">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
+
+                {/* Curriculum context banner */}
+                {(courseIdParam || lessonIdParam || topicParam) && (
+                  <div className="flex items-start gap-3 p-3 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                    <span className="text-lg shrink-0">📚</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5">From Curriculum</p>
+                      {topicParam && <p className="text-sm font-bold text-foreground truncate">{topicParam}</p>}
+                      {courseIdParam && <p className="text-[10px] text-muted-foreground">Linked to course · AI will auto-generate cards</p>}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Deck Title
-                    </label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Deck Title</label>
                     <input
                       value={newTitle}
                       onChange={e => setNewTitle(e.target.value)}
-                      placeholder="e.g., Python Fundamentals, World History, Biology Terms"
-                      className="w-full bg-background border border-border text-foreground px-4 py-3 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+                      placeholder={topicParam ? `e.g., ${topicParam} Flashcards` : 'e.g., Python Fundamentals, World History…'}
+                      className="w-full bg-background border border-border text-foreground px-4 py-3 rounded-xl focus:outline-none focus:border-orange-500 text-sm transition-colors"
                       onKeyDown={e => e.key === 'Enter' && createDeck()}
                       autoFocus
                     />
+                    {topicParam && !newTitle && (
+                      <button onClick={() => setNewTitle(topicParam)}
+                        className="mt-1.5 text-[10px] text-orange-400 hover:text-orange-300 font-bold transition-colors">
+                        ↑ Use "{topicParam}" as title
+                      </button>
+                    )}
                   </div>
                 </div>
                 

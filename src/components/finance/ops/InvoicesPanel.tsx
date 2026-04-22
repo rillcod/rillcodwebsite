@@ -208,15 +208,17 @@ export function InvoicesPanel() {
   useEffect(() => {
     if (!profile) return;
     load();
-    let q = db
-      .from('portal_users')
-      .select('id, full_name, email, school_id')
-      .eq('role', 'student')
-      .eq('is_active', true);
-    if (isSchool && profile.school_id) q = q.eq('school_id', profile.school_id as string);
-    q.order('full_name').then(({ data }) => {
-      if (data) setStudents(data);
-    });
+    // Use staff-scoped API to avoid RLS inconsistencies across admin/school contexts.
+    fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
+      .then(async (res) => {
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j.error || 'Could not load student list');
+        setStudents((j.data ?? []) as StudentOption[]);
+      })
+      .catch((e: unknown) => {
+        toast.error((e as Error).message || 'Could not load student list');
+        setStudents([]);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 

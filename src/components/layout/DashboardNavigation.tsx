@@ -304,10 +304,8 @@ export default function DashboardNavigation() {
           { name: 'Performance',       href: '/dashboard/progress',        icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Finance' },
-          // School runs its own invoices/receipts in /dashboard/finance (scoped by RLS).
-          { name: 'School Finance',    href: '/dashboard/finance',         icon: BanknotesIcon },
-          { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
-          { name: 'My Billing',        href: '/dashboard/school-billing',  icon: BuildingOfficeIcon },
+          // Consolidated school finance surface.
+          { name: 'My Billing',        href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
@@ -330,6 +328,7 @@ export default function DashboardNavigation() {
           { name: 'Grades',            href: '/dashboard/parent-grades',   icon: ChartBarIcon },
           { name: 'Attendance',        href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Certificates',      href: '/dashboard/parent-certificates', icon: TrophyIcon },
+          { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
           { name: "Access Cards",      href: '/dashboard/parent-card',     icon: CreditCardIcon },
 
           { divider: true, label: 'Finance' },

@@ -99,6 +99,57 @@ export async function POST(request: Request) {
 
   // ── Term-level plan (new flow) ──────────────────────────────────────────
   if (course_id || (!lesson_id && (term_start || term_end))) {
+    const targetSchoolId = school_id || user.school_id || null;
+
+    // Validate teacher can only create plans inside assigned schools.
+    if (user.role === 'teacher') {
+      const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
+      if (targetSchoolId && !teacherSchoolIds.includes(targetSchoolId)) {
+        return NextResponse.json({ error: 'You can only create plans for your assigned schools' }, { status: 403 });
+      }
+    }
+
+    // Ensure selected class belongs to the chosen school scope.
+    if (class_id) {
+      const { data: klass } = await db
+        .from('classes')
+        .select('id, school_id')
+        .eq('id', class_id)
+        .maybeSingle();
+      if (!klass) {
+        return NextResponse.json({ error: 'Selected class not found' }, { status: 400 });
+      }
+      const classSchoolId = (klass as { school_id: string | null }).school_id;
+      if (targetSchoolId && classSchoolId && classSchoolId !== targetSchoolId) {
+        return NextResponse.json({ error: 'Selected class does not belong to the selected school' }, { status: 400 });
+      }
+    }
+
+    // Curriculum-school consistency guard:
+    // - school plan may link school curriculum or platform curriculum
+    // - platform plan may only link platform curriculum
+    if (curriculum_version_id) {
+      const { data: curriculum } = await db
+        .from('course_curricula')
+        .select('id, course_id, school_id')
+        .eq('id', curriculum_version_id)
+        .maybeSingle();
+      if (!curriculum) {
+        return NextResponse.json({ error: 'Selected curriculum not found' }, { status: 400 });
+      }
+      const curr = curriculum as { course_id: string | null; school_id: string | null };
+      if (course_id && curr.course_id && curr.course_id !== course_id) {
+        return NextResponse.json({ error: 'Selected curriculum is not for this course' }, { status: 400 });
+      }
+      if (targetSchoolId) {
+        if (curr.school_id && curr.school_id !== targetSchoolId) {
+          return NextResponse.json({ error: 'Selected curriculum belongs to a different school' }, { status: 400 });
+        }
+      } else if (curr.school_id) {
+        return NextResponse.json({ error: 'Platform plans cannot link school-specific curriculum' }, { status: 400 });
+      }
+    }
+
     // Auto-import weeks from linked curriculum if no plan_data provided
     let autoPlanData = plan_data ?? {};
     if (curriculum_version_id && (!plan_data || !plan_data.weeks?.length)) {
@@ -132,7 +183,7 @@ export async function POST(request: Request) {
     const { data, error } = await db.from('lesson_plans').insert({
       course_id: course_id || null,
       class_id: class_id || null,
-      school_id: school_id || user.school_id || null,
+      school_id: targetSchoolId,
       term: term || null,
       term_start: term_start || null,
       term_end: term_end || null,

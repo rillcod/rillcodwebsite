@@ -14,6 +14,66 @@ async function requireStaff() {
   return { ...user, ...profile };
 }
 
+async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): Promise<boolean> {
+  const supabase = await createClient();
+  const targetEmail = String(toEmail || '').trim().toLowerCase();
+  if (!targetEmail) return false;
+
+  const { data: recipient } = await supabase
+    .from('portal_users')
+    .select('id, role, school_id, section_class')
+    .ilike('email', targetEmail)
+    .maybeSingle();
+  if (!recipient) return false;
+  if (!['admin', 'teacher', 'school'].includes(recipient.role)) return false;
+  if (recipient.role === 'admin') return true;
+
+  if (sender.role === 'student') {
+    const { data: me } = await supabase
+      .from('portal_users')
+      .select('school_id, section_class')
+      .eq('id', sender.id)
+      .single();
+    if (!me?.school_id || recipient.school_id !== me.school_id) return false;
+    if (recipient.role !== 'teacher') return true;
+    if (!me.section_class || !recipient.section_class) return true;
+    return String(me.section_class).trim().toLowerCase() === String(recipient.section_class).trim().toLowerCase();
+  }
+
+  if (sender.role === 'parent') {
+    const schoolIds = new Set<string>();
+    const childClasses = new Set<string>();
+
+    const { data: links } = await (supabase as any)
+      .from('parent_student_links')
+      .select('student_id')
+      .eq('parent_id', sender.id);
+    const linkedIds = (links ?? []).map((r: any) => r.student_id).filter(Boolean);
+
+    let q = supabase.from('students').select('id, school_id, current_class, section, grade_level');
+    if (sender.email && linkedIds.length > 0) {
+      q = q.or(`parent_email.ilike.${String(sender.email).trim().toLowerCase()},id.in.(${linkedIds.join(',')})`) as typeof q;
+    } else if (sender.email) {
+      q = q.ilike('parent_email', String(sender.email).trim().toLowerCase()) as typeof q;
+    } else if (linkedIds.length > 0) {
+      q = q.in('id', linkedIds) as typeof q;
+    } else return false;
+
+    const { data: children } = await q;
+    for (const c of children ?? []) {
+      if ((c as any).school_id) schoolIds.add((c as any).school_id);
+      const cls = (c as any).current_class || (c as any).section || (c as any).grade_level;
+      if (cls) childClasses.add(String(cls).trim().toLowerCase());
+    }
+    if (!recipient.school_id || !schoolIds.has(recipient.school_id)) return false;
+    if (recipient.role !== 'teacher') return true;
+    if (childClasses.size === 0 || !recipient.section_class) return true;
+    return childClasses.has(String(recipient.section_class).trim().toLowerCase());
+  }
+
+  return false;
+}
+
 /**
  * POST /api/inbox/email
  * Send a real email via SendPulse from the unified inbox.
@@ -21,7 +81,19 @@ async function requireStaff() {
  */
 export async function POST(req: NextRequest) {
   const sender = await requireStaff();
-  if (!sender) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = await createClient();
+  let effectiveSender: any = sender;
+  if (!effectiveSender) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: profile } = await supabase.from('portal_users')
+      .select('id, role, full_name, email, school_name')
+      .eq('id', user.id).single();
+    if (!profile || !['parent', 'student'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    effectiveSender = { ...user, ...profile };
+  }
 
   const { to, to_name, subject, body, cc } = await req.json();
 
@@ -29,8 +101,15 @@ export async function POST(req: NextRequest) {
   if (!subject?.trim()) return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
   if (!body?.trim()) return NextResponse.json({ error: 'Message body is required' }, { status: 400 });
 
-  const senderName  = (sender as any).full_name || 'Rillcod Academy';
-  const senderOrg   = (sender as any).school_name || 'Rillcod Academy';
+  if (['parent', 'student'].includes(effectiveSender.role)) {
+    const allowed = await canParentOrStudentEmailRecipient(effectiveSender, to.trim());
+    if (!allowed) {
+      return NextResponse.json({ error: 'You can only email staff in your assigned school support channels' }, { status: 403 });
+    }
+  }
+
+  const senderName  = (effectiveSender as any).full_name || 'Rillcod Academy';
+  const senderOrg   = (effectiveSender as any).school_name || 'Rillcod Academy';
 
   // Build branded HTML email
   const html = buildRillcodTransactionalEmailHtml({
@@ -59,9 +138,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Log to DB for history
-    const supabase = await createClient();
     await supabase.from('notifications').insert({
-      user_id:    sender.id,
+      user_id:    effectiveSender.id,
       title:      `Email sent: ${subject}`,
       message:    `To: ${to_name ? `${to_name} <${to}>` : to} — ${body.slice(0, 120)}`,
       type:       'info',

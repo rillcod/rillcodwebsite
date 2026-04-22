@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowLeftIcon, UserIcon, AcademicCapIcon } from '@/lib/icons';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface Thread {
   id: string;
@@ -27,6 +28,25 @@ interface Message {
   portal_users?: { full_name: string; avatar_url?: string };
 }
 
+interface Recipient {
+  id: string;
+  full_name: string;
+  role: string;
+  email: string | null;
+  school_name: string | null;
+}
+
+interface InternalMessage {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  subject: string | null;
+  message: string;
+  created_at: string;
+  sender?: { id: string; full_name: string; role: string };
+  recipient?: { id: string; full_name: string; role: string };
+}
+
 export default function MessagesPage() {
   const { profile } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -35,9 +55,20 @@ export default function MessagesPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [recipientId, setRecipientId] = useState('');
+  const [subject, setSubject] = useState('');
+  const [directMessages, setDirectMessages] = useState<InternalMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isParentOrStudent = profile?.role === 'parent' || profile?.role === 'student';
 
-  useEffect(() => { loadThreads(); }, []);
+  useEffect(() => {
+    if (isParentOrStudent) {
+      void loadDirectChannels();
+      return;
+    }
+    void loadThreads();
+  }, [isParentOrStudent, profile?.id]);
 
   useEffect(() => {
     if (!selected) return;
@@ -63,6 +94,30 @@ export default function MessagesPage() {
     setLoading(false);
   }
 
+  async function loadDirectChannels() {
+    setLoading(true);
+    try {
+      const msgRes = await fetch('/api/messages?channels=1');
+      const msgJson = await msgRes.json();
+      if (!msgRes.ok) throw new Error(msgJson?.error || 'Failed to load messages');
+      const eligible = ((msgJson?.recipients ?? []) as any[]).map((u) => ({
+        id: u.id,
+        full_name: u.full_name,
+        role: u.role,
+        email: u.email ?? null,
+        school_name: u.school_name ?? null,
+      })) as Recipient[];
+
+      setRecipients(eligible);
+      if (eligible.length > 0 && !recipientId) setRecipientId(eligible[0].id);
+      setDirectMessages((msgJson?.data ?? []) as InternalMessage[]);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load communication channels');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function loadMessages(threadId: string) {
     const res = await fetch(`/api/parent-teacher/threads/${threadId}/messages`);
     const json = await res.json();
@@ -82,10 +137,164 @@ export default function MessagesPage() {
     setSending(false);
   }
 
+  async function sendInHouseMessage() {
+    if (!recipientId || !input.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_id: recipientId, subject: subject.trim() || null, message: input.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to send message');
+      setInput('');
+      setSubject('');
+      await loadDirectChannels();
+      toast.success('In-house message sent');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function sendChannelEmail() {
+    const rec = recipients.find((r) => r.id === recipientId);
+    if (!rec?.email || !input.trim() || !subject.trim()) {
+      toast.error('Recipient, subject and message are required for email');
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch('/api/inbox/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: rec.email,
+          to_name: rec.full_name,
+          subject: subject.trim(),
+          body: input.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Email failed');
+      toast.success('Email sent via SendPulse channel');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email');
+    } finally {
+      setSending(false);
+    }
+  }
+
   const getThreadTitle = (t: Thread) => {
     if (profile?.role === 'parent') return t.portal_users_teacher?.full_name ?? 'Teacher';
     return t.portal_users_parent?.full_name ?? 'Parent';
   };
+
+  if (isParentOrStudent) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="max-w-6xl mx-auto px-4 py-8 space-y-5">
+          <div className="flex items-center gap-2">
+            <ChatBubbleLeftRightIcon className="w-5 h-5 text-orange-400" />
+            <h1 className="text-2xl sm:text-3xl font-black">School Communication Channels</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Message your assigned school support team (admin/teachers) using in-house chat, SendPulse email, or WhatsApp link.
+            Older messages are hidden automatically to keep this view clean.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-1 bg-card border border-border p-4 space-y-3">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Available Channels</h2>
+              {loading ? (
+                <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              ) : recipients.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No scoped staff channels available yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {recipients.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setRecipientId(r.id)}
+                      className={`w-full text-left px-3 py-2 border rounded-none ${recipientId === r.id ? 'bg-orange-500/10 border-orange-500/40' : 'bg-background border-border hover:bg-muted'}`}
+                    >
+                      <p className="text-sm font-bold">{r.full_name}</p>
+                      <p className="text-[11px] text-muted-foreground uppercase">{r.role}{r.school_name ? ` · ${r.school_name}` : ''}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-2 bg-card border border-border p-4 space-y-3">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Compose</h2>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Subject (required for email)"
+                className="w-full bg-background border border-border px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              />
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                rows={5}
+                className="w-full bg-background border border-border px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={sendInHouseMessage}
+                  disabled={!recipientId || !input.trim() || sending}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest"
+                >
+                  Send In-House
+                </button>
+                <button
+                  onClick={sendChannelEmail}
+                  disabled={!recipientId || !input.trim() || !subject.trim() || sending}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest"
+                >
+                  Send Email
+                </button>
+                {recipientId && (
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(input.trim() || 'Hello, I need assistance from school support.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest"
+                  >
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border p-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Recent In-House Messages</h2>
+            <div className="space-y-2 max-h-[320px] overflow-y-auto">
+              {directMessages.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No recent messages.</p>
+              ) : directMessages.map((m) => {
+                const isMine = m.sender_id === profile?.id;
+                const peer = isMine ? m.recipient?.full_name : m.sender?.full_name;
+                return (
+                  <div key={m.id} className={`p-3 border ${isMine ? 'border-orange-500/30 bg-orange-500/5' : 'border-border bg-background'}`}>
+                    <p className="text-[11px] font-black uppercase text-muted-foreground">{isMine ? 'You →' : 'From'} {peer || 'Staff'}</p>
+                    {m.subject && <p className="text-xs font-bold mt-1">{m.subject}</p>}
+                    <p className="text-sm mt-1">{m.message}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   BanknotesIcon, CalendarDaysIcon, CheckCircleIcon,
   ClockIcon, ExclamationTriangleIcon, ArrowPathIcon,
-  BuildingOfficeIcon, CreditCardIcon, InformationCircleIcon,
+  BuildingOfficeIcon, CreditCardIcon, InformationCircleIcon, ArrowTopRightOnSquareIcon, ArrowUpTrayIcon, DocumentCheckIcon,
 } from '@/lib/icons';
 
 function fmt(amount: number, currency = 'NGN') {
@@ -30,6 +30,125 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   rolled_over: { label: 'Rolled Over', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: ArrowPathIcon },
 };
 
+function BillingPaymentModal({
+  cycle,
+  onClose,
+}: {
+  cycle: { id: string; term_label: string; amount_due: number; currency: string; invoice_id?: string | null };
+  onClose: () => void;
+}) {
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const openCheckout = async () => {
+    setLoadingCheckout(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/billing/cycles/${cycle.id}/checkout`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to initiate checkout');
+      setCheckoutUrl(data.url ?? null);
+      if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      setError(e.message ?? 'Could not start checkout');
+    } finally {
+      setLoadingCheckout(false);
+    }
+  };
+
+  const uploadProof = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (note.trim()) fd.append('note', note.trim());
+      const res = await fetch(`/api/billing/cycles/${cycle.id}/proofs`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Proof upload failed');
+      setUploaded(true);
+    } catch (err: any) {
+      setError(err.message ?? 'Proof upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-none w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <p className="font-black text-foreground text-sm">Pay Billing Cycle</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {cycle.term_label} · {fmt(cycle.amount_due, cycle.currency)}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl font-black">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <button
+            onClick={openCheckout}
+            disabled={loadingCheckout}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all disabled:opacity-50"
+          >
+            {loadingCheckout ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <BanknotesIcon className="w-4 h-4" />}
+            {loadingCheckout ? 'Preparing checkout...' : 'Pay via Paystack'}
+          </button>
+          {checkoutUrl && (
+            <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 text-xs font-black text-orange-400 hover:text-orange-300">
+              Re-open Paystack checkout <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+            </a>
+          )}
+
+          <div className="h-px bg-border" />
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upload Transfer Proof</p>
+            <input
+              type="text"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="Optional note (bank ref, paid by, etc)"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            />
+            <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-orange-500/50'}`}>
+              {uploading ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload screenshot / PDF</>}
+              <input type="file" accept="image/*,application/pdf" className="hidden" disabled={uploading} onChange={uploadProof} />
+            </label>
+            {uploaded && (
+              <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-none">
+                <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <p className="text-[11px] text-emerald-400 font-bold">Proof uploaded. Finance team will review and confirm payment.</p>
+              </div>
+            )}
+          </div>
+
+          {cycle.invoice_id && (
+            <a
+              href={`/api/invoices/${cycle.invoice_id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[11px] font-black text-orange-400 hover:text-orange-300"
+            >
+              Open Invoice PDF <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+            </a>
+          )}
+
+          {error && <p className="text-[11px] text-rose-400">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SchoolBillingPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -40,6 +159,7 @@ export default function SchoolBillingPage() {
   const [billingContact, setBillingContact] = useState<any>(null);
   const [school, setSchool] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [payingCycle, setPayingCycle] = useState<any | null>(null);
 
   useEffect(() => {
     if (!authLoading && profile?.role !== 'school') {
@@ -60,7 +180,7 @@ export default function SchoolBillingPage() {
     const [cyclesRes, accountsRes, contactRes, schoolRes] = await Promise.all([
       supabase
         .from('billing_cycles')
-        .select('id, term_label, term_start_date, due_date, amount_due, currency, status, created_at')
+        .select('id, term_label, term_start_date, due_date, amount_due, currency, status, created_at, invoice_id')
         .eq('owner_school_id', schoolId)
         .order('created_at', { ascending: false })
         .limit(10),
@@ -180,6 +300,14 @@ export default function SchoolBillingPage() {
                     </p>
                     <p className="text-[10px] text-muted-foreground">{cycle.currency || 'NGN'}</p>
                   </div>
+                  {(cycle.status === 'due' || cycle.status === 'past_due') && (
+                    <button
+                      onClick={() => setPayingCycle(cycle)}
+                      className="px-3 py-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all"
+                    >
+                      Pay Now
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -268,6 +396,9 @@ export default function SchoolBillingPage() {
           with your school name and billing reference.
         </p>
       </div>
+      {payingCycle && (
+        <BillingPaymentModal cycle={payingCycle} onClose={() => setPayingCycle(null)} />
+      )}
     </div>
   );
 }

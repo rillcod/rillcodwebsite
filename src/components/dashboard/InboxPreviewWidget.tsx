@@ -59,7 +59,8 @@ export default function InboxPreviewWidget() {
   const isSchool  = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
   const isAdmin   = profile?.role === 'admin';
-  const hasAccess = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+  const hasAccess = ['admin', 'teacher', 'school', 'parent', 'student'].includes(profile?.role ?? '');
+  const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
 
   useEffect(() => {
     if (!profile || !hasAccess) { setLoading(false); return; }
@@ -72,13 +73,36 @@ export default function InboxPreviewWidget() {
 
     try {
       // ── WhatsApp / students ──────────────────────────────────────────────
-      const { data: wa } = await supabase
-        .from('whatsapp_conversations')
-        .select('id, phone_number, contact_name, last_message_at, last_message_preview, unread_count, portal_user:portal_users!portal_user_id(full_name, school_name, role)')
-        .order('last_message_at', { ascending: false })
-        .limit(5);
+      let wa: any[] = [];
+      if (!isParentOrStudent) {
+        const waRes = await supabase
+          .from('whatsapp_conversations')
+          .select('id, phone_number, contact_name, last_message_at, last_message_preview, unread_count, portal_user:portal_users!portal_user_id(full_name, school_name, role)')
+          .order('last_message_at', { ascending: false })
+          .limit(5);
+        wa = waRes.data ?? [];
+      }
 
-      for (const c of wa ?? []) {
+      if (isParentOrStudent) {
+        const res = await fetch('/api/inbox');
+        const json = await res.json();
+        const scopedConvs = json.data ?? [];
+        for (const c of scopedConvs.slice(0, 8)) {
+          all.push({
+            id: c.id,
+            type: 'students',
+            contact_name: c.contact_name || c.portal_users?.full_name || c.phone_number || 'WhatsApp',
+            last_message_preview: c.last_message_preview || 'No messages yet',
+            last_message_at: c.last_message_at || '',
+            unread_count: c.unread_count || 0,
+            school_name: c.school_name || undefined,
+            role: profile?.role ?? 'student',
+            phone_number: c.phone_number,
+          });
+        }
+      }
+
+      for (const c of wa) {
         all.push({
           id:                   c.id,
           type:                 'students',
@@ -93,7 +117,7 @@ export default function InboxPreviewWidget() {
       }
 
       // ── Parent threads (not school role) ────────────────────────────────
-      if (!isSchool) {
+      if (!isSchool && !isParentOrStudent) {
         let q = supabase
           .from('parent_teacher_threads')
           .select('id, created_at, parent:portal_users!parent_id(full_name, school_name), messages:parent_teacher_messages(body, sent_at, is_read, sender_id)')
@@ -119,7 +143,7 @@ export default function InboxPreviewWidget() {
       }
 
       // ── School/teacher channel ──────────────────────────────────────────
-      try {
+      if (!isParentOrStudent) try {
         const res  = await fetch('/api/school-teacher/conversations');
         const json = await res.json();
         for (const c of (json.data ?? []).slice(0, 3)) {

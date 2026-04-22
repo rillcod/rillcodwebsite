@@ -56,7 +56,7 @@ export async function notifyStaffOfPayment(opts: NotifyStaffPaymentOptions): Pro
         notificationsService.showPopupNotification(uid, opts.title, opts.message, 'success', {
           priority: 'high',
           actionLabel: 'View Finance',
-          actionUrl: opts.actionUrl || '/dashboard/finance?tab=billing',
+          actionUrl: opts.actionUrl || '/dashboard/finance?tab=billing_cycles',
           category: 'payment_updates',
           sound: true,
         }),

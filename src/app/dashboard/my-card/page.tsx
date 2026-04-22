@@ -34,6 +34,22 @@ function hex2rgb(hex: string) {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)] as [number, number, number];
 }
 
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Failed to read image blob'));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default function MyCardPage() {
   const { profile, loading: authLoading } = useAuth();
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CFG);
@@ -216,6 +232,20 @@ export default function MyCardPage() {
       doc.text(doc.splitTextToSize(f.value, cardW - 40)[0], cardX + 4, fy + 4.5);
       fy += 11;
     });
+
+    // Embed QR code in exported PDF for student/parent/staff cards.
+    const qrDataUrl = await toDataUrl(qrUrl);
+    if (qrDataUrl) {
+      const qrX = cardX + cardW - 28;
+      const qrY = bodyY + 6;
+      doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+      doc.rect(qrX - 1, qrY - 1, 24, 24);
+      doc.addImage(qrDataUrl, 'PNG', qrX, qrY, 22, 22);
+      doc.setFontSize(5); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
+      doc.text('SCAN TO VERIFY', qrX + 11, qrY + 25, { align: 'center' });
+      doc.setFontSize(6); doc.setTextColor(r, g, b); doc.setFont('courier', 'bold');
+      doc.text(code, qrX + 11, qrY + 28, { align: 'center' });
+    }
 
     const ftrY = cardY + 75;
     doc.setDrawColor(243, 244, 246); doc.setLineWidth(0.2);

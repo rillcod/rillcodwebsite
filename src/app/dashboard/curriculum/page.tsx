@@ -173,6 +173,8 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
 
 const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
 const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
+const GRADE_LEVEL_OPTIONS = ['Nursery', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
@@ -221,6 +223,8 @@ export default function CurriculumPage() {
    * One row per (course, school) in the database.
    */
   const [generateScope, setGenerateScope] = useState<'platform' | string>('platform');
+  /** Remember preferred grade/class per scope (platform or school UUID). */
+  const [gradeByScope, setGradeByScope] = useState<Record<string, string>>({ platform: 'JSS1' });
   // Form state for generation modal
   const [form, setForm] = useState({
     grade_level: 'JSS1',
@@ -239,6 +243,7 @@ export default function CurriculumPage() {
   const canTrack    = isAdmin || isTeacher;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
+  const currentScopeKey = generateScope === 'platform' ? 'platform' : generateScope;
 
   const filteredPrograms = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
@@ -299,22 +304,63 @@ export default function CurriculumPage() {
       .catch(() => setAssignedSchools([]));
   }, [canTrack]);
 
+  // Restore grade memory from localStorage on first load.
+  useEffect(() => {
+    if (!canGenerate) return;
+    try {
+      const raw = window.localStorage.getItem(GRADE_SCOPE_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      if (!parsed || typeof parsed !== 'object') return;
+      const cleaned: Record<string, string> = {};
+      for (const [scope, grade] of Object.entries(parsed)) {
+        if (typeof grade === 'string' && GRADE_LEVEL_OPTIONS.includes(grade)) {
+          cleaned[scope] = grade;
+        }
+      }
+      if (!cleaned.platform) cleaned.platform = 'JSS1';
+      setGradeByScope(cleaned);
+      const currentRemembered = cleaned[currentScopeKey];
+      if (currentRemembered) {
+        setForm((prev) => ({ ...prev, grade_level: currentRemembered }));
+      }
+    } catch {
+      // Ignore bad storage payloads and keep defaults.
+    }
+  }, [canGenerate]); // one-time restore
+
+  // Persist grade memory across refresh/browser restart.
+  useEffect(() => {
+    if (!canGenerate) return;
+    try {
+      window.localStorage.setItem(GRADE_SCOPE_STORAGE_KEY, JSON.stringify(gradeByScope));
+    } catch {
+      // Ignore storage quota/security issues.
+    }
+  }, [gradeByScope, canGenerate]);
+
   const openGenerateModal = useCallback(() => {
+    let scope: 'platform' | string = 'platform';
     if (curriculum) {
-      setGenerateScope(curriculum.school_id ? curriculum.school_id : 'platform');
+      scope = curriculum.school_id ? curriculum.school_id : 'platform';
     } else if (assignedSchools.length === 0) {
-      setGenerateScope('platform');
+      scope = 'platform';
     } else if (assignedSchools.length === 1) {
-      setGenerateScope(assignedSchools[0].id);
+      scope = assignedSchools[0].id;
     } else if (isAdmin) {
-      setGenerateScope('platform');
+      scope = 'platform';
     } else if (profile?.school_id && assignedSchools.some((s) => s.id === profile.school_id)) {
-      setGenerateScope(profile.school_id);
+      scope = profile.school_id;
     } else {
-      setGenerateScope(assignedSchools[0].id);
+      scope = assignedSchools[0].id;
+    }
+    setGenerateScope(scope);
+    const remembered = gradeByScope[scope];
+    if (remembered) {
+      setForm((prev) => (prev.grade_level === remembered ? prev : { ...prev, grade_level: remembered }));
     }
     setShowGenerate(true);
-  }, [curriculum, assignedSchools, isAdmin, profile?.school_id]);
+  }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope]);
 
   // When filtering, expand every programme that still has a visible course
   useEffect(() => {
@@ -351,6 +397,33 @@ export default function CurriculumPage() {
     [curriculumList],
   );
 
+  const restoreGradeForScope = useCallback((scope: 'platform' | string) => {
+    const remembered = gradeByScope[scope];
+    if (remembered) {
+      setForm((prev) => (prev.grade_level === remembered ? prev : { ...prev, grade_level: remembered }));
+    }
+  }, [gradeByScope]);
+
+  const setGradeForCurrentScope = useCallback((grade: string) => {
+    setForm((prev) => ({ ...prev, grade_level: grade }));
+    setGradeByScope((prev) => ({ ...prev, [currentScopeKey]: grade }));
+  }, [currentScopeKey]);
+
+  const syncScopeToCurriculum = useCallback(
+    async (scope: 'platform' | string) => {
+      setGenerateScope(scope);
+      restoreGradeForScope(scope);
+      if (!selectedCourse) return;
+      const matching = scope === 'platform'
+        ? curriculumList.find((c) => c.school_id == null)
+        : curriculumList.find((c) => c.school_id === scope);
+      if (matching && matching.id !== curriculum?.id) {
+        await selectCurriculumVersion(matching.id);
+      }
+    },
+    [selectedCourse, curriculumList, curriculum?.id, selectCurriculumVersion, restoreGradeForScope],
+  );
+
   // ── Load curriculum for selected course ──────────────────────────────────
   const loadCurriculum = useCallback(async (courseId: string) => {
     setLoadingCurr(true);
@@ -368,10 +441,21 @@ export default function CurriculumPage() {
       if (items.length > 0) {
         const curr = pickCurriculumForScope(items, profile?.school_id);
         if (curr) {
-          setCurriculum(curr);
-          const tRes = await fetch(`/api/curricula/${curr.id}/track`);
-          const tJson = await tRes.json();
-          setTracking(tJson.data ?? []);
+          const scope = curr.school_id ? curr.school_id : 'platform';
+          setGenerateScope(scope);
+          restoreGradeForScope(scope);
+
+          // Better teacher flow: do not auto-open last syllabus.
+          // Show chooser first (Generate + all existing copies by school/scope).
+          if (canGenerate) {
+            setCurriculum(null);
+            setTracking([]);
+          } else {
+            setCurriculum(curr);
+            const tRes = await fetch(`/api/curricula/${curr.id}/track`);
+            const tJson = await tRes.json();
+            setTracking(tJson.data ?? []);
+          }
         }
       }
     } catch {
@@ -379,7 +463,7 @@ export default function CurriculumPage() {
     } finally {
       setLoadingCurr(false);
     }
-  }, [profile?.school_id]);
+  }, [profile?.school_id, restoreGradeForScope, canGenerate]);
 
   function selectCourse(prog: Program, course: Course) {
     setSelectedProgram(prog);
@@ -415,7 +499,10 @@ export default function CurriculumPage() {
       const json = await res.json();
       if (!res.ok) { setGenError(json.error || 'Generation failed'); return; }
       const doc = json.data as CurriculumDoc;
+      const scope = doc.school_id ? doc.school_id : 'platform';
       setCurriculum(doc);
+      setGenerateScope(scope);
+      restoreGradeForScope(scope);
       setCurriculumList((prev) => {
         const others = prev.filter((p) => p.id !== doc.id);
         return [doc, ...others];
@@ -754,10 +841,65 @@ export default function CurriculumPage() {
   // Generate tab
   const genSelectedTypeDef = CONTENT_TYPES.find(t => t.key === genContentType);
   const canGenerateContent = !!selectedCourse && !!genWeek && !!genContentType;
+  const scopeLabel = generateScope === 'platform'
+    ? 'Platform template (shared)'
+    : assignedSchools.find((s) => s.id === generateScope)?.name ?? 'Selected school';
 
   const expandAllPrograms = useCallback(() => {
     setExpandedPrograms(new Set(programs.map((p) => p.id)));
   }, [programs]);
+
+  function renderSyllabusScopeCard(title: string, description: string, showGenerateAction = false) {
+    if (!canGenerate) return null;
+    return (
+      <div className="w-full max-w-3xl text-left bg-card border border-border p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">{title}</p>
+          {showGenerateAction && (
+            <button
+              onClick={openGenerateModal}
+              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+            >
+              Generate for this context
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              School (view + generation target)
+            </label>
+            <select
+              value={generateScope}
+              onChange={(e) => {
+                const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
+                void syncScopeToCurriculum(scope);
+              }}
+              className={SELECT_CLS}
+            >
+              <option value="platform">Platform template (shared)</option>
+              {assignedSchools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Grade level / class
+            </label>
+            <select
+              value={form.grade_level}
+              onChange={(e) => setGradeForCurrentScope(e.target.value)}
+              className={SELECT_CLS}
+            >
+              {GRADE_LEVEL_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      </div>
+    );
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -797,7 +939,7 @@ export default function CurriculumPage() {
             )}
           </div>
         </div>
-        {canTrack && selectedCourse && curriculumList.length > 1 && (
+        {canTrack && selectedCourse && curriculumList.length > 0 && (
           <div className="px-4 pb-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-border/50 pt-3">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">
               Syllabus copy for this course
@@ -807,6 +949,7 @@ export default function CurriculumPage() {
               onChange={(e) => { void selectCurriculumVersion(e.target.value); }}
               className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             >
+              <option value="">Choose a syllabus copy…</option>
               {curriculumList.map((c) => {
                 const schoolName = c.schools?.name;
                 const label = c.school_id
@@ -1214,6 +1357,56 @@ export default function CurriculumPage() {
         ) : !curriculum ? (
           /* No curriculum (or not yet published for learners) */
           <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4 space-y-4">
+            {canGenerate && curriculumList.length > 0 && (
+              <div className="w-full max-w-5xl text-left bg-card border border-border p-4 sm:p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Syllabus Flow</p>
+                    <h3 className="text-base font-black mt-1">1) Generate Syllabus  2) Pick Existing Syllabus Copy</h3>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Choose by school + category (scope), then open the exact copy you want to edit.
+                    </p>
+                  </div>
+                  <button
+                    onClick={openGenerateModal}
+                    className="px-4 py-2 text-xs font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+                  >
+                    Generate Syllabus
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {curriculumList.map((c) => {
+                    const scopeCategory = c.school_id ? 'School syllabus' : 'Platform syllabus';
+                    const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
+                    const terms = c.content?.terms?.length ?? 0;
+                    const weeks = (c.content?.terms ?? []).reduce((sum, t) => sum + ((t?.weeks ?? []).length), 0);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => { void selectCurriculumVersion(c.id); }}
+                        className="text-left bg-background border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Category: <span className="text-foreground font-bold">{scopeCategory}</span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
+                        </p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {renderSyllabusScopeCard(
+              'Syllabus setup first',
+              'Set school and class first, then generate. If you switch school, this view auto-picks that school syllabus copy when it exists.',
+            )}
             <SparklesIcon className="w-14 h-14 text-orange-400 mb-2" />
             <h2 className="text-xl font-black">{selectedCourse.title}</h2>
             {learnerMode || isSchool ? (
@@ -1259,6 +1452,11 @@ export default function CurriculumPage() {
         ) : (
           /* Curriculum content */
           <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
+            {renderSyllabusScopeCard(
+              'Active syllabus context',
+              `You are viewing: ${scopeLabel}. Changing school here also switches the visible syllabus copy if that school already has one.`,
+              true,
+            )}
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1298,29 +1496,52 @@ export default function CurriculumPage() {
 
                 {/* Teacher publish toggle */}
                 {canGenerate && (
-                  <button
-                    onClick={() => togglePublish(!curriculum.is_visible_to_school)}
-                    disabled={publishing}
-                    className={`flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-60 ${
-                      curriculum.is_visible_to_school
-                        ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
-                        : 'bg-card border border-amber-500/40 text-amber-300 hover:bg-amber-500/10'
-                    }`}
-                    title={
-                      curriculum.is_visible_to_school
-                        ? 'Visible to the school, students and parents. Click to unpublish.'
-                        : 'Hidden from school, students and parents. Click to publish.'
-                    }
-                  >
-                    {publishing ? (
-                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    ) : curriculum.is_visible_to_school ? (
-                      <CheckCircleIcon className="w-4 h-4" />
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <span
+                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border ${
+                        curriculum.is_visible_to_school
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                          : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                      }`}
+                      title={
+                        curriculum.is_visible_to_school
+                          ? 'Published and visible to school, students, and parents.'
+                          : 'Draft mode. Only teacher/admin sees this working copy.'
+                      }
+                    >
+                      {curriculum.is_visible_to_school ? 'Stage: Published' : 'Stage: Draft'}
+                    </span>
+
+                    {curriculum.is_visible_to_school ? (
+                      <button
+                        onClick={() => togglePublish(false)}
+                        disabled={publishing}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all disabled:opacity-60"
+                        title="Move this syllabus back to draft so you can edit safely before publishing again."
+                      >
+                        {publishing ? (
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <PencilIcon className="w-4 h-4" />
+                        )}
+                        Reopen &amp; Edit
+                      </button>
                     ) : (
-                      <ExclamationTriangleIcon className="w-4 h-4" />
+                      <button
+                        onClick={() => togglePublish(true)}
+                        disabled={publishing}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all disabled:opacity-60"
+                        title="Publish this syllabus to school, students, and parents."
+                      >
+                        {publishing ? (
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircleIcon className="w-4 h-4" />
+                        )}
+                        Publish to School
+                      </button>
                     )}
-                    {curriculum.is_visible_to_school ? 'Published' : 'Draft — publish to school'}
-                  </button>
+                  </div>
                 )}
 
                 <Link
@@ -1743,8 +1964,8 @@ export default function CurriculumPage() {
                 <select
                   value={generateScope}
                   onChange={(e) => {
-                    const v = e.target.value;
-                    setGenerateScope(v === 'platform' ? 'platform' : v);
+                    const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
+                    void syncScopeToCurriculum(scope);
                   }}
                   className={SELECT_CLS}
                 >
@@ -1756,7 +1977,7 @@ export default function CurriculumPage() {
                   ))}
                 </select>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span> (plus one platform row). School A can run Scratch Jr one way and School B another — or you can align them; each partner still has its own row.
+                  The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span>. Current target: <span className="text-foreground font-bold">{scopeLabel}</span>.
                 </p>
               </div>
             )}
@@ -1765,9 +1986,8 @@ export default function CurriculumPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Grade Level</label>
-                  <select value={form.grade_level} onChange={e => setForm(p => ({ ...p, grade_level: e.target.value }))} className={SELECT_CLS}>
-                    {['KG','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6',
-                      'JSS1','JSS2','JSS3','SS1','SS2','SS3'].map(g => <option key={g}>{g}</option>)}
+                  <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
+                    {GRADE_LEVEL_OPTIONS.map(g => <option key={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>

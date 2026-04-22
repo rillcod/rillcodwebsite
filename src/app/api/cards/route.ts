@@ -23,6 +23,9 @@ export async function GET(request: Request) {
     .limit(200);
 
   if (holderType) q = q.eq('holder_type', holderType);
+  if (holderType === 'teacher' && ctx.role !== 'admin') {
+    return NextResponse.json({ data: [], total: 0 });
+  }
   if (status) q = q.eq('status', status);
   if (schoolId) q = q.eq('school_id', schoolId);
 
@@ -56,6 +59,9 @@ export async function POST(request: Request) {
   }
   if (!['student', 'parent', 'teacher'].includes(holder_type)) {
     return NextResponse.json({ error: 'Invalid holder_type' }, { status: 400 });
+  }
+  if (holder_type === 'teacher' && ctx.role !== 'admin') {
+    return NextResponse.json({ error: 'Teacher cards can only be issued by admin' }, { status: 403 });
   }
   if (!canAccessSchool(ctx, school_id)) {
     return NextResponse.json({ error: 'Forbidden for this school scope' }, { status: 403 });
