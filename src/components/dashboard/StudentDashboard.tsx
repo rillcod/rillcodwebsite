@@ -213,10 +213,10 @@ export default function StudentDashboard() {
       {/* Quick Nav */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -225,6 +225,17 @@ export default function StudentDashboard() {
           </Link>
         ))}
       </div>
+
+      <Link href="/dashboard/activity-hub"
+        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+        <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">🚀</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Activity Hub</h3>
+          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Social Hub · Code Vault · Skill Quests · Mastery Protocol</p>
+        </div>
+        <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
+      </Link>
     </div>
   );
 
@@ -460,10 +471,10 @@ export default function StudentDashboard() {
       {/* Quick Nav Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Activity Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -472,6 +483,22 @@ export default function StudentDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Activity Hub Feature Banner */}
+      <Link href="/dashboard/activity-hub"
+        className="group flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+        <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">
+          🚀
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Activity Hub</h3>
+          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Social Hub · Code Vault · Skill Quests · Mastery Protocol</p>
+        </div>
+        <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
+          Open →
+        </div>
+      </Link>
 
       {/* Upcoming Due + Recent Grades */}
       {(data.upcomingDue.length > 0 || data.recentGrades.length > 0) && (

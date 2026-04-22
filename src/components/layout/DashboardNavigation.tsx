@@ -205,6 +205,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Engagement' },
           { name: 'Class Engagement',  href: '/dashboard/engagement',      icon: BoltIcon },
+          { name: 'Activity Hub',      href: '/dashboard/activity-hub',    icon: SparklesIcon },
           { name: 'Showcase Board',    href: '/dashboard/showcase',        icon: SignalIcon },
           { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
           { name: 'Code Playground',   href: '/dashboard/playground',      icon: CodeBracketIcon },
@@ -245,6 +246,7 @@ export default function DashboardNavigation() {
           { name: 'CBT Exams',         href: '/dashboard/cbt',             icon: CommandLineIcon },
 
           { divider: true, label: 'Community' },
+          { name: 'Activity Hub',      href: '/dashboard/activity-hub',    icon: SparklesIcon },
           { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
           { name: 'Showcase',          href: '/dashboard/showcase',        icon: SignalIcon },
           { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
