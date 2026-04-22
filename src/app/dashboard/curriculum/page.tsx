@@ -9,11 +9,16 @@ import {
   ClipboardDocumentListIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon,
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
-  RocketLaunchIcon, ArrowRightIcon, StarIcon,
+  RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
+import {
+  SyllabusPreview,
+  type SyllabusContent,
+  type SyllabusPreviewRole,
+} from '@/components/curriculum/SyllabusPreview';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -127,6 +132,14 @@ interface CurriculumDoc {
   content: CurriculumContent;
   version: number;
   created_at: string;
+  /**
+   * Teacher-controlled publish flag. When true, the curriculum is
+   * visible to the assigned school, its students and their parents.
+   * Default at creation is false so the teacher can review & preview
+   * before sharing.
+   */
+  is_visible_to_school?: boolean;
+  school_id?: string | null;
 }
 
 interface WeekTracking {
@@ -186,6 +199,9 @@ export default function CurriculumPage() {
   const [activeTab, setActiveTab] = useState<'syllabus' | 'generate'>(
     searchParams.get('tab') === 'generate' ? 'generate' : 'syllabus'
   );
+  // Teacher-controlled "show to school" gate + cross-role preview modal
+  const [publishing, setPublishing] = useState(false);
+  const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(null);
   // Generate Content tab state
   const [genWeek, setGenWeek] = useState<CurriculumWeek | null>(null);
   const [genContentType, setGenContentType] = useState<ContentKey | null>(null);
@@ -196,8 +212,12 @@ export default function CurriculumPage() {
   const isAdmin   = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const isSchool  = profile?.role === 'school';
+  const isStudent = profile?.role === 'student';
+  const isParent  = profile?.role === 'parent';
   const canGenerate = isAdmin || isTeacher;
   const canTrack    = isAdmin || isTeacher;
+  // Students & parents get a clean read-only syllabus (no builder chrome).
+  const learnerMode = isStudent || isParent;
 
   // Form state for generation modal
   const [form, setForm] = useState({
@@ -209,18 +229,34 @@ export default function CurriculumPage() {
   });
 
   // ── Load programs ────────────────────────────────────────────────────────
+  // Honors `?program=<id>` and `?course=<id>` for deep-linking from the
+  // student learning hub or the syllabus link in any other view.
   useEffect(() => {
+    const deepProgramId = searchParams.get('program');
+    const deepCourseId = searchParams.get('course');
     fetch('/api/programs?is_active=true')
-      .then(r => r.json())
-      .then(j => {
+      .then((r) => r.json())
+      .then((j) => {
         const progs: Program[] = j.data ?? [];
         setPrograms(progs);
+        if (deepProgramId) {
+          const p = progs.find((x) => x.id === deepProgramId);
+          if (p) {
+            setExpandedPrograms(new Set([p.id]));
+            setSelectedProgram(p);
+            if (deepCourseId) {
+              const c = (p.courses ?? []).find((x) => x.id === deepCourseId);
+              if (c) setSelectedCourse(c);
+            }
+            return;
+          }
+        }
         if (progs.length === 1) {
           setExpandedPrograms(new Set([progs[0].id]));
         }
       })
       .catch(() => setLoadError('Failed to load programs — please refresh the page.'));
-  }, []);
+  }, [searchParams]);
 
   // ── Load curriculum for selected course ──────────────────────────────────
   const loadCurriculum = useCallback(async (courseId: string) => {
@@ -582,6 +618,30 @@ export default function CurriculumPage() {
     }
   }
 
+  // ── Teacher: publish / unpublish the syllabus to school, students & parents ──
+  async function togglePublish(next: boolean) {
+    if (!curriculum) return;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_visible_to_school: next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Could not update visibility');
+      }
+      setCurriculum((prev) =>
+        prev ? { ...prev, is_visible_to_school: next } : prev,
+      );
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to update syllabus visibility');
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   // ── Derived ──────────────────────────────────────────────────────────────
   const currentTermData = curriculum?.content?.terms?.find(t => t.term === activeTerm);
   const termCount = curriculum?.content?.terms?.length ?? 0;
@@ -596,21 +656,74 @@ export default function CurriculumPage() {
   return (
     <div className="flex flex-col md:flex-row h-full min-h-screen bg-background text-foreground">
 
-      {/* ── Mobile sidebar toggle ── */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Course & Syllabus</p>
-          <p className="text-sm font-black truncate">
-            {selectedCourse ? selectedCourse.title : 'Select a course'}
-          </p>
+      {/* ── Mobile scope bar — sticky, shows current Program › Course and
+             gives one-tap access to Browse, Preview-as-role, Publish toggle.
+             The intent is that the teacher never loses context of what they
+             are editing even as the syllabus scrolls past the viewport on
+             a small screen. ── */}
+      <div className="md:hidden sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            {selectedProgram ? (
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                {selectedProgram.name}
+                {selectedCourse && (
+                  <>
+                    <span className="text-muted-foreground/40 mx-1">›</span>
+                    <span className="text-orange-400">{selectedCourse.title}</span>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                Course & Syllabus
+              </p>
+            )}
+            <p className="text-sm font-black truncate">
+              {curriculum?.content?.course_title ?? selectedCourse?.title ?? 'Select a course'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {curriculum && canGenerate && (
+              <button
+                onClick={() => setPreviewRole('student')}
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-sky-300 border border-sky-500/30 px-2 py-1.5 hover:bg-sky-500/10"
+                aria-label="Preview as student"
+              >
+                <EyeIcon className="w-3.5 h-3.5" />
+                Preview
+              </button>
+            )}
+            <button
+              onClick={() => setMobileSidebarOpen(v => !v)}
+              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1.5"
+            >
+              <BookOpenIcon className="w-3.5 h-3.5" />
+              {mobileSidebarOpen ? 'Close' : 'Browse'}
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setMobileSidebarOpen(v => !v)}
-          className="flex items-center gap-1.5 text-xs font-bold text-orange-400 border border-orange-500/30 px-3 py-1.5"
-        >
-          <BookOpenIcon className="w-4 h-4" />
-          {mobileSidebarOpen ? 'Close' : 'Browse'}
-        </button>
+        {/* Quick term jump on mobile — only when a syllabus is loaded */}
+        {curriculum && curriculum.content.terms && curriculum.content.terms.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 snap-x -mx-px">
+            {curriculum.content.terms.map((t) => {
+              const active = t.term === activeTerm;
+              return (
+                <button
+                  key={t.term}
+                  onClick={() => setActiveTerm(t.term)}
+                  className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+                    active
+                      ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                      : 'bg-muted/20 border-border text-muted-foreground'
+                  }`}
+                >
+                  T{t.term} {TERM_LABEL[t.term] ? `· ${TERM_LABEL[t.term].split(' ')[0]}` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Left Sidebar — Programs & Courses ── */}
@@ -914,13 +1027,21 @@ export default function CurriculumPage() {
             </button>
           </div>
         ) : !curriculum ? (
-          /* No curriculum yet */
+          /* No curriculum (or not yet published for learners) */
           <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4 space-y-4">
             <SparklesIcon className="w-14 h-14 text-orange-400 mb-2" />
             <h2 className="text-xl font-black">{selectedCourse.title}</h2>
-            <p className="text-muted-foreground text-sm max-w-sm">
-              No curriculum exists for this course yet. Generate a complete AI curriculum with lesson plans, assessments, and examinations.
-            </p>
+            {learnerMode || isSchool ? (
+              <p className="text-muted-foreground text-sm max-w-sm">
+                Your teacher is still preparing the syllabus for this course. It will
+                appear here as soon as it&rsquo;s published.
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm max-w-sm">
+                No curriculum exists for this course yet. Generate a complete AI
+                curriculum with lesson plans, assessments, and examinations.
+              </p>
+            )}
             {canGenerate ? (
               <button
                 onClick={() => setShowGenerate(true)}
@@ -928,9 +1049,27 @@ export default function CurriculumPage() {
               >
                 <SparklesIcon className="w-4 h-4" /> Generate Syllabus
               </button>
-            ) : (
+            ) : !learnerMode && !isSchool ? (
               <p className="text-xs text-muted-foreground">Contact your administrator to generate a course syllabus.</p>
-            )}
+            ) : null}
+          </div>
+        ) : learnerMode ? (
+          /* Learner (student / parent) — clean read-only syllabus */
+          <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {selectedProgram?.name}
+              </span>
+              <span className="text-muted-foreground/40">›</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                {selectedCourse.title}
+              </span>
+            </div>
+            <SyllabusPreview
+              content={curriculum.content as unknown as SyllabusContent}
+              courseTitle={selectedCourse.title}
+              audienceIsLearner
+            />
           </div>
         ) : (
           /* Curriculum content */
@@ -953,6 +1092,52 @@ export default function CurriculumPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Preview as role — lets the teacher see the exact student/parent/school view */}
+                {canGenerate && (
+                  <div className="inline-flex rounded-md border border-border overflow-hidden bg-card">
+                    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-muted-foreground self-center px-2.5">
+                      Preview as
+                    </span>
+                    {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setPreviewRole(r)}
+                        className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l border-border first:border-l-0"
+                        title={`See this syllabus as a ${r}`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Teacher publish toggle */}
+                {canGenerate && (
+                  <button
+                    onClick={() => togglePublish(!curriculum.is_visible_to_school)}
+                    disabled={publishing}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-60 ${
+                      curriculum.is_visible_to_school
+                        ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                        : 'bg-card border border-amber-500/40 text-amber-300 hover:bg-amber-500/10'
+                    }`}
+                    title={
+                      curriculum.is_visible_to_school
+                        ? 'Visible to the school, students and parents. Click to unpublish.'
+                        : 'Hidden from school, students and parents. Click to publish.'
+                    }
+                  >
+                    {publishing ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    ) : curriculum.is_visible_to_school ? (
+                      <CheckCircleIcon className="w-4 h-4" />
+                    ) : (
+                      <ExclamationTriangleIcon className="w-4 h-4" />
+                    )}
+                    {curriculum.is_visible_to_school ? 'Published' : 'Draft — publish to school'}
+                  </button>
+                )}
+
                 <Link
                   href="/dashboard/curriculum/progress"
                   className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-orange-500/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
@@ -1443,6 +1628,102 @@ export default function CurriculumPage() {
           </div>
         </div>
       )}
+
+      {/* Preview-as-role modal — shows the teacher exactly what the
+          selected audience will see, without leaving the builder. */}
+      <AnimatePresence>
+        {previewRole && curriculum && (
+          <motion.div
+            key="syllabus-preview-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm p-0 sm:p-4 flex items-stretch sm:items-center justify-center"
+            onClick={() => setPreviewRole(null)}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="w-full sm:max-w-3xl bg-background sm:rounded-lg sm:border sm:border-border flex flex-col max-h-screen sm:max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card/70">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-sky-300">
+                    Learner Preview
+                  </p>
+                  <p className="text-sm font-black truncate">
+                    {curriculum.content.course_title}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setPreviewRole(r)}
+                      className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded border ${
+                        previewRole === r
+                          ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                          : 'border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPreviewRole(null)}
+                    className="ml-1 p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    aria-label="Close preview"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4">
+                <SyllabusPreview
+                  content={curriculum.content as unknown as SyllabusContent}
+                  courseTitle={selectedCourse?.title}
+                  previewRole={previewRole}
+                  audienceIsLearner={previewRole !== 'school'}
+                  topBanner={
+                    !curriculum.is_visible_to_school ? (
+                      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs flex items-center gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span className="text-amber-200">
+                          This syllabus is currently a draft. The {previewRole} won&rsquo;t see it
+                          until you click <strong>Publish to school</strong>.
+                        </span>
+                      </div>
+                    ) : null
+                  }
+                />
+              </div>
+              <div className="border-t border-border bg-card/70 px-4 py-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Preview only — no data is visible to learners in draft mode.
+                </p>
+                <button
+                  onClick={() => togglePublish(!curriculum.is_visible_to_school)}
+                  disabled={publishing}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${
+                    curriculum.is_visible_to_school
+                      ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
+                      : 'border-orange-500/50 text-orange-300 hover:bg-orange-500/10'
+                  }`}
+                >
+                  {publishing
+                    ? 'Saving…'
+                    : curriculum.is_visible_to_school
+                    ? 'Unpublish'
+                    : 'Publish to school'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

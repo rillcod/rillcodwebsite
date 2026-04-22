@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isAlwaysPublicProgramName, isCourseVisibleToLearners } from '@/lib/courses/visibility';
+import {
+  isAlwaysPublicProgramName,
+  isCourseVisibleToLearners,
+  isProgramVisibleToRole,
+  isStaffRole,
+} from '@/lib/courses/visibility';
 
 function adminClient() {
   return createClient(
@@ -57,7 +62,9 @@ export async function GET(request: NextRequest) {
 
     let query = adminClient()
       .from('programs')
-      .select('*, courses ( id, title, is_active, is_locked, program_id )')
+      .select(
+        '*, courses ( id, title, is_active, is_locked, program_id, lessons(id), assignments(id) )',
+      )
       .order('created_at', { ascending: false });
 
     if (isActiveParam !== null) {
@@ -70,21 +77,30 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Staff see the raw list (including locked courses) so they can manage
-    // visibility.  Learners / public callers only see unlocked courses, with
-    // an exception carve-out for our always-public flagship programmes
-    // (Young Innovator, Teen Developer — see `src/lib/courses/visibility.ts`).
-    const isStaffCaller = callerRole && ['admin', 'teacher', 'school'].includes(callerRole);
-    const rows = (data ?? []).map((row: any) => {
-      if (isStaffCaller) return row;
-      const alwaysPublic = isAlwaysPublicProgramName(row.name);
-      const visibleCourses = (row.courses ?? []).filter((c: any) =>
-        alwaysPublic
-          ? c.is_active !== false
-          : isCourseVisibleToLearners({ ...c, programs: { name: row.name } }),
-      );
-      return { ...row, courses: visibleCourses };
-    });
+    // Admin / teacher see everything including locked + empty courses.
+    // Everyone else (school / student / parent / public) sees only
+    // flagship programmes (Young Innovator, Teen Developer) with
+    // courses that are active AND have at least one lesson or assignment.
+    // School-mode (bootcamp / summer school / online) programmes are
+    // kept admin-only until we introduce a formal audience flag.
+    const isAdminOrTeacher = isStaffRole(callerRole);
+    const rows = (data ?? [])
+      .filter((row: any) => {
+        if (isAdminOrTeacher) return true;
+        return isProgramVisibleToRole(row, callerRole ?? null);
+      })
+      .map((row: any) => {
+        if (isAdminOrTeacher) return row;
+        // Even flagship programmes hide EMPTY courses from learners —
+        // a "Teen Developer" with 5 placeholder courses is bad UX.
+        const visibleCourses = (row.courses ?? []).filter((c: any) =>
+          isCourseVisibleToLearners(
+            { ...c, programs: { name: row.name } },
+            { requireContent: true },
+          ),
+        );
+        return { ...row, courses: visibleCourses };
+      });
 
     return NextResponse.json({ success: true, data: rows });
   } catch (err: any) {

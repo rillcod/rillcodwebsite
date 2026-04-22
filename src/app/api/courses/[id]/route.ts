@@ -17,6 +17,15 @@ const updateCourseSchema = z.object({
     is_locked: z.boolean().optional(),
     level_order: z.number().int().min(1).optional(),
     next_course_id: z.string().uuid().nullable().optional(),
+    // Soft tagging payload — see migration 20260501000061_courses_metadata.sql.
+    metadata: z
+        .object({
+            grade_levels: z.array(z.string()).optional(),
+            subject: z.string().optional(),
+            tags: z.array(z.string()).optional(),
+        })
+        .passthrough()
+        .optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {

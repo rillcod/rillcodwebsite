@@ -68,7 +68,9 @@ export async function fetchStudentAssignments(portalUserId: string) {
         .select('id, is_locked, is_active, programs(name)')
         .in('program_id', programIds);
     const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
-    const courseIds = (courseRows ?? []).filter(isCourseVisibleToLearners).map((c: any) => c.id);
+    const courseIds = (courseRows ?? [])
+        .filter((c: any) => isCourseVisibleToLearners(c))
+        .map((c: any) => c.id);
     if (!courseIds.length) return subs ?? [];
 
     // 4. Fetch all active assignments for enrolled courses

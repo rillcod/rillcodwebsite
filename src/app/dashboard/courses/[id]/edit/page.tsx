@@ -30,7 +30,28 @@ export default function EditCoursePage() {
     is_published: false,
     level_order: '1',
     next_course_id: '',
+    subject: '',
+    grade_levels: [] as string[],
   });
+
+  // Nigerian school grade ladder (mirrors /dashboard/courses/new).
+  const GRADE_OPTIONS = [
+    'Pre-School',
+    'Nursery',
+    'KG1', 'KG2',
+    'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
+    'JSS1', 'JSS2', 'JSS3',
+    'SS1', 'SS2', 'SS3',
+  ];
+
+  function toggleGrade(g: string) {
+    setForm(f => ({
+      ...f,
+      grade_levels: f.grade_levels.includes(g)
+        ? f.grade_levels.filter(x => x !== g)
+        : [...f.grade_levels, g],
+    }));
+  }
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -44,6 +65,7 @@ export default function EditCoursePage() {
     ]).then(([courseJson, programsJson]) => {
       const c = courseJson.data;
       if (c) {
+        const md = (c.metadata ?? {}) as Record<string, unknown>;
         setForm({
           title: c.title ?? '',
           description: c.description ?? '',
@@ -53,6 +75,8 @@ export default function EditCoursePage() {
           is_published: c.is_published ?? false,
           level_order: String(c.level_order ?? 1),
           next_course_id: c.next_course_id ?? '',
+          subject: typeof md.subject === 'string' ? md.subject : '',
+          grade_levels: Array.isArray(md.grade_levels) ? md.grade_levels.filter((v: unknown): v is string => typeof v === 'string') : [],
         });
       }
       setPrograms(programsJson.data ?? []);
@@ -86,6 +110,11 @@ export default function EditCoursePage() {
         next_course_id: form.next_course_id || null,
       };
       if (form.duration_hours) payload.duration_hours = parseInt(form.duration_hours);
+      // Soft tagging — written even if empty so users can clear previous values.
+      const metadata: Record<string, unknown> = {};
+      if (form.grade_levels.length) metadata.grade_levels = form.grade_levels;
+      if (form.subject.trim()) metadata.subject = form.subject.trim();
+      payload.metadata = metadata;
 
       const res = await fetch(`/api/courses/${id}`, {
         method: 'PUT',
@@ -185,6 +214,51 @@ export default function EditCoursePage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+              Subject / Discipline
+            </label>
+            <input type="text" value={form.subject}
+              onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+              placeholder="e.g. Computer Science, Robotics, Digital Literacy"
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+
+          {/* Target grades / classes */}
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+              Target Grades / Classes
+              <span className="ml-1 text-[10px] text-muted-foreground/70 normal-case font-normal">
+                (pick one or more — drives class filters on lesson plans)
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {GRADE_OPTIONS.map(g => {
+                const active = form.grade_levels.includes(g);
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => toggleGrade(g)}
+                    className={`px-2.5 py-1 text-[11px] font-black uppercase tracking-wider border transition ${
+                      active
+                        ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+            {form.grade_levels.length > 0 && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Selected: <span className="text-orange-400 font-bold">{form.grade_levels.join(', ')}</span>
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

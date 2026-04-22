@@ -141,8 +141,10 @@ export default function StudentLearningPage() {
           .order('level_order', { ascending: true });
 
         const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
+        // Hide empty courses (no lessons AND no assignments) from students —
+        // "0/0 modules" placeholder cards are not a good first impression.
         const visibleCourses = (rawCourses ?? []).filter((c: any) =>
-          isCourseVisibleToLearners(c),
+          isCourseVisibleToLearners(c, { requireContent: true }),
         );
 
         const cmap: Record<string, any[]> = {};
@@ -674,7 +676,10 @@ export default function StudentLearningPage() {
                             {prog.difficulty_level || 'Level 1'} Track · {prog.duration_weeks || 12} Weeks
                           </p>
                         </div>
-                        <Link href={`/dashboard/learning/track/${prog.id}`} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-400">
+                        <Link
+                          href={`/dashboard/curriculum?program=${prog.id}`}
+                          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-400"
+                        >
                           View Syllabus <ArrowRightIcon className="w-3 h-3" />
                         </Link>
                       </div>

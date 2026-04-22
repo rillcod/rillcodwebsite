@@ -98,7 +98,19 @@ export default function StudentDashboard() {
         if (enrollRes.status === 'fulfilled' && enrollRes.value.data?.length) {
           const prog = enrollRes.value.data[0]?.programs;
           if (prog?.id) {
-            const { data: courses } = await db.from('courses').select('id').eq('program_id', prog.id);
+            // Mirror the learning-hub visibility rule: only surface
+            // courses that are active, not locked (unless flagship)
+            // AND have at least one lesson — so the "next lesson"
+            // pointer never lands in an empty placeholder course.
+            const { data: rawCourses } = await db
+              .from('courses')
+              .select('id, is_active, is_locked, programs(name), lessons(id), assignments(id)')
+              .eq('program_id', prog.id)
+              .eq('is_active', true);
+            const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
+            const courses = (rawCourses ?? []).filter((c: any) =>
+              isCourseVisibleToLearners(c, { requireContent: true }),
+            );
             if (courses?.length) {
               const cIds = courses.map((c: any) => c.id);
               const { data: allLessons } = await db.from('lessons').select('id, title').in('course_id', cIds).eq('status', 'active').order('order_index', { ascending: true }).limit(20);
