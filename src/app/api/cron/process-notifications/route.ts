@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
 import { queueService } from '@/services/queue.service';
 import { notificationsService } from '@/services/notifications.service';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: Request) {
-    // Simple "worker" that processes a batch of notifications when called
-    // Suitable for serverless environments where long-running processes are difficult
-    const authHeader = req.headers.get('authorization');
-    const secret = (req.headers.get('x-cron-secret') ?? authHeader?.replace(/^Bearer\s+/i, '')) || '';
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && secret !== cronSecret) {
+    if (!isValidCronSecret(extractCronSecret(req))) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

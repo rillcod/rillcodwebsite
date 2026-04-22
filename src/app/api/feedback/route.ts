@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { sendFeedbackAutoResponseEmail } from '@/lib/email/feedback-autoresponder';
 
 function adminClient() {
   return createClient(
@@ -79,10 +80,11 @@ export async function POST(req: NextRequest) {
       autoResponseMessage = `Thank you for your suggestion! We review all feedback carefully and will consider it for future updates. Reference: FB-${feedback.id.slice(0, 8)}`;
     }
 
-    // Send auto-response email (if email provided)
-    if (user_email) {
-      // TODO: Queue email via your email service
-      console.log(`[Feedback Auto-Response] To: ${user_email}, Message: ${autoResponseMessage}`);
+    if (user_email?.trim()) {
+      const emailResult = await sendFeedbackAutoResponseEmail(user_email.trim(), autoResponseMessage);
+      if (!emailResult.sent && emailResult.reason === 'email_not_configured') {
+        console.info('[feedback] In-app notification only; configure RESEND_API_KEY + RESEND_FROM_EMAIL for auto-response emails.');
+      }
     }
 
     return NextResponse.json({ 

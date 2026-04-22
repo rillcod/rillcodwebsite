@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { certificateService } from '@/services/certificate.service';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +14,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleProcess(req: NextRequest) {
-    const authHeader = req.headers.get('authorization');
-    const secret = authHeader?.replace('Bearer ', '');
-
-    if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+    if (!isValidCronSecret(extractCronSecret(req))) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

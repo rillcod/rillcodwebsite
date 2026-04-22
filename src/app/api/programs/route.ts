@@ -9,21 +9,50 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function requireSession() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
+}
+
+async function getCallerRole(userId: string): Promise<string | null> {
+  const { data } = await adminClient()
+    .from('portal_users')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+  return data?.role ?? null;
+}
+
+/** Global program catalog — platform admins only (partner schools use curriculum UI, not this API). */
+async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: caller } = await adminClient()
-    .from('portal_users').select('role, id').eq('id', user.id).single();
-  if (!caller || !['admin', 'school'].includes(caller.role)) return null;
+    .from('portal_users')
+    .select('role, id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || caller.role !== 'admin') return null;
   return caller;
 }
 
-// GET /api/programs — list all programs
+// GET /api/programs — authenticated users see full list; anonymous may pass ?is_active=true (public catalog only)
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireSession();
     const { searchParams } = new URL(request.url);
     const isActiveParam = searchParams.get('is_active');
+    const publicCatalog = isActiveParam === 'true';
+    if (!user && !publicCatalog) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    let callerRole: string | null = null;
+    if (user) callerRole = await getCallerRole(user.id);
+
 
     let query = adminClient()
       .from('programs')
@@ -32,6 +61,9 @@ export async function GET(request: NextRequest) {
 
     if (isActiveParam !== null) {
       query = query.eq('is_active', isActiveParam === 'true') as any;
+    } else if (!publicCatalog && (!callerRole || !['admin', 'teacher', 'school'].includes(callerRole))) {
+      // Students/parents should only see the active catalog when filter is omitted.
+      query = query.eq('is_active', true) as any;
     }
 
     const { data, error } = await query;
@@ -42,10 +74,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/programs — create program
+// POST /api/programs — create program (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const caller = await requireStaff();
+    const caller = await requireAdmin();
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
     const body = await request.json();

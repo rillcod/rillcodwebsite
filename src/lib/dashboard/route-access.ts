@@ -14,6 +14,9 @@ export function isStaffRole(role: string | undefined | null): role is 'admin' | 
   return isPlatformStaffRole(role) || isPartnerSchoolRole(role);
 }
 
+/** AI `/api/ai/generate` types allowed for partner school (communications / reporting — not full authoring). */
+export const PARTNER_SCHOOL_AI_GENERATE_TYPES = ['report-feedback', 'newsletter'] as const;
+
 function normalizePath(pathname: string): string {
   const base = pathname.split('?')[0] ?? pathname;
   if (base.length > 1 && base.endsWith('/')) return base.slice(0, -1);

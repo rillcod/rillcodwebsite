@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { liveSessionService } from '@/services/live-session.service';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: NextRequest) {
-  const secret = req.headers.get('x-cron-secret') ?? req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && secret !== cronSecret) {
+  if (!isValidCronSecret(extractCronSecret(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {

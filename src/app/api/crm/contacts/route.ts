@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isCrmPlatformRole } from '@/lib/server/api-rbac';
 
-async function requireStaff() {
+async function requireCrmStaff() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('Unauthorized');
   const db = createAdminClient();
   const { data: profile } = await db.from('portal_users').select('id, role, full_name, school_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) throw new Error('Forbidden');
+  if (!profile || !isCrmPlatformRole(profile.role)) throw new Error('Forbidden');
   return { profile, db };
 }
 
 // GET /api/crm/contacts?search=xxx&role=all&limit=50
 export async function GET(req: NextRequest) {
   try {
-    const { profile, db } = await requireStaff();
+    const { profile, db } = await requireCrmStaff();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'all';
@@ -60,14 +61,16 @@ export async function GET(req: NextRequest) {
       contacts: [...(portalUsers || []), ...(role === 'all' || role === 'external' ? external : [])],
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: e.message === 'Unauthorized' ? 401 : 500 });
+    const msg = e.message as string;
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 
 // PATCH /api/crm/contacts — update pipeline stage
 export async function PATCH(req: NextRequest) {
   try {
-    const { profile, db } = await requireStaff();
+    const { profile, db } = await requireCrmStaff();
     const body = await req.json();
     const { contact_id, contact_type, contact_name, stage, pipeline_notes } = body;
 
@@ -92,6 +95,8 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true, stage });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const msg = e.message as string;
+    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

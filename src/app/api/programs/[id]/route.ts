@@ -9,13 +9,32 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function requireSession() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
+}
+
+async function getCallerRole(userId: string): Promise<string | null> {
+  const { data } = await adminClient()
+    .from('portal_users')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+  return data?.role ?? null;
+}
+
+async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: caller } = await adminClient()
-    .from('portal_users').select('role, id').eq('id', user.id).single();
-  if (!caller || !['admin', 'school'].includes(caller.role)) return null;
+    .from('portal_users')
+    .select('role, id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || caller.role !== 'admin') return null;
   return caller;
 }
 
@@ -25,6 +44,8 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await requireSession();
+    const callerRole = user ? await getCallerRole(user.id) : null;
     const { id } = await context.params;
     const { data, error } = await adminClient()
       .from('programs')
@@ -34,6 +55,13 @@ export async function GET(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'Program not found' }, { status: 404 });
+    if (!user && !data.is_active) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (user && !data.is_active && (!callerRole || !['admin', 'teacher', 'school'].includes(callerRole))) {
+      // Logged-in learners should not access inactive/private programs by id.
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
@@ -46,7 +74,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const caller = await requireStaff();
+    const caller = await requireAdmin();
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
     const { id } = await context.params;
@@ -78,9 +106,8 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const caller = await requireStaff();
+    const caller = await requireAdmin();
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    if (caller.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
     const { id } = await context.params;
     const { error } = await adminClient()

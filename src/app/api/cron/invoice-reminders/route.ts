@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
@@ -259,10 +260,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleRequest(req: NextRequest, type: 'cron' | 'manual') {
-  const secret = req.headers.get('x-cron-secret') || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-  const cronSecret = process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET;
-  
-  if (cronSecret && secret !== cronSecret) {
+  if (!isValidCronSecret(extractCronSecret(req))) {
     if (type === 'manual') {
       const { createClient: createServerClient } = await import('@/lib/supabase/server');
       const supabase = await createServerClient();
