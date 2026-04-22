@@ -144,7 +144,7 @@ export default function ExamDetailPage() {
     function mdToHtml(text: string): string {
       const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const codeBlocks: string[] = [];
-      let t = (text ?? '').replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
+      const t = (text ?? '').replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
         const lbl = lang ? `<span style="font-size:7.5pt;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:2pt">${esc(lang)}</span>` : '';
         codeBlocks.push(`<div style="margin:4pt 0;background:#1e1e2e;padding:7pt 9pt;border-left:3pt solid #7c3aed">${lbl}<pre style="margin:0;font-family:'Courier New',monospace;font-size:8.5pt;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${esc(code.trimEnd())}</pre></div>`);
         return `\x00C${codeBlocks.length - 1}\x00`;

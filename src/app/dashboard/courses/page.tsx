@@ -72,6 +72,35 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           </div>
         </div>
         <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-orange-400 transition-colors">{course.title}</h3>
+        {/* Subject + grade-level tags from course.metadata — surface so schools can
+            pick the right course for a given class at a glance. */}
+        {(() => {
+          const meta = (course.metadata ?? {}) as { subject?: string; grade_levels?: string[]; tags?: string[] };
+          const subject = meta.subject?.trim();
+          const grades = Array.isArray(meta.grade_levels) ? meta.grade_levels.filter(Boolean) : [];
+          if (!subject && grades.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-1 mb-2">
+              {subject && (
+                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-none border bg-violet-500/10 text-violet-300 border-violet-500/25">
+                  {subject}
+                </span>
+              )}
+              {grades.slice(0, 4).map((g) => (
+                <span
+                  key={g}
+                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-none border bg-cyan-500/10 text-cyan-300 border-cyan-500/25"
+                  title={`Target grade: ${g}`}
+                >
+                  {g}
+                </span>
+              ))}
+              {grades.length > 4 && (
+                <span className="text-[9px] font-black text-muted-foreground">+{grades.length - 4}</span>
+              )}
+            </div>
+          );
+        })()}
         {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
         {isUncategorized && canEdit && programs && programs.length > 0 && (
           <div className="mb-3">

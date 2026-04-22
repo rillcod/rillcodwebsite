@@ -3,6 +3,7 @@ import DashboardAccessGuard from '@/components/layout/DashboardAccessGuard';
 import DashboardShell from '@/components/layout/DashboardShell';
 import CommandPalette from '@/components/layout/CommandPalette';
 import PasswordChangeGuard from '@/components/layout/PasswordChangeGuard';
+import RoleSimBanner from '@/components/layout/RoleSimBanner';
 import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundary';
 import SystemStatusBanners from '@/components/dashboard/SystemStatusBanners';
 import SessionExpiryWrapper from '@/components/dashboard/SessionExpiryWrapper';
@@ -17,7 +18,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-background text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-white print:text-black">
+      {/* Role-simulation banner — only renders when a staff user is previewing
+          the app as a different role. Server RBAC is unaffected. */}
+      <RoleSimBanner />
+
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
       {/* Force-password-change guard — renders a blocking modal for bulk-registered students */}
       <PasswordChangeGuard />
 
@@ -47,6 +53,7 @@ export default function DashboardLayout({
 
       {/* Puter.js — free-tier AI SDK (browser only, no API key needed) */}
       <Script src="https://js.puter.com/v2/" strategy="lazyOnload" />
+      </div>
     </div>
   );
 }

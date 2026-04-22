@@ -10,7 +10,7 @@ export const turtleSketch = (p: p5, data: CodeData, isPlaying: boolean, speed: n
   let targetHue = 180;
   let currentPos = p.createVector(p.width / 2, p.height / 2);
   let targetPos = p.createVector(p.width / 2, p.height / 2);
-  let progress = 0;
+  const progress = 0;
   
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);

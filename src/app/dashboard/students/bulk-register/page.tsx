@@ -87,7 +87,7 @@ function generatePassword(): string {
 function makeEmail(firstName: string, taken: Set<string>, skipEmail?: string): string {
   const base = firstName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
   const digits = Math.floor(100 + Math.random() * 900); // 3-digit suffix for better uniqueness
-  let email = `${base}${digits}@rillcod.com`.toLowerCase();
+  const email = `${base}${digits}@rillcod.com`.toLowerCase();
 
   if (email === skipEmail?.toLowerCase() || !taken.has(email)) return email;
 
@@ -935,7 +935,7 @@ export default function BulkRegisterPage() {
         setCheckingDups(false);
       }
     }
-  }, [namesText, defaultClass, selectedSchoolId, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [namesText, defaultClass, selectedSchoolId, supabase]);  
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {

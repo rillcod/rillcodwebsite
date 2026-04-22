@@ -23,11 +23,13 @@ export async function GET(_request: Request) {
     const key = CARD_CONFIG_KEYS[type] || CARD_CONFIG_KEYS.student;
 
     const db = createAdminClient();
-    let { data: setting, error } = await db
+    const initial = await db
       .from('system_settings')
       .select('setting_value')
       .eq('setting_key', key)
       .maybeSingle();
+    let setting = initial.data;
+    const { error } = initial;
 
     if (error) {
       console.error('Error fetching settings:', error);

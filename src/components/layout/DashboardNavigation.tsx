@@ -20,6 +20,7 @@ import {
   SparklesIcon, BoltIcon, QuestionMarkCircleIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
+import ViewAsSwitcher from './ViewAsSwitcher';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type NavItem = { name: string; href: string; icon: any };
@@ -452,6 +453,11 @@ export default function DashboardNavigation() {
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
+        </div>
+
+        {/* Role simulator — admin/teacher only (enforced inside component) */}
+        <div className="px-4 py-2 border-b border-sidebar-foreground/[0.08]">
+          <ViewAsSwitcher />
         </div>
 
         {/* Links */}

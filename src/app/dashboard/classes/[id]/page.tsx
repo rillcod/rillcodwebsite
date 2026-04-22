@@ -1300,7 +1300,7 @@ export default function ClassDetailPage() {
                             onChange={e => {
                               setCheckedEnrollIds(prev => {
                                 const next = new Set(prev);
-                                e.target.checked ? next.add(enr.id) : next.delete(enr.id);
+                                if (e.target.checked) next.add(enr.id); else next.delete(enr.id);
                                 return next;
                               });
                             }}
@@ -1473,7 +1473,7 @@ export default function ClassDetailPage() {
                       const renderStudent = (student: any, color: 'orange' | 'amber') => {
                         const isChecked = selectedStudentIds.has(student.id);
                         return (
-                          <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
+                          <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); if (n.has(student.id)) n.delete(student.id); else n.add(student.id); return n; })}
                             className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all active:scale-[0.99] ${isChecked
                               ? color === 'orange' ? 'bg-orange-600/15 border-orange-500/40' : 'bg-amber-500/10 border-amber-500/40'
                               : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-orange-500/20' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'}`}>

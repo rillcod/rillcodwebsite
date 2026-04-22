@@ -74,7 +74,7 @@ function RobotSimulator({ code, isRunning, onFinish, commands: propCmds }: { cod
     const ctx = canvas.getContext('2d'); if (!ctx) return;
     let raf: number;
     const robot = { x: 300, y: 300, angle: 0, path: [] as { x: number; y: number; color: string; pen: boolean }[] };
-    let cmds: any[] = propCmds && propCmds.length ? propCmds : [];
+    const cmds: any[] = propCmds && propCmds.length ? propCmds : [];
     if (!cmds.length) {
       code.split('\n').forEach(l => {
         const mv = l.match(/robot\.forward\(\s*([\d.]+)\s*\)/);
@@ -276,7 +276,11 @@ export default function CodeStudioPage() {
     const blob = new Blob([`self.onmessage=(e)=>{const L=[];const C={log:(...a)=>L.push(a.map(String).join(' ')),error:(...a)=>L.push('❌ '+a.map(String).join(' '))};try{new Function('console',e.data.code)(C);self.postMessage({ok:true,L});}catch(err){self.postMessage({ok:false,error:err.message,L});}};`], { type: 'application/javascript' });
     const w = new Worker(URL.createObjectURL(blob));
     const t = setTimeout(() => { w.terminate(); rej(new Error('Timed out after 5s')); }, 5000);
-    w.onmessage = ev => { clearTimeout(t); w.terminate(); ev.data.ok ? res(ev.data.L) : rej(new Error(ev.data.error)); };
+    w.onmessage = ev => {
+      clearTimeout(t);
+      w.terminate();
+      if (ev.data.ok) res(ev.data.L); else rej(new Error(ev.data.error));
+    };
     w.onerror   = () => { clearTimeout(t); w.terminate(); rej(new Error('Worker error')); };
     w.postMessage({ code: src });
   }), []);

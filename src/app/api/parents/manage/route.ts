@@ -321,7 +321,7 @@ export async function GET(req: Request) {
     // Find parent emails scoped to this school
     let allowedEmails: string[] | null = null;
     if (effectiveSchool) {
-      let stuQuery = admin
+      const stuQuery = admin
         .from('students')
         .select('parent_email, current_class, grade_level, section')
         .ilike('school_name', effectiveSchool)

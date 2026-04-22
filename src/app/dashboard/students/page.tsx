@@ -1479,7 +1479,9 @@ export default function StudentsPage() {
                 Manage registrations, parent info, approvals and student records
               </p>
             </div>
-            {/* Action buttons — row wraps gracefully, school sees fewer options */}
+            {/* Action buttons — primary row-level actions only.
+                Bulk / advanced flows live in the Management Hub below so
+                each label only appears once in the interface. */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => { setEditingStudent(null); setShowAdd(true); }}
@@ -1490,12 +1492,6 @@ export default function StudentsPage() {
                 className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-all">
                 <ArrowPathIcon className="w-4 h-4" />
               </button>
-              <Link
-                href="/dashboard/card-studio?mode=issuance&type=student"
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-none border border-orange-500/30 transition-all print:hidden"
-              >
-                <ClipboardIcon className="w-4 h-4" /> Card Studio
-              </Link>
               {/* Admin + Teacher only */}
               {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                 <>
@@ -1525,14 +1521,18 @@ export default function StudentsPage() {
           </div>
 
 
-          {/* ── Management Hub ─────────────────────────────── */}
+          {/* ── Management Hub ───────────────────────────────
+              Bulk & multi-step workflows live here. Labels are chosen so
+              each verb only appears ONCE across the header row above and
+              this hub — no duplicate "Register Student" / "Card Studio". */}
           <div className="bg-card border border-border p-5 print:hidden">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-4">Student Management</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {(([
-                { label: 'Register Students', sub: 'Bulk-add new students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+                { label: 'Bulk Register', sub: 'Add many students at once', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
                 { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20', adminTeacherOnly: true },
                 { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', adminTeacherOnly: true },
+                { label: 'Classes', sub: 'Manage class rosters', href: '/dashboard/classes', icon: UserGroupIcon, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20', adminTeacherOnly: true },
                 { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-orange-400 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
                 { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true, adminOnly: true },
               ] as { label: string; sub: string; href: string; icon: ComponentType<{ className?: string }>; color: string; danger?: boolean; adminOnly?: boolean; adminTeacherOnly?: boolean }[])).filter(item => {

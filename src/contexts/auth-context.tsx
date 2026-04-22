@@ -3,8 +3,29 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
-import type { UserProfile, AuthContextType } from '@/types';
+import type { UserProfile, AuthContextType, UserRole } from '@/types';
 import { apiFetch } from '@/lib/api-fetch';
+
+// ── "View as role" simulator ──
+// A UI-only preview tool so admins/teachers can sanity-check how the app
+// looks to schools, parents or students. Stored in sessionStorage so it
+// resets on tab close — prevents accidentally working-as-student for days.
+const VIEW_AS_KEY = 'rillcod_view_as_role';
+
+/**
+ * Returns the simulated role ONLY if the actual role is allowed to
+ * simulate it. Enforces a one-way hierarchy:
+ *   admin   → admin | teacher | school | parent | student
+ *   teacher → teacher | school | parent | student
+ *   others  → (no simulation at all)
+ */
+function resolveViewAsRole(actualRole: UserRole | null | undefined, requested: UserRole | null): UserRole | null {
+  if (!requested) return null;
+  if (requested === actualRole) return null; // not really simulating
+  if (actualRole === 'admin') return requested;
+  if (actualRole === 'teacher' && requested !== 'admin') return requested;
+  return null;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -43,6 +64,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(storedUser.current);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // ── View-as role simulation (UI-only) ─────────────────────────────
+  const [viewAsRoleRaw, setViewAsRoleRaw] = useState<UserRole | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = sessionStorage.getItem(VIEW_AS_KEY);
+    return (stored as UserRole | null) ?? null;
+  });
+
+  const setViewAsRole = useCallback((role: UserRole | null) => {
+    if (typeof window !== 'undefined') {
+      if (role) sessionStorage.setItem(VIEW_AS_KEY, role);
+      else sessionStorage.removeItem(VIEW_AS_KEY);
+    }
+    setViewAsRoleRaw(role);
+  }, []);
 
   // isLoading: true only while we don't yet know if a session exists.
   // If we found a stored user we already know — skip the spinner entirely.
@@ -252,11 +288,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchProfile, invalidateCache, refreshProfile]);
 
+  // Apply the view-as override if we're allowed to. `actualRole` is always
+  // the real JWT/DB role; `profile.role` is what the UI sees.
+  const actualRole = profile?.role ?? null;
+  const effectiveViewAsRole = resolveViewAsRole(actualRole, viewAsRoleRaw);
+  const effectiveProfile = useMemo<UserProfile | null>(() => {
+    if (!profile) return profile;
+    if (!effectiveViewAsRole) return profile;
+    return { ...profile, role: effectiveViewAsRole };
+  }, [profile, effectiveViewAsRole]);
+
+  // Clear simulation automatically when the actual role can no longer use it
+  // (sign-in as a different user, role downgrade, etc.)
+  useEffect(() => {
+    if (viewAsRoleRaw && !resolveViewAsRole(actualRole, viewAsRoleRaw)) {
+      setViewAsRole(null);
+    }
+  }, [actualRole, viewAsRoleRaw, setViewAsRole]);
+
   const value = useMemo<AuthContextType>(
     () => ({
       user,
       session,
-      profile,
+      profile: effectiveProfile,
+      actualRole,
+      viewAsRole: effectiveViewAsRole,
+      isSimulating: !!effectiveViewAsRole,
+      setViewAsRole,
       isLoading,
       loading: isLoading,
       profileLoading,
@@ -282,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
     }),
-    [user, session, profile, isLoading, profileLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
+    [user, session, effectiveProfile, actualRole, effectiveViewAsRole, setViewAsRole, isLoading, profileLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

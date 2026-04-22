@@ -111,10 +111,10 @@ export default function ProgressPage() {
           const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
 
           // Enrich with user data from API map
-          let subsData = (rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [])
+          const subsData = (rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [])
             .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
 
-          let enrData = (enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [])
+          const enrData = (enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [])
             .map((e: any) => ({ ...e, portal_users: umap[e.user_id] ?? null }));
 
           // 5. Initial Filter by school for non-admins

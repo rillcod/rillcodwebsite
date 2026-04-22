@@ -53,8 +53,9 @@ export default function SchoolBillingPage() {
   }, [profile?.school_id]); // eslint-disable-line
 
   const loadData = async () => {
+    const schoolId = profile?.school_id;
+    if (!schoolId) return;
     setLoading(true);
-    const schoolId = profile?.school_id!;
 
     const [cyclesRes, accountsRes, contactRes, schoolRes] = await Promise.all([
       supabase

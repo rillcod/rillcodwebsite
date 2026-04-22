@@ -81,12 +81,9 @@ function TeacherPersonalDashboard() {
   const [stats, setStats] = useState<TeacherStats>({
     myClasses: 0, totalStudents: 0, pendingGrades: 0, avgPerformance: 0,
   });
-
-  if (authLoading) return null;
-  if (!profile) return null;
   const [upcomingClasses, setUpcomingClasses] = useState<UpcomingClass[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [recentStudents, setRecentStudents] = useState<any[]>([]);
+  const [, setRecentStudents] = useState<any[]>([]);
   const [perfData, setPerfData] = useState<{ label: string; value: number; color: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
@@ -213,6 +210,8 @@ function TeacherPersonalDashboard() {
     loadStats();
     return () => { cancelled = true; };
   }, [profile?.id]); // eslint-disable-line
+
+  if (authLoading || !profile) return null;
 
   if (loading) {
     return (
@@ -473,9 +472,6 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   const { profile, loading: authLoading } = useAuth();
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  if (authLoading) return null;
-  if (!profile) return null;
   const [search, setSearch] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', phone: '', subject: '', password: '' });
@@ -542,6 +538,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   };
 
   useEffect(() => { load(); }, []);
+
+  const [promoting, setPromoting] = useState<string | null>(null);
+
+  if (authLoading || !profile) {
+    return null;
+  }
 
   const toggleActive = async (id: string, current: boolean) => {
     setToggling(id);
@@ -657,8 +659,6 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       setDeleting(null);
     }
   };
-
-  const [promoting, setPromoting] = useState<string | null>(null);
 
   const handlePromoteToAdmin = async (t: any) => {
     if (!confirm(`Promote ${t.full_name} to Admin? They will have full platform access and will no longer appear in the teachers list.`)) return;

@@ -32,7 +32,7 @@ export class MediaService {
         };
 
         // Update file metadata with transcoded video locations
-        let currentMetadata = fileData.metadata || {};
+        const currentMetadata = fileData.metadata || {};
         const updatedMetadata = { ...currentMetadata, video_processing: transcodedMetadata };
 
         await supabase

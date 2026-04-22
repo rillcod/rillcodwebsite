@@ -50,7 +50,7 @@ export default function EditParentPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [profile, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, id]);  
 
   useEffect(() => {
     if (!authLoading && profile && id) fetchData();
