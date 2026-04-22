@@ -518,6 +518,12 @@ export default function LessonPlanDetailPage() {
               <div className="space-y-2">
                 {weeks.map(w => {
                   const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
+                  const weekDescription = [w.objectives, w.activities].filter(Boolean).join('\n\n');
+                  const weekNotes = [
+                    w.notes ? `Teacher Notes:\n${w.notes}` : null,
+                    w.objectives ? `Learning Objectives:\n${w.objectives}` : null,
+                    w.activities ? `Planned Activities:\n${w.activities}` : null,
+                  ].filter(Boolean).join('\n\n');
                   const addLessonHref =
                     `/dashboard/lessons/add?` +
                     new URLSearchParams({
@@ -525,6 +531,10 @@ export default function LessonPlanDetailPage() {
                       week: String(w.week),
                       ...(plan.course_id ? { course_id: plan.course_id } : {}),
                       ...(w.topic ? { title: w.topic } : {}),
+                      ...(w.topic ? { topic: w.topic } : {}),
+                      ...(courseTitle ? { subject: courseTitle } : {}),
+                      ...(weekDescription ? { description: weekDescription } : {}),
+                      ...(weekNotes ? { lesson_notes: weekNotes } : {}),
                       flow_origin: 'lesson-plan',
                     }).toString();
                   return (

@@ -863,6 +863,11 @@ function LessonPlansPageInner() {
                     <option value="">All schools</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                  {!form.school_id && (
+                    <p className="text-[11px] text-amber-400 mt-1.5">
+                      Select a school first so Step 3 can load the right class list.
+                    </p>
+                  )}
                 </div>
               )}
               <div>
@@ -876,8 +881,11 @@ function LessonPlansPageInner() {
                     setForm(f => ({ ...f, class_id: next }));
                     if (next) setAutoClassMatch(false);
                   }}
+                  disabled={isAdmin && !form.school_id}
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                  <option value="">— Not assigned to a class —</option>
+                  <option value="">
+                    {isAdmin && !form.school_id ? 'Select school first…' : '— Not assigned to a class —'}
+                  </option>
                   {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
