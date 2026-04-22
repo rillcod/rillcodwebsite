@@ -13,9 +13,9 @@ interface CardPreviewProps {
 }
 
 const DEVICE_SIZES = {
-  mobile:  'w-56 h-80',
-  tablet:  'w-72 h-80',
-  desktop: 'w-80 h-56',
+  mobile:  'w-full max-w-[16rem] h-72 sm:h-80',
+  tablet:  'w-full max-w-[18rem] h-72 sm:h-80',
+  desktop: 'w-full max-w-[20rem] h-56',
 };
 
 export default function CardPreview({ cards, template, device }: CardPreviewProps) {
@@ -24,7 +24,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
 
   if (cards.length === 0) {
     return (
-      <div className="w-80 border-l border-border p-5 flex flex-col gap-4">
+      <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-border p-4 md:p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-black uppercase tracking-widest">Live Preview</h3>
         </div>
@@ -45,7 +45,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
   const next = () => { setCurrentIndex(i => Math.min(cards.length - 1, i + 1)); setShowAnswer(false); };
 
   return (
-    <div className="w-80 border-l border-border p-5 flex flex-col gap-4 overflow-y-auto">
+    <div className="w-full md:w-80 border-t md:border-t-0 md:border-l border-border p-4 md:p-5 flex flex-col gap-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <h3 className="text-sm font-black uppercase tracking-widest">Live Preview</h3>
@@ -97,17 +97,17 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
 
       {/* Controls */}
       <div className="flex items-center justify-between gap-2 shrink-0">
-        <button onClick={prev} disabled={currentIndex === 0}
+        <button type="button" onClick={prev} disabled={currentIndex === 0}
           className="p-2 bg-muted hover:bg-muted/80 disabled:opacity-30 rounded-xl transition-colors">
           <ArrowLeftIcon className="w-3.5 h-3.5" />
         </button>
 
-        <button onClick={() => setShowAnswer(v => !v)}
+        <button type="button" onClick={() => setShowAnswer(v => !v)}
           className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl transition-colors">
           {showAnswer ? 'Show Question' : 'Show Answer'}
         </button>
 
-        <button onClick={next} disabled={currentIndex === cards.length - 1}
+        <button type="button" onClick={next} disabled={currentIndex === cards.length - 1}
           className="p-2 bg-muted hover:bg-muted/80 disabled:opacity-30 rounded-xl transition-colors">
           <ArrowRightIcon className="w-3.5 h-3.5" />
         </button>
@@ -116,7 +116,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
       {/* Dot navigation */}
       <div className="flex justify-center gap-1 shrink-0">
         {cards.map((_, i) => (
-          <button key={i} onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
+          <button type="button" key={i} onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
             className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'bg-orange-500 w-5' : 'bg-muted w-1.5 hover:bg-muted-foreground/40'}`}
           />
         ))}

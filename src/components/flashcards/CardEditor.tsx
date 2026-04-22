@@ -29,7 +29,7 @@ export default function CardEditor({
   onAddCard
 }: CardEditorProps) {
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
+    <div className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">Card Editor</h3>
@@ -44,7 +44,7 @@ export default function CardEditor({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="bg-card border border-border p-4 rounded-lg space-y-4 hover:border-orange-500/30 transition-colors"
+            className="bg-card border border-border p-3 sm:p-4 rounded-lg space-y-4 hover:border-orange-500/30 transition-colors"
           >
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm">Card {index + 1}</h4>
@@ -62,6 +62,7 @@ export default function CardEditor({
                 
                 {cards.length > 1 && (
                   <motion.button
+                    type="button"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => onRemoveCard(card.id)}
@@ -150,6 +151,7 @@ export default function CardEditor({
         ))}
         
         <motion.button
+          type="button"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
           onClick={onAddCard}

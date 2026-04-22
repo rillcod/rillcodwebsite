@@ -84,7 +84,7 @@ export default function EnhancedFlashcardBuilder({
           {success && <SuccessNotification message={success} onClose={clearSuccess} />}
         </AnimatePresence>
 
-        <div className="flex flex-1 overflow-hidden pt-16">
+        <div className="flex flex-1 flex-col md:flex-row overflow-hidden pt-20 md:pt-16">
           {/* Sidebar — desktop inline, mobile drawer */}
           <BuilderSidebar
             selectedTemplate={selectedTemplate}
