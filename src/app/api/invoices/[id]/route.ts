@@ -92,3 +92,44 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });
 }
+
+// DELETE /api/invoices/[id] — admin-only (or school for its own unpaid invoices)
+export async function DELETE(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id } = await context.params;
+  const admin = adminClient();
+
+  const { data: existing } = await admin
+    .from('invoices')
+    .select('id, school_id, status, invoice_number')
+    .eq('id', id)
+    .single();
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Only admin may delete across all invoices; schools may only delete their own.
+  if (caller.role !== 'admin' && caller.role !== 'school') {
+    return NextResponse.json({ error: 'Only admin can delete invoices' }, { status: 403 });
+  }
+  if (caller.role === 'school' && existing.school_id !== caller.school_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  // Refuse to delete paid invoices — finance ledger integrity
+  if (existing.status === 'paid') {
+    return NextResponse.json(
+      {
+        error:
+          'Paid invoices cannot be deleted. Void or adjust via a reconciliation entry instead.',
+      },
+      { status: 400 },
+    );
+  }
+
+  const { error } = await admin.from('invoices').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true, invoice_number: existing.invoice_number });
+}

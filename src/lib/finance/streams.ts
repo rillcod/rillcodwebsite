@@ -60,7 +60,12 @@ export function splitSchoolAmount(totalAmount: number, commissionRate = DEFAULT_
 }
 
 export interface InvoiceClassifierInput {
-  stream?: FinanceStream | null;
+  /**
+   * Accept `string` (as emitted by Supabase generated types for a text
+   * column with a CHECK constraint) and narrow internally. Callers never
+   * have to cast.
+   */
+  stream?: FinanceStream | string | null;
   school_id?: string | null;
   portal_user_id?: string | null;
   billing_cycle_id?: string | null;
@@ -87,7 +92,7 @@ export function classifyInvoiceStream(row: InvoiceClassifierInput): FinanceStrea
 }
 
 export interface ReceiptClassifierInput {
-  stream?: FinanceStream | null;
+  stream?: FinanceStream | string | null;
   school_id?: string | null;
   student_id?: string | null;
   metadata?: Record<string, any> | null;

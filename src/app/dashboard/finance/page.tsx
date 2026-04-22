@@ -16,7 +16,7 @@ import {
   EyeIcon, ArrowTrendingUpIcon, ArrowRightIcon, ReceiptPercentIcon,
   DocumentArrowDownIcon,
 } from '@/lib/icons';
-import { PaymentsHub } from '@/components/finance/PaymentsHub';
+import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
@@ -1895,7 +1895,7 @@ export default function FinancePage() {
         <div className="min-h-[400px]">
           {tab === 'overview' && <OverviewTab profile={profile} />}
           {tab === 'billing_cycles' && <BillingCyclesTab profile={profile} />}
-          {tab === 'operations' && <PaymentsHub embedded />}
+          {tab === 'operations' && <OperationsHub embedded />}
           {tab === 'subscriptions' && <SubscriptionsTab profile={profile} />}
           {tab === 'settlements' && isAdmin && <SettlementsTab profile={profile} />}
           {tab === 'automation' && isAdmin && <AutomationTab />}
