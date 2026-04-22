@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import {
-  isAlwaysPublicProgramName,
-  isCourseVisibleToLearners,
-  isProgramVisibleToRole,
-  isStaffRole,
-} from '@/lib/courses/visibility';
+import { isCourseVisibleToLearners, isProgramVisibleToRole } from '@/lib/courses/visibility';
 
 function adminClient() {
   return createClient(
@@ -45,7 +40,7 @@ async function requireAdmin() {
   return caller;
 }
 
-// GET /api/programs — authenticated users see full list; anonymous may pass ?is_active=true (public catalog only)
+// GET /api/programs — admins: full list; others: flagship programmes + course rules (see visibility.ts)
 export async function GET(request: NextRequest) {
   try {
     const user = await requireSession();
@@ -77,22 +72,20 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Admin / teacher see everything including locked + empty courses.
-    // Everyone else (school / student / parent / public) sees only
-    // flagship programmes (Young Innovator, Teen Developer) with
-    // courses that are active AND have at least one lesson or assignment.
-    // School-mode (bootcamp / summer school / online) programmes are
-    // kept admin-only until we introduce a formal audience flag.
-    const isAdminOrTeacher = isStaffRole(callerRole);
+    // Admins: full program list + all courses (incl. empty) for management UIs.
+    // Teachers: same flagship list as school (Teen Developer, Young Innovator(s) only);
+    //            still see empty courses in those programmes so they can add content.
+    // School, students, parents, public: flagship programmes + only courses
+    // with at least one lesson or assignment; programmes with zero visible
+    // courses are omitted.
+    const isAdmin = callerRole === 'admin';
+    const isTeacher = callerRole === 'teacher';
+
     const rows = (data ?? [])
-      .filter((row: any) => {
-        if (isAdminOrTeacher) return true;
-        return isProgramVisibleToRole(row, callerRole ?? null);
-      })
+      .filter((row: any) => isProgramVisibleToRole(row, callerRole ?? null))
       .map((row: any) => {
-        if (isAdminOrTeacher) return row;
-        // Even flagship programmes hide EMPTY courses from learners —
-        // a "Teen Developer" with 5 placeholder courses is bad UX.
+        if (isAdmin) return row;
+        if (isTeacher) return row;
         const visibleCourses = (row.courses ?? []).filter((c: any) =>
           isCourseVisibleToLearners(
             { ...c, programs: { name: row.name } },
@@ -100,6 +93,10 @@ export async function GET(request: NextRequest) {
           ),
         );
         return { ...row, courses: visibleCourses };
+      })
+      .filter((row: any) => {
+        if (isAdmin || isTeacher) return true;
+        return (row.courses?.length ?? 0) > 0;
       });
 
     return NextResponse.json({ success: true, data: rows });

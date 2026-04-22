@@ -2,18 +2,19 @@
  * Course & programme visibility — application-layer policy.
  *
  * This module is the single source of truth for "who sees what" in the
- * academic catalogue (programmes, courses, lessons). Admin and teacher
- * roles bypass these filters entirely so they can manage visibility.
+ * academic catalogue (programmes, courses, lessons). **Only admins**
+ * see every programme in API catalog responses. Teachers, schools, and
+ * learners use the two flagship programmes (Teen Developer, Young Innovator(s))
+ * for selection UIs, except where noted below (e.g. teachers still see
+ * empty courses in flagship programmes so they can add content).
  *
  * ─────────────────────────────────────────────────────────────────────
  * Flagship programmes
  * ─────────────────────────────────────────────────────────────────────
  * `ALWAYS_PUBLIC_PROGRAMS` is the allow-list of programmes that MUST
- * reach every prospect (school, student, parent) regardless of the
- * `courses.is_locked` flag. These are Rillcod's headline curricula and
- * the ONLY programmes partner schools see by default. Other programmes
- * (bootcamp, summer school, online) are admin-visible only until they
- * are explicitly rolled out.
+ * reach schools, students, and parents, and the DEFAULT for teachers
+ * in syllabus / course pickers. (Bootcamp, summer school, online, etc.
+ * are admin-only in catalog APIs until a formal rollout flag exists.)
  *
  *  - Young Innovator(s)
  *  - Teen Developer(s)
@@ -45,9 +46,10 @@ export function isAlwaysPublicProgramName(name: string | null | undefined): bool
 }
 
 /**
- * Staff roles see the full catalogue (flagship + in-development + bootcamp
- * + summer-school + online). Schools, students and parents see ONLY the
- * flagship programmes unless an individual course escapes the lock.
+ * Platform staff in the "builder" sense (can author curriculum; used for
+ * per-course access rules elsewhere). This is **not** the same as "sees
+ * every programme" — for catalog listing, use `isAdminOnlyProgramCatalog` or
+ * `isProgramVisibleToRole` instead.
  */
 export function isStaffRole(role: string | null | undefined): role is StaffRole {
   return role === 'admin' || role === 'teacher';
@@ -58,24 +60,21 @@ export function isLearnerRole(role: string | null | undefined): boolean {
 }
 
 /**
- * Programme-level visibility.
+ * Programme-level visibility for catalog / syllabus pickers.
  *
  * Rules (in order):
  *   1. Inactive programmes are always hidden.
- *   2. Admin / teacher see everything.
- *   3. School, student, parent and public see ONLY flagship programmes
- *      (Young Innovator, Teen Developer). Non-flagship programmes are
- *      hidden until explicitly featured — this matches Rillcod's
- *      current partner-school offering; bootcamp / summer-school /
- *      online programmes can be rolled out later by flipping this rule
- *      (e.g. via a future `programs.metadata.audiences` column).
+ *   2. Admins see every active programme.
+ *   3. All other roles (teacher, school, student, parent, public) only see
+ *      flagship names (Teen Developer, Young Innovator(s)) — bootcamp and
+ *      other tracks stay off the default list.
  */
 export function isProgramVisibleToRole(
   program: { name?: string | null; is_active?: boolean | null },
   role: string | null | undefined,
 ): boolean {
   if (program.is_active === false) return false;
-  if (isStaffRole(role)) return true;
+  if (role === 'admin') return true;
   return isAlwaysPublicProgramName(program.name ?? null);
 }
 
@@ -97,9 +96,10 @@ export function hasCourseContent(course: {
 }
 
 /**
- * Decides whether a course should be visible to learners (student /
- * parent / guest / public catalog). Admin / teacher / school staff
- * views should NOT use this filter — they always see everything.
+ * Decides whether a course should be visible to learners (student,
+ * parent, guest, public, **and** partner school catalog views).
+ * Admin/teacher "full list" per programme does not use the content gate
+ * the same way — see /api/programs.
  *
  * A course is visible to learners when ALL of the following hold:
  *  - it is active (`is_active !== false`)
