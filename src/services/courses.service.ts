@@ -85,7 +85,7 @@ export class CoursesService {
 
         let query = supabase
             .from('courses')
-            .select('*, programs!inner(name)', { count: 'exact' });
+            .select('*, programs!inner(id, name)', { count: 'exact' });
 
         if (filters.tenantId) {
             query = query.eq('school_id', filters.tenantId);
