@@ -10,11 +10,13 @@ import {
     ArrowLeft, BookOpen, Check,
     Trash2, Plus, Paperclip,
     GraduationCap, Sparkles, Save,
-    Layout, FileText, Settings2, ChevronDown
+    Layout, FileText, Settings2, ChevronDown, Eye
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 import { SparklesIcon } from '@/lib/icons';
 import { normalizeLessonType } from '@/lib/lessons/lesson-type';
+import LessonPreviewModal from '@/features/lessons/components/LessonPreviewModal';
+import { AnimatePresence } from 'framer-motion';
 
 function hydrateAiFromMetadata(metadata: unknown) {
     const m = metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : {};
@@ -78,6 +80,17 @@ export default function EditLessonPage() {
     const [aiGrade, setAiGrade] = useState('JSS1–SS3');
     const [lastModel, setLastModel] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
+
+    const previewObjectives = (() => {
+        const raw = plan?.objectives;
+        if (!raw) return [] as string[];
+        if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+        return String(raw)
+            .split(/\r?\n|•|-/)
+            .map((line: string) => line.trim())
+            .filter(Boolean);
+    })();
 
     const fetchData = useCallback(async () => {
         if (!profile || !id) return;
@@ -355,8 +368,15 @@ export default function EditLessonPage() {
                                 <Check className="w-3.5 h-3.5" /> Saved
                             </span>
                         )}
+                        <button
+                            onClick={() => setShowPreview(true)}
+                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-black text-xs uppercase tracking-widest rounded-none shadow-lg shadow-violet-900/30 transition-all min-h-[44px]"
+                            title="Preview as a student — see the live rendered lesson before saving"
+                        >
+                            <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
+                        </button>
                         {!isMinimal && (
-                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-none font-bold text-sm hover:bg-muted transition-all">
+                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-none font-bold text-sm hover:bg-muted transition-all hidden sm:inline-block">
                                 View Live
                             </Link>
                         )}
@@ -596,6 +616,25 @@ export default function EditLessonPage() {
                     )}
                 </div>
             </div>
+
+            <AnimatePresence>
+                {showPreview && (
+                    <LessonPreviewModal
+                        key="edit-lesson-preview"
+                        title={form.title}
+                        description={form.description}
+                        lessonType={form.lesson_type}
+                        durationMinutes={form.duration_minutes}
+                        grade={aiGrade}
+                        model={lastModel ?? undefined}
+                        objectives={previewObjectives}
+                        contentLayout={(form.content_layout as any[]) ?? []}
+                        lessonNotes={form.lesson_notes}
+                        onClose={() => setShowPreview(false)}
+                        primaryLabel="Back to editor"
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

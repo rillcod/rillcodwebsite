@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('role, school_id')
+    .select('role, school_id, email')
     .eq('id', user.id)
     .single();
 
@@ -34,18 +34,40 @@ export async function GET(req: NextRequest) {
   const db = createAdminClient();
   let q = db
     .from('payment_transactions')
-    .select('*, portal_users(full_name, email)')
+    .select('*, portal_users(full_name, email), invoices(invoice_number, items), courses(title)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .limit(21); // fetch 21 to detect next page
+    .limit(21);
 
-  // Scope by school
-  if (profile.role === 'admin' && schoolIdParam) {
+  // Scoping precedence (most-specific first)
+  if (profile.role === 'student') {
+    q = q.eq('portal_user_id', user.id) as any;
+  } else if (profile.role === 'parent') {
+    // Parents: transactions they paid (portal_user_id = parent)
+    // OR transactions for invoices tied to any of their children
+    // (children are linked via students.parent_email = parent's email).
+    const parentEmail = (profile as any).email as string | undefined;
+    let childUserIds: string[] = [];
+    if (parentEmail) {
+      const { data: children } = await db
+        .from('students')
+        .select('user_id')
+        .eq('parent_email', parentEmail);
+      childUserIds = (children ?? [])
+        .map((c: any) => c.user_id)
+        .filter((v: string | null): v is string => Boolean(v));
+    }
+    if (childUserIds.length > 0) {
+      q = q.or(
+        `portal_user_id.eq.${user.id},portal_user_id.in.(${childUserIds.join(',')})`
+      ) as any;
+    } else {
+      q = q.eq('portal_user_id', user.id) as any;
+    }
+  } else if (profile.role === 'admin' && schoolIdParam) {
     q = q.eq('school_id', schoolIdParam) as any;
   } else if (profile.role !== 'admin' && profile.school_id) {
     q = q.eq('school_id', profile.school_id) as any;
-  } else if (profile.role === 'student' || profile.role === 'parent') {
-    q = q.eq('portal_user_id', user.id) as any;
   }
 
   if (statusFilter) q = q.eq('payment_status', statusFilter) as any;

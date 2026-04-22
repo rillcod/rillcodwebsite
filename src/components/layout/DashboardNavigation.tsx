@@ -152,6 +152,7 @@ export default function DashboardNavigation() {
           { name: 'Activity Logs',     href: '/dashboard/activity-logs',   icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Finance' },
+          { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
           { name: 'Smart Finance',     href: '/dashboard/finance',         icon: BanknotesIcon },
 
           { divider: true, label: 'System' },
@@ -213,6 +214,9 @@ export default function DashboardNavigation() {
           { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
           { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
 
+          { divider: true, label: 'Finance' },
+          { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
+
           { divider: true, label: 'More' },
           { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
@@ -256,6 +260,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Account' },
           { name: 'My Access Card',    href: '/dashboard/my-card',         icon: CreditCardIcon },
+          { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
           ...(['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
             ? [{ name: 'My Payments', href: '/dashboard/my-payments', icon: BanknotesIcon }]
             : []),
@@ -295,6 +300,7 @@ export default function DashboardNavigation() {
           { name: 'Performance',       href: '/dashboard/progress',        icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Finance' },
+          { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
           { name: 'My Billing',        href: '/dashboard/school-billing',  icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
@@ -321,6 +327,7 @@ export default function DashboardNavigation() {
           { name: "Access Cards",      href: '/dashboard/parent-card',     icon: CreditCardIcon },
 
           { divider: true, label: 'Finance' },
+          { name: 'Money Hub',           href: '/dashboard/money',           icon: CreditCardIcon },
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
