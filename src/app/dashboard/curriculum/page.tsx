@@ -1190,6 +1190,28 @@ export default function CurriculumPage() {
               curriculumId={curriculum?.id ?? null}
               courseTitle={selectedCourse.title}
             />
+            {curriculum?.id && (
+              <div className="mt-3 pt-3 border-t border-border/60">
+                <Link
+                  href={(() => {
+                    const q = new URLSearchParams({
+                      course_id: selectedCourse.id,
+                      curriculum_id: curriculum.id,
+                    });
+                    const pid = selectedCourse.program_id ?? selectedProgram?.id;
+                    if (pid) q.set('program_id', pid);
+                    return `/dashboard/lesson-plans?${q.toString()}`;
+                  })()}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
+                >
+                  <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
+                  Create term lesson plan from this syllabus (week-by-week)
+                </Link>
+                <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
+                  Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
