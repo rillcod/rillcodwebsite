@@ -140,6 +140,8 @@ interface CurriculumDoc {
    */
   is_visible_to_school?: boolean;
   school_id?: string | null;
+  /** Joined from schools — which partner this row belongs to (null = platform template). */
+  schools?: { id: string; name: string } | null;
 }
 
 interface WeekTracking {
@@ -212,6 +214,13 @@ export default function CurriculumPage() {
   const [catalogQuery, setCatalogQuery] = useState('');
   /** All syllabus rows for the selected course (global vs school-scoped, versions). */
   const [curriculumList, setCurriculumList] = useState<CurriculumDoc[]>([]);
+  /** Schools the teacher (or admin) can scope a new syllabus to — from GET /api/schools */
+  const [assignedSchools, setAssignedSchools] = useState<{ id: string; name: string }[]>([]);
+  /**
+   * POST /api/curricula body: `school_id: null` = platform, else UUID for that school.
+   * One row per (course, school) in the database.
+   */
+  const [generateScope, setGenerateScope] = useState<'platform' | string>('platform');
   // Form state for generation modal
   const [form, setForm] = useState({
     grade_level: 'JSS1',
@@ -280,6 +289,32 @@ export default function CurriculumPage() {
       })
       .catch(() => setLoadError('Failed to load programs — please refresh the page.'));
   }, [searchParams]);
+
+  // Load schools for “syllabus scope” when building / regenerating (admin: all; teacher: assigned)
+  useEffect(() => {
+    if (!canTrack) return;
+    fetch('/api/schools', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setAssignedSchools((j.data ?? []) as { id: string; name: string }[]))
+      .catch(() => setAssignedSchools([]));
+  }, [canTrack]);
+
+  const openGenerateModal = useCallback(() => {
+    if (curriculum) {
+      setGenerateScope(curriculum.school_id ? curriculum.school_id : 'platform');
+    } else if (assignedSchools.length === 0) {
+      setGenerateScope('platform');
+    } else if (assignedSchools.length === 1) {
+      setGenerateScope(assignedSchools[0].id);
+    } else if (isAdmin) {
+      setGenerateScope('platform');
+    } else if (profile?.school_id && assignedSchools.some((s) => s.id === profile.school_id)) {
+      setGenerateScope(profile.school_id);
+    } else {
+      setGenerateScope(assignedSchools[0].id);
+    }
+    setShowGenerate(true);
+  }, [curriculum, assignedSchools, isAdmin, profile?.school_id]);
 
   // When filtering, expand every programme that still has a visible course
   useEffect(() => {
@@ -371,6 +406,7 @@ export default function CurriculumPage() {
         body: JSON.stringify({
           course_id: selectedCourse.id,
           course_name: selectedCourse.title,
+          school_id: generateScope === 'platform' ? null : generateScope,
           ...form,
           term_count: Number(form.term_count),
           weeks_per_term: Number(form.weeks_per_term),
@@ -771,12 +807,17 @@ export default function CurriculumPage() {
               onChange={(e) => { void selectCurriculumVersion(e.target.value); }}
               className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
             >
-              {curriculumList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.school_id ? `School-scoped (v${c.version})` : `Platform (v${c.version})`} —{' '}
-                  {new Date(c.created_at).toLocaleDateString()}
-                </option>
-              ))}
+              {curriculumList.map((c) => {
+                const schoolName = c.schools?.name;
+                const label = c.school_id
+                  ? `${schoolName ?? 'School'} · v${c.version}`
+                  : `Platform template · v${c.version}`;
+                return (
+                  <option key={c.id} value={c.id}>
+                    {label} — {new Date(c.created_at).toLocaleDateString()}
+                  </option>
+                );
+              })}
             </select>
             <p className="text-[10px] text-muted-foreground sm:ml-auto max-w-prose">
               Multiple versions can exist (e.g. one per school). Choose which copy you are editing and generating from.
@@ -1188,7 +1229,7 @@ export default function CurriculumPage() {
             )}
             {canGenerate ? (
               <button
-                onClick={() => setShowGenerate(true)}
+                onClick={openGenerateModal}
                 className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors"
               >
                 <SparklesIcon className="w-4 h-4" /> Generate Syllabus
@@ -1290,7 +1331,7 @@ export default function CurriculumPage() {
                 </Link>
                 {canGenerate && (
                   <button
-                    onClick={() => setShowGenerate(true)}
+                    onClick={openGenerateModal}
                     className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
                   >
                     <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
@@ -1691,6 +1732,32 @@ export default function CurriculumPage() {
               <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400 flex gap-2">
                 <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>This will create a new version (v{(curriculum.version ?? 0) + 1}). Existing tracking progress will be preserved.</span>
+              </div>
+            )}
+
+            {canTrack && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Syllabus scope (unique per school)
+                </label>
+                <select
+                  value={generateScope}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setGenerateScope(v === 'platform' ? 'platform' : v);
+                  }}
+                  className={SELECT_CLS}
+                >
+                  <option value="platform">Platform — shared Rillcod template (optional; use per-school rows for partners)</option>
+                  {assignedSchools.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} — custom syllabus &amp; flow only for this school
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span> (plus one platform row). School A can run Scratch Jr one way and School B another — or you can align them; each partner still has its own row.
+                </p>
               </div>
             )}
 

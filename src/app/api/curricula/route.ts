@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // extend to 2 min for AI generation
@@ -147,7 +155,7 @@ async function generateCurriculum(prompt: string): Promise<any> {
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -206,7 +214,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('course_curricula')
-    .select('*, courses!course_id(title), portal_users!created_by(full_name)')
+    .select('*, courses!course_id(title), portal_users!created_by(full_name), schools(id, name)')
     .order('created_at', { ascending: false });
 
   // Schools, students and parents respect the teacher-controlled
@@ -238,7 +246,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -252,13 +260,55 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = await req.json();
+  const body = await req.json();
+  const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = body;
   if (!course_name) return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
   if (!course_id) return NextResponse.json({ error: 'course_id is required' }, { status: 400 });
   const tc = Number(term_count ?? 3);
   const wpt = Number(weeks_per_term ?? 8);
   if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
   if (!Number.isInteger(wpt) || wpt < 6) return NextResponse.json({ error: 'weeks_per_term must be at least 6' }, { status: 400 });
+
+  // ── Target school: one syllabus row per (course_id, school_id) — unique in DB.
+  // - `school_id` omitted → admin defaults to platform (null); teacher defaults to profile.school_id.
+  // - `school_id: null` → platform / shared Rillcod template.
+  // - `school_id: "<uuid>"` → that partner school (teacher must be in teacher_schools or match profile.school_id).
+  const hasExplicitSchool = Object.prototype.hasOwnProperty.call(body, 'school_id');
+  let targetSchoolId: string | null;
+  if (hasExplicitSchool) {
+    targetSchoolId = body.school_id;
+    if (targetSchoolId !== null && (typeof targetSchoolId !== 'string' || !targetSchoolId.length)) {
+      return NextResponse.json({ error: 'school_id must be a UUID, or null for platform template' }, { status: 400 });
+    }
+  } else if (profile.role === 'admin') {
+    targetSchoolId = null;
+  } else {
+    targetSchoolId = profile.school_id ?? null;
+  }
+
+  const admin = adminClient();
+  if (targetSchoolId) {
+    const { data: sch } = await admin.from('schools').select('id').eq('id', targetSchoolId).maybeSingle();
+    if (!sch) {
+      return NextResponse.json({ error: 'Unknown school' }, { status: 400 });
+    }
+  }
+
+  if (profile.role === 'teacher' && targetSchoolId) {
+    const { data: link } = await admin
+      .from('teacher_schools')
+      .select('id')
+      .eq('teacher_id', user.id)
+      .eq('school_id', targetSchoolId)
+      .maybeSingle();
+    const profileOk = profile.school_id === targetSchoolId;
+    if (!link && !profileOk) {
+      return NextResponse.json(
+        { error: 'You can only create or update a syllabus for a school you are assigned to. Use the School scope dropdown.' },
+        { status: 403 },
+      );
+    }
+  }
 
   const prompt = buildCurriculumPrompt(
     course_name,
@@ -274,35 +324,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
-  // Update existing or insert new
+  // Update existing or insert new — scope by (course_id, targetSchoolId)
   if (course_id) {
-    let existingQuery = (supabase as any)
+    let existingQuery = supabase
       .from('course_curricula')
       .select('id, version')
       .eq('course_id', course_id);
-    if (profile.school_id) existingQuery = existingQuery.eq('school_id', profile.school_id);
+    if (targetSchoolId) {
+      existingQuery = existingQuery.eq('school_id', targetSchoolId) as typeof existingQuery;
+    } else {
+      existingQuery = existingQuery.is('school_id', null) as typeof existingQuery;
+    }
     const { data: existing } = await existingQuery.maybeSingle();
 
     if (existing) {
       const { data, error } = await supabase
         .from('course_curricula')
-        .update({ content: aiContent, version: existing.version + 1, updated_at: new Date().toISOString() })
-        .eq('id', existing.id)
-        .select()
+        .update({ content: aiContent, version: (existing as { version: number }).version + 1, updated_at: new Date().toISOString() })
+        .eq('id', (existing as { id: string }).id)
+        .select('*, schools(id, name)')
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ data });
     }
   }
 
-  const insertPayload: any = { content: aiContent, version: 1, created_by: user.id };
+  const insertPayload: Record<string, unknown> = { content: aiContent, version: 1, created_by: user.id };
   if (course_id) insertPayload.course_id = course_id;
-  if (profile.school_id) insertPayload.school_id = profile.school_id;
+  insertPayload.school_id = targetSchoolId;
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('course_curricula')
-    .insert(insertPayload)
-    .select()
+    .insert(insertPayload as any)
+    .select('*, schools(id, name)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
