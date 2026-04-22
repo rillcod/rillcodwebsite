@@ -25,6 +25,7 @@ export default function EnhancedFlashcardBuilder({
 }: EnhancedFlashcardBuilderProps) {
   const {
     cards,
+    initialized,
     selectedTemplate,
     previewDevice,
     showPreview,
@@ -102,13 +103,19 @@ export default function EnhancedFlashcardBuilder({
           />
 
           {/* Card Editor */}
-          <CardEditor
-            cards={cards}
-            selectedTemplate={selectedTemplate}
-            onUpdateCard={updateCard}
-            onRemoveCard={removeCard}
-            onAddCard={addCard}
-          />
+          {!initialized ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-sm text-muted-foreground">Loading deck cards...</div>
+            </div>
+          ) : (
+            <CardEditor
+              cards={cards}
+              selectedTemplate={selectedTemplate}
+              onUpdateCard={updateCard}
+              onRemoveCard={removeCard}
+              onAddCard={addCard}
+            />
+          )}
 
           {/* Preview Panel — desktop only */}
           {showPreview && (
