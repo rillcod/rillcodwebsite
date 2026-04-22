@@ -1248,13 +1248,20 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
 }
 
 // ── AnimatedBlock: scroll-triggered entrance for every lesson block ──────────
+// Premium entrance: slight scale + rise + fade; gpu-accelerated via transform.
+// Stagger is capped so later blocks don't feel laggy during rapid scrolling.
 function AnimatedBlock({ children, i }: { children: React.ReactNode; i: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 32 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.5, delay: Math.min(i * 0.04, 0.2), ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 24, scale: 0.985 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{
+        duration: 0.55,
+        delay: Math.min(i * 0.05, 0.25),
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      style={{ willChange: 'transform, opacity' }}
     >
       {children}
     </motion.div>
