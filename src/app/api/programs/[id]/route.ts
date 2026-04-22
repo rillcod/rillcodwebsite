@@ -124,9 +124,32 @@ export async function PUT(
     const body = await request.json();
 
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    const fields = ['name', 'description', 'duration_weeks', 'difficulty_level', 'price', 'max_students', 'is_active', 'delivery_type'];
+    const fields = [
+      'name',
+      'description',
+      'duration_weeks',
+      'difficulty_level',
+      'price',
+      'max_students',
+      'is_active',
+      'delivery_type',
+      'program_scope',
+      'school_progression_enabled',
+      'session_frequency_per_week',
+      'progression_policy',
+    ];
     for (const f of fields) {
       if (f in body) allowed[f] = body[f] ?? null;
+    }
+
+    // Keep progression policy restricted to regular_school programs only.
+    const nextScope = (allowed.program_scope as string | undefined) ?? (body.program_scope as string | undefined);
+    if (nextScope && ['summer_school', 'online', 'bootcamp'].includes(nextScope)) {
+      allowed.school_progression_enabled = false;
+    }
+
+    if ('session_frequency_per_week' in allowed) {
+      allowed.session_frequency_per_week = allowed.session_frequency_per_week === 2 ? 2 : 1;
     }
 
     const { data, error } = await adminClient()

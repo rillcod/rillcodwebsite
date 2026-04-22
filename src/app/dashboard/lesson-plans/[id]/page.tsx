@@ -18,6 +18,11 @@ interface WeekEntry {
   objectives?: string;
   activities?: string;
   notes?: string;
+  progression_badge?: {
+    id?: string;
+    label?: string;
+    variant?: string;
+  };
 }
 
 interface LessonPlan {
@@ -66,9 +71,10 @@ export default function LessonPlanDetailPage() {
   const [editingWeek, setEditingWeek] = useState<number | null>(null);
   const [weekDraft, setWeekDraft] = useState<WeekEntry | null>(null);
   const [activeTab, setActiveTab] = useState<'weeks' | 'content'>('weeks');
-  const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | null>(null);
+  const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | 'progression' | null>(null);
   const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
   const [linkedLessons, setLinkedLessons] = useState<{ id: string; title: string; status: string; metadata?: { week?: number } | null }[]>([]);
+  const isSchoolRole = profile?.role === 'school';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -204,6 +210,33 @@ export default function LessonPlanDetailPage() {
     } catch (err: any) {
       toast.error(err.message || 'Generation failed');
       setGenProgress(null);
+      setGenerating(null);
+    }
+  }
+
+  async function generateProgression() {
+    if (!plan) return;
+    setGenerating('progression');
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strict_route: true,
+          year_number: 1,
+          term_number: 1,
+          weeks_count: weeks.length > 0 ? weeks.length : 12,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Progression generation failed');
+      toast.success(
+        `Generated ${j.data?.generated_weeks ?? 0} weeks with strict Platform → School route.`,
+      );
+      load();
+    } catch (err: any) {
+      toast.error(err.message || 'Progression generation failed');
+    } finally {
       setGenerating(null);
     }
   }
@@ -420,6 +453,11 @@ export default function LessonPlanDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-black text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
+                          {w.progression_badge?.label && (
+                            <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                              {w.progression_badge.label}
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-bold text-card-foreground text-sm">{w.topic || <span className="text-card-foreground/30 italic">No topic</span>}</h3>
                         {w.objectives && <p className="text-xs text-card-foreground/50 mt-1 line-clamp-1">{w.objectives}</p>}
@@ -461,6 +499,15 @@ export default function LessonPlanDetailPage() {
             <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
               <h3 className="text-sm font-black text-card-foreground mb-3">Bulk Content Generation</h3>
               <div className="flex flex-wrap gap-2">
+                {isSchoolRole && (
+                  <button
+                    onClick={generateProgression}
+                    disabled={generating !== null}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                  >
+                    <SparklesIcon className="w-4 h-4" /> Generate Progression Route
+                  </button>
+                )}
                 <button
                   onClick={() => bulkGenerate('lessons')}
                   disabled={generating !== null}

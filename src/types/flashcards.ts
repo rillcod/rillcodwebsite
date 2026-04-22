@@ -15,6 +15,11 @@ export interface FlashcardDeck {
   is_public: boolean;
   description: string | null;
   tags: string[];
+  school_progression_enabled: boolean;
+  progression_track: 'young_innovator' | 'scratch' | 'python' | 'html' | null;
+  progression_delivery_mode: 'optional' | 'compulsory' | null;
+  progression_weekly_frequency: 1 | 2 | null;
+  progression_policy_snapshot: Record<string, unknown>;
   updated_at: string;
 }
 

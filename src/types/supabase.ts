@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -2168,6 +2143,294 @@ export type Database = {
           },
         ]
       }
+      curriculum_project_registry: {
+        Row: {
+          classwork_prompt: string | null
+          concept_tags: string[]
+          course_id: string | null
+          created_at: string
+          created_by: string | null
+          difficulty_level: number
+          estimated_minutes: number | null
+          id: string
+          is_active: boolean
+          metadata: Json
+          program_id: string | null
+          project_key: string
+          school_id: string | null
+          title: string
+          track: string
+          updated_at: string
+        }
+        Insert: {
+          classwork_prompt?: string | null
+          concept_tags?: string[]
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          difficulty_level?: number
+          estimated_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          program_id?: string | null
+          project_key: string
+          school_id?: string | null
+          title: string
+          track: string
+          updated_at?: string
+        }
+        Update: {
+          classwork_prompt?: string | null
+          concept_tags?: string[]
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          difficulty_level?: number
+          estimated_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          program_id?: string | null
+          project_key?: string
+          school_id?: string | null
+          title?: string
+          track?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_project_registry_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_registry_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_registry_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_registry_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_registry_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_project_usage: {
+        Row: {
+          class_id: string | null
+          course_id: string | null
+          id: string
+          is_repeat: boolean
+          lesson_plan_id: string | null
+          metadata: Json
+          project_id: string
+          school_id: string
+          term_number: number
+          used_at: string
+          week_number: number
+          year_number: number
+        }
+        Insert: {
+          class_id?: string | null
+          course_id?: string | null
+          id?: string
+          is_repeat?: boolean
+          lesson_plan_id?: string | null
+          metadata?: Json
+          project_id: string
+          school_id: string
+          term_number: number
+          used_at?: string
+          week_number: number
+          year_number: number
+        }
+        Update: {
+          class_id?: string | null
+          course_id?: string | null
+          id?: string
+          is_repeat?: boolean
+          lesson_plan_id?: string | null
+          metadata?: Json
+          project_id?: string
+          school_id?: string
+          term_number?: number
+          used_at?: string
+          week_number?: number
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_project_usage_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_usage_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_usage_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_project_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_project_usage_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_week_performance: {
+        Row: {
+          class_id: string | null
+          completed: boolean
+          completion_seconds: number
+          course_id: string | null
+          created_at: string
+          id: string
+          lesson_plan_id: string
+          practical_score: number
+          recorded_by: string | null
+          retry_count: number
+          school_id: string
+          student_id: string
+          term_number: number
+          updated_at: string
+          week_number: number
+          year_number: number
+        }
+        Insert: {
+          class_id?: string | null
+          completed?: boolean
+          completion_seconds?: number
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          lesson_plan_id: string
+          practical_score?: number
+          recorded_by?: string | null
+          retry_count?: number
+          school_id: string
+          student_id: string
+          term_number: number
+          updated_at?: string
+          week_number: number
+          year_number: number
+        }
+        Update: {
+          class_id?: string | null
+          completed?: boolean
+          completion_seconds?: number
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          lesson_plan_id?: string
+          practical_score?: number
+          recorded_by?: string | null
+          retry_count?: number
+          school_id?: string
+          student_id?: string
+          term_number?: number
+          updated_at?: string
+          week_number?: number
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_week_performance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curriculum_week_performance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       curriculum_week_tracking: {
         Row: {
           actual_date: string | null
@@ -3051,7 +3314,12 @@ export type Database = {
           id: string
           is_public: boolean | null
           lesson_id: string | null
+          progression_delivery_mode: string | null
+          progression_policy_snapshot: Json
+          progression_track: string | null
+          progression_weekly_frequency: number | null
           school_id: string | null
+          school_progression_enabled: boolean
           tags: string[] | null
           title: string
           updated_at: string | null
@@ -3064,7 +3332,12 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
+          progression_delivery_mode?: string | null
+          progression_policy_snapshot?: Json
+          progression_track?: string | null
+          progression_weekly_frequency?: number | null
           school_id?: string | null
+          school_progression_enabled?: boolean
           tags?: string[] | null
           title: string
           updated_at?: string | null
@@ -3077,7 +3350,12 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           lesson_id?: string | null
+          progression_delivery_mode?: string | null
+          progression_policy_snapshot?: Json
+          progression_track?: string | null
+          progression_weekly_frequency?: number | null
           school_id?: string | null
+          school_progression_enabled?: boolean
           tags?: string[] | null
           title?: string
           updated_at?: string | null
@@ -5737,7 +6015,11 @@ export type Database = {
           max_students: number | null
           name: string
           price: number | null
+          program_scope: string
+          progression_policy: Json
           school_id: string | null
+          school_progression_enabled: boolean
+          session_frequency_per_week: number
           updated_at: string | null
         }
         Insert: {
@@ -5753,7 +6035,11 @@ export type Database = {
           max_students?: number | null
           name: string
           price?: number | null
+          program_scope?: string
+          progression_policy?: Json
           school_id?: string | null
+          school_progression_enabled?: boolean
+          session_frequency_per_week?: number
           updated_at?: string | null
         }
         Update: {
@@ -5769,7 +6055,11 @@ export type Database = {
           max_students?: number | null
           name?: string
           price?: number | null
+          program_scope?: string
+          progression_policy?: Json
           school_id?: string | null
+          school_progression_enabled?: boolean
+          session_frequency_per_week?: number
           updated_at?: string | null
         }
         Relationships: [
@@ -9103,9 +9393,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

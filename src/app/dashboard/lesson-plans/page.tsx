@@ -47,6 +47,12 @@ interface LessonPlan {
   schools?: { id: string; name: string } | null;
 }
 
+function getWeekEntries(planData: LessonPlan['plan_data']): Array<Record<string, unknown>> {
+  if (!planData || typeof planData !== 'object') return [];
+  const maybeWeeks = (planData as Record<string, unknown>).weeks;
+  return Array.isArray(maybeWeeks) ? (maybeWeeks as Array<Record<string, unknown>>) : [];
+}
+
 interface Course {
   id: string;
   title: string;
@@ -671,6 +677,10 @@ function LessonPlansPageInner() {
             const status = plan.status ?? 'draft';
             const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
             const courseTitle = plan.courses?.title ?? plan.lessons?.courses?.title ?? 'Unknown Course';
+            const hasStrictRouteBadge = getWeekEntries(plan.plan_data).some((w) => {
+              const badge = w.progression_badge;
+              return !!badge && typeof badge === 'object' && !!(badge as Record<string, unknown>).id;
+            });
             return (
               <Link key={plan.id} href={`/dashboard/lesson-plans/${plan.id}`}
                 className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-violet-500/30 transition-all group block">
@@ -681,6 +691,11 @@ function LessonPlansPageInner() {
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
                       {(plan.version ?? 1) > 1 && (
                         <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
+                      )}
+                      {hasStrictRouteBadge && (
+                        <span className="text-xs text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                          Platform → School
+                        </span>
                       )}
                     </div>
                     <h3 className="font-black text-card-foreground text-base truncate">
