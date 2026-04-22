@@ -114,6 +114,15 @@ function getCurrentTermLabel(): string {
   return 'Second Term';
 }
 
+/** Match syllabus JSON `terms[].term` (1–3) to UI term like "First Term" or "First Term 2025/2026". */
+function inferTermNumberFromLabel(term: string): number {
+  const s = term.trim().toLowerCase();
+  if (s.startsWith('first') || /\b1st\b/.test(s) || /\bterm\s*1\b/.test(s)) return 1;
+  if (s.startsWith('second') || /\b2nd\b/.test(s) || /\bterm\s*2\b/.test(s)) return 2;
+  if (s.startsWith('third') || /\b3rd\b/.test(s) || /\bterm\s*3\b/.test(s)) return 3;
+  return 1;
+}
+
 function LessonPlansPageInner() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const sp = useSearchParams();
@@ -463,6 +472,24 @@ function LessonPlansPageInner() {
       (selectedId ? c.id === selectedId : false),
     );
   }, [curricula, form.school_id, form.curriculum_version_id]);
+
+  const syllabusWeeksPreview = useMemo(() => {
+    const doc = curricula.find((c) => c.id === form.curriculum_version_id);
+    const content = doc?.content as {
+      terms?: Array<{ term: number; title?: string; weeks?: Array<{ week: number; topic?: string }> }>;
+    } | undefined;
+    if (!content?.terms?.length) return { termLabel: '', weeks: [] as Array<{ week: number; topic: string }> };
+    const tn = inferTermNumberFromLabel(form.term || 'First Term');
+    const termData = content.terms.find((t) => t.term === tn) ?? content.terms[0];
+    const weeks = (termData.weeks ?? []).map((w) => ({
+      week: w.week,
+      topic: typeof w.topic === 'string' ? w.topic : '',
+    }));
+    return {
+      termLabel: termData.title ?? `Term ${termData.term}`,
+      weeks,
+    };
+  }, [curricula, form.curriculum_version_id, form.term]);
 
   const autoMatchClassHints = useMemo(() => {
     const selectedCurriculum = curricula.find(c => c.id === form.curriculum_version_id);
@@ -912,6 +939,30 @@ function LessonPlansPageInner() {
                     <p className="text-xs text-emerald-400 mt-1.5">✓ Week topics will be pre-filled from this syllabus.</p>
                   )}
                 </div>
+              )}
+
+              {form.course_id && form.curriculum_version_id && syllabusWeeksPreview.weeks.length > 0 && (
+                <details className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-3">
+                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-violet-300">
+                    <span>Syllabus preview — {syllabusWeeksPreview.termLabel}</span>
+                    <span className="text-[10px] font-bold text-violet-400/80 normal-case">tap to expand</span>
+                  </summary>
+                  <p className="text-[11px] text-muted-foreground mt-2 mb-2">
+                    Saving this plan copies these weeks in order into the term plan. Then open the plan: publish when ready, run <strong>Generate lessons / assignments / projects</strong> from there. For the progression library route, use <strong>Generate progression</strong> on the same plan.
+                  </p>
+                  <ol className="max-h-48 overflow-y-auto text-xs space-y-1 list-decimal pl-4 text-card-foreground/90">
+                    {syllabusWeeksPreview.weeks.slice(0, 40).map((w) => (
+                      <li key={w.week}>
+                        Week {w.week}: {w.topic || '—'}
+                      </li>
+                    ))}
+                  </ol>
+                  {syllabusWeeksPreview.weeks.length > 40 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      …and {syllabusWeeksPreview.weeks.length - 40} more weeks
+                    </p>
+                  )}
+                </details>
               )}
 
               {/* ── Step 3: Who ── */}

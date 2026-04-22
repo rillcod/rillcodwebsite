@@ -30,6 +30,16 @@ function canCreateLessonPlan(role: string | undefined) {
   return role === 'admin' || role === 'teacher';
 }
 
+/** Plan `term` is stored like "First Term 2025/2026" — match syllabus `terms[].term` (1–3). */
+function inferTermNumberFromPlanTerm(term: string | null | undefined): number {
+  if (!term) return 1;
+  const s = term.trim().toLowerCase();
+  if (s.startsWith('first') || /\b1st\b/.test(s) || /\bterm\s*1\b/.test(s)) return 1;
+  if (s.startsWith('second') || /\b2nd\b/.test(s) || /\bterm\s*2\b/.test(s)) return 2;
+  if (s.startsWith('third') || /\b3rd\b/.test(s) || /\bterm\s*3\b/.test(s)) return 3;
+  return 1;
+}
+
 // GET /api/lesson-plans — list lesson plans for a lesson or all accessible ones
 export async function GET(request: Request) {
   const user = await getUser();
@@ -161,8 +171,7 @@ export async function POST(request: Request) {
 
       const curriculumContent = curriculum?.content as any;
       if (curriculumContent?.terms) {
-        // Match term number from plan's term string
-        const termNum = term === 'First Term' ? 1 : term === 'Second Term' ? 2 : term === 'Third Term' ? 3 : 1;
+        const termNum = inferTermNumberFromPlanTerm(term);
         const termData = curriculumContent.terms.find((t: any) => t.term === termNum)
           ?? curriculumContent.terms[0];
 
