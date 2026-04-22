@@ -4,15 +4,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { 
-  ArrowLeftIcon,
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  XMarkIcon,
-  CheckIcon,
-  SparklesIcon,
-  ArrowPathIcon
+  ArrowLeftIcon, PlusIcon, PencilIcon, TrashIcon,
+  XMarkIcon, CheckIcon, SparklesIcon, ArrowPathIcon
 } from '@/lib/icons';
+import { toast } from 'sonner';
+import Link from 'next/link';
 import Link from 'next/link';
 
 interface Card {
@@ -62,11 +58,11 @@ export default function EditFlashcardDeckPage() {
       if (res.ok) {
         setDeck(json.data);
       } else {
-        alert(json.error || 'Failed to load deck');
+        toast.error(json.error || 'Failed to load deck');
         router.push('/dashboard/flashcards');
       }
-    } catch (error) {
-      alert('Failed to load deck');
+    } catch {
+      toast.error('Failed to load deck');
       router.push('/dashboard/flashcards');
     } finally {
       setLoading(false);
@@ -75,125 +71,86 @@ export default function EditFlashcardDeckPage() {
 
   async function addCard() {
     if (!newCardFront.trim() || !newCardBack.trim()) return;
-    
     setSaving(true);
     try {
+      const position = deck?.flashcard_cards?.length ?? 0;
       const res = await fetch(`/api/flashcards/decks/${deckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          front: newCardFront,
-          back: newCardBack
-        })
+        body: JSON.stringify({ front: newCardFront.trim(), back: newCardBack.trim(), position }),
       });
-      
       const json = await res.json();
       if (res.ok) {
-        setDeck(prev => prev ? {
-          ...prev,
-          flashcard_cards: [...prev.flashcard_cards, json.data]
-        } : null);
-        setNewCardFront('');
-        setNewCardBack('');
-        setShowAddCard(false);
+        setDeck(prev => prev ? { ...prev, flashcard_cards: [...prev.flashcard_cards, json.data] } : null);
+        setNewCardFront(''); setNewCardBack(''); setShowAddCard(false);
+        toast.success('Card added!');
       } else {
-        alert(json.error || 'Failed to add card');
+        toast.error(json.error || 'Failed to add card');
       }
-    } catch (error) {
-      alert('Failed to add card');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error('Failed to add card'); }
+    finally { setSaving(false); }
   }
 
   async function updateCard() {
     if (!editingCard || !newCardFront.trim() || !newCardBack.trim()) return;
-    
     setSaving(true);
     try {
       const res = await fetch(`/api/flashcards/cards/${editingCard.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          front: newCardFront,
-          back: newCardBack
-        })
+        body: JSON.stringify({ front: newCardFront.trim(), back: newCardBack.trim() }),
       });
-      
       const json = await res.json();
       if (res.ok) {
         setDeck(prev => prev ? {
           ...prev,
-          flashcard_cards: prev.flashcard_cards.map(card => 
-            card.id === editingCard.id ? json.data : card
-          )
+          flashcard_cards: prev.flashcard_cards.map(c => c.id === editingCard.id ? json.data : c)
         } : null);
-        setEditingCard(null);
-        setNewCardFront('');
-        setNewCardBack('');
+        setEditingCard(null); setNewCardFront(''); setNewCardBack('');
+        toast.success('Card updated!');
       } else {
-        alert(json.error || 'Failed to update card');
+        toast.error(json.error || 'Failed to update card');
       }
-    } catch (error) {
-      alert('Failed to update card');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error('Failed to update card'); }
+    finally { setSaving(false); }
   }
 
   async function deleteCard(cardId: string) {
     if (!confirm('Delete this flashcard?')) return;
-    
     try {
-      const res = await fetch(`/api/flashcards/cards/${cardId}`, {
-        method: 'DELETE'
-      });
-      
+      const res = await fetch(`/api/flashcards/cards/${cardId}`, { method: 'DELETE' });
       if (res.ok) {
         setDeck(prev => prev ? {
           ...prev,
-          flashcard_cards: prev.flashcard_cards.filter(card => card.id !== cardId)
+          flashcard_cards: prev.flashcard_cards.filter(c => c.id !== cardId)
         } : null);
+        toast.success('Card deleted');
       } else {
         const json = await res.json();
-        alert(json.error || 'Failed to delete card');
+        toast.error(json.error || 'Failed to delete card');
       }
-    } catch (error) {
-      alert('Failed to delete card');
-    }
+    } catch { toast.error('Failed to delete card'); }
   }
 
   async function generateAICards() {
     if (!aiTopic.trim() && !aiContent.trim()) return;
-    
     setGenerating(true);
     try {
       const res = await fetch(`/api/flashcards/decks/${deckId}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic: aiTopic,
-          content: aiContent,
-          count: aiCount,
-          difficulty: aiDifficulty
-        })
+        body: JSON.stringify({ topic: aiTopic, content: aiContent, count: aiCount, difficulty: aiDifficulty }),
       });
-      
       const json = await res.json();
       if (res.ok) {
-        alert(json.message || `Generated ${json.generated} flashcards!`);
-        setShowAIGenerate(false);
-        setAiTopic('');
-        setAiContent('');
-        loadDeck(); // Refresh to show new cards
+        toast.success(json.message || `Generated ${json.generated} flashcards!`);
+        setShowAIGenerate(false); setAiTopic(''); setAiContent('');
+        loadDeck();
       } else {
-        alert(json.error || 'Failed to generate flashcards');
+        toast.error(json.error || 'Failed to generate flashcards');
       }
-    } catch (error) {
-      alert('Failed to generate flashcards');
-    } finally {
-      setGenerating(false);
-    }
+    } catch { toast.error('Failed to generate flashcards'); }
+    finally { setGenerating(false); }
   }
 
   function startEdit(card: Card) {
@@ -316,7 +273,7 @@ export default function EditFlashcardDeckPage() {
                     <span className="text-xs text-muted-foreground font-medium">
                       Card {index + 1}
                     </span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => startEdit(card)}
                         className="p-2 hover:bg-muted rounded-none transition-colors"

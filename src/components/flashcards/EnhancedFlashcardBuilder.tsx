@@ -84,7 +84,7 @@ export default function EnhancedFlashcardBuilder({
           {success && <SuccessNotification message={success} onClose={clearSuccess} />}
         </AnimatePresence>
 
-        <div className="flex flex-1 overflow-hidden pt-[60px]">
+        <div className="flex flex-1 overflow-hidden pt-16">
           {/* Sidebar — desktop inline, mobile drawer */}
           <BuilderSidebar
             selectedTemplate={selectedTemplate}
@@ -96,9 +96,8 @@ export default function EnhancedFlashcardBuilder({
             onClose={() => setShowMobileSidebar(false)}
             onClearAll={() => {
               if (confirm('Clear all cards? This cannot be undone.')) {
-                cards.forEach((card, i) => i > 0 && removeCard(card.id));
-                updateCard(cards[0].id, 'front', '');
-                updateCard(cards[0].id, 'back', '');
+                cards.forEach((card) => removeCard(card.id));
+                addCard();
               }
             }}
           />

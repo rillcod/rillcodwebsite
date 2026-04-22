@@ -86,14 +86,37 @@ export default function StudentFlashcardReview({
     loadCards();
   }, [deckId]);
 
+  // Keyboard shortcuts: Space = flip, 1-4 = rate
+  useEffect(() => {
+    if (sessionComplete || loading) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === 'Space') { e.preventDefault(); flipCard(); }
+      if (showAnswer) {
+        if (e.key === '1') handleResponse(1);
+        if (e.key === '2') handleResponse(2);
+        if (e.key === '3') handleResponse(4);
+        if (e.key === '4') handleResponse(5);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showAnswer, sessionComplete, loading, currentIndex]);
+
   async function loadCards() {
     try {
-      const res = await fetch(`/api/flashcards/decks/${deckId}/due`);
+      // First try due cards
+      const res = await fetch(`/api/flashcards/decks/${deckId}/due?mode=due`);
       const json = await res.json();
-      if (res.ok && json.data) {
-        // Shuffle cards for better learning
-        const shuffled = [...json.data].sort(() => Math.random() - 0.5);
-        setCards(shuffled);
+      if (res.ok && json.data && json.data.length > 0) {
+        setCards([...json.data].sort(() => Math.random() - 0.5));
+      } else {
+        // Fall back to all cards if nothing is due
+        const allRes = await fetch(`/api/flashcards/decks/${deckId}/due?mode=all`);
+        const allJson = await allRes.json();
+        if (allRes.ok && allJson.data) {
+          setCards([...allJson.data].sort(() => Math.random() - 0.5));
+        }
       }
     } catch (error) {
       console.error('Failed to load cards:', error);
@@ -449,9 +472,19 @@ export default function StudentFlashcardReview({
 
           {/* Navigation Hint */}
           {!showAnswer && (
-            <div className="text-center mt-8">
+            <div className="text-center mt-8 space-y-1">
               <p className="text-muted-foreground text-sm">
-                Click the card to reveal the answer, then rate your performance
+                Click the card or press <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-xs font-mono">Space</kbd> to reveal the answer
+              </p>
+            </div>
+          )}
+          {showAnswer && (
+            <div className="text-center mt-4">
+              <p className="text-muted-foreground text-xs">
+                Keyboard: <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-xs font-mono">1</kbd> Forgot &nbsp;
+                <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-xs font-mono">2</kbd> Hard &nbsp;
+                <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-xs font-mono">3</kbd> Good &nbsp;
+                <kbd className="px-1 py-0.5 bg-muted border border-border rounded text-xs font-mono">4</kbd> Easy
               </p>
             </div>
           )}
