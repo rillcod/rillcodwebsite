@@ -30,9 +30,9 @@ const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunne
 });
 
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
-type MissionLanguage = 'javascript' | 'python' | 'html' | 'robotics';
+type MissionLanguage = 'javascript' | 'python' | 'html' | 'robotics' | 'typescript' | 'sql' | 'css';
 type FilterType = 'All' | Difficulty | 'Completed';
-type LangFilter = 'all' | 'javascript' | 'python' | 'html' | 'robotics';
+type LangFilter = 'all' | 'javascript' | 'python' | 'html' | 'robotics' | 'typescript' | 'sql' | 'css';
 
 interface Mission {
   id: string;
@@ -1042,7 +1042,414 @@ for d in final_data:
 </body>
 </html>`,
     tags: ['HTML5', 'canvas', 'animations', 'game dev'],
+  },
+
+  // ── TypeScript Missions ───────────────────────────────────────────────────
+  {
+    id: 'ts01',
+    title: 'TypeScript Basics',
+    description: 'Add type annotations to variables, functions, and objects.',
+    instructions: 'Rewrite the given JavaScript code in TypeScript: add types to all variables, function parameters, and return values. Create a Student interface with name (string), age (number), and scores (number[]).',
+    difficulty: 'Beginner',
+    language: 'typescript' as MissionLanguage,
+    xp: 80,
+    starterCode: `// TypeScript — Static Typing
+// Types catch bugs BEFORE your code runs!
+
+// 1. Typed variables
+const studentName: string = "Amara";
+const age: number = 15;
+const isEnrolled: boolean = true;
+const scores: number[] = [85, 92, 78, 95];
+
+// 2. Interface — a blueprint for objects
+interface Student {
+  name: string;
+  age: number;
+  grade: string;
+  scores: number[];
+}
+
+// 3. Typed function
+function getAverage(nums: number[]): number {
+  return nums.reduce((sum, n) => sum + n, 0) / nums.length;
+}
+
+// 4. Create a student using the interface
+const student: Student = {
+  name: studentName,
+  age: age,
+  grade: "SS1",
+  scores: scores,
+};
+
+console.log(\`Student: \${student.name}\`);
+console.log(\`Average: \${getAverage(student.scores).toFixed(1)}\`);
+console.log(\`Enrolled: \${isEnrolled}\`);`,
+    tags: ['typescript', 'types', 'interfaces', 'static typing'],
+  },
+  {
+    id: 'ts02',
+    title: 'TypeScript Generics',
+    description: 'Write reusable generic functions and typed data structures.',
+    instructions: 'Create a generic Stack<T> class that works with any type. Add push, pop, peek, and isEmpty methods. Then create a typed API response wrapper ApiResponse<T> interface.',
+    difficulty: 'Intermediate',
+    language: 'typescript' as MissionLanguage,
+    xp: 130,
+    starterCode: `// TypeScript Generics — Write once, use with any type
+
+// Generic Stack class
+class Stack<T> {
+  private items: T[] = [];
+
+  push(item: T): void {
+    this.items.push(item);
   }
+
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+
+  peek(): T | undefined {
+    return this.items[this.items.length - 1];
+  }
+
+  isEmpty(): boolean {
+    return this.items.length === 0;
+  }
+
+  size(): number {
+    return this.items.length;
+  }
+}
+
+// Use with numbers
+const numStack = new Stack<number>();
+numStack.push(10);
+numStack.push(20);
+numStack.push(30);
+console.log("Top:", numStack.peek());   // 30
+console.log("Pop:", numStack.pop());    // 30
+console.log("Size:", numStack.size());  // 2
+
+// Use with strings
+const nameStack = new Stack<string>();
+nameStack.push("Amara");
+nameStack.push("Chidi");
+console.log("Name:", nameStack.pop());  // Chidi
+
+// Generic API response wrapper
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message: string;
+  timestamp: string;
+}
+
+interface User { id: number; name: string; email: string; }
+
+const response: ApiResponse<User> = {
+  data: { id: 1, name: "Fatima", email: "fatima@rillcod.com" },
+  status: 200,
+  message: "Success",
+  timestamp: new Date().toISOString(),
+};
+
+console.log("User:", response.data.name);
+console.log("Status:", response.status);`,
+    tags: ['typescript', 'generics', 'classes', 'interfaces'],
+  },
+
+  // ── SQL Missions ──────────────────────────────────────────────────────────
+  {
+    id: 'sql01',
+    title: 'SQL Basics — SELECT & WHERE',
+    description: 'Query a student database using SELECT, WHERE, and ORDER BY.',
+    instructions: 'Write SQL queries to: (1) select all students, (2) find students with score > 80, (3) find students in "SS1" ordered by score descending, (4) count total students.',
+    difficulty: 'Beginner',
+    language: 'sql' as MissionLanguage,
+    xp: 70,
+    starterCode: `-- SQL — Structured Query Language
+-- Used in every app that stores data: banks, hospitals, schools
+
+-- Imagine this is our students table:
+-- | id | name     | grade | score | subject  |
+-- |----|----------|-------|-------|----------|
+-- |  1 | Amara    | SS1   |  88   | Python   |
+-- |  2 | Chidi    | JSS3  |  74   | Python   |
+-- |  3 | Fatima   | SS1   |  95   | Robotics |
+-- |  4 | Emeka    | SS2   |  67   | Python   |
+-- |  5 | Ngozi    | JSS3  |  55   | Web Dev  |
+-- |  6 | Tunde    | SS1   |  82   | Python   |
+
+-- 1. Select ALL students
+SELECT * FROM students;
+
+-- 2. Students with score above 80
+SELECT name, score
+FROM students
+WHERE score > 80;
+
+-- 3. SS1 students ordered by score (highest first)
+SELECT name, grade, score
+FROM students
+WHERE grade = 'SS1'
+ORDER BY score DESC;
+
+-- 4. Count total students
+SELECT COUNT(*) AS total_students FROM students;
+
+-- 5. Average score
+SELECT AVG(score) AS average_score FROM students;
+
+-- 6. Students grouped by grade with their average
+SELECT grade, COUNT(*) AS count, AVG(score) AS avg_score
+FROM students
+GROUP BY grade
+ORDER BY avg_score DESC;`,
+    tags: ['SQL', 'SELECT', 'WHERE', 'ORDER BY', 'database'],
+  },
+  {
+    id: 'sql02',
+    title: 'SQL JOINs — Linking Tables',
+    description: 'Use INNER JOIN and LEFT JOIN to combine data from multiple tables.',
+    instructions: 'Write queries using JOIN to combine the students and courses tables. Find all students with their enrolled course names. Find students who have NOT enrolled in any course using LEFT JOIN.',
+    difficulty: 'Intermediate',
+    language: 'sql' as MissionLanguage,
+    xp: 120,
+    starterCode: `-- SQL JOINs — Combining related tables
+-- Real world: every app uses multiple linked tables
+
+-- students table:
+-- | id | name    | grade | course_id |
+-- |----|---------|-------|-----------|
+-- |  1 | Amara   | SS1   |     2     |
+-- |  2 | Chidi   | JSS3  |     1     |
+-- |  3 | Fatima  | SS1   |     3     |
+-- |  4 | Emeka   | SS2   |    NULL   |  ← not enrolled
+
+-- courses table:
+-- | id | name              | teacher      |
+-- |----|-------------------|--------------|
+-- |  1 | Python Basics     | Mr Obi       |
+-- |  2 | Web Development   | Mrs Adeyemi  |
+-- |  3 | Robotics & AI     | Mr Bello     |
+
+-- INNER JOIN — only students WITH a course
+SELECT s.name, s.grade, c.name AS course, c.teacher
+FROM students s
+INNER JOIN courses c ON s.course_id = c.id;
+
+-- LEFT JOIN — ALL students, even those without a course
+SELECT s.name, s.grade,
+       COALESCE(c.name, 'Not Enrolled') AS course
+FROM students s
+LEFT JOIN courses c ON s.course_id = c.id;
+
+-- Count students per course
+SELECT c.name AS course, COUNT(s.id) AS enrolled
+FROM courses c
+LEFT JOIN students s ON s.course_id = c.id
+GROUP BY c.name
+ORDER BY enrolled DESC;`,
+    tags: ['SQL', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'relational database'],
+  },
+
+  // ── CSS Missions ──────────────────────────────────────────────────────────
+  {
+    id: 'css01',
+    title: 'CSS Flexbox Layout',
+    description: 'Build a responsive navigation bar and card grid using Flexbox.',
+    instructions: 'Create a page with: (1) a sticky navbar using flexbox with logo left and links right, (2) a 3-column card grid that wraps on small screens using flex-wrap.',
+    difficulty: 'Beginner',
+    language: 'css' as MissionLanguage,
+    xp: 80,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flexbox Layout</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; }
+
+  /* ── NAVBAR ── */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(10px);
+  }
+  .logo { font-weight: 900; color: #7c3aed; font-size: 1.2rem; }
+  .nav-links { display: flex; gap: 24px; list-style: none; }
+  .nav-links a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+  .nav-links a:hover { color: white; }
+
+  /* ── CARD GRID ── */
+  .container { padding: 40px 32px; }
+  h1 { margin-bottom: 24px; font-size: 1.5rem; }
+
+  .card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .card {
+    flex: 1 1 250px;  /* grow, shrink, min-width */
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .card:hover { transform: translateY(-4px); border-color: #7c3aed; }
+  .card-icon { font-size: 2rem; margin-bottom: 12px; }
+  .card h3 { color: #a78bfa; margin-bottom: 8px; }
+  .card p { color: #64748b; font-size: 0.85rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <nav>
+    <div class="logo">🚀 Rillcod</div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Courses</a></li>
+      <li><a href="#">Projects</a></li>
+      <li><a href="#">Profile</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    <h1>My Learning Path</h1>
+    <div class="card-grid">
+      <div class="card"><div class="card-icon">🐍</div><h3>Python</h3><p>Master data structures, OOP, and algorithms with Python.</p></div>
+      <div class="card"><div class="card-icon">⚡</div><h3>JavaScript</h3><p>Build interactive web apps with modern ES6+ JavaScript.</p></div>
+      <div class="card"><div class="card-icon">🤖</div><h3>Robotics</h3><p>Program Arduino robots and IoT devices from scratch.</p></div>
+    </div>
+  </div>
+</body>
+</html>`,
+    tags: ['CSS', 'flexbox', 'layout', 'responsive', 'navbar'],
+  },
+  {
+    id: 'css02',
+    title: 'CSS Grid & Animations',
+    description: 'Build a dashboard layout with CSS Grid and add smooth animations.',
+    instructions: 'Create a dashboard with a sidebar and main content area using CSS Grid. Add keyframe animations for a loading spinner and a card entrance effect.',
+    difficulty: 'Intermediate',
+    language: 'css' as MissionLanguage,
+    xp: 120,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CSS Grid Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; height: 100vh; }
+
+  /* ── GRID LAYOUT ── */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 60px 1fr;
+    grid-template-areas:
+      "sidebar header"
+      "sidebar main";
+    height: 100vh;
+  }
+
+  .header {
+    grid-area: header;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; padding: 0 24px;
+    font-weight: bold; font-size: 0.9rem; color: #94a3b8;
+  }
+
+  .sidebar {
+    grid-area: sidebar;
+    background: rgba(255,255,255,0.02);
+    border-right: 1px solid rgba(255,255,255,0.08);
+    padding: 24px 16px;
+  }
+  .sidebar h2 { color: #7c3aed; font-size: 1rem; margin-bottom: 20px; }
+  .nav-item {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
+    color: #64748b; cursor: pointer; transition: all 0.2s;
+    font-size: 0.85rem;
+  }
+  .nav-item:hover, .nav-item.active { background: rgba(124,58,237,0.15); color: #a78bfa; }
+
+  .main { grid-area: main; padding: 24px; overflow-y: auto; }
+
+  /* ── STATS GRID ── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 20px;
+    animation: slideIn 0.4s ease forwards;
+    opacity: 0;
+  }
+  .stat-card:nth-child(1) { animation-delay: 0.1s; }
+  .stat-card:nth-child(2) { animation-delay: 0.2s; }
+  .stat-card:nth-child(3) { animation-delay: 0.3s; }
+  .stat-card:nth-child(4) { animation-delay: 0.4s; }
+  .stat-value { font-size: 2rem; font-weight: 900; color: #a78bfa; }
+  .stat-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid rgba(124,58,237,0.2);
+    border-top-color: #7c3aed;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 20px auto;
+  }
+
+  /* ── KEYFRAMES ── */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="header">📊 Student Dashboard</div>
+    <div class="sidebar">
+      <h2>🚀 Rillcod</h2>
+      <div class="nav-item active">🏠 Overview</div>
+      <div class="nav-item">📚 Courses</div>
+      <div class="nav-item">🎯 Missions</div>
+      <div class="nav-item">🏆 Leaderboard</div>
+      <div class="nav-item">⚙️ Settings</div>
+    </div>
+    <div class="main">
+      <div class="stats">
+        <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">Missions Done</div></div>
+        <div class="stat-card"><div class="stat-value">850</div><div class="stat-label">XP Earned</div></div>
+        <div class="stat-card"><div class="stat-value">7🔥</div><div class="stat-label">Day Streak</div></div>
+        <div class="stat-card"><div class="stat-value">#4</div><div class="stat-label">Rank</div></div>
+      </div>
+      <div class="spinner"></div>
+    </div>
+  </div>
+</body>
+</html>`,
+    tags: ['CSS', 'grid', 'animations', 'keyframes', 'dashboard'],
+  },
 ];
 
 const XP_PER_LEVEL = 500;
@@ -1152,11 +1559,11 @@ export default function MissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-background to-background text-foreground selection:bg-orange-500/30">
+    <div className="min-h-screen bg-background text-foreground selection:bg-orange-500/30">
       <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
         {/* Back Button */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
             <ArrowLeftIcon className="w-4 h-4" />
             Back to Dashboard
           </Link>
@@ -1228,22 +1635,25 @@ export default function MissionsPage() {
           {/* Language selector */}
           <div className="flex gap-2 flex-wrap">
             {([
-              { value: 'all', label: 'All Languages' },
-              { value: 'javascript', label: 'JavaScript' },
-              { value: 'python', label: 'Python' },
-              { value: 'html', label: 'HTML' },
-              { value: 'robotics', label: 'Robotics' },
-            ] as { value: LangFilter; label: string }[]).map(({ value, label }) => (
+              { value: 'all',        label: 'All',        emoji: '🌐' },
+              { value: 'javascript', label: 'JavaScript', emoji: '⚡' },
+              { value: 'python',     label: 'Python',     emoji: '🐍' },
+              { value: 'html',       label: 'HTML/CSS',   emoji: '🌍' },
+              { value: 'css',        label: 'CSS',        emoji: '🎨' },
+              { value: 'typescript', label: 'TypeScript', emoji: '🔷' },
+              { value: 'sql',        label: 'SQL',        emoji: '🗄️' },
+              { value: 'robotics',   label: 'Robotics',   emoji: '🤖' },
+            ] as { value: LangFilter; label: string; emoji: string }[]).map(({ value, label, emoji }) => (
               <button
                 key={value}
                 onClick={() => setLangFilter(value)}
-                className={`px-4 py-2 text-[11px] uppercase tracking-widest font-black transition-all rounded-xl border ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                   langFilter === value
                     ? 'bg-gradient-to-r from-rose-500 to-orange-500 border-transparent text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]'
-                    : 'bg-white/[0.03] border-white/10 text-white/50 hover:text-white hover:bg-white/[0.06]'
+                    : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
-                {label}
+                <span>{emoji}</span>{label}
               </button>
             ))}
           </div>
@@ -1254,7 +1664,7 @@ export default function MissionsPage() {
               <input
                 type="text"
                 placeholder="Search missions..."
-                className="w-full pl-11 pr-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500/50 focus:bg-white/[0.05] text-white placeholder:text-white/30 transition-all font-medium"
+                className="w-full pl-11 pr-4 py-3 bg-muted/30 border border-border rounded-xl text-sm focus:outline-none focus:border-orange-500/50 focus:bg-muted/50 text-foreground placeholder:text-muted-foreground transition-all font-medium"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1268,7 +1678,7 @@ export default function MissionsPage() {
                     className={`px-4 py-2 text-[11px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                       filter === f
                         ? 'bg-gradient-to-r from-orange-500 to-amber-500 border-transparent text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
-                        : 'bg-white/[0.03] border-white/10 text-white/50 hover:text-white hover:bg-white/[0.06]'
+                        : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
                     {f}

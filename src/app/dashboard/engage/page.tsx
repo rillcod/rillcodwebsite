@@ -598,6 +598,62 @@ export default function CommunityPage() {
               </div>
             </div>
 
+            {/* 🎮 Simulation Cards — Teen Developers */}
+            <div className="bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 rounded-2xl overflow-hidden">
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <span className="text-base">🚀</span>
+                <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Teen Developers</p>
+                <span className="ml-auto text-[8px] font-black text-violet-400/50 uppercase tracking-widest">Ages 12–18</span>
+              </div>
+              <div className="px-3 pb-3 space-y-2">
+                {[
+                  { emoji: '🌐', title: 'Build a Portfolio Site', desc: 'HTML + CSS + JS in 30 min', path: '/dashboard/playground?lang=html', color: 'orange' },
+                  { emoji: '🐍', title: 'Python Data Pipeline', desc: 'Process real student data', path: '/dashboard/playground?lang=python', color: 'blue' },
+                  { emoji: '🤖', title: 'Obstacle Robot', desc: 'Ultrasonic sensor + motors', path: '/dashboard/playground?lang=robotics', color: 'cyan' },
+                  { emoji: '⚡', title: 'Live Score Tracker', desc: 'JavaScript + DOM events', path: '/dashboard/playground?lang=javascript', color: 'yellow' },
+                  { emoji: '🗄️', title: 'SQL School Database', desc: 'Query student records', path: '/dashboard/missions?lang=sql', color: 'emerald' },
+                ].map((sim, i) => (
+                  <a key={i} href={sim.path}
+                    className="flex items-center gap-3 p-2.5 bg-card/60 border border-border hover:border-violet-500/30 hover:bg-violet-500/5 rounded-xl transition-all group">
+                    <span className="text-xl leading-none shrink-0">{sim.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-foreground group-hover:text-violet-400 transition-colors truncate">{sim.title}</p>
+                      <p className="text-[8px] text-muted-foreground">{sim.desc}</p>
+                    </div>
+                    <span className="ml-auto text-muted-foreground/30 group-hover:text-violet-400 transition-colors shrink-0">→</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* 🌟 Simulation Cards — Young Innovators */}
+            <div className="bg-gradient-to-br from-amber-600/10 to-orange-600/10 border border-amber-500/20 rounded-2xl overflow-hidden">
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <span className="text-base">⭐</span>
+                <p className="text-xs font-black text-amber-400 uppercase tracking-widest">Young Innovators</p>
+                <span className="ml-auto text-[8px] font-black text-amber-400/50 uppercase tracking-widest">Ages 6–12</span>
+              </div>
+              <div className="px-3 pb-3 space-y-2">
+                {[
+                  { emoji: '🔢', title: 'Count & Loop', desc: 'Print patterns with Python', path: '/dashboard/protocol?phase=41', color: 'violet' },
+                  { emoji: '🎨', title: 'My First Website', desc: 'Build a colourful profile page', path: '/dashboard/protocol?phase=46', color: 'orange' },
+                  { emoji: '🤖', title: 'Robot Square', desc: 'Draw shapes with robot commands', path: '/dashboard/playground?lang=robotics', color: 'cyan' },
+                  { emoji: '🧮', title: 'School Fee Calc', desc: 'Python maths with ₦ money', path: '/dashboard/protocol?phase=43', color: 'emerald' },
+                  { emoji: '🎮', title: 'Score Tracker App', desc: 'JavaScript buttons & clicks', path: '/dashboard/protocol?phase=47', color: 'pink' },
+                ].map((sim, i) => (
+                  <a key={i} href={sim.path}
+                    className="flex items-center gap-3 p-2.5 bg-card/60 border border-border hover:border-amber-500/30 hover:bg-amber-500/5 rounded-xl transition-all group">
+                    <span className="text-xl leading-none shrink-0">{sim.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-foreground group-hover:text-amber-400 transition-colors truncate">{sim.title}</p>
+                      <p className="text-[8px] text-muted-foreground">{sim.desc}</p>
+                    </div>
+                    <span className="ml-auto text-muted-foreground/30 group-hover:text-amber-400 transition-colors shrink-0">→</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
             {/* Community Guidelines */}
             <div className="bg-card border border-border rounded-2xl p-4">
               <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Community Guidelines</p>
