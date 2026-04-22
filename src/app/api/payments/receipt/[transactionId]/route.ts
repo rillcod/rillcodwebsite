@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { paymentsService } from '@/services/payments.service';
+import { issueReceiptForTransaction } from '@/lib/finance/issue';
 
 /**
  * POST /api/payments/receipt/[transactionId]
@@ -46,15 +46,21 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Return cached URL if already generated
-  if ((tx as any).receipt_url) {
-    return NextResponse.json({ url: (tx as any).receipt_url });
+  // Allow ?force=1 to re-issue after a template or data correction.
+  const force = new URL(_req.url).searchParams.get('force') === '1';
+
+  if ((tx as any).receipt_url && !force) {
+    return NextResponse.json({ url: (tx as any).receipt_url, cached: true });
   }
 
-  // Generate receipt
   try {
-    const url = await paymentsService.generateReceipt(transactionId);
-    return NextResponse.json({ url });
+    const res = await issueReceiptForTransaction(transactionId);
+    return NextResponse.json({
+      url: res.url,
+      stream: res.stream,
+      receipt_number: res.receiptNumber,
+      cached: false,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to generate receipt' }, { status: 500 });
   }

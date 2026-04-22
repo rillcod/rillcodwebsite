@@ -26,8 +26,18 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { motion } from 'framer-motion';
+import {
+  classifyInvoiceStream,
+  classifyReceiptStream,
+  streamPillClasses,
+  streamLabel,
+  splitSchoolAmount,
+  DEFAULT_COMMISSION_RATE,
+  type FinanceStream,
+} from '@/lib/finance/streams';
 
 type Role = 'admin' | 'school' | 'teacher' | 'student' | 'parent' | string;
+type StreamTab = 'all' | FinanceStream;
 
 interface Transaction {
   id: string;
@@ -45,7 +55,7 @@ interface Transaction {
   portal_user_id: string | null;
   course_id: string | null;
   portal_users?: { full_name?: string; email?: string } | null;
-  invoices?: { invoice_number?: string } | null;
+  invoices?: { invoice_number?: string; stream?: string; billing_cycle_id?: string | null } | null;
   courses?: { title?: string } | null;
   refunded_at?: string | null;
   refund_reason?: string | null;
@@ -61,7 +71,35 @@ interface InvoiceRow {
   payment_link: string | null;
   portal_user_id: string | null;
   school_id: string | null;
+  billing_cycle_id?: string | null;
+  stream?: FinanceStream | null;
+  metadata?: Record<string, any> | null;
   created_at: string;
+}
+
+function txStream(t: Transaction): FinanceStream {
+  // Prefer the linked invoice's stream; fall back to heuristic.
+  if (t.invoices?.stream === 'school' || t.invoices?.stream === 'individual') return t.invoices.stream;
+  if (t.invoices?.billing_cycle_id) return 'school';
+  return classifyReceiptStream({ school_id: t.school_id, student_id: t.portal_user_id });
+}
+
+function invStream(i: InvoiceRow): FinanceStream {
+  return classifyInvoiceStream({
+    stream: i.stream ?? null,
+    school_id: i.school_id,
+    portal_user_id: i.portal_user_id,
+    billing_cycle_id: i.billing_cycle_id ?? null,
+    metadata: i.metadata,
+  });
+}
+
+function StreamChip({ stream }: { stream: FinanceStream }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border ${streamPillClasses(stream)}`}>
+      {streamLabel(stream, 'short')}
+    </span>
+  );
 }
 
 const NGN = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
@@ -109,6 +147,7 @@ export default function MoneyHubPage() {
   const [busyRow, setBusyRow] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [streamTab, setStreamTab] = useState<StreamTab>('all');
 
   const fetchEverything = useCallback(async () => {
     setErr(null);
@@ -133,11 +172,29 @@ export default function MoneyHubPage() {
     }
   }, [authLoading, profile?.id, fetchEverything]);
 
+  // Per-stream scoped views (used when the stream tabs are active).
+  const scopedTxs = useMemo(() => {
+    if (streamTab === 'all') return txs;
+    return txs.filter(t => txStream(t) === streamTab);
+  }, [txs, streamTab]);
+
+  const scopedInvoices = useMemo(() => {
+    if (streamTab === 'all') return invoices;
+    return invoices.filter(i => invStream(i) === streamTab);
+  }, [invoices, streamTab]);
+
   const totals = useMemo(() => {
-    const paid = txs.filter(t => ['completed', 'paid'].includes((t.payment_status || '').toLowerCase()));
-    const pending = txs.filter(t => ['pending', 'processing'].includes((t.payment_status || '').toLowerCase()));
-    const refunded = txs.filter(t => (t.payment_status || '').toLowerCase() === 'refunded' || t.refunded_at);
-    const outstanding = invoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+    const paid = scopedTxs.filter(t => ['completed', 'paid'].includes((t.payment_status || '').toLowerCase()));
+    const pending = scopedTxs.filter(t => ['pending', 'processing'].includes((t.payment_status || '').toLowerCase()));
+    const refunded = scopedTxs.filter(t => (t.payment_status || '').toLowerCase() === 'refunded' || t.refunded_at);
+    const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+
+    // Admin-only: net commission on the SCHOOL stream (what Rillcod keeps).
+    const schoolPaid = paid.filter(t => txStream(t) === 'school');
+    const commissionSum = schoolPaid.reduce((s, t) => {
+      return s + splitSchoolAmount(Number(t.amount || 0), DEFAULT_COMMISSION_RATE).rillcodRetain;
+    }, 0);
+
     return {
       paidCount: paid.length,
       paidSum: paid.reduce((s, t) => s + Number(t.amount || 0), 0),
@@ -147,12 +204,22 @@ export default function MoneyHubPage() {
       refundedSum: refunded.reduce((s, t) => s + Number(t.amount || 0), 0),
       outstandingCount: outstanding.length,
       outstandingSum: outstanding.reduce((s, i) => s + Number(i.amount || 0), 0),
+      commissionSum,
+      schoolPaidCount: schoolPaid.length,
     };
+  }, [scopedTxs, scopedInvoices]);
+
+  // Stream-level headline counts (always computed on the unscoped arrays so
+  // the tabs themselves show accurate badges even when a tab is active).
+  const streamCounts = useMemo(() => {
+    const count = (stream: FinanceStream) =>
+      txs.filter(t => txStream(t) === stream).length + invoices.filter(i => invStream(i) === stream).length;
+    return { school: count('school'), individual: count('individual'), all: txs.length + invoices.length };
   }, [txs, invoices]);
 
   const filteredTxs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return txs.filter(t => {
+    return scopedTxs.filter(t => {
       if (statusFilter !== 'all' && (t.payment_status || '').toLowerCase() !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -165,7 +232,7 @@ export default function MoneyHubPage() {
         t.courses?.title?.toLowerCase().includes(q)
       );
     });
-  }, [txs, search, statusFilter]);
+  }, [scopedTxs, search, statusFilter]);
 
   const handleDownloadReceipt = async (txId: string) => {
     setBusyRow(txId);
@@ -246,6 +313,44 @@ export default function MoneyHubPage() {
           </div>
         )}
 
+        {/* ── Stream tabs (admin + school roles only) ─────────────────── */}
+        {(isAdmin || isSchool) && (
+          <div
+            role="tablist"
+            aria-label="Finance stream"
+            className="inline-flex items-center gap-1 p-1 rounded-xl bg-card border border-border overflow-x-auto max-w-full"
+          >
+            {[
+              { id: 'all' as StreamTab, label: 'Both streams', badge: streamCounts.all },
+              { id: 'school' as StreamTab, label: 'Schools', badge: streamCounts.school },
+              { id: 'individual' as StreamTab, label: 'Individuals', badge: streamCounts.individual },
+            ].map(t => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={streamTab === t.id}
+                onClick={() => setStreamTab(t.id)}
+                className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors min-h-[40px] whitespace-nowrap ${
+                  streamTab === t.id
+                    ? t.id === 'school'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : t.id === 'individual'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'bg-foreground text-background shadow'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span>{t.label}</span>
+                <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[10px] ${
+                  streamTab === t.id ? 'bg-white/15 text-white' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {t.badge}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ── Summary tiles ──────────────────────────────────────────── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <SummaryTile
@@ -272,24 +377,35 @@ export default function MoneyHubPage() {
             gradient="from-sky-500/20 to-blue-900/30 border-sky-500/30"
             accent="text-sky-300"
           />
-          <SummaryTile
-            label="Refunds"
-            amount={totals.refundedSum}
-            count={totals.refundedCount}
-            icon={Receipt}
-            gradient="from-fuchsia-500/20 to-pink-900/30 border-fuchsia-500/30"
-            accent="text-fuchsia-300"
-          />
+          {isAdmin && (streamTab === 'school' || streamTab === 'all') ? (
+            <SummaryTile
+              label={`Commission Retained${streamTab === 'all' ? ' (School)' : ''}`}
+              amount={totals.commissionSum}
+              count={totals.schoolPaidCount}
+              icon={Banknote}
+              gradient="from-indigo-500/20 to-violet-900/30 border-indigo-500/30"
+              accent="text-indigo-300"
+            />
+          ) : (
+            <SummaryTile
+              label="Refunds"
+              amount={totals.refundedSum}
+              count={totals.refundedCount}
+              icon={Receipt}
+              gradient="from-fuchsia-500/20 to-pink-900/30 border-fuchsia-500/30"
+              accent="text-fuchsia-300"
+            />
+          )}
         </section>
 
         {/* ── Quick actions (role-aware) ─────────────────────────────── */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {isAdmin && (
             <>
+              <ActionLink href="/dashboard/finance/reconciliation" icon={CheckCircle2} label="Reconciliation" />
               <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Operations" />
               <ActionLink href="/dashboard/payments/bulk" icon={Banknote} label="Bulk invoicing" />
               <ActionLink href="/dashboard/subscriptions" icon={RefreshCw} label="Subscriptions" />
-              <ActionLink href="/dashboard/finance?tab=automation" icon={CheckCircle2} label="Automation" />
             </>
           )}
           {isSchool && (
@@ -321,7 +437,7 @@ export default function MoneyHubPage() {
         </section>
 
         {/* ── Outstanding invoices (payers) ──────────────────────────── */}
-        {!isAdmin && invoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
+        {!isAdmin && scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
           <section className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -335,7 +451,7 @@ export default function MoneyHubPage() {
               </span>
             </div>
             <ul className="divide-y divide-border">
-              {invoices
+              {scopedInvoices
                 .filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()))
                 .slice(0, 8)
                 .map(inv => {
@@ -351,6 +467,7 @@ export default function MoneyHubPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-black text-foreground truncate">{inv.invoice_number || 'Invoice'}</p>
                           <StatusPill status={inv.status} />
+                          {(isAdmin || isSchool) && <StreamChip stream={invStream(inv)} />}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           Due {formatDate(inv.due_date)} · {formatMoney(inv.amount, inv.currency)}
@@ -378,7 +495,7 @@ export default function MoneyHubPage() {
                 Transactions
               </h2>
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
-                {filteredTxs.length} of {txs.length}
+                {filteredTxs.length} of {scopedTxs.length}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-1 sm:max-w-md">
@@ -431,10 +548,11 @@ export default function MoneyHubPage() {
                     <div className="w-10 h-10 rounded-lg bg-muted text-foreground inline-flex items-center justify-center shrink-0">
                       {iconForMethod(t.payment_method)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="text-sm font-black text-foreground">{formatMoney(Number(t.amount), t.currency)}</p>
                         <StatusPill status={t.payment_status} />
+                        {(isAdmin || isSchool) && <StreamChip stream={txStream(t)} />}
                       </div>
                       <p className="text-[11px] text-muted-foreground font-mono truncate">
                         {t.transaction_reference || t.external_transaction_id || '—'}
@@ -472,6 +590,7 @@ export default function MoneyHubPage() {
                       <Th>Reference</Th>
                       {isStaff && <Th>Payer</Th>}
                       <Th>Description</Th>
+                      {(isAdmin || isSchool) && <Th>Stream</Th>}
                       <Th>Method</Th>
                       <Th>Status</Th>
                       <Th align="right">Amount</Th>
@@ -504,6 +623,9 @@ export default function MoneyHubPage() {
                             ? `Invoice ${t.invoices.invoice_number}`
                             : t.courses?.title || '—'}
                         </td>
+                        {(isAdmin || isSchool) && (
+                          <td className="px-3 py-3"><StreamChip stream={txStream(t)} /></td>
+                        )}
                         <td className="px-3 py-3 text-muted-foreground uppercase text-[11px] font-bold">
                           <span className="inline-flex items-center gap-1.5">
                             {iconForMethod(t.payment_method)}
