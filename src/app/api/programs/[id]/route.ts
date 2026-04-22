@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  isAlwaysPublicProgramName,
+  isCourseVisibleToLearners,
+  isProgramVisibleToRole,
+} from '@/lib/courses/visibility';
 
 function adminClient() {
   return createClient(
@@ -49,7 +54,9 @@ export async function GET(
     const { id } = await context.params;
     const { data, error } = await adminClient()
       .from('programs')
-      .select('*, courses ( id, title, is_active )')
+      .select(
+        '*, courses ( id, title, is_active, is_locked, program_id, lessons(id), assignments(id) )',
+      )
       .eq('id', id)
       .maybeSingle();
 
@@ -62,6 +69,42 @@ export async function GET(
       // Logged-in learners should not access inactive/private programs by id.
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Non-flagship “extra” programmes: only admins. Active catalog rows: flagship only
+    // for non-admins. Inactive: teacher/school may open flagship-only programmes by id.
+    if (callerRole !== 'admin') {
+      if (data.is_active !== false) {
+        if (!isProgramVisibleToRole(data, callerRole ?? null)) {
+          return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
+      } else if (user && ['teacher', 'school'].includes(callerRole || '')) {
+        if (!isAlwaysPublicProgramName(data.name)) {
+          return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
+      }
+    }
+
+    if (callerRole === 'admin' || callerRole === 'teacher') {
+      return NextResponse.json({ success: true, data });
+    }
+
+    const filterCourses = () =>
+      (data.courses ?? []).filter((c: any) =>
+        isCourseVisibleToLearners(
+          { ...c, programs: { name: data.name } },
+          { requireContent: true },
+        ),
+      );
+
+    if (!user) {
+      const courses = filterCourses();
+      return NextResponse.json({ success: true, data: { ...data, courses } });
+    }
+
+    if (['school', 'student', 'parent'].includes(callerRole || '')) {
+      return NextResponse.json({ success: true, data: { ...data, courses: filterCourses() } });
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
