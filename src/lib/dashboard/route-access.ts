@@ -72,6 +72,7 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/billing',
   '/dashboard/billing-automation',
   '/dashboard/transactions',
+  '/dashboard/subscriptions',
   '/dashboard/generate-content',
   '/dashboard/certificates/management',
 ];
@@ -110,6 +111,7 @@ const SCHOOL_PLATFORM_PREFIXES: string[] = [
   '/dashboard/billing',
   '/dashboard/billing-automation',
   '/dashboard/transactions',
+  '/dashboard/subscriptions',
   '/dashboard/generate-content',
   '/dashboard/certificates/management',
 ];
@@ -174,6 +176,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/parent-card',
   '/dashboard/parent-invoices',
   '/dashboard/parent-feedback',
+  '/dashboard/money',
   '/dashboard/feedback',
   '/dashboard/support',
   '/dashboard/profile',

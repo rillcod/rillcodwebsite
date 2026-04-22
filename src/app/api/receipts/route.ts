@@ -9,7 +9,7 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function requireCaller() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -19,13 +19,16 @@ async function requireStaff() {
     .eq('id', user.id)
     .single();
   if (!profile) return null;
-  // admin can do anything; school can see their own receipts; teacher cannot manage receipts
   return profile;
 }
 
-// GET /api/receipts — load receipts visible to the caller
+// GET /api/receipts — role-aware receipt listing.
+// admin → all receipts (optionally scoped by ?school_id=)
+// school → receipts for the caller's school_id
+// teacher → receipts for the caller's school_id (partner schools' teachers)
+// student/parent → only receipts issued to themselves (via student_id)
 export async function GET(request: NextRequest) {
-  const caller = await requireStaff();
+  const caller = await requireCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = adminClient();
@@ -38,9 +41,14 @@ export async function GET(request: NextRequest) {
     .order('issued_at', { ascending: false })
     .limit(limit);
 
-  // School role: only see their own school's receipts
-  if (caller.role === 'school' && caller.school_id) {
+  if (caller.role === 'admin') {
+    const schoolIdParam = searchParams.get('school_id');
+    if (schoolIdParam) query = query.eq('school_id', schoolIdParam);
+  } else if ((caller.role === 'school' || caller.role === 'teacher') && caller.school_id) {
     query = query.eq('school_id', caller.school_id);
+  } else {
+    // student / parent: only their own receipts
+    query = query.eq('student_id', caller.id);
   }
 
   const { data, error } = await query;
@@ -50,7 +58,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/receipts — save a receipt
 export async function POST(request: NextRequest) {
-  const caller = await requireStaff();
+  const caller = await requireCaller();
   if (!caller || (caller.role !== 'admin' && caller.role !== 'teacher')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
