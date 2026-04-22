@@ -229,6 +229,33 @@ export default function SupportPage() {
           ))}
         </div>
       )}
+
+      <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
+        <h2 className="text-sm font-bold text-foreground">Need immediate help?</h2>
+        <p className="text-xs text-muted-foreground mt-1">Use any of these direct support channels.</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <a
+            href="tel:08116600091"
+            className="px-3 py-2 rounded-md border border-border text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            Call: 08116600091
+          </a>
+          <a
+            href="https://wa.me/2348116600091"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 rounded-md border border-border text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            WhatsApp
+          </a>
+          <a
+            href="mailto:support@rillcod.com"
+            className="px-3 py-2 rounded-md border border-border text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            support@rillcod.com
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

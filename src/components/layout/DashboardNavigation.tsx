@@ -162,6 +162,7 @@ export default function DashboardNavigation() {
           { name: 'School Directory',  href: '/dashboard/directory',       icon: BuildingOfficeIcon },
           { name: 'Customer Retention',href: '/dashboard/crm',             icon: UserPlusIcon },
           { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'WhatsApp Groups',   href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
           { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
@@ -222,6 +223,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'More' },
           { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'WhatsApp Groups',   href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
           { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
@@ -310,6 +312,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'More' },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
           { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
+          { name: 'WhatsApp Groups',   href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
           { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
         ];
