@@ -168,6 +168,38 @@ export default function ProgressionPage() {
         </div>
       )}
 
+      {/* School curriculum route (separate from term-end student promotion above) */}
+      {(profile.role === 'admin' || profile.role === 'teacher' || profile.role === 'school') && (
+        <div className="p-4 rounded-xl border border-violet-500/25 bg-violet-500/5">
+          <p className="text-xs font-black uppercase tracking-widest text-violet-300/90 mb-2">
+            School curriculum — weekly / term route
+          </p>
+          <p className="text-sm text-muted-foreground mb-3">
+            Policies, generated week-by-week content, and analytics live here. Open a published lesson plan to run generation. This is not the same as student promote/repeat below.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/progression/policies"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Progression policies
+            </Link>
+            <Link
+              href="/dashboard/progression/analytics"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Progression analytics
+            </Link>
+            <Link
+              href="/dashboard/lesson-plans"
+              className="px-3 py-2 text-xs font-bold rounded-lg border border-border text-foreground hover:bg-muted/40 transition-colors"
+            >
+              Lesson plans (generate route)
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
