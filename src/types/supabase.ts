@@ -1917,6 +1917,7 @@ export type Database = {
           is_active: boolean | null
           is_locked: boolean
           level_order: number
+          metadata: Json
           next_course_id: string | null
           order_index: number | null
           program_id: string | null
@@ -1935,6 +1936,7 @@ export type Database = {
           is_active?: boolean | null
           is_locked?: boolean
           level_order?: number
+          metadata?: Json
           next_course_id?: string | null
           order_index?: number | null
           program_id?: string | null
@@ -1953,6 +1955,7 @@ export type Database = {
           is_active?: boolean | null
           is_locked?: boolean
           level_order?: number
+          metadata?: Json
           next_course_id?: string | null
           order_index?: number | null
           program_id?: string | null

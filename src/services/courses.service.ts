@@ -16,6 +16,12 @@ export interface CourseInput {
     is_published?: boolean;
     level_order?: number;
     next_course_id?: string | null;
+    /**
+     * Soft tagging payload backed by `courses.metadata` JSONB.
+     * Known keys: `grade_levels`, `subject`, `tags`. The service passes this
+     * through verbatim — validation happens at the API layer.
+     */
+    metadata?: Record<string, unknown>;
 }
 
 export interface CourseFilters {

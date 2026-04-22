@@ -102,6 +102,9 @@ function LessonPlansPageInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterProgramId, setFilterProgramId] = useState(qpProgramId ?? '');
+  const [filterClassId, setFilterClassId] = useState<string>('');
+  const [filterTerm, setFilterTerm] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [prefilledFromUrl, setPrefilledFromUrl] = useState(false);
@@ -273,6 +276,9 @@ function LessonPlansPageInner() {
         const course = cId ? courses.find(c => c.id === cId) : null;
         if (!course || course.program_id !== filterProgramId) return false;
       }
+      if (filterClassId && p.class_id !== filterClassId) return false;
+      if (filterTerm && !(p.term ?? '').toLowerCase().startsWith(filterTerm.toLowerCase())) return false;
+      if (filterStatus && (p.status ?? 'draft') !== filterStatus) return false;
       if (!search) return true;
       const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? '';
       const className = p.classes?.name ?? '';
@@ -280,7 +286,28 @@ function LessonPlansPageInner() {
       const q = search.toLowerCase();
       return courseTitle.toLowerCase().includes(q) || className.toLowerCase().includes(q) || term.toLowerCase().includes(q);
     });
-  }, [plans, search, filterProgramId, courses]);
+  }, [plans, search, filterProgramId, filterClassId, filterTerm, filterStatus, courses]);
+
+  // Unique class + term options derived from the plans on screen (tight scope so
+  // filters never offer values that would produce an empty list).
+  const classChipOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of plans) {
+      const cid = p.class_id;
+      const name = p.classes?.name;
+      if (cid && name) map.set(cid, name);
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [plans]);
+
+  const termChipOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of plans) {
+      const t = p.term?.split(' ')?.slice(0, 2).join(' '); // "First Term"
+      if (t) set.add(t);
+    }
+    return Array.from(set).sort();
+  }, [plans]);
 
   // Classes filtered by school
   const formClasses = useMemo(() => {
@@ -346,22 +373,74 @@ function LessonPlansPageInner() {
         </div>
       </div>
 
-      {/* Filters — search + programme */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1 sm:max-w-80">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+      {/* Filters — search + programme + class + term + status chips */}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1 sm:max-w-80">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
+              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+          </div>
+          <select
+            value={filterProgramId}
+            onChange={e => setFilterProgramId(e.target.value)}
+            aria-label="Filter by programme"
+            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
+          >
+            <option value="">All programmes</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          {(filterClassId || filterTerm || filterStatus || filterProgramId || search) && (
+            <button
+              onClick={() => {
+                setFilterClassId('');
+                setFilterTerm('');
+                setFilterStatus('');
+                setFilterProgramId('');
+                setSearch('');
+              }}
+              className="px-3 py-2.5 text-xs font-black uppercase tracking-widest text-card-foreground/60 hover:text-card-foreground border border-white/10 rounded-xl hover:bg-white/5 transition min-h-[44px]"
+              title="Clear all filters"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        <select
-          value={filterProgramId}
-          onChange={e => setFilterProgramId(e.target.value)}
-          aria-label="Filter by programme"
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
-        >
-          <option value="">All programmes</option>
-          {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+
+        {/* Chip filters — horizontally scrollable on mobile */}
+        {(classChipOptions.length > 0 || termChipOptions.length > 0) && (
+          <div className="flex flex-wrap gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+            {termChipOptions.length > 0 && (
+              <ChipGroup
+                label="Term"
+                items={termChipOptions.map(t => ({ id: t, name: t }))}
+                value={filterTerm}
+                onChange={setFilterTerm}
+                tone="violet"
+              />
+            )}
+            {classChipOptions.length > 0 && (
+              <ChipGroup
+                label="Class"
+                items={classChipOptions}
+                value={filterClassId}
+                onChange={setFilterClassId}
+                tone="cyan"
+              />
+            )}
+            <ChipGroup
+              label="Status"
+              items={[
+                { id: 'draft', name: 'Draft' },
+                { id: 'published', name: 'Published' },
+                { id: 'archived', name: 'Archived' },
+              ]}
+              value={filterStatus}
+              onChange={setFilterStatus}
+              tone="emerald"
+            />
+          </div>
+        )}
       </div>
 
       {/* Plans Grid */}
@@ -635,6 +714,59 @@ function LessonPlansPageInner() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Filter chip row — used for Term / Class / Status quick-filters ──────────
+type ChipTone = 'violet' | 'cyan' | 'emerald';
+const CHIP_TONE: Record<ChipTone, { active: string; idle: string }> = {
+  violet:  { active: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
+             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
+  cyan:    { active: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
+  emerald: { active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+             idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
+};
+
+function ChipGroup({
+  label,
+  items,
+  value,
+  onChange,
+  tone = 'violet',
+}: {
+  label: string;
+  items: Array<{ id: string; name: string }>;
+  value: string;
+  onChange: (next: string) => void;
+  tone?: ChipTone;
+}) {
+  const t = CHIP_TONE[tone];
+  return (
+    <div className="inline-flex items-center gap-1.5 flex-wrap">
+      <span className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40">
+        {label}
+      </span>
+      <button
+        onClick={() => onChange('')}
+        className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+          value === '' ? t.active : t.idle
+        }`}
+      >
+        All
+      </button>
+      {items.map((it) => (
+        <button
+          key={it.id}
+          onClick={() => onChange(it.id)}
+          className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+            value === it.id ? t.active : t.idle
+          }`}
+        >
+          {it.name}
+        </button>
+      ))}
     </div>
   );
 }

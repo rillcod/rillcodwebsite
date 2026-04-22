@@ -15,6 +15,15 @@ const createCourseSchema = z.object({
     end_date: z.string().optional(),
     is_published: z.boolean().optional(),
     is_locked: z.boolean().optional(),
+    // Soft tagging payload — see migration 20260501000061_courses_metadata.sql.
+    metadata: z
+        .object({
+            grade_levels: z.array(z.string()).optional(),
+            subject: z.string().optional(),
+            tags: z.array(z.string()).optional(),
+        })
+        .passthrough()
+        .optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {

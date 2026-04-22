@@ -148,35 +148,86 @@ async function generateCurriculum(prompt: string): Promise<any> {
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role, school_id')
+    .eq('id', user.id)
+    .single();
   const role = profile?.role ?? '';
 
-  // Per SCHOOL_CURRICULUM_SYSTEM.md role matrix: only Admin, Teacher, School view curricula.
-  // Students/parents do not have curriculum visibility (they see programs, assignments, projects).
-  if (!['admin', 'teacher', 'school'].includes(role)) {
+  if (!['admin', 'teacher', 'school', 'student', 'parent'].includes(role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
 
+  // ─── Learner scope: build an allow-list of course_ids ───
+  // Student → their enrolments. Parent → their children's enrolments.
+  // School  → kept on the original broad scope (all courses in their school
+  //           + global courses with is_visible_to_school=true), matching
+  //           the SCHOOL_CURRICULUM_SYSTEM.md role matrix.
+  let learnerCourseIds: string[] | null = null;
+  if (role === 'student') {
+    const { data: progs } = await supabase
+      .from('student_level_enrollments')
+      .select('course_id')
+      .eq('student_id', user.id);
+    learnerCourseIds = Array.from(
+      new Set(((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])),
+    );
+    if (learnerCourseIds.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+  } else if (role === 'parent') {
+    // Parents see curricula for any course their linked children are enrolled in.
+    const { data: children } = await supabase
+      .from('students')
+      .select('user_id')
+      .eq('parent_email', user.email ?? '');
+    const childIds = (children ?? []).map((c) => c.user_id).filter(Boolean) as string[];
+    if (childIds.length === 0) return NextResponse.json({ data: [] });
+    const { data: progs } = await supabase
+      .from('student_level_enrollments')
+      .select('course_id')
+      .in('student_id', childIds);
+    learnerCourseIds = Array.from(
+      new Set(((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])),
+    );
+    if (learnerCourseIds.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+  }
+
   let query = supabase
     .from('course_curricula')
     .select('*, courses!course_id(title), portal_users!created_by(full_name)')
     .order('created_at', { ascending: false });
 
-  // Schools see curricula shared across all schools (school_id NULL) OR their own school-specific curricula.
-  // They also must respect the teacher-controlled is_visible_to_school gate.
+  // Schools, students and parents respect the teacher-controlled
+  // `is_visible_to_school` gate — teachers decide when the term's
+  // syllabus is ready to share with the school & families.
+  if (role !== 'admin' && role !== 'teacher') {
+    query = query.eq('is_visible_to_school', true);
+  }
+
   if (role === 'school') {
     if (profile?.school_id) {
       query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
     } else {
       query = query.is('school_id', null);
     }
-    query = query.eq('is_visible_to_school', true);
+  }
+
+  if (role === 'student' || role === 'parent') {
+    if (learnerCourseIds && learnerCourseIds.length > 0) {
+      query = query.in('course_id', learnerCourseIds);
+    }
   }
 
   if (courseId) query = query.eq('course_id', courseId);

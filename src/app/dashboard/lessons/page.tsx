@@ -63,6 +63,7 @@ export default function LessonsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterCourseId, setFilterCourseId] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   // AI lesson plan generator
@@ -233,8 +234,20 @@ export default function LessonsPage() {
     const matchText = (l.title ?? '').toLowerCase().includes(q) || (l.courses?.title ?? '').toLowerCase().includes(q);
     const matchStatus = filterStatus === 'all' || l.status === filterStatus;
     const matchType = filterType === 'all' || l.lesson_type === filterType;
-    return matchText && matchStatus && matchType;
+    const matchCourse = !filterCourseId || l.courses?.id === filterCourseId;
+    return matchText && matchStatus && matchType && matchCourse;
   });
+
+  // Course chip options derived from loaded lessons — never offers an empty filter.
+  const courseChipOptions = (() => {
+    const map = new Map<string, string>();
+    for (const l of lessons) {
+      const id = l.courses?.id;
+      const title = l.courses?.title;
+      if (id && title) map.set(id, title);
+    }
+    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  })();
 
   const completed = lessons.filter(l => l.status === 'completed').length;
   const active    = lessons.filter(l => l.status === 'active').length;
@@ -347,6 +360,39 @@ export default function LessonsPage() {
           ))}
         </select>
       </div>
+
+      {/* Course chip filter — horizontally scrollable on mobile */}
+      {courseChipOptions.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap overflow-x-auto -mx-1 px-1 pb-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">
+            Course
+          </span>
+          <button
+            onClick={() => setFilterCourseId('')}
+            className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+              filterCourseId === ''
+                ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                : 'border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            All
+          </button>
+          {courseChipOptions.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setFilterCourseId(c.id)}
+              className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+                filterCourseId === c.id
+                  ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+              title={c.title}
+            >
+              {c.title.length > 22 ? c.title.slice(0, 20) + '…' : c.title}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Lessons list */}
       {filtered.length === 0 ? (
