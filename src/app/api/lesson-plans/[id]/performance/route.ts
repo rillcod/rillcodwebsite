@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import type { Database } from '@/types/supabase';
+
+type WeekPerformanceInsert = Database['public']['Tables']['curriculum_week_performance']['Insert'];
 
 export async function GET(
   req: NextRequest,
@@ -90,11 +93,12 @@ export async function POST(
     .eq('id', id)
     .single();
   if (!plan) return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
+  if (!plan.school_id) return NextResponse.json({ error: 'Lesson plan missing school scope.' }, { status: 422 });
   if (profile.role === 'school' && profile.school_id !== plan.school_id) {
     return NextResponse.json({ error: 'Forbidden for this school scope.' }, { status: 403 });
   }
 
-  const payload = {
+  const payload: WeekPerformanceInsert = {
     school_id: plan.school_id,
     lesson_plan_id: id,
     course_id: plan.course_id,

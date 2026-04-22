@@ -268,7 +268,7 @@ export default function LessonPlanDetailPage() {
         return {
           ...w,
           completed: markingDone,
-          gating_state: shouldMaster ? 'mastered' : 'unlocked',
+          gating_state: shouldMaster ? ('mastered' as const) : ('unlocked' as const),
           practical_assessment: {
             ...(w.practical_assessment ?? {}),
             practical_score: markingDone ? practicalScore : (w.practical_assessment?.practical_score ?? 0),
@@ -276,7 +276,7 @@ export default function LessonPlanDetailPage() {
         };
       }
       if (shouldMaster && w.week === weekNum + 1 && (w.gating_state ?? 'locked') === 'locked') {
-        return { ...w, gating_state: 'unlocked' };
+        return { ...w, gating_state: 'unlocked' as const };
       }
       return w;
     });
@@ -295,7 +295,7 @@ export default function LessonPlanDetailPage() {
       w.week === weekNum
         ? {
             ...w,
-            gating_state: 'unlocked',
+            gating_state: 'unlocked' as const,
             override_reason: trimmed,
             overridden_by: profile?.role ?? 'teacher',
             overridden_at: new Date().toISOString(),
