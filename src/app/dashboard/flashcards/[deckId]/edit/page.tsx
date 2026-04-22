@@ -9,7 +9,6 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import Link from 'next/link';
 
 interface Card {
   id: string;
