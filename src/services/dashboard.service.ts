@@ -184,6 +184,7 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
         .select(`
       id, title, description, duration_hours, is_active, teacher_id,
       program_id, school_id, school_name,
+      is_locked, metadata,
       created_at,
       programs ( id, name, difficulty_level ),
       assignment_submissions ( id )
@@ -326,7 +327,7 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     let studAppsQ = db().from('students').select('id', { count: 'exact', head: true });
     let studentPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student');
     let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
-    let programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
+    const programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
 
     const subsQ = db().from('assignment_submissions')
         .select('grade, portal_user_id, user_id').eq('status', 'graded').not('grade', 'is', null).limit(500);
@@ -351,7 +352,7 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     const teacherCount = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
     const programCount = programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0;
 
-    let subsData = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
+    const subsData = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
 
     const grades = subsData.map((s: any) => s.grade).filter((g: any) => g != null);
     const avgProgress = grades.length

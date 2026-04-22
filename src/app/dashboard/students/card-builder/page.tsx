@@ -527,7 +527,7 @@ export default function CardBuilderPage() {
   };
 
   const toggleStudent = (id: string) =>
-    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const printStudentCards = (list: RealStudent[]) => {
     if (!list.length) return;
@@ -773,7 +773,7 @@ export default function CardBuilderPage() {
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const cardW = 130, cardX = (210 - cardW) / 2;
-    let cardY = 30;
+    const cardY = 30;
 
     // Card border
     doc.setDrawColor(209, 213, 219); doc.setLineWidth(0.3);

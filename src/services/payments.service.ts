@@ -412,7 +412,7 @@ export class PaymentsService {
 
         const pdfDoc = printer.createPdfKitDocument(docDefinition);
 
-        let chunks: any[] = [];
+        const chunks: any[] = [];
         pdfDoc.on('data', (chunk: any) => chunks.push(chunk));
 
         return new Promise<string>((resolve, reject) => {

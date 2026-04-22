@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   if (!submission) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
-  let updateData: Record<string, any> = { updated_at: new Date().toISOString() };
+  const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
   let auditAction = '';
 
   if (action === 'accept_ai') {

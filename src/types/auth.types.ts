@@ -27,7 +27,21 @@ export interface UserProfile {
 export interface AuthContextType {
     user: import('@supabase/supabase-js').User | null;
     session: import('@supabase/supabase-js').Session | null;
+    /**
+     * The effective profile seen by the UI. When the signed-in user is
+     * running a "view as role" simulation (admin/teacher only) the `role`
+     * field on this object is overridden. Server-side APIs always see the
+     * REAL role from the JWT — the simulation is UI-only.
+     */
     profile: UserProfile | null;
+    /** The real role on the JWT/database, unaffected by simulation. */
+    actualRole: UserRole | null;
+    /** The role currently being previewed, or null when no simulation is active. */
+    viewAsRole: UserRole | null;
+    /** True if actualRole !== effective profile.role (i.e. simulating). */
+    isSimulating: boolean;
+    /** Only admins + teachers may simulate; teachers cannot simulate 'admin'. */
+    setViewAsRole: (role: UserRole | null) => void;
     isLoading: boolean;
     loading: boolean;
     /** True while the profile row is being fetched (user is known but profile not yet loaded) */

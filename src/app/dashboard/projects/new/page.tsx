@@ -177,7 +177,7 @@ export default function NewProjectActivityPage() {
             setAssignedSchools(schj.data || []);
             setClasses(cj.data || []);
         });
-    }, [authLoading, isStaff]); // eslint-disable-line
+    }, [authLoading, isStaff]);  
 
     // Re-load classes when a target school is selected
     async function handleSchoolSelect(schoolId: string, schoolName: string) {

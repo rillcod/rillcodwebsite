@@ -208,7 +208,7 @@ export default function CommunityPage() {
     composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  function usePrompt(text: string) {
+  function applyPrompt(text: string) {
     setMessage(text);
     composerRef.current?.focus();
     composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -571,7 +571,7 @@ export default function CommunityPage() {
                 {PROMPT_GROUPS[promptGroup].prompts.map((p, i) => {
                   const Icon = p.icon;
                   return (
-                    <button key={i} onClick={() => usePrompt(p.text)}
+                    <button key={i} onClick={() => applyPrompt(p.text)}
                       className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-orange-500/30 hover:bg-orange-500/5 text-left transition-all group rounded-xl">
                       <span style={{ color: p.color }} className="flex-shrink-0 mt-0.5"><Icon className="w-3.5 h-3.5" /></span>
                       <span className="text-[10px] text-muted-foreground group-hover:text-foreground/80 leading-snug transition-colors">{p.text}</span>

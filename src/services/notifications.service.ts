@@ -299,7 +299,7 @@ export class NotificationsService {
             try {
                 const res = await fetch(url, options);
                 if (!res.ok) {
-                    let errText = await res.text().catch(() => 'Unknown Error');
+                    const errText = await res.text().catch(() => 'Unknown Error');
                     throw new Error(`SendPulse API error [${res.status}]: ${errText}`);
                 }
                 return res;

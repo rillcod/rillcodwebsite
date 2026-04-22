@@ -8,8 +8,8 @@ export const sortingSketch = (p: p5, data: CodeData, isPlaying: boolean, speed: 
   let bars: number[] = data.visualizationState?.array || [];
   let comparing: number[] = data.visualizationState?.comparing || [];
   let targetBars: number[] = [...bars];
-  let lerpedBars: number[] = [...bars];
-  let particles: Particle[] = [];
+  const lerpedBars: number[] = [...bars];
+  const particles: Particle[] = [];
   
   p.setup = () => {
     p.createCanvas(p.windowWidth, p.windowHeight);

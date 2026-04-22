@@ -52,6 +52,12 @@ interface Course {
   title: string;
   program_id?: string | null;
   programs?: { id: string; name: string } | null;
+  /** Soft-tag payload from courses.metadata — optional grade targeting & subject. */
+  metadata?: {
+    subject?: string;
+    grade_levels?: string[];
+    tags?: string[];
+  } | null;
 }
 interface Class { id: string; name: string; school_id?: string | null }
 interface School { id: string; name: string }
@@ -309,11 +315,43 @@ function LessonPlansPageInner() {
     return Array.from(set).sort();
   }, [plans]);
 
-  // Classes filtered by school
+  // Classes filtered by school AND (when available) by the selected course's
+  // target grades. We match loosely: a class "JSS1A" or "Grade JSS1 — Blue"
+  // all count as belonging to grade "JSS1". If the course hasn't been tagged
+  // with grade_levels yet, we skip the grade filter entirely so the dropdown
+  // is never accidentally empty.
   const formClasses = useMemo(() => {
-    if (!form.school_id) return allClasses;
-    return allClasses.filter(c => c.school_id === form.school_id);
-  }, [allClasses, form.school_id]);
+    const bySchool = form.school_id
+      ? allClasses.filter(c => c.school_id === form.school_id)
+      : allClasses;
+
+    const selectedCourse = courses.find(c => c.id === form.course_id);
+    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    if (grades.length === 0) return bySchool;
+
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, '');
+    const normGrades = grades.map(norm);
+
+    const matching = bySchool.filter(c => {
+      const n = norm(c.name ?? '');
+      return normGrades.some(g => n.includes(g));
+    });
+
+    // If nothing matched (e.g. school hasn't mirrored its class naming yet)
+    // fall back to the school-scoped list so the teacher isn't stuck.
+    return matching.length > 0 ? matching : bySchool;
+  }, [allClasses, form.school_id, form.course_id, courses]);
+
+  // Whether we actually narrowed the list by course grades — used for UI hint.
+  const classesNarrowedByGrade = useMemo(() => {
+    const selectedCourse = courses.find(c => c.id === form.course_id);
+    const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
+    if (grades.length === 0) return false;
+    const bySchool = form.school_id
+      ? allClasses.filter(c => c.school_id === form.school_id)
+      : allClasses;
+    return formClasses.length > 0 && formClasses.length < bySchool.length;
+  }, [courses, form.course_id, form.school_id, allClasses, formClasses.length]);
 
   if (authLoading || profileLoading || !profile) {
     return (
@@ -678,6 +716,15 @@ function LessonPlansPageInner() {
                   <option value="">— Not assigned to a class —</option>
                   {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                {classesNarrowedByGrade && (
+                  <p className="text-[10px] text-cyan-300/80 mt-1.5 flex items-center gap-1">
+                    <span className="font-black uppercase tracking-widest text-cyan-400/80">Grade-matched</span>
+                    <span className="text-card-foreground/50">
+                      Showing classes matching the course&apos;s grade tags
+                      ({(courses.find(c => c.id === form.course_id)?.metadata?.grade_levels ?? []).join(', ')}).
+                    </span>
+                  </p>
+                )}
               </div>
 
               {/* ── Step 4: Schedule ── */}

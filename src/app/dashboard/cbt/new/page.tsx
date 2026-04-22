@@ -244,7 +244,7 @@ export default function NewExamPage() {
 
       // Extract fenced code blocks first (protect them from inline processing)
       const codeBlocks: string[] = [];
-      let t = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
+      const t = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
         const langLabel = lang ? `<span style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;display:block">${escHtml(lang)}</span>` : '';
         codeBlocks.push(`<div style="margin:5px 0;background:#1e1e2e;border-radius:5px;padding:8px 10px;border-left:3px solid #7c3aed">${langLabel}<pre style="margin:0;font-family:'Courier New',monospace;font-size:10.5px;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${escHtml(code.trimEnd())}</pre></div>`);
         return `\x00CODE${codeBlocks.length - 1}\x00`;

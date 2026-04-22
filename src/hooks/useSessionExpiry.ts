@@ -57,8 +57,6 @@ export function useSessionExpiry(): SessionExpiryState {
 
   // ── Poll JWT exp every 30 s ───────────────────────────────────────────────
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-
     async function checkExpiry() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -82,7 +80,7 @@ export function useSessionExpiry(): SessionExpiryState {
     }
 
     checkExpiry();
-    timer = setInterval(checkExpiry, 30_000);
+    const timer = setInterval(checkExpiry, 30_000);
     return () => clearInterval(timer);
   }, [isExpiringSoon, handleExpired]);
 

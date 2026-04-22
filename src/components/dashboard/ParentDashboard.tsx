@@ -21,7 +21,8 @@ interface ChildSummary {
 
 interface ParentDashboardProps {
   profile: { id: string; full_name: string | null; email: string };
-  children: ChildSummary[];
+  /** Linked child summaries — renamed from `children` to avoid React's reserved children prop. */
+  kids: ChildSummary[];
   dataLoading: boolean;
   onRefresh: () => void;
 }
@@ -55,7 +56,7 @@ interface CurriculumMilestone {
   progress_pct: number;
 }
 
-export default function ParentDashboard({ profile, children, dataLoading, onRefresh }: ParentDashboardProps) {
+export default function ParentDashboard({ profile, kids: children, dataLoading, onRefresh }: ParentDashboardProps) {
   const firstName = profile.full_name?.split(' ')[0] ?? 'Parent';
   const [stats, setStats] = useState<DashStats | null>(null);
   const [milestones, setMilestones] = useState<CurriculumMilestone[]>([]);

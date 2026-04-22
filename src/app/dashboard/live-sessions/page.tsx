@@ -1462,7 +1462,7 @@ export default function LiveSessionsPage() {
 
       // Batch-fetch hosts
       const hostIds = [...new Set(rows.map(r => r.host_id).filter(Boolean))];
-      let hostsMap: Record<string, { full_name: string; role: string }> = {};
+      const hostsMap: Record<string, { full_name: string; role: string }> = {};
       if (hostIds.length > 0) {
         const { data: hosts } = await supabase
           .from('portal_users').select('id, full_name, role').in('id', hostIds);

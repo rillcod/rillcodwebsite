@@ -524,7 +524,7 @@ export default function ProjectBuilderPage() {
             }
         } catch (err: any) { setError(err.message); }
         finally { setLoading(false); }
-    }, [id, isStudent, profile?.id]); // eslint-disable-line
+    }, [id, isStudent, profile?.id]);  
 
     useEffect(() => {
         if (!authLoading && profile) loadActivity();

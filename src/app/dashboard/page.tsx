@@ -222,7 +222,7 @@ export default function DashboardPage() {
       {role === 'parent' && (
         <ParentDashboard
           profile={profile}
-          children={parentChildren}
+          kids={parentChildren}
           dataLoading={dataLoading}
           onRefresh={refetch}
         />

@@ -41,7 +41,7 @@ export default function AddParentPage() {
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile]);  
 
   useEffect(() => {
     if (!authLoading && profile) fetchData();

@@ -63,7 +63,7 @@ function LinkStudentModal({
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   useEffect(() => {
     if (defaultSchool) setSelectedSchool(defaultSchool);
-  }, [defaultSchool]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [defaultSchool]);  
   // Auto-select current user in teacher dropdown if they are a teacher
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
   useEffect(() => {
@@ -914,7 +914,7 @@ export default function ParentsPage() {
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };

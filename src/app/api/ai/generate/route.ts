@@ -919,7 +919,7 @@ export async function POST(req: NextRequest) {
     // Safe JSON extraction — handles markdown code fences and truncated responses
     function safeParseJSON(raw: string): any {
       // Strip markdown code fences if present
-      let stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
       
       try {
         return JSON.parse(stripped);

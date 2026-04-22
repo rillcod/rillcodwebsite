@@ -6,9 +6,9 @@ import { CodeData } from '../CodeVisualizer';
  */
 export const loopsSketch = (p: p5, data: CodeData, isPlaying: boolean, speed: number) => {
   let iterations: number[] = data.visualizationState?.iterations || [];
-  let ringRadius = 150;
+  const ringRadius = 150;
   let angleOffset = 0;
-  let currentHue = 330; // Pink
+  const currentHue = 330; // Pink
   let currentCounter = data.variables?.i || 0;
   
   p.setup = () => {

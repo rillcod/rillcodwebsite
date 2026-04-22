@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
 
     // Determine message status based on API result
     let messageStatus = 'sent';
-    let metadata: any = { sent_by: caller.id, sent_by_name: caller.full_name };
+    const metadata: any = { sent_by: caller.id, sent_by_name: caller.full_name };
 
     if (whatsappResult.success) {
       messageStatus = 'sent';
