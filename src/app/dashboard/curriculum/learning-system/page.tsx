@@ -124,6 +124,40 @@ export default function LearningSystemMapPage() {
       </div>
 
       <div className="px-4 sm:px-8 py-8 max-w-4xl mx-auto space-y-4">
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/[0.05] p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Start here (simple)</p>
+          <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <li className="border border-border rounded-lg p-3 bg-card/60">
+              <p className="font-black text-foreground">1) Choose your course</p>
+              <p className="text-muted-foreground mt-1">Open the course syllabus and pick the class/course you want to work on.</p>
+              <Link href="/dashboard/curriculum" className="inline-flex mt-2 text-cyan-300 font-bold hover:underline">
+                Open Curriculum
+              </Link>
+            </li>
+            <li className="border border-border rounded-lg p-3 bg-card/60">
+              <p className="font-black text-foreground">2) Pick teaching path (optional)</p>
+              <p className="text-muted-foreground mt-1">Use the optional teaching path tool only if it fits your class. Preview first.</p>
+              <Link href="/dashboard/curriculum" className="inline-flex mt-2 text-cyan-300 font-bold hover:underline">
+                Open Teaching Path Tool
+              </Link>
+            </li>
+            <li className="border border-border rounded-lg p-3 bg-card/60">
+              <p className="font-black text-foreground">3) Set term plan</p>
+              <p className="text-muted-foreground mt-1">Generate term progression so the syllabus becomes a clear weekly plan.</p>
+              <Link href="/dashboard/lesson-plans" className="inline-flex mt-2 text-cyan-300 font-bold hover:underline">
+                Open Lesson Plans
+              </Link>
+            </li>
+            <li className="border border-border rounded-lg p-3 bg-card/60">
+              <p className="font-black text-foreground">4) Deliver and track weekly</p>
+              <p className="text-muted-foreground mt-1">Track weekly progress, teach lessons, then release assignments/projects/CBT.</p>
+              <Link href="/dashboard/curriculum/progress" className="inline-flex mt-2 text-cyan-300 font-bold hover:underline">
+                Open Progress
+              </Link>
+            </li>
+          </ol>
+        </div>
+
         {/* One-line linear flow (visual) */}
         <div className="rounded-xl border border-border bg-gradient-to-b from-card to-card/50 p-4">
           <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-3">Simple order</p>
@@ -221,33 +255,6 @@ export default function LearningSystemMapPage() {
             <span className="text-foreground">syllabus (QA or traditional)</span> → <span className="text-foreground">term progression</span> (set rails) →{' '}
             week tracking → live lessons → assignments / projects / CBT.
           </p>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-border/50">
-            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500/80 shrink-0">
-              Machine export
-            </p>
-            <code className="text-[10px] bg-background border border-border px-2 py-1 rounded break-all">
-              GET {LEARNING_SYSTEM_MAP_API_PATH}
-            </code>
-            <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <button
-                type="button"
-                onClick={() => void copyMapJson()}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border border-border bg-muted/30 hover:bg-muted/50"
-              >
-                <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                {copyState === 'ok' ? 'Copied' : copyState === 'err' ? 'Copy failed' : 'Copy response'}
-              </button>
-              <a
-                href={LEARNING_SYSTEM_MAP_API_PATH}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10"
-              >
-                <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                Open JSON
-              </a>
-            </div>
-          </div>
         </div>
 
         <ol className="space-y-4">
@@ -311,6 +318,31 @@ export default function LearningSystemMapPage() {
                   ) : (
                     <div />
                   )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500/80">System export (for technical teams)</p>
+                  <code className="text-[10px] bg-background border border-border px-2 py-1 rounded break-all inline-block">
+                    GET {LEARNING_SYSTEM_MAP_API_PATH}
+                  </code>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyMapJson()}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border border-border bg-muted/30 hover:bg-muted/50"
+                    >
+                      <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                      {copyState === 'ok' ? 'Copied' : copyState === 'err' ? 'Copy failed' : 'Copy response'}
+                    </button>
+                    <a
+                      href={LEARNING_SYSTEM_MAP_API_PATH}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10"
+                    >
+                      <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                      Open JSON
+                    </a>
+                  </div>
                 </div>
               </details>
             </li>
