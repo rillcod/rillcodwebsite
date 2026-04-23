@@ -7,6 +7,7 @@ import {
   type SyllabusContentImport,
 } from '@/lib/lesson-plans/syllabusImport';
 import { hasPlanBindings } from '@/lib/api-guards';
+import { extractLessonPlanOperationWeeks, getWeekCompositeKey } from '@/lib/progression/lessonPlanOperation';
 
 export async function POST(
   req: NextRequest,
@@ -54,23 +55,37 @@ export async function POST(
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
     const planData = plan.plan_data as any;
-    const weeks = (planData?.weeks ?? []) as Array<{ week: number; topic: string; objectives?: string; activities?: string }>;
+    const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
+      week: number;
+      topic: string;
+      objectives?: string;
+      activities?: string;
+      syllabus_ref?: { year_number?: number; term_number?: number; week_number?: number };
+    }>;
     const { data: existingAssignments } = await supabase
       .from('assignments')
       .select('id, metadata, assignment_type')
       .eq('course_id', planCourseId)
       .eq('school_id', planSchoolId)
       .neq('assignment_type', 'project');
-    const existingWeekSet = new Set<number>(
+    const existingWeekSet = new Set<string>(
       (existingAssignments ?? [])
         .filter((a) => {
           const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
           return metadata?.lesson_plan_id === id;
         })
-        .map((a) => Number((a.metadata as Record<string, unknown> | null)?.week_number ?? -1))
-        .filter((n) => Number.isFinite(n) && n > 0),
+        .map((a) => {
+          const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
+          return getWeekCompositeKey({
+            week: Number(metadata?.week_number ?? -1),
+            syllabus_ref: {
+              year_number: Number(metadata?.year_number ?? 0),
+              term_number: Number(metadata?.term_number ?? 0),
+            },
+          });
+        }),
     );
-    const projectedSkips = weeks.filter((w) => existingWeekSet.has(w.week)).length;
+    const projectedSkips = weeks.filter((w) => existingWeekSet.has(getWeekCompositeKey(w as unknown as Record<string, unknown>))).length;
     if (dryRun) {
       return NextResponse.json({
         data: {
@@ -115,7 +130,10 @@ export async function POST(
             const dueDate = new Date(termStart);
             dueDate.setDate(dueDate.getDate() + (week.week * cadenceDays));
 
-            const syllabusWeek = findSyllabusWeek(curriculumContent, termNum, week.week);
+            const yearNumber = Number(week.syllabus_ref?.year_number ?? 0);
+            const termNumber = Number(week.syllabus_ref?.term_number ?? termNum);
+            const effectiveTermNum = Number.isFinite(termNumber) && termNumber > 0 ? termNumber : termNum;
+            const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week);
             const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
             // Call AI generate endpoint
@@ -156,7 +174,7 @@ export async function POST(
               continue;
             }
 
-            if (existingWeekSet.has(week.week)) {
+            if (existingWeekSet.has(getWeekCompositeKey(week as unknown as Record<string, unknown>))) {
               emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (already exists)` });
               skipped++;
               continue;
@@ -173,7 +191,13 @@ export async function POST(
               assignment_type: aiData.data.assignment_type || 'homework',
               due_date: dueDate.toISOString(),
               max_points: 100,
-              metadata: { ...aiData.data.metadata, lesson_plan_id: plan.id, week_number: week.week },
+              metadata: {
+                ...aiData.data.metadata,
+                lesson_plan_id: plan.id,
+                week_number: week.week,
+                year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
+                term_number: Number.isFinite(effectiveTermNum) && effectiveTermNum > 0 ? effectiveTermNum : null,
+              },
               questions: aiData.data.questions || [],
             });
 

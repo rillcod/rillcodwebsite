@@ -2,6 +2,57 @@ import { createClient } from '@/lib/supabase/client';
 
 const db = () => createClient();
 
+async function countActivePrograms(opts: { schoolId?: string; schoolName?: string } = {}) {
+    let q = db()
+        .from('programs')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+    if (opts.schoolId || opts.schoolName) {
+        const filters = ['school_id.is.null'];
+        if (opts.schoolId) filters.push(`school_id.eq.${opts.schoolId}`);
+        if (opts.schoolName) filters.push(`school_name.eq.${JSON.stringify(opts.schoolName)}`);
+        q = (q as any).or(filters.join(','));
+    }
+
+    const { count } = await q;
+    return count ?? 0;
+}
+
+async function computeAverageProgress(opts: { schoolId?: string; schoolName?: string } = {}) {
+    let subsQ = db()
+        .from('assignment_submissions')
+        .select('grade, portal_user_id, user_id')
+        .eq('status', 'graded')
+        .not('grade', 'is', null)
+        .limit(500);
+
+    if (opts.schoolId || opts.schoolName) {
+        let userQ = db()
+            .from('portal_users')
+            .select('id')
+            .eq('role', 'student');
+
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq.${JSON.stringify(opts.schoolName)}`;
+        if (filter) userQ = (userQ as any).or(filter);
+
+        const { data: users } = await userQ;
+        const userIds = (users ?? []).map((row: any) => row.id).filter(Boolean);
+        if (userIds.length === 0) return 0;
+        subsQ = (subsQ as any).or(
+            `portal_user_id.in.(${userIds.join(',')}),user_id.in.(${userIds.join(',')})`,
+        );
+    }
+
+    const { data: subsData } = await subsQ;
+    const grades = (subsData ?? []).map((s: any) => s.grade).filter((g: any) => g != null);
+    return grades.length
+        ? Math.round(grades.reduce((a: number, b: number) => a + Number(b), 0) / grades.length)
+        : 0;
+}
+
 // ── ASSIGNMENTS ───────────────────────────────────────────────
 // For teachers/admins: all assignments with submission counts
 export async function fetchAssignments(opts: { teacherId?: string; schoolId?: string; schoolName?: string } = {}) {
@@ -290,10 +341,13 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
 
     // 1. If scoped to a school, use optimized RPC
     if (opts.schoolId) {
-        const { data, error } = await supabase.rpc('get_school_dashboard_stats', {
+        const [{ data, error }, totalPrograms] = await Promise.all([
+            supabase.rpc('get_school_dashboard_stats', {
             school_uuid: opts.schoolId,
             school_name_param: opts.schoolName || ''
-        });
+            }),
+            countActivePrograms(opts),
+        ]);
 
         if (error) throw error;
         const stats = data as any;
@@ -302,24 +356,28 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
             totalStudents: stats.total_students,
             activeStudents: stats.portal_students,
             totalTeachers: stats.assigned_teachers,
-            totalPrograms: 0, // Not explicitly in school stats RPC yet
+            totalPrograms,
             avgProgress: stats.avg_performance || 0,
         };
     }
 
     // 2. If global admin, use optimized Materialized View
-    const { data, error } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .single();
+    const [{ data, error }, totalPrograms, avgProgressMetric] = await Promise.all([
+        supabase
+            .from('admin_dashboard_stats')
+            .select('*')
+            .single(),
+        countActivePrograms(),
+        computeAverageProgress(),
+    ]);
 
     if (!error && data) {
         return {
             totalStudents: data.total_students || 0,
             activeStudents: data.total_students || 0,
             totalTeachers: data.total_teachers || 0,
-            totalPrograms: 0, // Placeholder
-            avgProgress: 0, // Placeholder
+            totalPrograms,
+            avgProgress: avgProgressMetric,
         };
     }
 

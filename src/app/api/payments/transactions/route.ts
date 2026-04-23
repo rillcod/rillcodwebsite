@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 /**
  * GET /api/payments/transactions
@@ -45,18 +46,11 @@ export async function GET(req: NextRequest) {
   } else if (profile.role === 'parent') {
     // Parents: transactions they paid (portal_user_id = parent)
     // OR transactions for invoices tied to any of their children
-    // (children are linked via students.parent_email = parent's email).
     const parentEmail = (profile as any).email as string | undefined;
-    let childUserIds: string[] = [];
-    if (parentEmail) {
-      const { data: children } = await db
-        .from('students')
-        .select('user_id')
-        .eq('parent_email', parentEmail);
-      childUserIds = (children ?? [])
-        .map((c: any) => c.user_id)
-        .filter((v: string | null): v is string => Boolean(v));
-    }
+    const { studentUserIds: childUserIds } = await getParentLinkScope(
+      db as any,
+      { id: user.id, email: parentEmail },
+    );
     if (childUserIds.length > 0) {
       q = q.or(
         `portal_user_id.eq.${user.id},portal_user_id.in.(${childUserIds.join(',')})`

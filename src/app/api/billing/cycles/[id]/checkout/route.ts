@@ -87,9 +87,13 @@ export async function POST(
     callback_url: `${baseUrl}/dashboard/finance?tab=billing_cycles&payment=success&ref=${reference}`,
     metadata: {
       userId: caller.id,
+      payment_type: 'billing_cycle',
       billingCycleId: id,
+      billing_cycle_id: id,
       invoiceId: cycle.invoice_id || null,
+      invoice_id: cycle.invoice_id || null,
       termLabel: cycle.term_label || '',
+      term_label: cycle.term_label || '',
       originalAmount: amount,
       currency: payCurrency,
     },
@@ -122,6 +126,13 @@ export async function POST(
     payment_status: 'pending',
     transaction_reference: reference,
     external_transaction_id: psk.data.reference,
+    payment_gateway_response: {
+      payment_type: 'billing_cycle',
+      billing_cycle_id: id,
+      invoice_id: cycle.invoice_id || null,
+      term_label: cycle.term_label || '',
+      initiated_by_role: caller.role,
+    },
     created_at: new Date().toISOString(),
   }]);
 

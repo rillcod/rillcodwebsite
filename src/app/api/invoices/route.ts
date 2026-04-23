@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 function adminClient() {
   return createClient(
@@ -66,13 +67,10 @@ export async function GET(request: NextRequest) {
     query = query.eq('portal_user_id', caller.id);
   } else if (caller.role === 'parent') {
     if (!caller.email) return NextResponse.json({ data: [] });
-    const { data: children } = await admin
-      .from('students')
-      .select('user_id')
-      .eq('parent_email', caller.email);
-    const childUserIds = (children ?? [])
-      .map((c: any) => c.user_id)
-      .filter((v: string | null): v is string => Boolean(v));
+    const { studentUserIds: childUserIds } = await getParentLinkScope(
+      admin as any,
+      { id: caller.id, email: caller.email },
+    );
     if (childUserIds.length === 0) {
       return NextResponse.json({ data: [] });
     }

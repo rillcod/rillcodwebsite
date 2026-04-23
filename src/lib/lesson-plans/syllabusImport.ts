@@ -16,6 +16,17 @@ export type SyllabusLessonPlanSlice = {
   project?: unknown;
 };
 
+export type SyllabusAssessmentPlanSlice = {
+  type?: 'written' | 'practical' | 'mixed';
+  title?: string;
+  coverage?: string[];
+  format?: string;
+  duration_minutes?: number;
+  scoring_guide?: string;
+  teacher_prep?: string[];
+  sample_questions?: string[];
+};
+
 export type SyllabusWeekImport = {
   week: number;
   topic?: string;
@@ -24,6 +35,7 @@ export type SyllabusWeekImport = {
   activities?: string[];
   assessment?: string;
   lesson_plan?: SyllabusLessonPlanSlice | null;
+  assessment_plan?: SyllabusAssessmentPlanSlice | null;
 };
 
 export type SyllabusContentImport = {

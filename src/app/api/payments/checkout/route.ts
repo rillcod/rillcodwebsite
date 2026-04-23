@@ -7,6 +7,7 @@ import { paymentsService } from '@/services/payments.service';
 import { withValidation } from '@/proxies/validation.proxy';
 import { AppError } from '@/lib/errors';
 import { canRoleInitiateCheckout } from '@/lib/payments/checkout-access';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 const createCheckoutSchema = z.object({
     course_id:      z.string().uuid('Invalid course ID').optional(),
@@ -55,11 +56,10 @@ async function assertUserCanPayInvoice(
             .eq('id', me.id)
             .single();
         if (!profile?.email) throw new AppError('Profile email required', 400, true);
-        const { data: children } = await supabase
-            .from('students')
-            .select('user_id')
-            .eq('parent_email', profile.email);
-        const childIds = (children ?? []).map((c) => c.user_id).filter(Boolean) as string[];
+        const { studentUserIds: childIds } = await getParentLinkScope(
+            supabase as unknown as SupabaseClient<any>,
+            { id: me.id, email: profile.email },
+        );
         if (!inv.portal_user_id || !childIds.includes(inv.portal_user_id)) {
             throw new AppError('You cannot pay this invoice', 403, true);
         }
@@ -173,6 +173,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
             data!.course_id,
             resolvedAmount,
             user.tenantId,
+            resolvedCurrency,
         );
     } else {
         checkoutResult = await paymentsService.createPaystackCheckout(

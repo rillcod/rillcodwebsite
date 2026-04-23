@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { env } from '@/config/env';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 /**
  * POST /api/payments/parent-pay
@@ -43,13 +44,11 @@ export async function POST(req: Request) {
     if (invoice.status === 'paid') return NextResponse.json({ error: 'Invoice already paid' }, { status: 400 });
 
     // Verify this invoice belongs to one of the parent's children
-    const { data: children } = await supabase
-      .from('students')
-      .select('user_id')
-      .eq('parent_email', profile.email);
-
-    const childUserIds = (children ?? []).map(c => c.user_id).filter(Boolean);
-    if (!childUserIds.includes(invoice.portal_user_id)) {
+    const { studentUserIds: childUserIds } = await getParentLinkScope(
+      supabase as any,
+      { id: profile.id, email: profile.email },
+    );
+    if (!invoice.portal_user_id || !childUserIds.includes(invoice.portal_user_id)) {
       return NextResponse.json({ error: 'This invoice does not belong to your child' }, { status: 403 });
     }
 
