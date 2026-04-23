@@ -68,10 +68,21 @@ export default function PushSubscriptionManager() {
 
   useEffect(() => {
     if (!user || typeof window === 'undefined') return;
+    if (!window.location.pathname.startsWith('/dashboard')) return;
 
     const setupPush = async () => {
       try {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (!('Notification' in window)) return;
+
+        // Request notification permission only in dashboard context and only once.
+        if (Notification.permission === 'default') {
+          const asked = window.localStorage.getItem('push-permission-asked');
+          if (!asked) {
+            window.localStorage.setItem('push-permission-asked', '1');
+            await Notification.requestPermission();
+          }
+        }
 
         const registration = await navigator.serviceWorker.ready;
 

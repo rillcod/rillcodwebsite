@@ -7,6 +7,7 @@ import Navigation from "@/components/layout/Navigation";
 import PwaProvider from "@/components/pwa/PwaProvider";
 import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
 import PushSubscriptionManager from "@/components/pwa/PushSubscriptionManager";
+import PwaUpdateBanner from "@/components/pwa/PwaUpdateBanner";
 import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
@@ -20,8 +21,9 @@ export default function AppProviders({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <AuthProvider>
         <Navigation />
-        <PwaProvider />
-        <PWAInstaller />
+        <PwaProvider enabled={isDashboard} />
+        {isDashboard && <PWAInstaller />}
+        {isDashboard && <PwaUpdateBanner enabled={isDashboard} />}
         <PushSubscriptionManager />
         <OfflineIndicator />
         {children}

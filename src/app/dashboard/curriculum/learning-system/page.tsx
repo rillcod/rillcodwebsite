@@ -47,6 +47,15 @@ function ListBlock({
   );
 }
 
+function friendlyDbName(name: string): string {
+  return name
+    .replace(/^public\./, '')
+    .replace(/^lesson_plans\./, 'lesson plans ')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function LearningSystemMapPage() {
   const { profile, loading } = useAuth();
   const canSee = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -105,8 +114,8 @@ export default function LearningSystemMapPage() {
             <div>
               <h1 className="text-xl font-black tracking-tight">Learning &amp; QA system map</h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                One linear order: from programme catalog through the shared spine, into your school syllabus, tracking,
-                and lesson plans. Use this so nothing feels hidden — the same path scales across all partner schools.
+                One clear order: choose course, set syllabus path, set term plan, then deliver weekly lessons.
+                This page explains where each part lives so nothing feels hidden.
                 Active catalog version: <code className="text-orange-300 bg-muted px-1">{QA_CATALOG_VERSION}</code>
               </p>
             </div>
@@ -117,7 +126,7 @@ export default function LearningSystemMapPage() {
       <div className="px-4 sm:px-8 py-8 max-w-4xl mx-auto space-y-4">
         {/* One-line linear flow (visual) */}
         <div className="rounded-xl border border-border bg-gradient-to-b from-card to-card/50 p-4">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-3">Single linear order (not scattered)</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-3">Simple order</p>
           <div className="overflow-x-auto pb-1 -mx-1 px-1">
             <div className="flex flex-nowrap items-center gap-0.5 min-w-max sm:flex-wrap sm:min-w-0">
               {LEARNING_QA_SYSTEM_ORDER.map((layer, i) => (
@@ -135,14 +144,14 @@ export default function LearningSystemMapPage() {
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground mt-3">
-            Step 5 (term progression: generate-progression, lock, schedules) comes <strong className="text-foreground/90">right after the syllabus</strong> and{' '}
-            <strong className="text-foreground/90">before</strong> week tracking, live lessons, and assignments — it turns the QA syllabus into year/term rails, not an afterthought at the end.
+            Step 5 is your term plan. Do it <strong className="text-foreground/90">right after syllabus</strong> and
+            <strong className="text-foreground/90"> before</strong> weekly tracking, live lessons, and assignments.
           </p>
         </div>
 
         {/* Versions: curriculum v vs QA catalog (not fixed) */}
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-cyan-400">What “version” means (visual)</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-cyan-400">Version guide</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {(
               [
@@ -177,7 +186,7 @@ export default function LearningSystemMapPage() {
 
         {/* Adopt / flexible / traditional — policy in one place */}
         <div className="rounded-xl border border-dashed border-orange-500/30 bg-orange-500/[0.04] p-4 space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-300">Your delivery policy (pick one mindset — app supports all)</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-orange-300">Choose how your school works</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {DELIVERY_MODE_CHOICES.map((m) => (
               <div
@@ -258,13 +267,19 @@ export default function LearningSystemMapPage() {
               </div>
               <div className="p-4 space-y-4 sm:grid sm:grid-cols-2 sm:gap-6 sm:space-y-0">
                 <div className="space-y-4">
-                  <ListBlock label="Database" items={layer.db} />
-                  <ListBlock label="SQL migrations (see /supabase/migrations)" items={layer.sqlMigrations} />
+                  <ListBlock
+                    label="Where data is saved"
+                    items={layer.db.map((x) => ({ ...x, name: friendlyDbName(x.name) }))}
+                  />
+                  <ListBlock
+                    label="Main setup updates"
+                    items={layer.sqlMigrations.map((m) => m.replace('.sql', ''))}
+                  />
                 </div>
                 <div className="space-y-4">
-                  <ListBlock label="API routes" items={layer.apiRoutes} />
+                  <ListBlock label="System actions in this step" items={layer.apiRoutes} />
                   <div className="space-y-1.5">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">App / UI</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Where to click</p>
                     <ul className="space-y-1.5">
                       {layer.appPaths.map((p) => (
                         <li key={p.path}>
@@ -280,11 +295,24 @@ export default function LearningSystemMapPage() {
                       ))}
                     </ul>
                   </div>
-                  {layer.codeRefs && layer.codeRefs.length > 0 && (
-                    <ListBlock label="Code" items={layer.codeRefs} />
-                  )}
                 </div>
               </div>
+
+              <details className="px-4 pb-4">
+                <summary className="cursor-pointer text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">
+                  Advanced details
+                </summary>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <ListBlock label="Database tables" items={layer.db} />
+                  <ListBlock label="API routes" items={layer.apiRoutes} />
+                  <ListBlock label="SQL migration files" items={layer.sqlMigrations} />
+                  {layer.codeRefs && layer.codeRefs.length > 0 ? (
+                    <ListBlock label="Code references" items={layer.codeRefs} />
+                  ) : (
+                    <div />
+                  )}
+                </div>
+              </details>
             </li>
           ))}
         </ol>

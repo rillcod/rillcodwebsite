@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 // @ts-ignore
 import withPWAInit from "next-pwa";
+// @ts-ignore
+import runtimeCaching from "next-pwa/cache";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -8,6 +10,10 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   // SafeDev PWA Mode: Disabled in development to ensure stable dashboard loading
   disable: process.env.NODE_ENV === "development",
+  runtimeCaching,
+  fallbacks: {
+    document: "/offline.html",
+  },
 });
 
 const nextConfig: NextConfig = {

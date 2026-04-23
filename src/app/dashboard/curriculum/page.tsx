@@ -219,6 +219,7 @@ export default function CurriculumPage() {
   const [curriculumList, setCurriculumList] = useState<CurriculumDoc[]>([]);
   /** Schools the teacher (or admin) can scope a new syllabus to — from GET /api/schools */
   const [assignedSchools, setAssignedSchools] = useState<{ id: string; name: string }[]>([]);
+  const [schoolScopedProgramIds, setSchoolScopedProgramIds] = useState<string[]>([]);
   /**
    * POST /api/curricula body: `school_id: null` = platform, else UUID for that school.
    * One row per (course, school) in the database.
@@ -304,6 +305,22 @@ export default function CurriculumPage() {
       .filter(Boolean) as Program[];
   }, [programs, catalogQuery]);
 
+  const quickChooserCourses = useMemo(() => {
+    const hasSchoolScopeFilter = schoolScopedProgramIds.length > 0;
+    return programs
+      .flatMap((prog) =>
+        (prog.courses ?? [])
+          .filter((c) => c.is_active !== false)
+          .filter((c) => {
+            if (!hasSchoolScopeFilter) return true;
+            const pid = c.program_id ?? prog.id;
+            return !!pid && schoolScopedProgramIds.includes(pid);
+          })
+          .map((course) => ({ prog, course })),
+      )
+      .slice(0, 24);
+  }, [programs, schoolScopedProgramIds]);
+
   // ── Load programs ────────────────────────────────────────────────────────
   // Honors `?program=<id>` and `?course=<id>` for deep-linking from the
   // student learning hub or the syllabus link in any other view.
@@ -345,6 +362,25 @@ export default function CurriculumPage() {
       .then((j) => setAssignedSchools((j.data ?? []) as { id: string; name: string }[]))
       .catch(() => setAssignedSchools([]));
   }, [canTrack]);
+
+  // Build school-based program scope for the quick chooser grid.
+  useEffect(() => {
+    if (!(isAdmin || isTeacher || isSchool)) return;
+    fetch('/api/classes', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        const classes = (j.data ?? []) as { program_id?: string | null }[];
+        const ids = Array.from(
+          new Set(
+            classes
+              .map((c) => c.program_id)
+              .filter((x): x is string => typeof x === 'string' && x.length > 0),
+          ),
+        );
+        setSchoolScopedProgramIds(ids);
+      })
+      .catch(() => setSchoolScopedProgramIds([]));
+  }, [isAdmin, isTeacher, isSchool]);
 
   // Restore grade memory from localStorage on first load.
   useEffect(() => {
@@ -1628,12 +1664,49 @@ export default function CurriculumPage() {
         <div className="flex-1">
         {!selectedCourse ? (
           /* Empty state */
-          <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4">
-            <BookOpenIcon className="w-14 h-14 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-black mb-2">Select a Course</h2>
-            <p className="text-muted-foreground text-sm max-w-xs">
-              Choose a program and course from the sidebar to view or generate its curriculum.
-            </p>
+          <div className="h-full min-h-[60vh] px-4 py-8">
+            <div className="max-w-5xl mx-auto space-y-5">
+              <div className="text-center">
+                <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <h2 className="text-xl font-black mb-1">Choose a Course</h2>
+                <p className="text-muted-foreground text-sm">
+                  Pick a course below to open its syllabus. You can still use the left sidebar anytime.
+                </p>
+              </div>
+              <div className="bg-card border border-border p-4 sm:p-5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3">
+                  Quick course grid
+                </p>
+                {(isTeacher || isSchool) && (
+                  <p className="text-[11px] text-muted-foreground mb-3">
+                    School-based list: showing courses linked to classes in your school scope.
+                  </p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {quickChooserCourses.map(({ prog, course }) => (
+                    <button
+                      key={course.id}
+                      type="button"
+                      onClick={() => selectCourse(prog, course)}
+                      className="text-left border border-border bg-background hover:border-orange-500/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
+                    >
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
+                        {prog.name}
+                      </p>
+                      <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">
+                        Open syllabus
+                      </p>
+                    </button>
+                  ))}
+                </div>
+                {quickChooserCourses.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-3">
+                    No courses found for current school scope yet. Add/assign classes first, or use the full sidebar catalog.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         ) : loadingCurr ? (
           <div className="flex items-center justify-center h-64">
@@ -1890,7 +1963,14 @@ export default function CurriculumPage() {
 
             {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
             {canGenerate && (
-              <div className="bg-card border border-dashed border-border/80">
+              <div className="bg-card border border-dashed border-border/80 space-y-3 p-3 sm:p-4">
+                <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Simple flow</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    1) Open/create syllabus. 2) Use <span className="text-foreground font-bold">Teaching path tool (optional)</span> to preview before apply.
+                    3) Generate term progression. 4) Run weekly tracking, lessons, and assignments.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -1898,13 +1978,13 @@ export default function CurriculumPage() {
                     setQaApplyErr('');
                     setQaPreviewErr('');
                   }}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+                  className="w-full flex items-center justify-between gap-3 px-2 sm:px-1 py-1 text-left hover:bg-muted/20 transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-                        Optional — QA week spine
+                        Optional — Teaching Path Tool
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                         Show what&rsquo;s in the platform template DB, preview path for a class, then align this syllabus
@@ -1927,10 +2007,7 @@ export default function CurriculumPage() {
                     >
                       <div className="p-4 space-y-4 text-xs">
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Use this when you want a <span className="text-foreground font-bold">known progression</span> from{' '}
-                          <code className="text-[10px] bg-muted px-1">platform_syllabus_week_template</code>
-                          instead of a blind one-click. Pick programme year, optional lane override, and a class to see how weeks rotate (path offset) before writing into{' '}
-                          <span className="text-foreground font-bold">this syllabus copy</span> (v{curriculum.version}).
+                          Use this tool when you want a ready teaching path from the platform template. Preview first, then apply only if it fits this class and year for this syllabus copy (v{curriculum.version}).
                         </p>
                         <div className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-3 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
@@ -2028,12 +2105,12 @@ export default function CurriculumPage() {
 
                         <div className="pt-2 border-t border-border/60 space-y-3">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Align this syllabus
+                            Use this teaching path in syllabus
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Programme year block (1–3)
+                                Teaching year block (1–3)
                               </label>
                               <select
                                 className={SELECT_CLS}
@@ -2050,7 +2127,7 @@ export default function CurriculumPage() {
                             </div>
                             <div>
                               <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Lane (0 = auto from class)
+                                Path option (0 = auto from class)
                               </label>
                               <select
                                 className={SELECT_CLS}
@@ -2070,7 +2147,7 @@ export default function CurriculumPage() {
                             </div>
                             <div className="sm:col-span-2">
                               <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Class (optional — enables path rotation preview + class lane hints)
+                                Class (optional — turns on class-based preview)
                               </label>
                               <select
                                 className={SELECT_CLS}
@@ -2117,7 +2194,7 @@ export default function CurriculumPage() {
                                           : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
                                       } disabled:opacity-60`}
                                     >
-                                      Optional (recommended)
+                                      Flexible (recommended)
                                     </button>
                                     <button
                                       type="button"
@@ -2129,7 +2206,7 @@ export default function CurriculumPage() {
                                           : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
                                       } disabled:opacity-60`}
                                     >
-                                      Compulsory (this class)
+                                      Make compulsory (this class)
                                     </button>
                                   </div>
                                   <p className="text-[10px] text-muted-foreground">
@@ -2150,7 +2227,7 @@ export default function CurriculumPage() {
                               onChange={(e) => setQaOverwrite(e.target.checked)}
                             />
                             <span className="text-[11px] text-muted-foreground">
-                              Overwrite existing week rows in all terms (if unchecked, only empty terms get the spine)
+                              Replace existing weeks in all terms (if unchecked, only empty terms are filled)
                             </span>
                           </label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2165,7 +2242,7 @@ export default function CurriculumPage() {
                               ) : (
                                 <EyeIcon className="w-3.5 h-3.5" />
                               )}
-                              Preview class path
+                              Preview for this class
                             </button>
                             <button
                               type="button"
@@ -2178,7 +2255,7 @@ export default function CurriculumPage() {
                               ) : (
                                 <BoltIcon className="w-3.5 h-3.5" />
                               )}
-                              Apply spine to this syllabus
+                              Use this path in syllabus
                             </button>
                           </div>
                           {qaNeedsFreshPreview && (
