@@ -83,6 +83,48 @@ export default function NotificationsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set());
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundLevel, setSoundLevel] = useState(70);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rillcod_notification_sound');
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      setSoundEnabled(parsed.enabled !== false);
+      setSoundLevel(typeof parsed.level === 'number' ? parsed.level : 70);
+    } catch {
+      // Ignore invalid local settings.
+    }
+  }, []);
+
+  function saveSoundPreferences() {
+    try {
+      localStorage.setItem('rillcod_notification_sound', JSON.stringify({
+        enabled: soundEnabled,
+        level: soundLevel,
+      }));
+    } catch {
+      // Ignore local storage failures.
+    }
+  }
+
+  function playPreviewTone(level: number) {
+    if (typeof window === 'undefined') return;
+    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = Math.max(0.01, Math.min(1, level / 100)) * 0.05;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.18);
+    oscillator.onended = () => { void ctx.close(); };
+  }
 
   // Load notifications
   useEffect(() => {
@@ -275,6 +317,65 @@ export default function NotificationsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
+        <div className="bg-card/40 backdrop-blur-xl border border-border/40 p-6 mb-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.22em]">Alert Sound</p>
+              <h2 className="text-lg font-black text-foreground mt-1">Notification sound controls</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose how loud notification previews should sound on this device.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:min-w-[320px]">
+              <label className="flex items-center justify-between gap-4 text-sm font-semibold text-foreground">
+                <span>Enable sound</span>
+                <button
+                  type="button"
+                  onClick={() => setSoundEnabled((prev) => !prev)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${soundEnabled ? 'bg-orange-500' : 'bg-muted'}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </label>
+              <label className="space-y-2 text-sm font-semibold text-foreground">
+                <span className="flex items-center justify-between">
+                  <span>Sound level</span>
+                  <span className="text-xs text-muted-foreground">{soundLevel}%</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={soundLevel}
+                  onChange={(e) => setSoundLevel(Number(e.target.value))}
+                  disabled={!soundEnabled}
+                  className="w-full accent-orange-500"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveSoundPreferences();
+                    if (soundEnabled) playPreviewTone(soundLevel);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-500/20"
+                >
+                  Preview sound
+                </button>
+                <button
+                  type="button"
+                  onClick={saveSoundPreferences}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-background border border-border text-foreground text-xs font-black uppercase tracking-widest hover:bg-muted"
+                >
+                  Save sound settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Filters and Search */}
         <div className="bg-card/40 backdrop-blur-xl border border-border/40 p-6 mb-10 space-y-6">
           {/* Search */}
