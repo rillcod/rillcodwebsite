@@ -6,6 +6,7 @@ import {
   BookOpenIcon, TrophyIcon, StarIcon, RocketLaunchIcon,
   SparklesIcon, FireIcon, BoltIcon, CheckBadgeIcon,
   ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
+  ArchiveBoxIcon, CommandLineIcon, UserGroupIcon, ChatBubbleLeftRightIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -211,13 +212,14 @@ export default function StudentDashboard() {
       </Link>
 
       {/* Quick Nav */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'Mission Vault',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -470,13 +472,14 @@ export default function StudentDashboard() {
       )}
 
       {/* Quick Nav Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'Mission Vault',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -501,6 +504,75 @@ export default function StudentDashboard() {
           Open →
         </div>
       </Link>
+
+      <div className="bg-card border border-border p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+          <div>
+            <p className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.35em]">Student Activity Stack</p>
+            <h3 className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">Build, Engage, Compete</h3>
+          </div>
+          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium max-w-xl">
+            Your community, missions, protocol track, vault, and collaboration tools now sit directly inside the student dashboard flow.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {[
+            {
+              href: '/dashboard/engage',
+              icon: ChatBubbleLeftRightIcon,
+              label: 'Community Feed',
+              detail: 'Share ideas, code, and peer wins',
+              color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5 hover:border-cyan-500/40',
+            },
+            {
+              href: '/dashboard/vault',
+              icon: ArchiveBoxIcon,
+              label: 'Mission Vault',
+              detail: 'Keep snippets, notes, and reusable builds',
+              color: 'text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/5 hover:border-fuchsia-500/40',
+            },
+            {
+              href: '/dashboard/missions',
+              icon: RocketLaunchIcon,
+              label: 'Skill Quests',
+              detail: 'Practice with structured challenge missions',
+              color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40',
+            },
+            {
+              href: '/dashboard/protocol',
+              icon: CommandLineIcon,
+              label: 'Mastery Protocol',
+              detail: 'Follow the guided path to deeper mastery',
+              color: 'text-blue-400 border-blue-500/20 bg-blue-500/5 hover:border-blue-500/40',
+            },
+            {
+              href: '/dashboard/study-groups',
+              icon: UserGroupIcon,
+              label: 'Study Groups',
+              detail: 'Find your people and learn together',
+              color: 'text-amber-400 border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40',
+            },
+          ].map(({ href, icon: Icon, label, detail, color }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`group flex min-h-[150px] flex-col gap-4 border p-4 transition-all hover:-translate-y-0.5 ${color}`}
+            >
+              <div className="flex items-center justify-between">
+                <Icon className="w-6 h-6" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                  Open →
+                </span>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-black uppercase tracking-tight text-foreground">{label}</h4>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-medium leading-relaxed">{detail}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* Upcoming Due + Recent Grades */}
       {(data.upcomingDue.length > 0 || data.recentGrades.length > 0) && (
