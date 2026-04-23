@@ -24,17 +24,37 @@ async function requireStaff() {
   return data;
 }
 
+async function getConversationScope(
+  admin: ReturnType<typeof adminClient>,
+  conversationId: string,
+): Promise<{ id: string; school_id: string | null } | null> {
+  const { data: conv } = await admin
+    .from('whatsapp_conversations')
+    .select('id, portal_user_id')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (!conv) return null;
+
+  if (!conv.portal_user_id) {
+    return { id: conv.id, school_id: null };
+  }
+
+  const { data: userRow } = await admin
+    .from('portal_users')
+    .select('school_id')
+    .eq('id', conv.portal_user_id)
+    .maybeSingle();
+
+  return { id: conv.id, school_id: userRow?.school_id ?? null };
+}
+
 export async function GET(req: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const conversationId = new URL(req.url).searchParams.get('conversation_id');
   if (!conversationId) return NextResponse.json({ error: 'conversation_id is required' }, { status: 400 });
   const admin = adminClient();
-  const { data: conv } = await admin
-    .from('whatsapp_conversations')
-    .select('id, school_id')
-    .eq('id', conversationId)
-    .maybeSingle();
+  const conv = await getConversationScope(admin, conversationId);
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
   if (!isConversationInScope(caller, conv)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -55,11 +75,7 @@ export async function PATCH(req: NextRequest) {
   const conversationId = typeof body.conversation_id === 'string' ? body.conversation_id : '';
   if (!conversationId) return NextResponse.json({ error: 'conversation_id is required' }, { status: 400 });
   const admin = adminClient();
-  const { data: conv } = await admin
-    .from('whatsapp_conversations')
-    .select('id, school_id')
-    .eq('id', conversationId)
-    .maybeSingle();
+  const conv = await getConversationScope(admin, conversationId);
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
   if (!isConversationInScope(caller, conv)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

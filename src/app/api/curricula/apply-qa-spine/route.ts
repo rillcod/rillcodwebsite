@@ -115,8 +115,15 @@ export async function POST(req: NextRequest) {
 
   let pathOffset = 0;
   if (classRow) {
+    const classSchoolId = classRow.school_id;
+    if (!classSchoolId) {
+      return NextResponse.json(
+        { error: 'Class is missing school binding' },
+        { status: 422 },
+      );
+    }
     const { data: off, error: rpcErr } = await supabase.rpc('class_qa_path_offset', {
-      p_school_id: classRow.school_id,
+      p_school_id: classSchoolId,
       p_class_id: classRow.id,
     });
     if (rpcErr) {
