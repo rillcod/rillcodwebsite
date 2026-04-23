@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { SyllabusWeekDraft } from '@/lib/catalog/platformSpineToSyllabusWeeks';
 import { resolveQaSpineLane } from '@/lib/qa/resolveQaSpineLane';
 import { calendarIndex, sourceWeekIndexForCalendar } from '@/lib/qa/rotatedSpineIndex';
+import type { Json } from '@/types/supabase';
 
 function asObject(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -214,7 +215,7 @@ export async function POST(req: NextRequest) {
   const { data: updated, error: updErr } = await supabase
     .from('course_curricula')
     .update({
-      content: nextContent as unknown as Record<string, unknown>,
+      content: nextContent as unknown as Json,
       version: Number((curriculum as { version?: number }).version ?? 1) + 1,
       updated_at: new Date().toISOString(),
     })
