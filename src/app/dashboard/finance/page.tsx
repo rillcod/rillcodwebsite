@@ -290,7 +290,7 @@ const ALL_TABS: TabDef[] = [
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin'] },
   { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
-  { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin', 'school'] },
+  { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin'] },
 ];
 
 function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
@@ -324,7 +324,7 @@ function OverviewTab({ profile }: { profile: any }) {
   const [savingManual, setSavingManual] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
-  const canRecordManual = isAdmin || profile?.role === 'school';
+  const canRecordManual = isAdmin;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1867,7 +1867,7 @@ export default function FinancePage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {profile.role === 'school'
-              ? 'Your school\u2019s invoices, receipts and collection accounts'
+              ? 'Your school\u2019s invoices, receipts and downloadable billing records'
               : 'Control panel \u2014 billing, payments, subscriptions, settlements, reconciliation'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-violet-400 font-bold">

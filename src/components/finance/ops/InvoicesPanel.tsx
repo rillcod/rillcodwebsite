@@ -71,6 +71,8 @@ export function InvoicesPanel() {
   const db = createClient();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const canManageInvoices = isAdmin;
+  const canCreateInvoices = isAdmin;
 
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -81,8 +83,6 @@ export function InvoicesPanel() {
   const [showForm, setShowForm] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
-
-  const canManage = isAdmin || isSchool;
 
   const load = async () => {
     setLoading(true);
@@ -282,12 +282,14 @@ export function InvoicesPanel() {
       )}
 
       <div className="flex flex-col md:flex-row md:items-center gap-3">
-        <button
-          onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90"
-        >
-          <PlusIcon className="w-4 h-4" /> Quick invoice
-        </button>
+        {canCreateInvoices && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90"
+          >
+            <PlusIcon className="w-4 h-4" /> Quick invoice
+          </button>
+        )}
 
         <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
           {(['all', 'open', 'paid', 'overdue'] as const).map((s) => (
@@ -305,7 +307,7 @@ export function InvoicesPanel() {
           ))}
         </div>
 
-        {canManage && (
+        {(isAdmin || isSchool) && (
           <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
             {(['all', 'school', 'individual'] as const).map((s) => (
               <button
@@ -407,7 +409,7 @@ export function InvoicesPanel() {
                     <EyeIcon className="w-3 h-3" /> View
                   </button>
 
-                  {canManage && inv.status !== 'paid' && (
+                  {canManageInvoices && inv.status !== 'paid' && (
                     <Link
                       href={`/dashboard/payments/invoices/${inv.id}/edit`}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
@@ -417,7 +419,7 @@ export function InvoicesPanel() {
                     </Link>
                   )}
 
-                  {canManage && inv.status !== 'paid' && (
+                  {canManageInvoices && inv.status !== 'paid' && (
                     <button
                       onClick={() => markPaid(inv)}
                       disabled={busyId === inv.id}
@@ -428,7 +430,7 @@ export function InvoicesPanel() {
                     </button>
                   )}
 
-                  {canManage && inv.status !== 'paid' && (
+                  {canManageInvoices && inv.status !== 'paid' && (
                     <button
                       onClick={() => sendReminder(inv)}
                       disabled={busyId === inv.id}
@@ -439,7 +441,7 @@ export function InvoicesPanel() {
                     </button>
                   )}
 
-                  {canManage && (
+                  {canManageInvoices && (
                     <button
                       onClick={() => sendEmail(inv)}
                       disabled={busyId === inv.id}
@@ -492,7 +494,7 @@ export function InvoicesPanel() {
         <DocPreviewModal
           type="invoice"
           data={preview}
-          canManage={canManage}
+          canManage={canManageInvoices}
           onClose={() => setPreview(null)}
           onChanged={load}
         />

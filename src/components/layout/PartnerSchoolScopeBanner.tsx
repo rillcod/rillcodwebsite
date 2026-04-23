@@ -7,8 +7,7 @@ import { BuildingOffice2Icon } from '@/lib/icons';
 const FULLSCREEN_PATHS = ['/dashboard/inbox', '/dashboard/messages', '/dashboard/school-teacher-messages'];
 
 /**
- * Explains partner-school scope: their dashboard is their school’s operational
- * slice, not Rillcod platform administration.
+ * Explains school scope without making the workspace feel secondary.
  */
 export default function PartnerSchoolScopeBanner() {
   const pathname = usePathname();
@@ -24,12 +23,11 @@ export default function PartnerSchoolScopeBanner() {
         <BuildingOffice2Icon className="h-5 w-5" aria-hidden />
       </div>
       <div className="text-left space-y-1">
-        <p className="text-[11px] font-black uppercase tracking-widest text-orange-400/90">Partner school workspace</p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-orange-400/90">School workspace</p>
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          You are signed in as a <span className="text-foreground font-semibold">school partner</span>. This portal shows{' '}
-          <span className="text-foreground font-semibold">your school’s</span> students, classes, billing, and
-          schedules. Platform-wide tools (all schools, teachers directory, approvals, analytics, and finance console)
-          stay with Rillcod staff only.
+          This portal is focused on <span className="text-foreground font-semibold">your school only</span>:
+          students, classes, delivery progress, billing, schedules, and records tied to your campus. Platform-wide
+          controls stay with Rillcod staff.
         </p>
       </div>
     </div>

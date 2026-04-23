@@ -242,6 +242,7 @@ export default function UnifiedInbox() {
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+  const isTeacherOrStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -307,7 +308,7 @@ export default function UnifiedInbox() {
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
-    { id: 'students'  as const, label: 'WhatsApp',                           icon: MessageSquare },
+    { id: 'students'  as const, label: isParentOrStudent ? 'Contact Center' : 'WhatsApp', icon: MessageSquare },
     ...(!isSchool && !isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents',             icon: Users }] : []),
     ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',           icon: GraduationCap }] : []),
     ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
@@ -1088,6 +1089,32 @@ export default function UnifiedInbox() {
       cc:       '',
     });
     setEmailError(''); setEmailSuccess('');
+    setShowEmailCompose(true);
+  };
+
+  const openSupportEmailCompose = () => {
+    setEmailForm({
+      to: 'support@rillcod.com',
+      to_name: 'Rillcod Support',
+      subject: `${profile?.role === 'teacher' ? 'Teacher' : profile?.role === 'parent' ? 'Parent' : 'Student'} support request`,
+      body: '',
+      cc: '',
+    });
+    setEmailError('');
+    setEmailSuccess('');
+    setShowEmailCompose(true);
+  };
+
+  const openAdminEmailCompose = () => {
+    setEmailForm({
+      to: 'support@rillcod.com',
+      to_name: 'Rillcod Admin Team',
+      subject: 'Attention: Admin Team',
+      body: '',
+      cc: '',
+    });
+    setEmailError('');
+    setEmailSuccess('');
     setShowEmailCompose(true);
   };
 
@@ -1965,16 +1992,75 @@ export default function UnifiedInbox() {
               Select a conversation to start
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-7">
-              <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
-                <Plus className="w-4 h-4" /> New Chat
-              </button>
-              <button onClick={() => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 text-[13px] font-black rounded-full border border-violet-500/20 transition-colors">
-                <Mail className="w-4 h-4" /> Email
+              {!isParentOrStudent && (
+                <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
+                  <Plus className="w-4 h-4" /> New Chat
+                </button>
+              )}
+              <button onClick={isTeacher ? openAdminEmailCompose : isParentOrStudent ? openSupportEmailCompose : () => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 text-[13px] font-black rounded-full border border-violet-500/20 transition-colors">
+                <Mail className="w-4 h-4" /> {isTeacher ? 'Email Admin' : isParentOrStudent ? 'Email Support' : 'Email'}
               </button>
               <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] text-white/50 text-[13px] font-black rounded-full border border-white/[0.07] transition-colors">
                 <BookUser className="w-4 h-4" /> Contacts
               </button>
             </div>
+            {isParentOrStudent && (
+              <div className="w-full max-w-4xl mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-left">
+                <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 hover:border-cyan-400/40 transition-colors">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
+                  <h3 className="text-sm font-black text-white mt-2">Open Support Ticket</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
+                </Link>
+                <button onClick={openSupportEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 hover:border-violet-400/40 transition-colors text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
+                  <h3 className="text-sm font-black text-white mt-2">Contact Support Team</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+                </button>
+                <button
+                  onClick={() => {
+                    setSidebarView('contacts');
+                    setContactRoleFilter('teacher');
+                    setShowSidebar(true);
+                  }}
+                  className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 hover:border-amber-400/40 transition-colors text-left"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Teacher Contact</p>
+                  <h3 className="text-sm font-black text-white mt-2">Find Teachers</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Open the contacts directory already filtered to teacher contacts.</p>
+                </button>
+                <button onClick={openAdminEmailCompose} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 hover:border-rose-400/40 transition-colors text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Admin Escalation</p>
+                  <h3 className="text-sm font-black text-white mt-2">Contact Admin Team</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Escalate urgent academic or account issues for admin review.</p>
+                </button>
+              </div>
+            )}
+            {isTeacher && (
+              <div className="w-full max-w-3xl mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                <button onClick={openAdminEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 hover:border-violet-400/40 transition-colors text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Admin Channel</p>
+                  <h3 className="text-sm font-black text-white mt-2">Email Admin</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Use the branded email flow for escalations and formal teacher-to-admin communication.</p>
+                </button>
+                <button
+                  onClick={() => {
+                    setSidebarView('contacts');
+                    setContactRoleFilter('teacher');
+                    setShowSidebar(true);
+                  }}
+                  className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 hover:border-amber-400/40 transition-colors text-left"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Peer Contact</p>
+                  <h3 className="text-sm font-black text-white mt-2">Open Teacher Contacts</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Jump straight into the teacher directory when you need to coordinate with colleagues.</p>
+                </button>
+                <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 hover:border-cyan-400/40 transition-colors">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Support</p>
+                  <h3 className="text-sm font-black text-white mt-2">Open Staff Ticket</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Create a tracked support request when the issue should not live only in chat.</p>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

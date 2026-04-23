@@ -151,11 +151,11 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             </div>
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-orange-500/20 text-orange-400 border-orange-500/30">School</span>
             <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
-              <Link href="/dashboard/settings" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <CogIcon className="w-4 h-4" /> Account Settings
+              <Link href="/dashboard/notifications" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <CogIcon className="w-4 h-4" /> Notification Controls
               </Link>
               <Link href="/dashboard/profile" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <AcademicCapIcon className="w-4 h-4" /> Edit Profile
+                <AcademicCapIcon className="w-4 h-4" /> School Profile
               </Link>
             </div>
           </div>

@@ -7,7 +7,7 @@ import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
 import RouteDeniedNotice from '@/components/access/RouteDeniedNotice';
 
 /**
- * Redirects students, parents, and partner schools away from routes their role must not use.
+ * Redirects students, parents, and school users away from routes their role must not use.
  * Defence in depth alongside nav hiding, middleware, and API / RLS.
  */
 export default function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
@@ -35,10 +35,10 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
     const isSchool = profile.role === 'school';
     return (
       <RouteDeniedNotice
-        title={isSchool ? 'Partner school access only' : 'This area is not available for your account'}
+        title={isSchool ? 'School workspace limit' : 'This area is not available for your account'}
         body={
           isSchool
-            ? 'This page is for Rillcod platform staff or teachers. Your workspace is limited to your school’s students, classes, schedules, and billing. Use the sidebar or return to your dashboard.'
+            ? 'This page is for Rillcod platform staff or assigned teachers. Your account is limited to your own school’s students, classes, schedules, delivery tracking, and billing records.'
             : 'You were redirected because this page is reserved for a different role. Use the menu or go back to your dashboard.'
         }
       />

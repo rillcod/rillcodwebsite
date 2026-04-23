@@ -66,11 +66,11 @@ interface OperationsHubProps {
  */
 export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: OperationsHubProps) {
   const { profile } = useAuth();
-  const [tab, setTab] = useState<OpsTab>(defaultTab);
+  const isAdmin = profile?.role === 'admin';
+  const isSchool = profile?.role === 'school';
+  const [tab, setTab] = useState<OpsTab>(isSchool ? 'invoices' : defaultTab);
 
-  const canManage = ['admin', 'school'].includes(profile?.role || '');
-
-  if (!canManage) {
+  if (!isAdmin && !isSchool) {
     return (
       <div className="border border-dashed border-border rounded-xl p-10 text-center">
         <p className="text-sm font-bold text-foreground">Staff-only area</p>
@@ -85,8 +85,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
     );
   }
 
-  const isAdmin = profile?.role === 'admin';
-
   type TabDef = {
     k: OpsTab;
     label: string;
@@ -96,17 +94,10 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
   };
   const tabs: TabDef[] = ([
     {
-      k: 'approvals',
-      label: 'Approvals',
-      Icon: CheckBadgeIcon,
-      hint: 'Pending transactions & proof queue',
-      show: true,
-    },
-    {
       k: 'invoices',
       label: 'Invoices',
       Icon: DocumentTextIcon,
-      hint: 'Create, edit, preview, remind & manage invoices',
+      hint: isSchool ? 'View and download your school invoices' : 'Create, edit, preview, remind & manage invoices',
       show: true,
     },
     {
@@ -117,11 +108,18 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
       show: true,
     },
     {
+      k: 'approvals',
+      label: 'Approvals',
+      Icon: CheckBadgeIcon,
+      hint: 'Pending transactions & proof queue',
+      show: isAdmin,
+    },
+    {
       k: 'receipt_builder',
       label: 'Build Receipt',
       Icon: ReceiptPercentIcon,
       hint: 'Manual receipt builder with live preview (offline payments)',
-      show: true,
+      show: isAdmin,
     },
     {
       k: 'school_invoice_builder',
@@ -135,7 +133,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
       label: 'Accounts',
       Icon: BanknotesIcon,
       hint: 'Bank accounts for collections',
-      show: true,
+      show: isAdmin,
     },
     {
       k: 'diagnostics',
@@ -226,9 +224,9 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
         {tab === 'approvals' && <ApprovalsPanel />}
         {tab === 'invoices' && <InvoicesPanel />}
         {tab === 'receipts' && <ReceiptsPanel />}
-        {tab === 'receipt_builder' && <ReceiptBuilderPanel />}
+        {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
         {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel />}
-        {tab === 'accounts' && <AccountsPanel />}
+        {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>
     </div>

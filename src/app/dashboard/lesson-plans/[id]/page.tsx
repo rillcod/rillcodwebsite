@@ -939,6 +939,56 @@ export default function LessonPlanDetailPage() {
   ] as const;
   const preflightChecks = progressionPreview?.preflight?.checks ?? [];
   const hasBlockingPreflight = progressionPreview?.preflight?.blocking === true;
+  const linearOpsFlow = [
+    {
+      step: '01',
+      title: 'Policies',
+      detail: programPolicy && Object.keys(programPolicy).length > 0 ? 'Rules are configured.' : 'Rules need stronger defaults.',
+      state: programPolicy && Object.keys(programPolicy).length > 0 ? 'live' : 'watch',
+    },
+    {
+      step: '02',
+      title: 'Syllabus',
+      detail: syllabusTermContent ? 'Syllabus is linked as the academic truth.' : 'Link syllabus content to anchor the plan.',
+      state: syllabusTermContent ? 'live' : 'watch',
+    },
+    {
+      step: '03',
+      title: 'QA',
+      detail: qaReport ? `${qaReport.overall_score}% compliance score.` : 'Run syllabus QA and validate rhythm.',
+      state: qaReport ? (qaReport.overall_readiness === 'critical' ? 'risk' : 'live') : 'watch',
+    },
+    {
+      step: '04',
+      title: 'Builder',
+      detail: progressionPreview?.preflight ? 'Preview and hard preflight are active.' : 'Choose scope and generate a preview.',
+      state: hasBlockingPreflight ? 'risk' : progressionPreview?.preflight ? 'live' : 'watch',
+    },
+    {
+      step: '05',
+      title: 'Plan Ops',
+      detail: 'Write route into the lesson plan and keep execution controlled.',
+      state: 'live',
+    },
+    {
+      step: '06',
+      title: 'Content',
+      detail: 'Generate lessons, assignments, and projects from the same route.',
+      state: 'live',
+    },
+    {
+      step: '07',
+      title: 'Release',
+      detail: operations?.schedule ? 'Schedule and release controls are connected.' : 'Operations center will surface release controls here.',
+      state: operations?.schedule ? 'live' : 'watch',
+    },
+    {
+      step: '08',
+      title: 'Analytics',
+      detail: operations?.analytics ? 'Analytics and audit are attached to this plan.' : 'Analytics will populate once operations sync.',
+      state: operations?.analytics ? 'live' : 'watch',
+    },
+  ] as const;
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto print:p-0 print:space-y-4">
@@ -1347,6 +1397,49 @@ export default function LessonPlanDetailPage() {
       {/* Content Dashboard Tab */}
       {activeTab === 'content' && (
         <div className="space-y-4">
+          <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
+            <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+              <div className="max-w-3xl">
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">Linear Operating Flow</p>
+                <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Policies define rules → syllabus defines truth → QA checks → builder routes → lesson tools generate → release and analytics track</h3>
+                <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
+                  This strip is the direct operating line for this plan. Read it left to right whenever you want to know what comes first, what validates it, what generates it, and what monitors it after release.
+                </p>
+              </div>
+            </div>
+            <div className="p-5 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {linearOpsFlow.map((item) => (
+                  <div
+                    key={item.step}
+                    className={`rounded-2xl border p-4 ${
+                      item.state === 'risk'
+                        ? 'border-rose-400/25 bg-rose-500/[0.08]'
+                        : item.state === 'watch'
+                          ? 'border-amber-400/25 bg-amber-500/[0.08]'
+                          : 'border-emerald-400/20 bg-emerald-500/[0.06]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-[0.24em] text-card-foreground/45">Step {item.step}</span>
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                        item.state === 'risk'
+                          ? 'text-rose-200'
+                          : item.state === 'watch'
+                            ? 'text-amber-200'
+                            : 'text-emerald-200'
+                      }`}>
+                        {item.state}
+                      </span>
+                    </div>
+                    <h4 className="text-base font-black text-card-foreground mt-2">{item.title}</h4>
+                    <p className="text-xs text-card-foreground/65 mt-2 leading-relaxed">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {status === 'published' && (
             <>
               <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
