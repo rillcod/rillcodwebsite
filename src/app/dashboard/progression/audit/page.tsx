@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { ArrowPathIcon } from '@/lib/icons';
 import { toast } from 'sonner';
@@ -23,11 +24,13 @@ type AuditRow = {
 
 export default function ProgressionAuditPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const canView = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionType, setActionType] = useState('');
-  const [limit, setLimit] = useState(50);
+  const [actionType, setActionType] = useState(searchParams.get('action_type') ?? '');
+  const [lessonPlanId, setLessonPlanId] = useState(searchParams.get('lesson_plan_id') ?? '');
+  const [limit, setLimit] = useState(Math.min(200, Math.max(25, Number(searchParams.get('limit') ?? 50))));
 
   function exportCsv() {
     const header = [
@@ -74,6 +77,7 @@ export default function ProgressionAuditPage() {
     try {
       const params = new URLSearchParams({ limit: String(limit) });
       if (actionType) params.set('action_type', actionType);
+      if (lessonPlanId) params.set('lesson_plan_id', lessonPlanId);
       const res = await fetch(`/api/progression/audit?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load');
@@ -88,7 +92,7 @@ export default function ProgressionAuditPage() {
   useEffect(() => {
     if (!canView) return;
     void loadRows();
-  }, [canView, actionType, limit]);
+  }, [canView, actionType, lessonPlanId, limit]);
 
   if (authLoading || loading) {
     return (
@@ -126,6 +130,15 @@ export default function ProgressionAuditPage() {
             <option value={100}>100</option>
             <option value={200}>200</option>
           </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Plan</label>
+          <input
+            value={lessonPlanId}
+            onChange={(e) => setLessonPlanId(e.target.value)}
+            className="block mt-1 px-3 py-2 bg-background border border-border rounded-xl text-xs"
+            placeholder="lesson_plan_id"
+          />
         </div>
         <button type="button" onClick={() => void loadRows()} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border rounded-xl hover:bg-muted/30">
           <ArrowPathIcon className="w-4 h-4" /> Refresh

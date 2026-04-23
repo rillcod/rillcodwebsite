@@ -5,6 +5,13 @@ import {
   resolveGradeKeyFromClassName,
   resolveSyllabusPhaseFromClassName,
 } from '@/lib/progression/lessonPlanProgressionContext';
+import { getSyllabusTermWeeks, type SyllabusContentImport } from '@/lib/lesson-plans/syllabusImport';
+import {
+  buildCanonicalWeekShape,
+  type HarmonizedAssessmentPlan,
+  type HarmonizedLessonPlan,
+  type HarmonizedWeekType,
+} from '@/lib/progression/harmonizedWeek';
 import type { Database, Json } from '@/types/supabase';
 
 type ProjectRow = {
@@ -21,6 +28,24 @@ type ProjectRow = {
 };
 
 type ProgramPolicy = Record<string, unknown>;
+type PreflightStatus = 'pass' | 'warn' | 'fail';
+type PreflightCheck = {
+  key: string;
+  label: string;
+  status: PreflightStatus;
+  detail: string;
+  blocking?: boolean;
+};
+type PreflightResult = {
+  status: 'ready' | 'warning' | 'blocked';
+  blocking: boolean;
+  checks: PreflightCheck[];
+  summary: {
+    pass: number;
+    warn: number;
+    fail: number;
+  };
+};
 type ProgramRow = {
   id: string;
   name: string | null;
@@ -47,10 +72,13 @@ type LessonPlanSource = {
   plan_data: Json | null;
   courses: CourseWithProgram | null;
   classes: ClassRow | null;
+  curriculum?: { content?: SyllabusContentImport | null } | null;
 };
 type GeneratedWeek = {
   week: number;
+  type: HarmonizedWeekType;
   topic: string;
+  subtopics: string[];
   mastery_mode: 'strict' | 'soft';
   gating_state: 'locked' | 'unlocked' | 'mastered';
   project_id: string;
@@ -63,7 +91,13 @@ type GeneratedWeek = {
   repeated_project: boolean;
   concept_tags: string[];
   difficulty_level: number | null;
-  objectives: string[];
+  objectives: string;
+  objective_items: string[];
+  activities: string;
+  notes: string;
+  lesson_plan: HarmonizedLessonPlan | null;
+  assessment_plan: HarmonizedAssessmentPlan | null;
+  syllabus_week_type: HarmonizedWeekType;
   classwork: {
     prompt: string;
     estimated_minutes: number;
@@ -120,6 +154,176 @@ function resolveTeenPhase(yearNumber: number, termNumber: number): string {
   return 'mobile_capacitor';
 }
 
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
+}
+
+function hasStructuredProgressionMetadata(metadata: Record<string, unknown>): boolean {
+  const year = Number(metadata.year_number ?? 0);
+  const term = Number(metadata.term_number ?? 0);
+  const week = Number(metadata.week_number ?? metadata.week_index ?? 0);
+  return Number.isFinite(year) && year > 0
+    && Number.isFinite(term) && term > 0
+    && Number.isFinite(week) && week > 0;
+}
+
+function normalizeTrackCandidates(primaryTrack: string, policy: ProgramPolicy): string[] {
+  const values = [primaryTrack, ...asStringArray(policy.track_priority), 'mixed']
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(values));
+}
+
+function getTrackRank(track: string, candidates: string[]): number {
+  const idx = candidates.indexOf(track);
+  return idx === -1 ? candidates.length + 1 : idx;
+}
+
+function sortRegistryRows(rows: ProjectRow[], trackCandidates: string[]): ProjectRow[] {
+  return [...rows].sort((a, b) => {
+    const trackDelta = getTrackRank(a.track, trackCandidates) - getTrackRank(b.track, trackCandidates);
+    if (trackDelta !== 0) return trackDelta;
+    const schoolDelta = Number(Boolean(a.school_id)) - Number(Boolean(b.school_id));
+    if (schoolDelta !== 0) return schoolDelta;
+    const difficultyDelta = (a.difficulty_level ?? 0) - (b.difficulty_level ?? 0);
+    if (difficultyDelta !== 0) return difficultyDelta;
+    return a.title.localeCompare(b.title);
+  });
+}
+
+function buildPreflight(input: {
+  className: string | null;
+  gradeKey: string | null;
+  curriculumWeeks: ReturnType<typeof getSyllabusTermWeeks>;
+  program: ProgramRow;
+  policy: ProgramPolicy;
+  registryAll: ProjectRow[];
+  registryFiltered: ProjectRow[];
+  primaryTrack: string;
+  trackCandidates: string[];
+  effectiveWeeksCount: number;
+  essentialRoutesOnly: boolean;
+}): PreflightResult {
+  const {
+    className,
+    gradeKey,
+    curriculumWeeks,
+    program,
+    policy,
+    registryAll,
+    registryFiltered,
+    primaryTrack,
+    trackCandidates,
+    effectiveWeeksCount,
+    essentialRoutesOnly,
+  } = input;
+  const checks: PreflightCheck[] = [];
+  const primaryTrackRows = registryAll.filter((row) => row.track === primaryTrack);
+  const fallbackTrackRows = registryAll.filter((row) => row.track !== primaryTrack);
+
+  checks.push({
+    key: 'program_progression',
+    label: 'Program progression enabled',
+    status: program.school_progression_enabled === true ? 'pass' : 'fail',
+    detail: program.school_progression_enabled === true
+      ? `Program "${program.name ?? 'Untitled program'}" allows school progression generation.`
+      : 'Enable school progression on the linked program before generating routes.',
+    blocking: program.school_progression_enabled !== true,
+  });
+  checks.push({
+    key: 'class_mapping',
+    label: 'Class naming resolved',
+    status: className ? 'pass' : 'fail',
+    detail: className
+      ? `Class "${className}" is linked to this lesson plan.`
+      : 'Set a class name on this lesson plan so grade and syllabus routing can resolve.',
+    blocking: !className,
+  });
+  checks.push({
+    key: 'grade_key',
+    label: 'Grade key mapped',
+    status: gradeKey ? 'pass' : 'fail',
+    detail: gradeKey
+      ? `Grade key resolved as "${gradeKey}".`
+      : 'The current class name does not map to a supported grade key for progression seeds.',
+    blocking: !gradeKey,
+  });
+  checks.push({
+    key: 'curriculum_link',
+    label: 'Curriculum weeks linked',
+    status: curriculumWeeks.length > 0 ? 'pass' : 'warn',
+    detail: curriculumWeeks.length > 0
+      ? `Linked curriculum provides ${curriculumWeeks.length} week entries for this term.`
+      : 'No term weeks were found in the linked curriculum, so policy defaults will drive the route length.',
+  });
+  checks.push({
+    key: 'policy_defaults',
+    label: 'Progression policy present',
+    status: Object.keys(policy).length > 0 ? 'pass' : 'warn',
+    detail: Object.keys(policy).length > 0
+      ? 'Program progression policy is available for runtime defaults.'
+      : 'No program progression policy was found, so fallback defaults will be used.',
+  });
+  checks.push({
+    key: 'registry_primary_track',
+    label: 'Primary track seeds',
+    status: primaryTrackRows.length > 0 ? 'pass' : fallbackTrackRows.length > 0 ? 'warn' : 'fail',
+    detail: primaryTrackRows.length > 0
+      ? `${primaryTrackRows.length} seeded rows match the primary track "${primaryTrack}".`
+      : fallbackTrackRows.length > 0
+        ? `No direct "${primaryTrack}" seeds were found. Generation will rely on fallback tracks: ${trackCandidates.filter((track) => track !== primaryTrack).join(', ')}.`
+        : `No seeded registry rows were found for track candidates: ${trackCandidates.join(', ')}.`,
+    blocking: primaryTrackRows.length === 0 && fallbackTrackRows.length === 0,
+  });
+  checks.push({
+    key: 'registry_filtered_pool',
+    label: 'Usable route pool',
+    status: registryFiltered.length >= effectiveWeeksCount ? 'pass' : registryFiltered.length > 0 ? 'warn' : 'fail',
+    detail: registryFiltered.length >= effectiveWeeksCount
+      ? `${registryFiltered.length} registry rows are usable for the requested ${effectiveWeeksCount}-week scope.`
+      : registryFiltered.length > 0
+        ? `Only ${registryFiltered.length} usable rows are available for ${effectiveWeeksCount} requested weeks. Repetition may increase.`
+        : 'No usable registry rows remain after applying grade and policy filters.',
+    blocking: registryFiltered.length === 0,
+  });
+  checks.push({
+    key: 'essential_routes_only',
+    label: 'Essential route metadata',
+    status: essentialRoutesOnly
+      ? registryFiltered.every((row) => hasStructuredProgressionMetadata(asObject(row.metadata))) ? 'pass' : 'fail'
+      : 'pass',
+    detail: essentialRoutesOnly
+      ? 'Essential-only mode is active, so only registry rows with structured progression metadata can be used.'
+      : 'Essential-only mode is off, so legacy registry rows can still support generation.',
+    blocking: essentialRoutesOnly && registryFiltered.some((row) => !hasStructuredProgressionMetadata(asObject(row.metadata))),
+  });
+  checks.push({
+    key: 'term_length_alignment',
+    label: 'Week rhythm alignment',
+    status: curriculumWeeks.length > 0 && curriculumWeeks.length !== effectiveWeeksCount ? 'warn' : 'pass',
+    detail: curriculumWeeks.length > 0 && curriculumWeeks.length !== effectiveWeeksCount
+      ? `Requested route length is ${effectiveWeeksCount} week(s), while the linked curriculum defines ${curriculumWeeks.length}.`
+      : `Route length is aligned to ${effectiveWeeksCount} week(s).`,
+  });
+
+  const summary = checks.reduce(
+    (acc, check) => {
+      acc[check.status] += 1;
+      return acc;
+    },
+    { pass: 0, warn: 0, fail: 0 },
+  );
+  const blocking = checks.some((check) => check.status === 'fail' && check.blocking);
+  return {
+    status: blocking ? 'blocked' : summary.warn > 0 || summary.fail > 0 ? 'warning' : 'ready',
+    blocking,
+    checks,
+    summary,
+  };
+}
+
 function buildWeekEntries(input: {
   selected: Array<{ project: ProjectRow; isRepeat: boolean }>;
   track: string;
@@ -131,7 +335,10 @@ function buildWeekEntries(input: {
   termNumber: number;
   syllabusPhase: string;
   startWeekNumber?: number;
+  totalWeeks: number;
   masteryMode: 'strict' | 'soft';
+  curriculumWeeks?: ReturnType<typeof getSyllabusTermWeeks>;
+  projectBased: boolean;
 }): GeneratedWeek[] {
   const {
     selected,
@@ -144,15 +351,48 @@ function buildWeekEntries(input: {
     termNumber,
     syllabusPhase,
     startWeekNumber = 1,
+    totalWeeks,
     masteryMode,
+    curriculumWeeks = [],
+    projectBased,
   } = input;
   return selected.map(({ project, isRepeat }, idx) => {
     const week = startWeekNumber + idx;
     const assignmentTitle = `${project.title} - Weekly Practical`;
-    const projectTitle = `${project.title} - Studio Build`;
+    const projectTitle = projectBased ? `${project.title} - Studio Build` : `${project.title} - Guided Practice`;
+    const projectDescription = projectBased
+      ? `Build a practical project around ${project.title} and present your implementation steps.`
+      : `Guide learners through structured applied practice around ${project.title} with lighter project emphasis.`;
+    const projectDeliverables = projectBased
+      ? [
+          'Working build output',
+          'Short build notes',
+          'Class presentation/demo',
+        ]
+      : [
+          'Worked activity output',
+          'Short reflection on the concept',
+          'Teacher-reviewed classwork evidence',
+        ];
+    const canonical = buildCanonicalWeekShape({
+      weekNumber: week,
+      totalWeeks,
+      topic: project.title,
+      subtopics: project.concept_tags ?? [],
+      assignmentTitle,
+      projectTitle,
+      projectDescription,
+      projectDeliverables,
+      classworkPrompt: project.classwork_prompt ?? `Build and present: ${project.title}`,
+      estimatedMinutes: project.estimated_minutes ?? 45,
+      conceptTags: project.concept_tags ?? [],
+      curriculumWeek: curriculumWeeks.find((entry) => entry.week === week) ?? null,
+    });
     return {
       week,
-      topic: project.title,
+      type: canonical.type,
+      topic: canonical.topic,
+      subtopics: canonical.subtopics,
       mastery_mode: masteryMode,
       gating_state: idx === 0 ? 'unlocked' : 'locked',
       project_id: project.id,
@@ -161,14 +401,17 @@ function buildWeekEntries(input: {
       delivery_mode: deliveryMode,
       sessions_per_week: sessionsPerWeek,
       ai_module: aiModule,
-      practical_focus: true,
+      practical_focus: projectBased,
       repeated_project: isRepeat,
       concept_tags: project.concept_tags ?? [],
       difficulty_level: project.difficulty_level ?? null,
-      objectives: [
-        `Apply ${track.replace('_', ' ')} concepts in a practical build`,
-        'Deliver a working output by end of week',
-      ],
+      objectives: canonical.objectivesText,
+      objective_items: canonical.objectiveItems,
+      activities: canonical.activitiesText,
+      notes: canonical.notesText,
+      lesson_plan: canonical.lessonPlan,
+      assessment_plan: canonical.assessmentPlan,
+      syllabus_week_type: canonical.type,
       classwork: {
         prompt: project.classwork_prompt ?? `Build and present: ${project.title}`,
         estimated_minutes: project.estimated_minutes ?? 45,
@@ -193,13 +436,9 @@ function buildWeekEntries(input: {
       },
       project: {
         title: projectTitle,
-        description: `Build a practical project around ${project.title} and present your implementation steps.`,
-        deliverables: [
-          'Working build output',
-          'Short build notes',
-          'Class presentation/demo',
-        ],
-        demo_required: true,
+        description: projectDescription,
+        deliverables: projectDeliverables,
+        demo_required: projectBased,
       },
       practical_assessment: {
         skill_checkpoints: [
@@ -214,6 +453,8 @@ function buildWeekEntries(input: {
       metadata: {
         ...asObject(project.metadata),
         teen_phase: resolveTeenPhase(yearNumber, termNumber),
+        canonical_week_type: canonical.type,
+        project_based_default: projectBased,
       } as Json,
       ...(strictRoute
         ? {
@@ -255,7 +496,6 @@ export async function POST(
   const requestedTerm = Number(body.term_number ?? 1);
   const requestedSession = Number(body.session_number ?? body.year_number ?? 1);
   const requestedWeek = Number(body.week_number ?? 1);
-  const weeksCount = Math.max(1, Number(body.weeks_count ?? 12));
   const dryRun = body.dry_run === true;
   const requestedScope =
     body.scope === 'week' || body.scope === 'term' || body.scope === 'session' || body.scope === 'full_program'
@@ -268,7 +508,6 @@ export async function POST(
   const termNumber = Number.isFinite(requestedTerm) ? Math.min(Math.max(requestedTerm, 1), 3) : 1;
   const sessionNumber = Number.isFinite(requestedSession) ? Math.min(Math.max(requestedSession, 1), 10) : 1;
   const weekNumber = Number.isFinite(requestedWeek) ? Math.min(Math.max(requestedWeek, 1), 200) : 1;
-  const effectiveWeeksCount = requestedScope === 'week' ? 1 : weeksCount;
 
   const { data: planDataRaw, error: planErr } = await supabase
     .from('lesson_plans')
@@ -294,7 +533,8 @@ export async function POST(
           progression_policy
         )
       ),
-      classes(name)
+      classes(name),
+      curriculum:course_curricula!fk_lesson_plans_curriculum(content)
     `)
     .eq('id', id)
     .single();
@@ -329,12 +569,27 @@ export async function POST(
   const trackFromPolicy = resolveDefaultTrackFromPolicy(policy, plan.classes?.name);
   const requestedTrack = typeof body.track === 'string' ? body.track : null;
   const track = requestedTrack ?? trackFromPolicy;
+  const trackCandidates = normalizeTrackCandidates(track, policy);
   const gradeKey = resolveGradeKeyFromClassName(plan.classes?.name);
   const deliveryMode = (typeof body.delivery_mode === 'string' ? body.delivery_mode : null) ?? (program.delivery_type === 'optional' ? 'optional' : 'compulsory');
+  const projectBasedDefault = typeof policy.project_based_default === 'boolean' ? policy.project_based_default : true;
+  const projectBased = typeof body.project_based === 'boolean' ? body.project_based : projectBasedDefault;
+  const essentialRoutesOnly = typeof policy.essential_routes_only === 'boolean' ? policy.essential_routes_only : false;
   const sessionsPerWeek =
     body.weekly_frequency === 2 || body.weekly_frequency === 1
       ? body.weekly_frequency
       : (program.session_frequency_per_week === 2 ? 2 : (plan.sessions_per_week === 2 ? 2 : 1));
+  const curriculumContent = plan.curriculum?.content ?? null;
+  const currentTermWeeks = getSyllabusTermWeeks(curriculumContent, termNumber);
+  const requestedWeeksCount = Number(body.weeks_count);
+  const policyDefaultWeeks = Number(policy.standard_weeks_per_term ?? 8);
+  const weeksCount =
+    Number.isFinite(requestedWeeksCount)
+      ? Math.max(1, requestedWeeksCount)
+      : currentTermWeeks.length > 0
+        ? currentTermWeeks.length
+        : Math.max(1, Number.isFinite(policyDefaultWeeks) ? policyDefaultWeeks : 8);
+  const effectiveWeeksCount = requestedScope === 'week' ? 1 : weeksCount;
 
   const { data: registryRows, error: regErr } = await supabase
     .from('curriculum_project_registry')
@@ -342,13 +597,11 @@ export async function POST(
     .eq('is_active', true)
     .eq('program_id', program.id)
     .or(`school_id.eq.${schoolId},school_id.is.null`)
-    .in('track', [track, 'mixed'])
-    .order('difficulty_level', { ascending: true })
-    .order('created_at', { ascending: true });
+    .in('track', trackCandidates);
 
   if (regErr) return NextResponse.json({ error: regErr.message }, { status: 500 });
-  const registryAll = (registryRows ?? []) as ProjectRow[];
-  const registry = gradeKey
+  const registryAll = sortRegistryRows((registryRows ?? []) as ProjectRow[], trackCandidates);
+  const registryGradeAligned = gradeKey
     ? [
         ...registryAll.filter((p) => {
           const metadata = asObject(p.metadata);
@@ -361,8 +614,60 @@ export async function POST(
         }),
       ]
     : registryAll;
-  if (registry.length === 0) {
-    return NextResponse.json({ error: `No active projects found for track "${track}".` }, { status: 422 });
+  const registry = essentialRoutesOnly
+    ? registryGradeAligned.filter((row) => hasStructuredProgressionMetadata(asObject(row.metadata)))
+    : registryGradeAligned;
+  const preflight = buildPreflight({
+    className: plan.classes?.name ?? null,
+    gradeKey,
+    curriculumWeeks: currentTermWeeks,
+    program,
+    policy,
+    registryAll,
+    registryFiltered: registry,
+    primaryTrack: track,
+    trackCandidates,
+    effectiveWeeksCount,
+    essentialRoutesOnly,
+  });
+  if (preflight.blocking && !dryRun) {
+    return NextResponse.json({
+      error: 'Progression preflight failed. Resolve the blocking readiness issues before generating.',
+      preflight,
+    }, { status: 422 });
+  }
+  if (registry.length === 0 && dryRun) {
+    return NextResponse.json({
+      data: {
+        dry_run: true,
+        lesson_plan_id: id,
+        scope: fullProgram || requestedScope === 'full_program' ? 'full_program' : requestedScope,
+        track,
+        grade_key: gradeKey,
+        delivery_mode: deliveryMode,
+        sessions_per_week: sessionsPerWeek,
+        strict_route: strictRoute,
+        project_based: projectBased,
+        essential_routes_only: essentialRoutesOnly,
+        auto_flashcards: false,
+        projected_terms: [],
+        projected_assignments: 0,
+        projected_projects: 0,
+        projected_flashcard_decks: 0,
+        repeated_weeks: 0,
+        repetition_risk: 'high',
+        warnings: ['Preflight blocked generation before route preview could be built.'],
+        week_number: requestedScope === 'week' ? weekNumber : null,
+        preflight,
+        policy_runtime: {
+          strict_route: strictRoute,
+          project_based: projectBased,
+          essential_routes_only: essentialRoutesOnly,
+          track_candidates: trackCandidates,
+          standard_weeks_per_term: weeksCount,
+        },
+      },
+    });
   }
 
   const cutoffYear = Math.max(1, yearNumber - 2);
@@ -448,7 +753,10 @@ export async function POST(
       termNumber: termNo,
       syllabusPhase,
       startWeekNumber,
+      totalWeeks: effectiveWeeksCount,
       masteryMode,
+      curriculumWeeks: getSyllabusTermWeeks(curriculumContent, termNo),
+      projectBased,
     });
     const generatedWeeks =
       requestedScope === 'week'
@@ -464,7 +772,10 @@ export async function POST(
       generated_at: new Date().toISOString(),
       generated_by: user.id,
       strict_route: strictRoute,
+      project_based: projectBased,
+      essential_routes_only: essentialRoutesOnly,
       track,
+      track_candidates: trackCandidates,
       delivery_mode: deliveryMode,
       sessions_per_week: sessionsPerWeek,
       weeks: generatedWeeks,
@@ -526,6 +837,16 @@ export async function POST(
         sessions_per_week: sessionsPerWeek,
         strict_route: strictRoute,
         auto_flashcards: autoFlashcards,
+        project_based: projectBased,
+        essential_routes_only: essentialRoutesOnly,
+        preflight,
+        policy_runtime: {
+          strict_route: strictRoute,
+          project_based: projectBased,
+          essential_routes_only: essentialRoutesOnly,
+          track_candidates: trackCandidates,
+          standard_weeks_per_term: weeksCount,
+        },
         projected_terms: previewTerms,
         projected_assignments: totalWeeks,
         projected_projects: totalWeeks,
@@ -589,6 +910,8 @@ export async function POST(
         sessions_per_week: sessionsPerWeek,
         auto_fill: true,
         override_enabled: true,
+        project_based: projectBased,
+        essential_routes_only: essentialRoutesOnly,
       },
     }));
   });
@@ -738,7 +1061,7 @@ export async function POST(
         .select('id')
         .single();
       if (deckErr || !createdDeck) return NextResponse.json({ error: deckErr?.message ?? 'Failed to create deck' }, { status: 500 });
-      const objectiveText = deckDef.week.objectives.join(' | ');
+      const objectiveText = deckDef.week.objective_items.join(' | ') || deckDef.week.objectives;
       const cards = [
         { front: `Week ${deckDef.week.week} Topic`, back: deckDef.week.topic },
         { front: 'Learning Objectives', back: objectiveText || 'Apply concepts through practical work.' },
@@ -778,6 +1101,16 @@ export async function POST(
       generated_terms: generatedKeys,
       warnings: lockedTermWarnings,
       grade_key: gradeKey,
+      project_based: projectBased,
+      essential_routes_only: essentialRoutesOnly,
+      preflight,
+      policy_runtime: {
+        strict_route: strictRoute,
+        project_based: projectBased,
+        essential_routes_only: essentialRoutesOnly,
+        track_candidates: trackCandidates,
+        standard_weeks_per_term: weeksCount,
+      },
     },
   });
 }

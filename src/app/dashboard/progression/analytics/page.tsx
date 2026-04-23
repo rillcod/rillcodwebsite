@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { ArrowPathIcon, ChartBarIcon } from '@/lib/icons';
@@ -40,12 +41,15 @@ type AnalyticsResponse = {
 
 export default function ProgressionAnalyticsPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const canView = ['admin', 'teacher'].includes(profile?.role ?? '');
-  const [year, setYear] = useState<number>(1);
-  const [term, setTerm] = useState<number>(1);
-  const [track, setTrack] = useState<string>('');
+  const [year, setYear] = useState<number>(Math.min(Math.max(Number(searchParams.get('year_number') ?? 1), 1), 10));
+  const [term, setTerm] = useState<number>(Math.min(Math.max(Number(searchParams.get('term_number') ?? 1), 1), 3));
+  const [track, setTrack] = useState<string>(searchParams.get('track') ?? '');
   const [frequency, setFrequency] = useState<string>('');
   const [deliveryMode, setDeliveryMode] = useState<string>('');
+  const [classId, setClassId] = useState<string>(searchParams.get('class_id') ?? '');
+  const [courseId, setCourseId] = useState<string>(searchParams.get('course_id') ?? '');
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<AnalyticsResponse | null>(null);
 
@@ -55,6 +59,8 @@ export default function ProgressionAnalyticsPage() {
     params.set('year_number', String(year));
     params.set('term_number', String(term));
     if (track) params.set('track', track);
+    if (classId) params.set('class_id', classId);
+    if (courseId) params.set('course_id', courseId);
     if (frequency) params.set('frequency', frequency);
     if (deliveryMode) params.set('delivery_mode', deliveryMode);
     setLoading(true);
@@ -63,7 +69,7 @@ export default function ProgressionAnalyticsPage() {
       .then((j) => setData((j.data ?? null) as AnalyticsResponse | null))
       .catch(() => toast.error('Failed to load progression analytics'))
       .finally(() => setLoading(false));
-  }, [canView, year, term, track, frequency, deliveryMode]);
+  }, [canView, year, term, track, classId, courseId, frequency, deliveryMode]);
 
   if (authLoading || loading) {
     return (
@@ -102,10 +108,12 @@ export default function ProgressionAnalyticsPage() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="bg-card border border-border rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-7 gap-2">
         <input type="number" min={1} max={10} value={year} onChange={(e) => setYear(Math.min(Math.max(Number(e.target.value || 1), 1), 10))} className="px-3 py-2 bg-background border border-border rounded-xl text-xs" placeholder="Year" />
         <input type="number" min={1} max={3} value={term} onChange={(e) => setTerm(Math.min(Math.max(Number(e.target.value || 1), 1), 3))} className="px-3 py-2 bg-background border border-border rounded-xl text-xs" placeholder="Term" />
         <input value={track} onChange={(e) => setTrack(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-xl text-xs" placeholder="Track (optional)" />
+        <input value={classId} onChange={(e) => setClassId(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-xl text-xs" placeholder="Class ID (optional)" />
+        <input value={courseId} onChange={(e) => setCourseId(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-xl text-xs" placeholder="Course ID (optional)" />
         <select value={frequency} onChange={(e) => setFrequency(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-xl text-xs">
           <option value="">Freq any</option>
           <option value="1">1/week</option>
@@ -181,6 +189,8 @@ export default function ProgressionAnalyticsPage() {
           params.set('year_number', String(year));
           params.set('term_number', String(term));
           if (track) params.set('track', track);
+          if (classId) params.set('class_id', classId);
+          if (courseId) params.set('course_id', courseId);
           if (frequency) params.set('frequency', frequency);
           if (deliveryMode) params.set('delivery_mode', deliveryMode);
           fetch(`/api/progression/analytics?${params.toString()}`)

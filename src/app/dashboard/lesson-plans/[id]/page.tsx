@@ -75,7 +75,13 @@ interface LessonPlan {
     id: string;
     title: string;
     program_id?: string | null;
-    programs?: { id: string; name: string | null } | null;
+    programs?: {
+      id: string;
+      name: string | null;
+      school_progression_enabled?: boolean | null;
+      session_frequency_per_week?: number | null;
+      progression_policy?: Record<string, unknown> | null;
+    } | null;
   } | null;
   classes?: { id: string; name: string } | null;
   schools?: { id: string; name: string } | null;
@@ -175,6 +181,30 @@ type ProgressionPreview = {
   projected_projects?: number;
   projected_flashcard_decks?: number;
   repetition_risk?: 'low' | 'medium' | 'high';
+  warnings?: string[];
+  preflight?: {
+    status: 'ready' | 'warning' | 'blocked';
+    blocking: boolean;
+    summary: {
+      pass: number;
+      warn: number;
+      fail: number;
+    };
+    checks: Array<{
+      key: string;
+      label: string;
+      status: 'pass' | 'warn' | 'fail';
+      detail: string;
+      blocking?: boolean;
+    }>;
+  };
+  policy_runtime?: {
+    strict_route?: boolean;
+    project_based?: boolean;
+    essential_routes_only?: boolean;
+    track_candidates?: string[];
+    standard_weeks_per_term?: number;
+  };
 };
 type ProgressionScope = 'week' | 'term' | 'session' | 'full_program';
 
@@ -214,6 +244,38 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   archived:  { label: 'Archived',  cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 };
 
+const PROGRESSION_SCOPE_OPTIONS: Array<{
+  id: ProgressionScope;
+  title: string;
+  eyebrow: string;
+  description: string;
+}> = [
+  {
+    id: 'week',
+    title: 'Single Week',
+    eyebrow: 'Precise repair',
+    description: 'Generate or replace one week in a specific year and term.',
+  },
+  {
+    id: 'term',
+    title: 'Single Term',
+    eyebrow: 'Focused build',
+    description: 'Build one term route with curriculum-aligned week structure.',
+  },
+  {
+    id: 'session',
+    title: 'Full Session',
+    eyebrow: 'Three-term build',
+    description: 'Generate all three terms for one academic session/year.',
+  },
+  {
+    id: 'full_program',
+    title: 'Three Years',
+    eyebrow: 'Whole pathway',
+    description: 'Auto-build the full 3-year progression map end to end.',
+  },
+];
+
 export default function LessonPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -234,9 +296,12 @@ export default function LessonPlanDetailPage() {
   const [progressionWeek, setProgressionWeek] = useState(1);
   const [progressionSession, setProgressionSession] = useState(1);
   const [progressionOverwrite, setProgressionOverwrite] = useState(false);
+  const [progressionPreview, setProgressionPreview] = useState<ProgressionPreview | null>(null);
   const [statusYear, setStatusYear] = useState(1);
   const [statusTerm, setStatusTerm] = useState(1);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [releaseSaving, setReleaseSaving] = useState(false);
   const [guidePanelOpen, setGuidePanelOpen] = useState(false);
   const [guideLoading, setGuideLoading] = useState(false);
   const [guideError, setGuideError] = useState<string | null>(null);
@@ -271,7 +336,7 @@ export default function LessonPlanDetailPage() {
   }, [authLoading, profile, load]);
 
   useEffect(() => {
-    if (!guidePanelOpen || !canGenerateProgression || !id) return;
+    if ((!guidePanelOpen && activeTab !== 'content') || !canGenerateProgression || !id) return;
     let cancelled = false;
     setGuideLoading(true);
     setGuideError(null);
@@ -293,7 +358,11 @@ export default function LessonPlanDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [guidePanelOpen, canGenerateProgression, id]);
+  }, [guidePanelOpen, canGenerateProgression, id, activeTab]);
+
+  useEffect(() => {
+    setProgressionPreview(null);
+  }, [progressionScope, progressionYear, progressionTerm, progressionWeek, progressionSession, progressionOverwrite, weeks.length]);
 
   const syllabusTermContent = useMemo((): SyllabusContent | null => {
     if (!plan?.curriculum?.content || typeof plan.curriculum.content !== 'object') return null;
@@ -532,17 +601,38 @@ export default function LessonPlanDetailPage() {
     }
   }
 
-  async function generateProgression() {
-    if (!plan) return;
+
+  function getProgressionWeeksCount() {
+    return weeks.length > 0 ? weeks.length : 8;
+  }
+
+  function getProgressionScopeLabel(scope: ProgressionScope = progressionScope) {
+    if (scope === 'week') return `Week ${progressionWeek}, Term ${progressionTerm}, Year ${progressionYear}`;
+    if (scope === 'term') return `Term ${progressionTerm}, Year ${progressionYear}`;
+    if (scope === 'session') return `Session ${progressionSession}`;
+    return 'Full 3-Year Program';
+  }
+
+  function buildProgressionPayload(overrides?: Partial<Record<string, unknown>>) {
+    return {
+      strict_route: true,
+      scope: progressionScope,
+      year_number: progressionYear,
+      term_number: progressionTerm,
+      week_number: progressionWeek,
+      session_number: progressionSession,
+      overwrite_existing: progressionOverwrite,
+      weeks_count: getProgressionWeeksCount(),
+      ...overrides,
+    };
+  }
+
+  async function previewProgressionBuilder(overrides?: Partial<Record<string, unknown>>) {
+    if (!plan) return null;
     setGenerating('progression');
     try {
-      const payload = {
-        strict_route: true,
-        year_number: 1,
-        term_number: 1,
-        weeks_count: weeks.length > 0 ? weeks.length : 12,
-      };
-      const previewRes = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
+      const payload = buildProgressionPayload(overrides);
+      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -550,236 +640,93 @@ export default function LessonPlanDetailPage() {
           dry_run: true,
         }),
       });
-      const previewJson = await previewRes.json().catch(() => ({}));
-      if (!previewRes.ok) throw new Error(previewJson.error || 'Preview failed');
-      const preview = (previewJson.data ?? {}) as ProgressionPreview;
-      const termCount = preview.projected_terms?.length ?? 0;
-      const approved = window.confirm(
-        `Preview: ${termCount} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
-      );
-      if (!approved) {
-        setGenerating(null);
-        return;
-      }
-      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Progression generation failed');
-      toast.success(
-        `Generated ${j.data?.generated_weeks ?? 0} weeks with strict Platform → School route.`,
-      );
-      load();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Progression generation failed';
-      toast.error(message);
-    } finally {
-      setGenerating(null);
-    }
-  }
-
-  async function generateRoutedProgression() {
-    if (!plan) return;
-    setGenerating('progression');
-    try {
-      const payload = {
-        strict_route: true,
-        scope: progressionScope,
-        year_number: progressionYear,
-        term_number: progressionTerm,
-        week_number: progressionWeek,
-        session_number: progressionSession,
-        overwrite_existing: progressionOverwrite,
-        weeks_count: weeks.length > 0 ? weeks.length : 12,
-      };
-      const previewRes = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          dry_run: true,
-        }),
-      });
-      const previewJson = await previewRes.json().catch(() => ({}));
-      if (!previewRes.ok) throw new Error(previewJson.error || 'Preview failed');
-      const preview = (previewJson.data ?? {}) as ProgressionPreview & { week_number?: number | null };
-      const termCount = preview.projected_terms?.length ?? 0;
-      const scopeLabel =
-        progressionScope === 'week'
-          ? `week ${progressionWeek}, term ${progressionTerm}, year ${progressionYear}`
-          : progressionScope === 'term'
-            ? `term ${progressionTerm}, year ${progressionYear}`
-            : progressionScope === 'session'
-              ? `session ${progressionSession}`
-              : 'full program';
-      const approved = window.confirm(
-        `Scope: ${scopeLabel}\nPreview: ${termCount} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
-      );
-      if (!approved) {
-        setGenerating(null);
-        return;
-      }
-      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Progression generation failed');
-      toast.success(`Generated progression route for ${scopeLabel}.`);
-      load();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Progression generation failed';
-      toast.error(message);
-    } finally {
-      setGenerating(null);
-    }
-  }
-
-  async function validateRoutedProgression() {
-    if (!plan) return;
-    setGenerating('progression');
-    try {
-      const payload = {
-        strict_route: true,
-        scope: progressionScope,
-        year_number: progressionYear,
-        term_number: progressionTerm,
-        week_number: progressionWeek,
-        session_number: progressionSession,
-        overwrite_existing: progressionOverwrite,
-        weeks_count: weeks.length > 0 ? weeks.length : 12,
-        dry_run: true,
-      };
-      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Validation failed');
+      if (!res.ok) throw new Error(j.error || 'Preview failed');
       const preview = (j.data ?? {}) as ProgressionPreview;
-      const termCount = preview.projected_terms?.length ?? 0;
-      toast.success(
-        `Validated: ${termCount} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, risk: ${preview.repetition_risk ?? 'low'}.`,
-      );
+      setProgressionPreview(preview);
+      toast.success(`Preview ready for ${getProgressionScopeLabel((overrides?.scope as ProgressionScope | undefined) ?? progressionScope)}.`);
+      return preview;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Validation failed';
+      const message = err instanceof Error ? err.message : 'Preview failed';
       toast.error(message);
+      return null;
     } finally {
       setGenerating(null);
     }
   }
 
-  async function autoFillThreeYears(overwriteExisting: boolean) {
+  async function runProgressionBuilder() {
     if (!plan) return;
     setGenerating('progression');
     try {
-      const payload = {
-        strict_route: true,
-        full_program: true,
-        overwrite_existing: overwriteExisting,
-        weeks_count: weeks.length > 0 ? weeks.length : 12,
-        year_number: 1,
-        term_number: 1,
-      };
-      const previewRes = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          dry_run: true,
-        }),
-      });
-      const previewJson = await previewRes.json().catch(() => ({}));
-      if (!previewRes.ok) throw new Error(previewJson.error || 'Preview failed');
-      const preview = (previewJson.data ?? {}) as ProgressionPreview;
-      const termCount = preview.projected_terms?.length ?? 0;
-      const approved = window.confirm(
-        `Preview: ${termCount} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
-      );
-      if (!approved) {
-        setGenerating(null);
+      const payload = buildProgressionPayload();
+      const preview = progressionPreview ?? await previewProgressionBuilder();
+      if (!preview) return;
+      if (preview.preflight?.blocking) {
+        toast.error('Resolve the blocking readiness issues before generation.');
         return;
       }
+      const approved = window.confirm(
+        `Scope: ${getProgressionScopeLabel()}\nPreview: ${preview.projected_terms?.length ?? 0} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
+      );
+      if (!approved) return;
       const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Auto-fill failed');
-      toast.success(
-        overwriteExisting
-          ? '3-year progression auto-filled and existing generated terms replaced.'
-          : '3-year progression auto-filled successfully.',
-      );
+      if (!res.ok) throw new Error(j.error || 'Progression generation failed');
+      toast.success(`Generated progression route for ${getProgressionScopeLabel()}.`);
       load();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Auto-fill failed';
+      const message = err instanceof Error ? err.message : 'Progression generation failed';
       toast.error(message);
     } finally {
       setGenerating(null);
     }
   }
 
-  async function autoFillSession(overwriteExisting: boolean) {
+  async function activateTermSchedule() {
     if (!plan) return;
-    const input = window.prompt('Enter session/year number (1-3):', '1');
-    const parsed = Number(input ?? '1');
-    const sessionNumber = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 3) : 1;
-    setGenerating('progression');
+    setScheduleSaving(true);
     try {
-      const payload = {
-        strict_route: true,
-        scope: 'session',
-        session_number: sessionNumber,
-        overwrite_existing: overwriteExisting,
-        weeks_count: weeks.length > 0 ? weeks.length : 12,
-        year_number: sessionNumber,
-        term_number: 1,
-      };
-      const previewRes = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
+      const res = await fetch(`/api/lesson-plans/${id}/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...payload,
-          dry_run: true,
+          term_start: plan.term_start ?? new Date().toISOString(),
+          cadence_days: 7,
         }),
       });
-      const previewJson = await previewRes.json().catch(() => ({}));
-      if (!previewRes.ok) throw new Error(previewJson.error || 'Preview failed');
-      const preview = (previewJson.data ?? {}) as ProgressionPreview;
-      const termCount = preview.projected_terms?.length ?? 0;
-      const approved = window.confirm(
-        `Preview: ${termCount} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
-      );
-      if (!approved) {
-        setGenerating(null);
-        return;
-      }
-      const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || 'Session auto-fill failed');
-      toast.success(
-        overwriteExisting
-          ? `Session ${sessionNumber} auto-filled and existing generated terms replaced.`
-          : `Session ${sessionNumber} auto-filled successfully (3 terms).`,
-      );
-      load();
+      if (!res.ok) throw new Error(j.error || 'Failed to activate schedule');
+      toast.success('Term scheduler activated for this lesson plan.');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Session auto-fill failed';
-      toast.error(message);
+      toast.error(err instanceof Error ? err.message : 'Failed to activate schedule');
     } finally {
-      setGenerating(null);
+      setScheduleSaving(false);
     }
   }
+
+  async function releaseProgressionWeek() {
+    setReleaseSaving(true);
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}/release-week`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_number: progressionWeek }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Failed to release week');
+      toast.success(`Released week ${progressionWeek} lessons and assignments.`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to release week');
+    } finally {
+      setReleaseSaving(false);
+    }
+  }
+
 
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -792,6 +739,56 @@ export default function LessonPlanDetailPage() {
   const nextStatuses = STATUS_TRANSITIONS[status] ?? [];
   const courseTitle = plan.courses?.title ?? 'Unknown Course';
   const completedWeeks = weeks.filter((w) => w.completed).length;
+  const selectedScopeConfig = PROGRESSION_SCOPE_OPTIONS.find((option) => option.id === progressionScope) ?? PROGRESSION_SCOPE_OPTIONS[1];
+  const builderWeeksCount = getProgressionWeeksCount();
+  const builderScopeLabel = getProgressionScopeLabel();
+  const programPolicy = plan.courses?.programs?.progression_policy ?? null;
+  const builderQuickLinks = [
+    {
+      label: 'Analytics',
+      href: `/dashboard/progression/analytics?year_number=${progressionYear}&term_number=${progressionTerm}&course_id=${plan.course_id ?? ''}&class_id=${plan.class_id ?? ''}`,
+    },
+    {
+      label: 'Audit',
+      href: `/dashboard/progression/audit?lesson_plan_id=${id}`,
+    },
+    {
+      label: 'Schedule',
+      href: '/dashboard/lesson-plans',
+    },
+    {
+      label: 'Release',
+      href: `/dashboard/lessons?lesson_plan_id=${id}`,
+    },
+  ];
+  const builderReadiness = [
+    {
+      key: 'program',
+      label: 'Program progression',
+      status: plan.courses?.programs?.school_progression_enabled === true ? 'pass' : 'fail',
+      detail: plan.courses?.programs?.school_progression_enabled === true ? 'Enabled on linked program.' : 'Enable school progression on the linked program.',
+    },
+    {
+      key: 'curriculum',
+      label: 'Curriculum linked',
+      status: syllabusTermContent ? 'pass' : 'warn',
+      detail: syllabusTermContent ? 'Curriculum term content is linked to this plan.' : 'No curriculum term content is linked yet.',
+    },
+    {
+      key: 'policy',
+      label: 'Policy configured',
+      status: programPolicy && Object.keys(programPolicy).length > 0 ? 'pass' : 'warn',
+      detail: programPolicy && Object.keys(programPolicy).length > 0 ? 'Progression policy defaults are available.' : 'Program policy is thin, so more runtime defaults will be used.',
+    },
+    {
+      key: 'guide',
+      label: 'Registry guide',
+      status: guideError ? 'fail' : guideData?.weeks_count ? 'pass' : guideLoading ? 'warn' : 'warn',
+      detail: guideError ? guideError : guideData?.weeks_count ? `${guideData.weeks_count} seeded guide rows loaded.` : guideLoading ? 'Loading seeded guide rows.' : 'Seeded guide has not loaded yet.',
+    },
+  ] as const;
+  const preflightChecks = progressionPreview?.preflight?.checks ?? [];
+  const hasBlockingPreflight = progressionPreview?.preflight?.blocking === true;
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto print:p-0 print:space-y-4">
@@ -1201,225 +1198,490 @@ export default function LessonPlanDetailPage() {
       {activeTab === 'content' && (
         <div className="space-y-4">
           {status === 'published' && (
-            <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
-              <h3 className="text-sm font-black text-card-foreground mb-3">Bulk Content Generation</h3>
-              <div className="flex flex-wrap gap-2">
-                {canGenerateProgression && (
-                  <>
-                    <Link
-                      href="/dashboard/progression/policies"
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground text-sm font-bold rounded-xl transition-all"
-                    >
-                      Policy Controls
-                    </Link>
-                    <button
-                      onClick={generateRoutedProgression}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Generate Routed Scope
-                    </button>
-                    <button
-                      onClick={validateRoutedProgression}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Validate Routed Scope
-                    </button>
-                    <button
-                      onClick={generateProgression}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Generate Progression Route
-                    </button>
-                    <button
-                      onClick={() => autoFillThreeYears(false)}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Auto Fill 3 Years
-                    </button>
-                    <button
-                      onClick={() => autoFillSession(false)}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Auto Fill Session (3 Terms)
-                    </button>
-                    <button
-                      onClick={() => autoFillThreeYears(true)}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Auto Fill + Override
-                    </button>
-                    <button
-                      onClick={() => autoFillSession(true)}
-                      disabled={generating !== null}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Session + Override
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => bulkGenerate('lessons')}
-                  disabled={generating !== null}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-4 h-4" /> Generate All Lessons
-                </button>
-                <button
-                  onClick={() => bulkGenerate('assignments')}
-                  disabled={generating !== null}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-4 h-4" /> Generate All Assignments
-                </button>
-                <button
-                  onClick={() => bulkGenerate('projects')}
-                  disabled={generating !== null}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-4 h-4" /> Generate All Projects
-                </button>
+            <>
+              <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
+                <div className="relative p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(167,139,250,0.16),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-2xl">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Progression Builder</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Design the route, preview the output, then generate with confidence.</h3>
+                      <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
+                        This builder keeps curriculum, progression, and daily lesson generation aligned. Choose scope, tune the route, preview the impact, then publish the structure your content tools will use.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 min-w-0 sm:min-w-[18rem]">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Current Scope</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{builderScopeLabel}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Weeks / Term</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{builderWeeksCount}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Registry Guide</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{guideData?.track ?? 'Ready on open'}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Mode</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{progressionOverwrite ? 'Replace existing' : 'Preserve existing'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-6 space-y-5">
+                  {canGenerateProgression ? (
+                    <>
+                      <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-5">
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5">
+                          <div className="flex items-center justify-between gap-3 mb-4">
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 1</p>
+                              <h4 className="text-base font-black text-card-foreground mt-1">Choose the build scope</h4>
+                            </div>
+                            <Link
+                              href="/dashboard/progression/policies"
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground text-xs font-black rounded-xl transition-all"
+                            >
+                              Policy Controls
+                            </Link>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {PROGRESSION_SCOPE_OPTIONS.map((option) => {
+                              const active = progressionScope === option.id;
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() => setProgressionScope(option.id)}
+                                  className={`text-left rounded-[20px] border p-4 transition-all ${
+                                    active
+                                      ? 'border-cyan-400/70 bg-cyan-500/[0.12] shadow-[0_0_0_1px_rgba(34,211,238,0.15)]'
+                                      : 'border-white/[0.08] bg-black/20 hover:bg-white/[0.04]'
+                                  }`}
+                                >
+                                  <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${active ? 'text-cyan-200' : 'text-card-foreground/45'}`}>{option.eyebrow}</p>
+                                  <p className="text-sm font-black text-card-foreground mt-2">{option.title}</p>
+                                  <p className="text-xs text-card-foreground/60 mt-2 leading-relaxed">{option.description}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
+
+                        <section className="rounded-[24px] border border-white/[0.08] bg-zinc-950/60 p-4 sm:p-5">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 2</p>
+                          <h4 className="text-base font-black text-card-foreground mt-1">Configure the route</h4>
+                          <p className="text-xs text-card-foreground/60 mt-2 leading-relaxed">
+                            {selectedScopeConfig.description} The builder follows linked curriculum weeks first, then your school progression policy.
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                            {(progressionScope === 'week' || progressionScope === 'term') && (
+                              <label className="block">
+                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45 mb-2">Year</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={progressionYear}
+                                  onChange={(e) => setProgressionYear(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
+                                  className="w-full px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                />
+                              </label>
+                            )}
+                            {(progressionScope === 'week' || progressionScope === 'term') && (
+                              <label className="block">
+                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45 mb-2">Term</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={3}
+                                  value={progressionTerm}
+                                  onChange={(e) => setProgressionTerm(Math.min(Math.max(Number(e.target.value || 1), 1), 3))}
+                                  className="w-full px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                />
+                              </label>
+                            )}
+                            {progressionScope === 'week' && (
+                              <label className="block">
+                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45 mb-2">Week</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={200}
+                                  value={progressionWeek}
+                                  onChange={(e) => setProgressionWeek(Math.min(Math.max(Number(e.target.value || 1), 1), 200))}
+                                  className="w-full px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                />
+                              </label>
+                            )}
+                            {progressionScope === 'session' && (
+                              <label className="block">
+                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45 mb-2">Session / Year</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={progressionSession}
+                                  onChange={(e) => setProgressionSession(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
+                                  className="w-full px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                />
+                              </label>
+                            )}
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3 sm:col-span-2">
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Execution mode</p>
+                              <label className="mt-3 flex items-start gap-3 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={progressionOverwrite}
+                                  onChange={(e) => setProgressionOverwrite(e.target.checked)}
+                                  className="mt-1"
+                                />
+                                <span className="text-sm text-card-foreground/75 leading-relaxed">
+                                  Replace existing generated terms for this scope instead of preserving the current route.
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-5">
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 3</p>
+                              <h4 className="text-base font-black text-card-foreground mt-1">Preview and readiness</h4>
+                              <p className="text-xs text-card-foreground/60 mt-2">Validate seeds, policy, curriculum fit, and generation impact before this route is allowed to write into the plan.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => previewProgressionBuilder()}
+                              disabled={generating !== null}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Run Preview
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {builderReadiness.map((item) => (
+                              <div
+                                key={item.key}
+                                className={`rounded-2xl border p-3 ${
+                                  item.status === 'fail'
+                                    ? 'border-rose-400/25 bg-rose-500/[0.08]'
+                                    : item.status === 'warn'
+                                      ? 'border-amber-400/25 bg-amber-500/[0.08]'
+                                      : 'border-emerald-400/20 bg-emerald-500/[0.07]'
+                                }`}
+                              >
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">{item.label}</p>
+                                <p className={`text-sm font-black mt-2 ${
+                                  item.status === 'fail'
+                                    ? 'text-rose-200'
+                                    : item.status === 'warn'
+                                      ? 'text-amber-200'
+                                      : 'text-emerald-200'
+                                }`}>
+                                  {item.status === 'fail' ? 'Needs attention' : item.status === 'warn' ? 'Watch closely' : 'Ready'}
+                                </p>
+                                <p className="text-xs text-card-foreground/70 mt-2 leading-relaxed">{item.detail}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {progressionPreview ? (
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Terms</p>
+                                <p className="text-lg font-black text-card-foreground mt-2">{progressionPreview.projected_terms?.length ?? 0}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Project Weeks</p>
+                                <p className="text-lg font-black text-card-foreground mt-2">{progressionPreview.projected_projects ?? 0}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Assignments</p>
+                                <p className="text-lg font-black text-card-foreground mt-2">{progressionPreview.projected_assignments ?? 0}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Repetition Risk</p>
+                                <p className={`text-lg font-black mt-2 ${
+                                  progressionPreview.repetition_risk === 'high'
+                                    ? 'text-rose-300'
+                                    : progressionPreview.repetition_risk === 'medium'
+                                      ? 'text-amber-300'
+                                      : 'text-emerald-300'
+                                }`}>{progressionPreview.repetition_risk ?? 'low'}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-4 rounded-2xl border border-dashed border-white/[0.12] bg-black/20 p-4 text-sm text-card-foreground/55">
+                              No preview yet. Run preview to inspect the generated scope before writing it into the plan.
+                            </div>
+                          )}
+
+                          {progressionPreview?.preflight && (
+                            <div className={`mt-4 rounded-2xl border p-4 ${
+                              progressionPreview.preflight.blocking
+                                ? 'border-rose-400/25 bg-rose-500/[0.08]'
+                                : progressionPreview.preflight.status === 'warning'
+                                  ? 'border-amber-400/25 bg-amber-500/[0.08]'
+                                  : 'border-emerald-400/20 bg-emerald-500/[0.07]'
+                            }`}>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Hard preflight</p>
+                                  <p className="text-sm font-black text-card-foreground mt-1">
+                                    {progressionPreview.preflight.blocking
+                                      ? 'Generation is blocked until these issues are fixed.'
+                                      : progressionPreview.preflight.status === 'warning'
+                                        ? 'Generation can continue, but the builder found setup gaps.'
+                                        : 'All critical readiness checks passed.'}
+                                  </p>
+                                </div>
+                                <p className="text-xs text-card-foreground/65">
+                                  Pass {progressionPreview.preflight.summary.pass} · Warn {progressionPreview.preflight.summary.warn} · Fail {progressionPreview.preflight.summary.fail}
+                                </p>
+                              </div>
+                              <div className="mt-3 space-y-2">
+                                {preflightChecks.map((check) => (
+                                  <div key={check.key} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-xs font-black text-card-foreground">{check.label}</p>
+                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                                        check.status === 'fail'
+                                          ? 'text-rose-200'
+                                          : check.status === 'warn'
+                                            ? 'text-amber-200'
+                                            : 'text-emerald-200'
+                                      }`}>
+                                        {check.status}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-card-foreground/70 mt-2 leading-relaxed">{check.detail}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {progressionPreview?.policy_runtime && (
+                            <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Policy runtime</p>
+                              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-card-foreground/75">
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Strict route: {progressionPreview.policy_runtime.strict_route ? 'on' : 'off'}</span>
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Project based: {progressionPreview.policy_runtime.project_based ? 'on' : 'off'}</span>
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Essential only: {progressionPreview.policy_runtime.essential_routes_only ? 'on' : 'off'}</span>
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Weeks/term: {progressionPreview.policy_runtime.standard_weeks_per_term ?? builderWeeksCount}</span>
+                                {progressionPreview.policy_runtime.track_candidates?.length ? (
+                                  <span className="rounded-full border border-white/[0.08] px-2.5 py-1">
+                                    Track order: {progressionPreview.policy_runtime.track_candidates.join(' → ')}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          )}
+
+                          {progressionPreview?.warnings && progressionPreview.warnings.length > 0 && (
+                            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/[0.08] p-4">
+                              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-200">Warnings</p>
+                              <div className="mt-2 space-y-1">
+                                {progressionPreview.warnings.map((warning, index) => (
+                                  <p key={`${warning}-${index}`} className="text-xs text-amber-100/85">{warning}</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </section>
+
+                        <section className="rounded-[24px] border border-white/[0.08] bg-zinc-950/60 p-4 sm:p-5">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 4</p>
+                          <h4 className="text-base font-black text-card-foreground mt-1">Execute and control</h4>
+                          <div className="mt-4 space-y-3">
+                            <button
+                              type="button"
+                              onClick={runProgressionBuilder}
+                              disabled={generating !== null || hasBlockingPreflight}
+                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate {selectedScopeConfig.title}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProgressionScope('full_program');
+                                setProgressionPreview(null);
+                              }}
+                              disabled={generating !== null}
+                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600/90 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <BookOpenIcon className="w-4 h-4" /> Switch To 3-Year Build
+                            </button>
+                          </div>
+
+                          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Current execution</p>
+                            <p className="text-sm font-black text-card-foreground mt-2">{builderScopeLabel}</p>
+                            <p className="text-xs text-card-foreground/60 mt-2 leading-relaxed">
+                              {progressionOverwrite ? 'Existing generated terms in this scope will be replaced.' : 'Existing generated terms will be preserved unless the target slot is empty.'}
+                            </p>
+                            {hasBlockingPreflight && (
+                              <p className="text-xs text-rose-300 mt-2">Preview has blocking issues, so generation is paused until those gaps are fixed.</p>
+                            )}
+                          </div>
+
+                          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Connected operations</p>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              {builderQuickLinks.map((item) => (
+                                <Link
+                                  key={item.label}
+                                  href={item.href}
+                                  className="inline-flex items-center justify-center px-3 py-2.5 text-xs font-black rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-card-foreground transition-all"
+                                >
+                                  {item.label}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Schedule and release</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                              <button
+                                type="button"
+                                onClick={activateTermSchedule}
+                                disabled={scheduleSaving}
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50"
+                              >
+                                {scheduleSaving ? 'Activating...' : 'Activate Scheduler'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={releaseProgressionWeek}
+                                disabled={releaseSaving}
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white disabled:opacity-50"
+                              >
+                                {releaseSaving ? `Releasing W${progressionWeek}...` : `Release Week ${progressionWeek}`}
+                              </button>
+                            </div>
+                            <p className="text-xs text-card-foreground/60 mt-3 leading-relaxed">
+                              Scheduler uses the plan term start date and weekly cadence. Week release publishes the selected week&apos;s lessons and assignments.
+                            </p>
+                          </div>
+
+                          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Term lock workflow</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                              <input
+                                type="number"
+                                min={1}
+                                max={10}
+                                value={statusYear}
+                                onChange={(e) => setStatusYear(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
+                                className="px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                placeholder="Year"
+                              />
+                              <input
+                                type="number"
+                                min={1}
+                                max={3}
+                                value={statusTerm}
+                                onChange={(e) => setStatusTerm(Math.min(Math.max(Number(e.target.value || 1), 1), 3))}
+                                className="px-3 py-2.5 bg-background border border-border rounded-2xl text-sm font-bold"
+                                placeholder="Term"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+                              <button
+                                type="button"
+                                onClick={() => updateTermStatus('draft')}
+                                disabled={statusSaving}
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-zinc-600 hover:bg-zinc-500 text-white disabled:opacity-50"
+                              >
+                                Set Draft
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateTermStatus('approved')}
+                                disabled={statusSaving}
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                              >
+                                Set Approved
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateTermStatus('locked')}
+                                disabled={statusSaving}
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
+                              >
+                                Set Locked
+                              </button>
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+
+                      <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 5</p>
+                            <h4 className="text-base font-black text-card-foreground mt-1">Generate day-to-day content</h4>
+                            <p className="text-xs text-card-foreground/60 mt-2">Once the route is ready, create lessons, assignments, and projects from the same plan.</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => bulkGenerate('lessons')}
+                              disabled={generating !== null}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate Lessons
+                            </button>
+                            <button
+                              onClick={() => bulkGenerate('assignments')}
+                              disabled={generating !== null}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate Assignments
+                            </button>
+                            <button
+                              onClick={() => bulkGenerate('projects')}
+                              disabled={generating !== null}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate Projects
+                            </button>
+                          </div>
+                        </div>
+                      </section>
+                    </>
+                  ) : (
+                    <div className="p-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] text-sm text-card-foreground/60">
+                      Only teachers and admins can open the progression builder for this plan.
+                    </div>
+                  )}
+
+                  {genProgress && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-card-foreground/70">
+                        <span>{genProgress.status}</span>
+                        <span>{genProgress.generated} / {genProgress.total}</span>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-violet-500 h-full transition-all duration-300"
+                          style={{ width: `${(genProgress.generated / genProgress.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              {canGenerateProgression && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-[11px] text-card-foreground/60">
-                    Routed generation uses this plan&apos;s linked course + syllabus context.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <select
-                    value={progressionScope}
-                    onChange={(e) => setProgressionScope(e.target.value as ProgressionScope)}
-                    className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold"
-                  >
-                    <option value="week">Week by Week</option>
-                    <option value="term">Term by Term</option>
-                    <option value="session">Session by Session</option>
-                    <option value="full_program">Full Program (3 Years)</option>
-                  </select>
-                  {(progressionScope === 'week' || progressionScope === 'term') && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={progressionYear}
-                      onChange={(e) => setProgressionYear(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Year"
-                    />
-                  )}
-                  {(progressionScope === 'week' || progressionScope === 'term') && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={3}
-                      value={progressionTerm}
-                      onChange={(e) => setProgressionTerm(Math.min(Math.max(Number(e.target.value || 1), 1), 3))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Term"
-                    />
-                  )}
-                  {progressionScope === 'week' && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={progressionWeek}
-                      onChange={(e) => setProgressionWeek(Math.min(Math.max(Number(e.target.value || 1), 1), 200))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Week"
-                    />
-                  )}
-                  {progressionScope === 'session' && (
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={progressionSession}
-                      onChange={(e) => setProgressionSession(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Session"
-                    />
-                  )}
-                  <label className="flex items-center gap-2 px-2 py-2 text-xs font-bold">
-                    <input
-                      type="checkbox"
-                      checked={progressionOverwrite}
-                      onChange={(e) => setProgressionOverwrite(e.target.checked)}
-                    />
-                    Overwrite Existing
-                  </label>
-                </div>
-                </div>
-              )}
-              {canGenerateProgression && (
-                <div className="mt-3 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                  <p className="text-[11px] text-card-foreground/60 mb-2">Term Lock Workflow (draft → approved → locked)</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center">
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={statusYear}
-                      onChange={(e) => setStatusYear(Math.min(Math.max(Number(e.target.value || 1), 1), 10))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Year"
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      max={3}
-                      value={statusTerm}
-                      onChange={(e) => setStatusTerm(Math.min(Math.max(Number(e.target.value || 1), 1), 3))}
-                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs"
-                      placeholder="Term"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateTermStatus('draft')}
-                      disabled={statusSaving}
-                      className="px-3 py-2 text-xs font-bold rounded-xl bg-zinc-600 hover:bg-zinc-500 text-white disabled:opacity-50"
-                    >
-                      Set Draft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateTermStatus('approved')}
-                      disabled={statusSaving}
-                      className="px-3 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
-                    >
-                      Set Approved
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateTermStatus('locked')}
-                      disabled={statusSaving}
-                      className="px-3 py-2 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
-                    >
-                      Set Locked
-                    </button>
-                  </div>
-                </div>
-              )}
-              {genProgress && (
-                <div className="mt-3 space-y-1">
-                  <div className="flex items-center justify-between text-xs text-card-foreground/70">
-                    <span>{genProgress.status}</span>
-                    <span>{genProgress.generated} / {genProgress.total}</span>
-                  </div>
-                  <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-violet-500 h-full transition-all duration-300"
-                      style={{ width: `${(genProgress.generated / genProgress.total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+
+            </>
           )}
 
           <div className="bg-card border border-white/[0.08] rounded-2xl p-4">

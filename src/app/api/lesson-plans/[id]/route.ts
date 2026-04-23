@@ -47,7 +47,18 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
 
   const { data, error } = await db.from('lesson_plans').select(`
     *,
-    courses(id, title, program_id, programs(id, name)),
+    courses(
+      id,
+      title,
+      program_id,
+      programs(
+        id,
+        name,
+        school_progression_enabled,
+        session_frequency_per_week,
+        progression_policy
+      )
+    ),
     classes(id, name),
     schools(id, name),
     lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
