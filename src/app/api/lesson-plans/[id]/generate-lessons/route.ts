@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  buildSyllabusAnchorText,
+  findSyllabusWeek,
+  inferTermNumberFromPlanTerm,
+  type SyllabusContentImport,
+} from '@/lib/lesson-plans/syllabusImport';
 
 const ALLOWED_LESSON_TYPES = [
   'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
@@ -34,7 +40,7 @@ export async function POST(
     // Fetch lesson plan with curriculum
     const { data: plan, error: planErr } = await (supabase as any)
       .from('lesson_plans')
-      .select('*, courses(title, programs(title)), classes(name), curriculum:course_curricula(content, version)')
+      .select('*, courses(title, programs(name)), classes(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
       .single();
 
@@ -49,7 +55,12 @@ export async function POST(
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
     const planData = plan.plan_data as any;
-    const weeks = (planData?.weeks ?? []) as Array<{ week: number; topic: string; objectives?: string; activities?: string }>;
+    const weeks = (planData?.weeks ?? []) as Array<{
+      week: number;
+      topic: string;
+      objectives?: string;
+      activities?: string;
+    }>;
     const { data: existingLessons } = await supabase
       .from('lessons')
       .select('id, metadata')
@@ -82,12 +93,13 @@ export async function POST(
     }
 
     // Extract curriculum context for richer AI generation
-    const curriculumContent = plan.curriculum?.content;
+    const curriculumContent = plan.curriculum?.content as SyllabusContentImport | undefined;
     const allCurriculumTopics: string[] = curriculumContent?.terms
-      ? curriculumContent.terms.flatMap((t: any) => t.weeks?.map((w: any) => w.topic).filter(Boolean) ?? [])
+      ? curriculumContent.terms.flatMap((t: { weeks?: { topic?: string }[] }) => t.weeks?.map((w) => w.topic).filter(Boolean) ?? [])
       : [];
-    const programName = (plan.courses as any)?.programs?.title || curriculumContent?.course_title || undefined;
-    const courseName = (plan.courses as any)?.title || undefined;
+    const programName = (plan.courses as { programs?: { name?: string | null } | null } | null)?.programs?.name || (curriculumContent as { course_title?: string } | undefined)?.course_title || undefined;
+    const courseName = (plan.courses as { title?: string | null } | null)?.title || undefined;
+    const termNum = inferTermNumberFromPlanTerm(plan.term);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -99,6 +111,7 @@ export async function POST(
         let generated = 0;
         let skipped = 0;
         const total = weeks.length;
+        const titlesThisRun: string[] = [];
 
         for (const week of weeks) {
           try {
@@ -106,6 +119,13 @@ export async function POST(
 
             // Sibling lessons = all OTHER topics in the curriculum (for continuity)
             const siblingLessons = allCurriculumTopics.filter((t: string) => t !== week.topic);
+            const syllabusWeek = findSyllabusWeek(curriculumContent, termNum, week.week);
+            const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
+            const durationFromSyllabus = syllabusWeek?.lesson_plan?.duration_minutes;
+            const durationMinutes =
+              typeof durationFromSyllabus === 'number' && Number.isFinite(durationFromSyllabus)
+                ? Math.min(180, Math.max(15, durationFromSyllabus))
+                : 60;
 
             // Call AI generate endpoint with full curriculum context
             const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
@@ -119,10 +139,14 @@ export async function POST(
                 topic: week.topic,
                 gradeLevel: plan.classes?.name || 'Basic 1–SS3',
                 subject: courseName || 'Coding & Technology',
-                durationMinutes: 60,
+                durationMinutes,
                 courseName,
                 programName,
                 siblingLessons: siblingLessons.slice(0, 10), // Cap to avoid huge prompts
+                syllabusReference,
+                planWeekObjectives: typeof week.objectives === 'string' ? week.objectives : '',
+                planWeekActivities: typeof week.activities === 'string' ? week.activities : '',
+                priorLessonTitlesThisRun: [...titlesThisRun],
               }),
             });
 
@@ -173,6 +197,8 @@ export async function POST(
               continue;
             }
 
+            const savedTitle = (aiData.data.title || week.topic) as string;
+            titlesThisRun.push(savedTitle);
             generated++;
             emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
           } catch (err: any) {

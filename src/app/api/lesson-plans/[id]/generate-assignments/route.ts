@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  buildSyllabusAnchorText,
+  findSyllabusWeek,
+  inferTermNumberFromPlanTerm,
+  type SyllabusContentImport,
+} from '@/lib/lesson-plans/syllabusImport';
 
 export async function POST(
   req: NextRequest,
@@ -27,7 +33,7 @@ export async function POST(
     // Fetch lesson plan
     const { data: plan, error: planErr } = await (supabase as any)
       .from('lesson_plans')
-      .select('*, courses(title), classes(name)')
+      .select('*, courses(title, programs(name)), classes(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
       .single();
 
@@ -75,6 +81,10 @@ export async function POST(
       return NextResponse.json({ error: 'No weeks defined in plan' }, { status: 422 });
     }
 
+    const curriculumContent = plan.curriculum?.content as SyllabusContentImport | undefined;
+    const termNum = inferTermNumberFromPlanTerm(plan.term);
+    const programName = (plan.courses as { programs?: { name?: string | null } | null } | null)?.programs?.name;
+
     // Calculate due dates based on term schedule
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
     const cadenceDays = 7; // Weekly by default
@@ -89,6 +99,7 @@ export async function POST(
         let generated = 0;
         let skipped = 0;
         const total = weeks.length;
+        const titlesThisRun: string[] = [];
 
         for (const week of weeks) {
           try {
@@ -97,6 +108,9 @@ export async function POST(
             // Calculate due date for this week
             const dueDate = new Date(termStart);
             dueDate.setDate(dueDate.getDate() + (week.week * cadenceDays));
+
+            const syllabusWeek = findSyllabusWeek(curriculumContent, termNum, week.week);
+            const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
             // Call AI generate endpoint
             const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
@@ -111,7 +125,12 @@ export async function POST(
                 gradeLevel: plan.classes?.name || 'Basic 1–SS3',
                 subject: plan.courses?.title || 'Coding & Technology',
                 courseName: plan.courses?.title,
+                programName,
                 assignmentType: 'homework',
+                syllabusReference,
+                planWeekObjectives: typeof week.objectives === 'string' ? week.objectives : '',
+                planWeekActivities: typeof week.activities === 'string' ? week.activities : '',
+                priorAssignmentTitlesThisRun: [...titlesThisRun],
               }),
             });
 
@@ -158,6 +177,7 @@ export async function POST(
               continue;
             }
 
+            titlesThisRun.push((aiData.data.title || `${week.topic} Assignment`) as string);
             generated++;
             emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
           } catch (err: any) {

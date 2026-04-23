@@ -170,6 +170,15 @@ export default function PipelineStepper(props: PipelineStepperProps) {
         })}
       </ol>
 
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        <Link
+          href="/dashboard/curriculum/learning-system"
+          className="inline-flex items-center gap-1 text-cyan-500/90 hover:underline font-bold"
+        >
+          <span className="opacity-80">Wiring</span> — how DB, QA spine, and this pipeline connect →
+        </Link>
+      </p>
+
       {/* Tiny helper line on mobile */}
       <p className="mt-1.5 text-[10px] text-muted-foreground sm:hidden">
         Swipe steps →

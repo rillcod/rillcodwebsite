@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from './authz';
+import {
+  inferTermNumberFromPlanTerm,
+  mapSyllabusWeekToPlanRow,
+  type SyllabusWeekImport,
+} from '@/lib/lesson-plans/syllabusImport';
 
 async function getUser() {
   const supabase = await createClient();
@@ -28,16 +33,6 @@ async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string |
 
 function canCreateLessonPlan(role: string | undefined) {
   return role === 'admin' || role === 'teacher';
-}
-
-/** Plan `term` is stored like "First Term 2025/2026" — match syllabus `terms[].term` (1–3). */
-function inferTermNumberFromPlanTerm(term: string | null | undefined): number {
-  if (!term) return 1;
-  const s = term.trim().toLowerCase();
-  if (s.startsWith('first') || /\b1st\b/.test(s) || /\bterm\s*1\b/.test(s)) return 1;
-  if (s.startsWith('second') || /\b2nd\b/.test(s) || /\bterm\s*2\b/.test(s)) return 2;
-  if (s.startsWith('third') || /\b3rd\b/.test(s) || /\bterm\s*3\b/.test(s)) return 3;
-  return 1;
 }
 
 // GET /api/lesson-plans — list lesson plans for a lesson or all accessible ones
@@ -177,13 +172,7 @@ export async function POST(request: Request) {
 
         if (termData?.weeks?.length) {
           autoPlanData = {
-            weeks: termData.weeks.map((w: any) => ({
-              week: w.week,
-              topic: w.topic || '',
-              objectives: Array.isArray(w.subtopics) ? w.subtopics.join(', ') : (w.subtopics || ''),
-              activities: Array.isArray(w.activities) ? w.activities.join(', ') : (w.activities || ''),
-              notes: w.assessment || '',
-            })),
+            weeks: termData.weeks.map((w: SyllabusWeekImport) => mapSyllabusWeekToPlanRow(w)),
           };
         }
       }

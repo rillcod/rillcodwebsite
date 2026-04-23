@@ -149,6 +149,13 @@ interface GenerateRequest {
   difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
+  /** Syllabus week spine (student + teacher lines) — bulk generation */
+  syllabusReference?: string;
+  planWeekObjectives?: string;
+  planWeekActivities?: string;
+  /** Titles already generated in the current bulk job — reduce repetition */
+  priorLessonTitlesThisRun?: string[];
+  priorAssignmentTitlesThisRun?: string[];
   // Curriculum generation specific fields
   course_name?: string;
   grade_level?: string;
@@ -403,6 +410,20 @@ ${req.siblingLessons?.length ? `Other lessons already covered in this course (DO
 - Connect new concepts to what students already know from previous lessons where possible.`
         : '';
 
+      const syllabusAnchorBlock = req.syllabusReference?.trim()
+        ? `\nSYLLABUS ANCHOR (mandatory spine — keep the sequence of student tasks recognisable; expand into rich blocks):\n${req.syllabusReference.trim()}`
+        : '';
+      const planWeekBlock = [
+        req.planWeekObjectives?.trim() ? `Term plan — objectives:\n${req.planWeekObjectives.trim()}` : '',
+        req.planWeekActivities?.trim() ? `Term plan — student-facing activities:\n${req.planWeekActivities.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const planWeekSection = planWeekBlock ? `\nTERM PLANNER FIELDS:\n${planWeekBlock}` : '';
+      const dedupLessonsBlock = req.priorLessonTitlesThisRun?.length
+        ? `\nALREADY GENERATED IN THIS BATCH (use fresh examples, quiz stems, hooks; do not reuse or lightly reword these titles):\n${req.priorLessonTitlesThisRun.slice(0, 24).join(' | ')}`
+        : '';
+
       return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${grade}
@@ -410,7 +431,7 @@ Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
-${curriculumContext}
+${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
@@ -513,7 +534,20 @@ UNIVERSAL RULES:
 - ${isYoungLearner ? 'Young Learner Override takes HIGHEST priority over all other rules.' : 'Tone: Encouraging and kid-friendly. British English. No unexplained jargon.'}`;
     }
 
-    case 'assignment':
+    case 'assignment': {
+      const syllabusAnchorBlock = req.syllabusReference?.trim()
+        ? `\nSYLLABUS / PLAN ANCHOR (shape tasks around this — unique to this week):\n${req.syllabusReference.trim()}`
+        : '';
+      const planWeekBlock = [
+        req.planWeekObjectives?.trim() ? `Term plan objectives:\n${req.planWeekObjectives.trim()}` : '',
+        req.planWeekActivities?.trim() ? `Term plan activities:\n${req.planWeekActivities.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const planWeekSection = planWeekBlock ? `\n${planWeekBlock}\n` : '';
+      const dedupAssign = req.priorAssignmentTitlesThisRun?.length
+        ? `\nAssignments already generated in this batch (must differ in task design and question stems):\n${req.priorAssignmentTitlesThisRun.slice(0, 20).join(' | ')}\n`
+        : '';
       return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
@@ -522,6 +556,7 @@ ${req.programName ? `Programme: "${req.programName}"` : ''}
 ${req.courseName ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course` : ''}
 Assignment type hint: ${req.assignmentType ?? 'auto-detect'}
 Max Points: 100
+${syllabusAnchorBlock}${planWeekSection}${dedupAssign}
 
 Return a JSON object with this exact shape:
 {
@@ -560,6 +595,7 @@ RULES:
 - For programming topics (JSS2-SS3): include at least 1 coding_blocks and 1 coding challenge question.
 - Include at least 5 questions total.
 - metadata.deliverables and metadata.rubric should be null/omitted for non-project assignments.`;
+    }
 
     case 'cbt': {
       const qCount    = req.questionCount ?? 10;
