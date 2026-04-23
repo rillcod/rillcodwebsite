@@ -90,7 +90,14 @@ export async function POST(req: NextRequest) {
     if (clErr || !cl) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
     }
-    classRow = cl as typeof classRow;
+    classRow = {
+      id: cl.id,
+      school_id: cl.school_id,
+      qa_spine_lane: cl.qa_spine_lane,
+      qa_grade_key: cl.qa_grade_key,
+      qa_track_hint: cl.qa_track_hint,
+      name: cl.name,
+    };
     if (profile.role === 'teacher' && classRow.school_id && classRow.school_id !== profile.school_id) {
       return NextResponse.json({ error: 'Class is not in your school scope.' }, { status: 403 });
     }
