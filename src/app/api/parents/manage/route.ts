@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
+import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
 
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
         .single();
 
       if (ps) {
-        const { error: linkErr } = await admin.from('students').upsert({
+        const { data: linkedStudent, error: linkErr } = await admin.from('students').upsert({
           user_id: sid,
           name: ps.full_name,
           full_name: ps.full_name,
@@ -117,17 +118,23 @@ export async function POST(req: Request) {
           parent_relationship: relationship,
           enrollment_type: 'school',
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        }, { onConflict: 'user_id' }).select('id').single();
         if (linkErr) console.error(`[parents/manage POST] Failed to link student ${sid}:`, linkErr);
+        if (linkedStudent?.id) {
+          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id);
+        }
       } else {
         // Fallback: student already in students table but not portal_users
-        await admin.from('students').update({
+        const { data: linkedStudent } = await admin.from('students').update({
           parent_email: cleanEmail,
           parent_name: full_name,
           parent_phone: phone ?? null,
           parent_relationship: relationship,
           updated_at: new Date().toISOString(),
-        }).eq('user_id', sid);
+        }).eq('user_id', sid).select('id').maybeSingle();
+        if (linkedStudent?.id) {
+          await syncExplicitParentStudentLink(admin as any, authUserId, linkedStudent.id);
+        }
       }
     }
 
@@ -196,7 +203,7 @@ export async function PATCH(req: Request) {
           .eq('id', student_id)
           .single();
 
-        const { error: linkErr } = await admin
+        const { data: linkedStudent, error: linkErr } = await admin
           .from('students')
           .upsert({
             user_id: student_id,
@@ -212,8 +219,13 @@ export async function PATCH(req: Request) {
             parent_relationship: relationship ?? 'Guardian',
             enrollment_type: 'school',
             updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' });
+          }, { onConflict: 'user_id' })
+          .select('id')
+          .single();
         if (linkErr) throw linkErr;
+        if (linkedStudent?.id) {
+          await syncExplicitParentStudentLink(admin as any, parent_id, linkedStudent.id);
+        }
       }
     }
 

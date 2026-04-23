@@ -147,6 +147,11 @@ export async function POST(req: NextRequest) {
         ss_1_2_track: 'ss_uiux_mobile',
         ss_1_2_tracks: ['ss_uiux_mobile', 'python', 'html_css'],
         ss_1_2_stack: ['ui_ux_design', 'capacitor_mobile_app'],
+        ss_1_3_program: 'teen_developers',
+        ss_1_3_track: 'ss_uiux_mobile',
+        ss_1_3_tracks: ['ss_uiux_mobile', 'python', 'html_css'],
+        ss_1_3_stack: ['ui_ux_design', 'capacitor_mobile_app'],
+        standard_weeks_per_term: 8,
         teen_developers_sequence: [
           'javascript_foundation',
           'react_development',

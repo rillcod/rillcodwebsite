@@ -22,6 +22,17 @@ const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', '
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 export class FilesService {
+    private async runPostProcessing(fileData: any, storagePath: string, buffer?: Buffer) {
+        try {
+            if (buffer) {
+                await mediaService.generateThumbnail(fileData, storagePath, buffer);
+            }
+            await mediaService.processVideo(fileData, storagePath);
+        } catch (err) {
+            console.error('Post processing failed', err);
+        }
+    }
+
     validateFile(filename: string, size: number) {
         const ext = filename.split('.').pop()?.toLowerCase() || '';
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
@@ -125,14 +136,7 @@ export class FilesService {
         }
 
         // Run post processing asynchronously
-        (async () => {
-            try {
-                await mediaService.generateThumbnail(fileData, storagePath, buffer);
-                await mediaService.processVideo(fileData, storagePath);
-            } catch (err) {
-                console.error('Post processing failed', err);
-            }
-        })();
+        void this.runPostProcessing(fileData, storagePath, buffer);
 
         return fileData;
     }
@@ -195,6 +199,8 @@ export class FilesService {
         if (dbError) {
             throw new AppError(`Failed to wrap up resumable upload metadata: ${dbError.message}`, 500);
         }
+
+        void this.runPostProcessing(fileData, metadata.path);
 
         return fileData;
     }

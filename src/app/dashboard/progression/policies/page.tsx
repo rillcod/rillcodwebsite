@@ -21,6 +21,12 @@ type EditablePolicy = {
   essential_routes_only: boolean;
   mastery_mode: 'strict' | 'soft';
   track_priority: string[];
+  qa_min_pass_score: number;
+  qa_required_teacher_steps: number;
+  qa_required_student_steps: number;
+  qa_assessment_drift_mode: 'warn' | 'fail';
+  qa_exam_drift_mode: 'warn' | 'fail';
+  qa_five_step_mode: 'warn' | 'fail';
 };
 
 type ClassOption = { id: string; name: string; schools?: { name?: string } | null };
@@ -37,6 +43,12 @@ function toEditablePolicy(program: PolicyProgram): EditablePolicy {
     essential_routes_only: policy.essential_routes_only === true,
     mastery_mode: policy.mastery_mode === 'soft' ? 'soft' : 'strict',
     track_priority: trackPriorityArray,
+    qa_min_pass_score: Number(policy.qa_min_pass_score ?? 75) || 75,
+    qa_required_teacher_steps: Number(policy.qa_required_teacher_steps ?? 5) || 5,
+    qa_required_student_steps: Number(policy.qa_required_student_steps ?? 5) || 5,
+    qa_assessment_drift_mode: policy.qa_assessment_drift_mode === 'fail' ? 'fail' : 'warn',
+    qa_exam_drift_mode: policy.qa_exam_drift_mode === 'warn' ? 'warn' : 'fail',
+    qa_five_step_mode: policy.qa_five_step_mode === 'fail' ? 'fail' : 'warn',
   };
 }
 
@@ -52,6 +64,12 @@ export default function ProgressionPoliciesPage() {
     essential_routes_only: false,
     mastery_mode: 'strict',
     track_priority: [],
+    qa_min_pass_score: 75,
+    qa_required_teacher_steps: 5,
+    qa_required_student_steps: 5,
+    qa_assessment_drift_mode: 'warn',
+    qa_exam_drift_mode: 'fail',
+    qa_five_step_mode: 'warn',
   });
   const [newTrack, setNewTrack] = useState('');
   const [deliveryType, setDeliveryType] = useState<'optional' | 'compulsory'>('compulsory');
@@ -121,6 +139,12 @@ export default function ProgressionPoliciesPage() {
           essential_routes_only: form.essential_routes_only,
           mastery_mode: form.mastery_mode,
           track_priority: trackPriority,
+          qa_min_pass_score: form.qa_min_pass_score,
+          qa_required_teacher_steps: form.qa_required_teacher_steps,
+          qa_required_student_steps: form.qa_required_student_steps,
+          qa_assessment_drift_mode: form.qa_assessment_drift_mode,
+          qa_exam_drift_mode: form.qa_exam_drift_mode,
+          qa_five_step_mode: form.qa_five_step_mode,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -487,6 +511,85 @@ export default function ProgressionPoliciesPage() {
                   Add
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-background/50 p-4 space-y-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">Syllabus QA Controls</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Define what your QA layer should enforce for coverage, 5-step structure, and syllabus rhythm drift.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Minimum Pass Score</label>
+              <input
+                type="number"
+                min={40}
+                max={100}
+                value={form.qa_min_pass_score}
+                onChange={(e) => setForm((f) => ({ ...f, qa_min_pass_score: Math.min(100, Math.max(40, Number(e.target.value || 75))) }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Teacher Steps Required</label>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                value={form.qa_required_teacher_steps}
+                onChange={(e) => setForm((f) => ({ ...f, qa_required_teacher_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Student Steps Required</label>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                value={form.qa_required_student_steps}
+                onChange={(e) => setForm((f) => ({ ...f, qa_required_student_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Assessment Drift Mode</label>
+              <select
+                value={form.qa_assessment_drift_mode}
+                onChange={(e) => setForm((f) => ({ ...f, qa_assessment_drift_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              >
+                <option value="warn">Warn</option>
+                <option value="fail">Fail</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Exam Drift Mode</label>
+              <select
+                value={form.qa_exam_drift_mode}
+                onChange={(e) => setForm((f) => ({ ...f, qa_exam_drift_mode: e.target.value === 'warn' ? 'warn' : 'fail' }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              >
+                <option value="fail">Fail</option>
+                <option value="warn">Warn</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">5-Step Break Mode</label>
+              <select
+                value={form.qa_five_step_mode}
+                onChange={(e) => setForm((f) => ({ ...f, qa_five_step_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              >
+                <option value="warn">Warn</option>
+                <option value="fail">Fail</option>
+              </select>
             </div>
           </div>
         </div>

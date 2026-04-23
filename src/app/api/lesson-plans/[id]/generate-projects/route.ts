@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { hasPlanBindings } from '@/lib/api-guards';
+import {
+  buildSyllabusAnchorText,
+  findSyllabusWeek,
+  inferTermNumberFromPlanTerm,
+  type SyllabusContentImport,
+} from '@/lib/lesson-plans/syllabusImport';
+import { extractLessonPlanOperationWeeks, getWeekCompositeKey } from '@/lib/progression/lessonPlanOperation';
 
 export async function POST(
   req: NextRequest,
@@ -28,7 +35,7 @@ export async function POST(
     // Fetch lesson plan
     const { data: plan, error: planErr } = await (supabase as any)
       .from('lesson_plans')
-      .select('*, courses(title), classes(name)')
+      .select('*, courses(title, programs(name)), classes(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
       .single();
 
@@ -48,23 +55,40 @@ export async function POST(
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
     const planData = plan.plan_data as any;
-    const weeks = (planData?.weeks ?? []) as Array<{ week: number; topic: string; objectives?: string; activities?: string }>;
+    const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
+      week: number;
+      topic: string;
+      objectives?: string;
+      activities?: string;
+      notes?: string;
+      project?: { title?: string; description?: string; deliverables?: string[] };
+      practical_assessment?: { skill_checkpoints?: string[]; max_score?: number };
+      syllabus_ref?: { year_number?: number; term_number?: number; week_number?: number };
+    }>;
     const { data: existingProjects } = await supabase
       .from('assignments')
       .select('id, metadata, assignment_type')
       .eq('course_id', planCourseId)
       .eq('school_id', planSchoolId)
       .eq('assignment_type', 'project');
-    const existingWeekSet = new Set<number>(
+    const existingWeekSet = new Set<string>(
       (existingProjects ?? [])
         .filter((a) => {
           const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
           return metadata?.lesson_plan_id === id;
         })
-        .map((a) => Number((a.metadata as Record<string, unknown> | null)?.week_number ?? -1))
-        .filter((n) => Number.isFinite(n) && n > 0),
+        .map((a) => {
+          const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
+          return getWeekCompositeKey({
+            week: Number((metadata?.week_number) ?? -1),
+            syllabus_ref: {
+              year_number: Number(metadata?.year_number ?? 0),
+              term_number: Number(metadata?.term_number ?? 0),
+            },
+          });
+        }),
     );
-    const projectedSkips = weeks.filter((w) => existingWeekSet.has(w.week)).length;
+    const projectedSkips = weeks.filter((w) => existingWeekSet.has(getWeekCompositeKey(w as unknown as Record<string, unknown>))).length;
     if (dryRun) {
       return NextResponse.json({
         data: {
@@ -80,6 +104,10 @@ export async function POST(
     if (weeks.length === 0) {
       return NextResponse.json({ error: 'No weeks defined in plan' }, { status: 422 });
     }
+
+    const curriculumContent = plan.curriculum?.content as SyllabusContentImport | undefined;
+    const termNum = inferTermNumberFromPlanTerm(plan.term);
+    const programName = (plan.courses as { programs?: { name?: string | null } | null } | null)?.programs?.name;
 
     // Calculate due dates based on term schedule
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
@@ -103,6 +131,11 @@ export async function POST(
             // Calculate due date for this week (projects get more time)
             const dueDate = new Date(termStart);
             dueDate.setDate(dueDate.getDate() + (week.week * cadenceDays) + 7); // Extra week for projects
+            const yearNumber = Number(week.syllabus_ref?.year_number ?? 0);
+            const termNumber = Number(week.syllabus_ref?.term_number ?? termNum);
+            const effectiveTermNum = Number.isFinite(termNumber) && termNumber > 0 ? termNumber : termNum;
+            const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week);
+            const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
             // Call AI generate endpoint
             const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
@@ -119,6 +152,14 @@ export async function POST(
                 subject: plan.courses?.title || 'Coding & Technology',
                 courseName: plan.courses?.title,
                 assignmentType: 'project',
+                programName,
+                syllabusReference,
+                planWeekObjectives: typeof week.objectives === 'string' ? week.objectives : '',
+                planWeekActivities: typeof week.activities === 'string' ? week.activities : '',
+                projectTitle: week.project?.title || `${week.topic} Project`,
+                projectDescription: week.project?.description || week.notes || '',
+                projectDeliverables: Array.isArray(week.project?.deliverables) ? week.project.deliverables : [],
+                practicalCheckpoints: Array.isArray(week.practical_assessment?.skill_checkpoints) ? week.practical_assessment.skill_checkpoints : [],
               }),
             });
 
@@ -137,7 +178,7 @@ export async function POST(
               continue;
             }
 
-            if (existingWeekSet.has(week.week)) {
+            if (existingWeekSet.has(getWeekCompositeKey(week as unknown as Record<string, unknown>))) {
               emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (already exists)` });
               skipped++;
               continue;
@@ -148,13 +189,20 @@ export async function POST(
               course_id: planCourseId,
               class_id: plan.class_id,
               school_id: planSchoolId,
-              title: aiData.data.title || `${week.topic} Project`,
-              description: aiData.data.description || '',
-              instructions: aiData.data.instructions || '',
+              title: aiData.data.title || week.project?.title || `${week.topic} Project`,
+              description: aiData.data.description || week.project?.description || '',
+              instructions: aiData.data.instructions || (Array.isArray(week.project?.deliverables) ? week.project.deliverables.join('\n') : ''),
               assignment_type: 'project',
               due_date: dueDate.toISOString(),
-              max_points: 100,
-              metadata: { ...aiData.data.metadata, lesson_plan_id: plan.id, week_number: week.week },
+              max_points: week.practical_assessment?.max_score || 100,
+              metadata: {
+                ...aiData.data.metadata,
+                lesson_plan_id: plan.id,
+                week_number: week.week,
+                year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
+                term_number: Number.isFinite(effectiveTermNum) && effectiveTermNum > 0 ? effectiveTermNum : null,
+                generated_from: 'progression_project_route',
+              },
               questions: aiData.data.questions || [],
             });
 

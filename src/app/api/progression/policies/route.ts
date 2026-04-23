@@ -70,9 +70,30 @@ export async function PUT(req: NextRequest) {
   if (typeof body.auto_flashcards_default === 'boolean') nextPolicy.auto_flashcards_default = body.auto_flashcards_default;
   if (typeof body.project_based_default === 'boolean') nextPolicy.project_based_default = body.project_based_default;
   if (typeof body.essential_routes_only === 'boolean') nextPolicy.essential_routes_only = body.essential_routes_only;
+  if (Number.isFinite(Number(body.standard_weeks_per_term))) {
+    nextPolicy.standard_weeks_per_term = Math.min(20, Math.max(1, Number(body.standard_weeks_per_term)));
+  }
   if (body.mastery_mode === 'strict' || body.mastery_mode === 'soft') nextPolicy.mastery_mode = body.mastery_mode;
   if (Array.isArray(body.track_priority)) {
     nextPolicy.track_priority = body.track_priority.filter((v: unknown): v is string => typeof v === 'string');
+  }
+  if (Number.isFinite(Number(body.qa_min_pass_score))) {
+    nextPolicy.qa_min_pass_score = Math.min(100, Math.max(40, Number(body.qa_min_pass_score)));
+  }
+  if (Number.isFinite(Number(body.qa_required_teacher_steps))) {
+    nextPolicy.qa_required_teacher_steps = Math.min(8, Math.max(1, Number(body.qa_required_teacher_steps)));
+  }
+  if (Number.isFinite(Number(body.qa_required_student_steps))) {
+    nextPolicy.qa_required_student_steps = Math.min(8, Math.max(1, Number(body.qa_required_student_steps)));
+  }
+  if (body.qa_assessment_drift_mode === 'warn' || body.qa_assessment_drift_mode === 'fail') {
+    nextPolicy.qa_assessment_drift_mode = body.qa_assessment_drift_mode;
+  }
+  if (body.qa_exam_drift_mode === 'warn' || body.qa_exam_drift_mode === 'fail') {
+    nextPolicy.qa_exam_drift_mode = body.qa_exam_drift_mode;
+  }
+  if (body.qa_five_step_mode === 'warn' || body.qa_five_step_mode === 'fail') {
+    nextPolicy.qa_five_step_mode = body.qa_five_step_mode;
   }
 
   const updatePayload: Record<string, unknown> = {

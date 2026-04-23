@@ -19,7 +19,13 @@ const stripe = env.STRIPE_SECRET_KEY
 export class PaymentsService {
 
     // Task 20.1: Create Stripe integration
-    async createStripeCheckout(userId: string, courseId: string, amount: number, tenantId?: string) {
+    async createStripeCheckout(
+        userId: string,
+        courseId: string,
+        amount: number,
+        tenantId?: string,
+        currency: string = 'USD',
+    ) {
         if (!stripe) {
             throw new AppError('Stripe configuration missing', 500);
         }
@@ -40,6 +46,7 @@ export class PaymentsService {
         // Generate unique reference
         const reference = `STR-${Date.now()}-${userId.substring(0, 5)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const normalizedCurrency = currency.trim().toLowerCase();
 
         try {
             const session = await stripe.checkout.sessions.create({
@@ -47,7 +54,7 @@ export class PaymentsService {
                 line_items: [
                     {
                         price_data: {
-                            currency: 'usd',
+                            currency: normalizedCurrency,
                             product_data: {
                                 name: `Enrollment: ${course.title}`,
                             },
@@ -73,7 +80,7 @@ export class PaymentsService {
                 portal_user_id: userId,
                 course_id: courseId,
                 amount,
-                currency: 'USD',
+                currency: normalizedCurrency.toUpperCase(),
                 payment_method: 'stripe',
                 payment_status: 'pending',
                 transaction_reference: reference,

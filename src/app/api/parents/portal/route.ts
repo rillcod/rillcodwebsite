@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
 async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -42,21 +43,12 @@ export async function GET(req: Request) {
     const section = url.searchParams.get('section') ?? 'children';
     const childId = url.searchParams.get('child_id') ?? '';
 
-    // Build parent-scoped student ids from explicit links + legacy parent_email mapping.
-    // Some environments may not have parent_student_links yet, so query defensively.
-    const parentEmail = (profile.email ?? '').trim().toLowerCase();
-    let linkedIds: string[] = [];
-    try {
-      const { data: linkedRows } = await (admin as any)
-        .from('parent_student_links')
-        .select('student_id')
-        .eq('parent_id', profile.id);
-      linkedIds = (linkedRows ?? [])
-        .map((r: any) => r.student_id as string | null)
-        .filter((v: string | null): v is string => Boolean(v));
-    } catch {
-      linkedIds = [];
-    }
+    const linkScope = await getParentLinkScope(admin as any, {
+      id: profile.id,
+      email: profile.email,
+    });
+    const linkedIds = linkScope.studentIds;
+    const linkedUserIds = linkScope.studentUserIds;
 
     // ── Summary for all children ───────────────────────────────────────────
     if (section === 'summary') {
@@ -64,11 +56,7 @@ export async function GET(req: Request) {
         .from('students')
         .select('*, user_id')
         .order('full_name');
-      if (parentEmail && linkedIds.length > 0) {
-        childQuery = childQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childQuery;
-      } else if (parentEmail) {
-        childQuery = childQuery.ilike('parent_email', parentEmail) as typeof childQuery;
-      } else if (linkedIds.length > 0) {
+      if (linkedIds.length > 0) {
         childQuery = childQuery.in('id', linkedIds) as typeof childQuery;
       } else {
         return NextResponse.json({ success: true, children: [] });
@@ -139,11 +127,7 @@ export async function GET(req: Request) {
         .from('students')
         .select('id, full_name, school_name, grade_level, section, current_class, status, user_id')
         .order('full_name');
-      if (parentEmail && linkedIds.length > 0) {
-        childQuery = childQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childQuery;
-      } else if (parentEmail) {
-        childQuery = childQuery.ilike('parent_email', parentEmail) as typeof childQuery;
-      } else if (linkedIds.length > 0) {
+      if (linkedIds.length > 0) {
         childQuery = childQuery.in('id', linkedIds) as typeof childQuery;
       } else {
         return NextResponse.json({ success: true, children: [] });
@@ -164,11 +148,7 @@ export async function GET(req: Request) {
       .from('students')
       .select('id, full_name, school_name, user_id')
       .eq('id', childId);
-    if (parentEmail && linkedIds.length > 0) {
-      childScopeQuery = childScopeQuery.or(`parent_email.ilike.${parentEmail},id.in.(${linkedIds.join(',')})`) as typeof childScopeQuery;
-    } else if (parentEmail) {
-      childScopeQuery = childScopeQuery.ilike('parent_email', parentEmail) as typeof childScopeQuery;
-    } else if (linkedIds.length > 0) {
+    if (linkedIds.length > 0) {
       childScopeQuery = childScopeQuery.in('id', linkedIds) as typeof childScopeQuery;
     } else {
       return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
@@ -184,6 +164,9 @@ export async function GET(req: Request) {
     if (section === 'grades') {
       if (!child.user_id) {
         return NextResponse.json({ success: true, grades: [], message: 'No portal account linked to this student yet' });
+      }
+      if (!linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
 
       const [asgnRes, cbtRes] = await Promise.all([
@@ -234,6 +217,9 @@ export async function GET(req: Request) {
       if (!child.user_id) {
         return NextResponse.json({ success: true, reports: [], message: 'No portal account linked yet' });
       }
+      if (!linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
+      }
 
       const { data: reports, error } = await admin
         .from('student_progress_reports')
@@ -248,6 +234,9 @@ export async function GET(req: Request) {
 
     // ── Invoices & Payments ──────────────────────────────────────────────────
     if (section === 'invoices') {
+      if (child.user_id && !linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
+      }
       const invoiceQuery = child.user_id
         ? admin
             .from('invoices')
@@ -279,6 +268,9 @@ export async function GET(req: Request) {
       if (!child.user_id) {
         return NextResponse.json({ success: true, records: [] });
       }
+      if (!linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
+      }
       const { data } = await admin
         .from('attendance')
         .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
@@ -301,6 +293,9 @@ export async function GET(req: Request) {
     if (section === 'certificates') {
       if (!child.user_id) {
         return NextResponse.json({ success: true, certs: [] });
+      }
+      if (!linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
       const { data } = await admin
         .from('certificates')

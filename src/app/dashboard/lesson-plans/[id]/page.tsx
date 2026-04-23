@@ -221,6 +221,98 @@ type ProgressionGuideWeek = {
   estimated_minutes: number | null;
 };
 
+type SyllabusQaReport = {
+  overall_score: number;
+  overall_readiness: 'excellent' | 'good' | 'watch' | 'critical';
+  coverage_pct: number;
+  total_terms: number;
+  issues: Array<{
+    key: string;
+    severity: 'info' | 'warn' | 'fail';
+    message: string;
+    week?: number | null;
+  }>;
+  terms: Array<{
+    key: string;
+    year_number: number;
+    term_number: number;
+    score: number;
+    coverage_pct: number;
+    readiness: 'excellent' | 'good' | 'watch' | 'critical';
+    generated_weeks: number;
+    syllabus_weeks: number;
+    missing_week_types: number;
+    assessment_drift_count: number;
+    exam_drift_count: number;
+    five_step_break_count: number;
+    issues: Array<{
+      key: string;
+      severity: 'info' | 'warn' | 'fail';
+      message: string;
+      week?: number | null;
+    }>;
+  }>;
+};
+
+type LessonPlanOperations = {
+  schedule: {
+    id: string;
+    is_active: boolean;
+    current_week: number;
+    term_start: string;
+    cadence_days: number;
+    updated_at: string;
+  } | null;
+  release_board: Array<{
+    key: string;
+    year_number: number;
+    term_number: number;
+    week_number: number;
+    topic: string;
+    release_status: 'pending' | 'draft' | 'partial' | 'released';
+    lessons_total: number;
+    lessons_published: number;
+    assignments_total: number;
+    assignments_active: number;
+    latest_release_at: string | null;
+    history: Array<{ type: string; at: string; status: string }>;
+  }>;
+  analytics: {
+    summary: {
+      total_records: number;
+      completion_pct: number;
+      average_practical_score: number;
+      average_retry_count: number;
+    };
+    terms: Array<{
+      key: string;
+      year_number: number;
+      term_number: number;
+      total_records: number;
+      completion_pct: number;
+      average_practical_score: number;
+      average_retry_count: number;
+    }>;
+  };
+  audit: {
+    summary: {
+      total_events: number;
+      by_action: Array<{ action_type: string; count: number }>;
+      by_role: Array<{ actor_role: string; count: number }>;
+    };
+    timeline: Array<{
+      id: string;
+      action_type: string;
+      actor_role: string | null;
+      year_number: number | null;
+      term_number: number | null;
+      week_number: number | null;
+      reason: string | null;
+      created_at: string;
+    }>;
+  };
+};
+
 type ProgressionWeekGuidePayload = {
   class_name: string | null;
   grade_key: string | null;
@@ -306,6 +398,12 @@ export default function LessonPlanDetailPage() {
   const [guideLoading, setGuideLoading] = useState(false);
   const [guideError, setGuideError] = useState<string | null>(null);
   const [guideData, setGuideData] = useState<ProgressionWeekGuidePayload | null>(null);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const [qaReport, setQaReport] = useState<SyllabusQaReport | null>(null);
+  const [opsLoading, setOpsLoading] = useState(false);
+  const [opsError, setOpsError] = useState<string | null>(null);
+  const [operations, setOperations] = useState<LessonPlanOperations | null>(null);
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
@@ -363,6 +461,56 @@ export default function LessonPlanDetailPage() {
   useEffect(() => {
     setProgressionPreview(null);
   }, [progressionScope, progressionYear, progressionTerm, progressionWeek, progressionSession, progressionOverwrite, weeks.length]);
+
+  useEffect(() => {
+    if (activeTab !== 'content' || !canGenerateProgression || !id) return;
+    let cancelled = false;
+    setQaLoading(true);
+    setQaError(null);
+    fetch(`/api/lesson-plans/${id}/syllabus-qa`)
+      .then(async (res) => {
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof j.error === 'string' ? j.error : 'Failed to load syllabus QA');
+        if (!cancelled) setQaReport((j.data ?? null) as SyllabusQaReport | null);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setQaReport(null);
+          setQaError(err instanceof Error ? err.message : 'Failed to load syllabus QA');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setQaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, canGenerateProgression, id, weeks.length]);
+
+  useEffect(() => {
+    if (activeTab !== 'content' || !canGenerateProgression || !id) return;
+    let cancelled = false;
+    setOpsLoading(true);
+    setOpsError(null);
+    fetch(`/api/lesson-plans/${id}/operations`)
+      .then(async (res) => {
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof j.error === 'string' ? j.error : 'Failed to load operations center');
+        if (!cancelled) setOperations((j.data ?? null) as LessonPlanOperations | null);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setOperations(null);
+          setOpsError(err instanceof Error ? err.message : 'Failed to load operations center');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setOpsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, canGenerateProgression, id, weeks.length]);
 
   const syllabusTermContent = useMemo((): SyllabusContent | null => {
     if (!plan?.curriculum?.content || typeof plan.curriculum.content !== 'object') return null;
@@ -702,6 +850,7 @@ export default function LessonPlanDetailPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to activate schedule');
       toast.success('Term scheduler activated for this lesson plan.');
+      load();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to activate schedule');
     } finally {
@@ -720,6 +869,7 @@ export default function LessonPlanDetailPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to release week');
       toast.success(`Released week ${progressionWeek} lessons and assignments.`);
+      load();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to release week');
     } finally {
@@ -1199,6 +1349,333 @@ export default function LessonPlanDetailPage() {
         <div className="space-y-4">
           {status === 'published' && (
             <>
+              <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
+                <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(236,72,153,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-2xl">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Operations Center</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Schedule, release, analytics, and audit in one lesson-plan view</h3>
+                      <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
+                        This board gives your operators one place to monitor cadence, release state, performance, and override activity without leaving the lesson-plan workflow.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 min-w-0 sm:min-w-[18rem]">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Scheduler</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{operations?.schedule?.is_active ? 'Active' : 'Inactive'}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Current Week</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{operations?.schedule?.current_week ?? 0}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Release Rows</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{operations?.release_board?.length ?? 0}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Audit Events</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{operations?.audit.summary.total_events ?? 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-5 sm:p-6 space-y-4">
+                  {opsLoading && (
+                    <div className="flex items-center gap-2 text-sm text-card-foreground/55">
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading operations center...
+                    </div>
+                  )}
+                  {opsError && !opsLoading && (
+                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-200">
+                      {opsError}
+                    </div>
+                  )}
+                  {operations && !opsLoading && (
+                    <>
+                      <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4">
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Schedule Dashboard</p>
+                          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Status</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.is_active ? 'Active' : 'Not active'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Cadence</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.cadence_days ?? 7} day(s)</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Term Start</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.term_start ? new Date(operations.schedule.term_start).toLocaleDateString() : 'Not set'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Last Sync</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.updated_at ? new Date(operations.schedule.updated_at).toLocaleString() : '—'}</p>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Release Board</p>
+                            <span className="text-xs text-card-foreground/55">Draft, partial, and fully released week state</span>
+                          </div>
+                          <div className="mt-4 space-y-3 max-h-[28rem] overflow-auto pr-1">
+                            {operations.release_board.map((row) => (
+                              <div key={row.key} className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <p className="text-xs font-black text-card-foreground">Y{row.year_number} T{row.term_number} W{row.week_number}</p>
+                                    <p className="text-sm text-card-foreground/80 mt-1">{row.topic}</p>
+                                  </div>
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
+                                    row.release_status === 'released'
+                                      ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/20'
+                                      : row.release_status === 'partial'
+                                        ? 'bg-amber-500/15 text-amber-200 border border-amber-400/20'
+                                        : row.release_status === 'draft'
+                                          ? 'bg-zinc-500/15 text-zinc-200 border border-zinc-400/20'
+                                          : 'bg-rose-500/15 text-rose-200 border border-rose-400/20'
+                                  }`}>
+                                    {row.release_status}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">Lessons {row.lessons_published}/{row.lessons_total}</div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">Assignments {row.assignments_active}/{row.assignments_total}</div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2 sm:col-span-2">Latest {row.latest_release_at ? new Date(row.latest_release_at).toLocaleString() : 'No release yet'}</div>
+                                </div>
+                                {row.history.length > 0 && (
+                                  <div className="mt-3 space-y-1">
+                                    {row.history.map((event, idx) => (
+                                      <div key={`${row.key}-${idx}`} className="text-[11px] text-card-foreground/60">
+                                        {new Date(event.at).toLocaleString()} · {event.type} · {event.status}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Plan Analytics</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs">
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Records</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.total_records}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Completion</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.completion_pct}%</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Avg Score</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.average_practical_score}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Avg Retry</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.average_retry_count}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 space-y-2">
+                            {operations.analytics.terms.map((term) => (
+                              <div key={term.key} className="rounded-xl border border-white/[0.08] bg-black/20 p-3 text-xs">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-black text-card-foreground">Y{term.year_number} T{term.term_number}</p>
+                                  <p className="text-card-foreground/60">{term.total_records} record(s)</p>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mt-3 text-card-foreground/75">
+                                  <div>Completion {term.completion_pct}%</div>
+                                  <div>Score {term.average_practical_score}</div>
+                                  <div>Retry {term.average_retry_count}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Audit Visualization</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">By Action</p>
+                              <div className="mt-3 space-y-2">
+                                {operations.audit.summary.by_action.map((row) => (
+                                  <div key={row.action_type} className="flex items-center justify-between gap-3">
+                                    <span className="text-card-foreground/70">{row.action_type}</span>
+                                    <span className="font-black text-card-foreground">{row.count}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">By Role</p>
+                              <div className="mt-3 space-y-2">
+                                {operations.audit.summary.by_role.map((row) => (
+                                  <div key={row.actor_role} className="flex items-center justify-between gap-3">
+                                    <span className="text-card-foreground/70">{row.actor_role}</span>
+                                    <span className="font-black text-card-foreground">{row.count}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-3 max-h-[22rem] overflow-auto">
+                            <div className="space-y-2">
+                              {operations.audit.timeline.map((event) => (
+                                <div key={event.id} className="rounded-xl border border-white/[0.08] p-3 text-xs">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="font-black text-card-foreground">{event.action_type}</p>
+                                    <span className="text-card-foreground/55">{new Date(event.created_at).toLocaleString()}</span>
+                                  </div>
+                                  <p className="text-card-foreground/65 mt-1">
+                                    {event.actor_role ?? 'unknown'} · Y{event.year_number ?? '-'} T{event.term_number ?? '-'} W{event.week_number ?? '-'}
+                                  </p>
+                                  {event.reason && <p className="text-card-foreground/75 mt-2 leading-relaxed">{event.reason}</p>}
+                                </div>
+                              ))}
+                              {operations.audit.timeline.length === 0 && (
+                                <p className="text-sm text-card-foreground/55">No audit activity for this lesson plan yet.</p>
+                              )}
+                            </div>
+                          </div>
+                        </section>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
+                <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.16),transparent_28%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="max-w-2xl">
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">Syllabus QA</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Coverage, rhythm, and 5-step compliance</h3>
+                      <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
+                        This QA layer compares your generated lesson-plan route against the linked syllabus and flags missing week types, assessment drift, exam placement drift, and weak 5-step lesson structure.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 min-w-0 sm:min-w-[18rem]">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">QA Score</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{qaReport?.overall_score ?? 0}/100</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Coverage</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{qaReport?.coverage_pct ?? 0}%</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Terms Checked</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{qaReport?.total_terms ?? 0}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Readiness</p>
+                        <p className="text-sm font-black text-card-foreground mt-1">{qaReport?.overall_readiness ?? 'critical'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-5 sm:p-6 space-y-4">
+                  {qaLoading && (
+                    <div className="flex items-center gap-2 text-sm text-card-foreground/55">
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" /> Running syllabus QA...
+                    </div>
+                  )}
+                  {qaError && !qaLoading && (
+                    <div className="rounded-2xl border border-rose-400/25 bg-rose-500/[0.08] p-4 text-sm text-rose-200">
+                      {qaError}
+                    </div>
+                  )}
+                  {qaReport && !qaLoading && (
+                    <>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {qaReport.terms.map((term) => (
+                          <div key={term.key} className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-card-foreground/45">
+                                  Year {term.year_number} · Term {term.term_number}
+                                </p>
+                                <p className="text-lg font-black text-card-foreground mt-2">{term.score}/100</p>
+                              </div>
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
+                                term.readiness === 'excellent'
+                                  ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/20'
+                                  : term.readiness === 'good'
+                                    ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/20'
+                                    : term.readiness === 'watch'
+                                      ? 'bg-amber-500/15 text-amber-200 border border-amber-400/20'
+                                      : 'bg-rose-500/15 text-rose-200 border border-rose-400/20'
+                              }`}>
+                                {term.readiness}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mt-4 text-xs">
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Coverage</p>
+                                <p className="text-card-foreground font-black mt-2">{term.coverage_pct}%</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Weeks</p>
+                                <p className="text-card-foreground font-black mt-2">{term.generated_weeks}/{term.syllabus_weeks}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Assessment Drift</p>
+                                <p className="text-card-foreground font-black mt-2">{term.assessment_drift_count}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">5-Step Breaks</p>
+                                <p className="text-card-foreground font-black mt-2">{term.five_step_break_count}</p>
+                              </div>
+                            </div>
+                            {term.issues.length > 0 && (
+                              <div className="mt-4 space-y-2">
+                                {term.issues.slice(0, 5).map((issue) => (
+                                  <div key={issue.key} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-xs font-black text-card-foreground">
+                                        {issue.week ? `Week ${issue.week}` : 'Term rule'}
+                                      </p>
+                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                                        issue.severity === 'fail'
+                                          ? 'text-rose-200'
+                                          : issue.severity === 'warn'
+                                            ? 'text-amber-200'
+                                            : 'text-cyan-200'
+                                      }`}>
+                                        {issue.severity}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-card-foreground/70 mt-2 leading-relaxed">{issue.message}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {qaReport.issues.length > 0 && (
+                        <div className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Global QA Flags</p>
+                          <div className="mt-3 space-y-2">
+                            {qaReport.issues.slice(0, 8).map((issue) => (
+                              <div key={issue.key} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+                                <p className="text-xs text-card-foreground/75">{issue.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
               <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
                 <div className="relative p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(167,139,250,0.16),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

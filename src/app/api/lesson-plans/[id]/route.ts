@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from '../authz';
 import { getProgressionTermStatus } from '@/lib/progression/termStatus';
+import { syncWeeksIntoProgression } from '@/lib/progression/lessonPlanOperation';
 import type { Database, Json } from '@/types/supabase';
 
 async function getUser() {
@@ -200,10 +201,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         error: `Week ${lockViolation.week} belongs to locked term Y${lockViolation.year}T${lockViolation.term}. Provide override reason.`,
       }, { status: 409 });
     }
-    nextPlanData = {
-      ...nextPlanData,
-      ...proposedPlanData,
-    };
+    if (Array.isArray(proposedPlanData.weeks)) {
+      nextPlanData = syncWeeksIntoProgression(
+        {
+          ...nextPlanData,
+          ...proposedPlanData,
+        },
+        nextWeeks,
+      ) as unknown as Record<string, unknown>;
+    } else {
+      nextPlanData = {
+        ...nextPlanData,
+        ...proposedPlanData,
+      };
+    }
   }
   patchBody.plan_data = nextPlanData;
 

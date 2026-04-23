@@ -10,6 +10,41 @@ export class MediaService {
         return null;
     }
 
+    private async updateMediaMetadata(fileId: string, metadataPatch: Record<string, unknown>) {
+        const supabase = await createClient();
+        const { data: existing } = await supabase
+            .from('files')
+            .select('metadata')
+            .eq('id', fileId)
+            .maybeSingle();
+
+        const currentMetadata =
+            existing?.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+                ? existing.metadata as Record<string, unknown>
+                : {};
+
+        const nextVideoProcessing =
+            metadataPatch.video_processing &&
+            typeof metadataPatch.video_processing === 'object' &&
+            !Array.isArray(metadataPatch.video_processing)
+                ? {
+                    ...(currentMetadata.video_processing as Record<string, unknown> | undefined ?? {}),
+                    ...(metadataPatch.video_processing as Record<string, unknown>),
+                }
+                : currentMetadata.video_processing;
+
+        await supabase
+            .from('files')
+            .update({
+                metadata: {
+                    ...currentMetadata,
+                    ...metadataPatch,
+                    ...(nextVideoProcessing ? { video_processing: nextVideoProcessing } : {}),
+                } as any,
+            })
+            .eq('id', fileId);
+    }
+
     /**
      * Mock of a Video Processing service.
      * In a real-world scenario, this would likely trigger an AWS Elemental MediaConvert job or FFmpeg process.
@@ -19,26 +54,15 @@ export class MediaService {
             return null;
         }
 
-        const supabase = await createClient();
-
-        // Mock transcoded URLs
         const transcodedMetadata = {
-            resolutions: {
-                '360p': `${storagePath}-360p.mp4`,
-                '720p': `${storagePath}-720p.mp4`,
-                '1080p': `${storagePath}-1080p.mp4`
-            },
-            processing_status: 'completed'
+            processing_status: 'pending_external_processor',
+            original_storage_path: storagePath,
+            generated_assets: [],
+            provider: 'unconfigured',
+            updated_at: new Date().toISOString(),
         };
 
-        // Update file metadata with transcoded video locations
-        const currentMetadata = fileData.metadata || {};
-        const updatedMetadata = { ...currentMetadata, video_processing: transcodedMetadata };
-
-        await supabase
-            .from('files')
-            .update({ metadata: updatedMetadata })
-            .eq('id', fileData.id);
+        await this.updateMediaMetadata(fileData.id, { video_processing: transcodedMetadata });
 
         return transcodedMetadata;
     }
