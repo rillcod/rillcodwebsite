@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { Database } from '@/types/supabase';
+import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 
 function adminClient() {
   return createClient<Database>(
@@ -44,24 +44,32 @@ export async function POST(request: NextRequest) {
   const { existing_id } = body;
 
   // Whitelist allowed fields to prevent unintended column injection
-  const ALLOWED_FIELDS = [
+  const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
     'student_id', 'course_name', 'report_term', 'report_date',
     'theory_score', 'practical_score', 'attendance_score', 'participation_score',
     'overall_score', 'overall_grade', 'is_published',
-    'learning_milestones', 'instructor_name', 'template_id',
+    'learning_milestones', 'instructor_name',
     'key_strengths', 'areas_for_growth', 'projects_grade', 'homework_grade',
     'fee_status', 'fee_amount', 'has_certificate', 'certificate_text',
     'section_class', 'school_name',
-  ] as const;
+  ];
 
-  const payload: Record<string, unknown> = {};
+  const updatePayload: TablesUpdate<'student_progress_reports'> = {};
+  const insertPayload: TablesInsert<'student_progress_reports'> = {
+    student_id: '',
+  };
   for (const field of ALLOWED_FIELDS) {
-    if (field in body) payload[field] = body[field];
+    if (field in body) {
+      (updatePayload as Record<string, unknown>)[field] = body[field];
+      (insertPayload as Record<string, unknown>)[field] = body[field];
+    }
   }
 
   // Always set teacher_id to caller
-  payload.teacher_id = caller.id;
-  payload.updated_at = new Date().toISOString();
+  updatePayload.teacher_id = caller.id;
+  updatePayload.updated_at = new Date().toISOString();
+  insertPayload.teacher_id = caller.id;
+  insertPayload.updated_at = new Date().toISOString();
 
   const admin = adminClient();
   const allowedSchoolIds =
@@ -69,11 +77,11 @@ export async function POST(request: NextRequest) {
       ? await getTeacherSchoolIds(admin, caller.id, caller.school_id ?? null, caller.role)
       : [];
 
-  if (payload.student_id && caller.role !== 'admin') {
+  if (updatePayload.student_id && caller.role !== 'admin') {
     const { data: student } = await admin
       .from('portal_users')
       .select('school_id')
-      .eq('id', String(payload.student_id))
+      .eq('id', String(updatePayload.student_id))
       .maybeSingle();
     const studentSchoolId = student?.school_id ?? null;
     if (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId)) {
@@ -84,16 +92,19 @@ export async function POST(request: NextRequest) {
   if (existing_id) {
     const { data, error } = await admin
       .from('student_progress_reports')
-      .update(payload)
+      .update(updatePayload)
       .eq('id', existing_id)
       .select('id')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data });
   } else {
+    if (typeof insertPayload.student_id !== 'string' || !insertPayload.student_id.trim()) {
+      return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
+    }
     const { data, error } = await admin
       .from('student_progress_reports')
-      .insert(payload)
+      .insert(insertPayload)
       .select('id')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

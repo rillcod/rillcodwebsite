@@ -74,12 +74,10 @@ async function ensureAutomationForQueue(
         await admin.from('communication_escalations').insert({
           target_conversation_id: row.id,
           target_user_id: row.assigned_staff_id,
-          reason: `auto_escalation:open_reports_${row.open_reports}`,
+          trigger: 'open_reports_threshold',
+          trigger_count: row.open_reports,
           status: 'open',
-          metadata: {
-            source: 'queue_automation',
-            created_at: new Date().toISOString(),
-          },
+          notes: `Auto escalation from queue automation: open reports=${row.open_reports}`,
         });
       }
     }
@@ -93,17 +91,33 @@ export async function GET(req: NextRequest) {
   const nowIso = new Date().toISOString();
   const filter = new URL(req.url).searchParams.get('filter') ?? 'all';
 
-  let convQ = admin
+  const convQ = admin
     .from('whatsapp_conversations')
-    .select('id, phone_number, contact_name, assigned_staff_id, school_id, last_message_at, unread_count');
+    .select('id, phone_number, contact_name, assigned_staff_id, portal_user_id, last_message_at, unread_count');
+
+  const { data: rawConversations, error } = await convQ.order('last_message_at', { ascending: false }).limit(300);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let conversations = rawConversations ?? [];
   if (caller.role !== 'admin' && caller.school_id) {
-    convQ = convQ.eq('school_id', caller.school_id);
+    const portalUserIds = conversations
+      .map((c) => c.portal_user_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    if (portalUserIds.length === 0) {
+      conversations = [];
+    } else {
+      const { data: schoolRows } = await admin
+        .from('portal_users')
+        .select('id, school_id')
+        .in('id', portalUserIds);
+      const schoolByUser = new Map((schoolRows ?? []).map((r) => [r.id, r.school_id]));
+      conversations = conversations.filter((c) => {
+        if (!c.portal_user_id) return false;
+        return schoolByUser.get(c.portal_user_id) === caller.school_id;
+      });
+    }
   }
 
-  const { data: conversations, error } = await convQ.order('last_message_at', { ascending: false }).limit(300);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const ids = (conversations ?? []).map((c) => c.id);
+  const ids = conversations.map((c) => c.id);
   const [{ data: metaRows }, { data: reportRows }] = await Promise.all([
     ids.length > 0
       ? admin.from('communication_conversation_meta').select('conversation_id, priority, sla_due_at, status').in('conversation_id', ids)
@@ -125,7 +139,7 @@ export async function GET(req: NextRequest) {
     reportCount.set(id, (reportCount.get(id) ?? 0) + 1);
   }
 
-  let queue = (conversations ?? []).map((c) => {
+  let queue = conversations.map((c) => {
     const meta = metaById.get(c.id);
     const openReports = reportCount.get(c.id) ?? 0;
     const flags = computeQueueFlags({
