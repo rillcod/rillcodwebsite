@@ -244,7 +244,7 @@ export default function ProgressionPage() {
         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
           <span className="font-bold text-foreground">{enrollments.length} students</span>
           <span className="text-muted-foreground/50">·</span>
-          <span>{decidedCount} pending decisions</span>
+          <span>{decidedCount} decisions selected</span>
           {processedCount > 0 && (
             <>
               <span className="text-muted-foreground/50">·</span>

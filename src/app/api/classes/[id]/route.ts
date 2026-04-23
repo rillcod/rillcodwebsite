@@ -132,6 +132,7 @@ export async function PATCH(
   const allowedFields = [
     'name', 'description', 'program_id', 'teacher_id',
     'max_students', 'status', 'schedule', 'start_date', 'end_date',
+    'qa_grade_key', 'qa_grade_mode', 'qa_grade_band', 'qa_track_hint', 'qa_spine_lane',
   ];
 
   // school_id: only admin can reassign a class to a different school

@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -11,6 +11,16 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
+import { SyllabusPreview, type SyllabusContent } from '@/components/curriculum/SyllabusPreview';
+import {
+  buildAddLessonQueryFromCurriculum,
+  type CurriculumWeekPlanSlice,
+} from '@/lib/curriculum/add-lesson-from-curriculum';
+import {
+  findSyllabusWeek,
+  inferTermNumberFromPlanTerm,
+  type SyllabusContentImport,
+} from '@/lib/lesson-plans/syllabusImport';
 
 interface WeekEntry {
   week: number;
@@ -61,11 +71,100 @@ interface LessonPlan {
   activities?: string | null;
   created_at: string;
   updated_at: string;
-  courses?: { id: string; title: string } | null;
+  courses?: {
+    id: string;
+    title: string;
+    program_id?: string | null;
+    programs?: { id: string; name: string | null } | null;
+  } | null;
   classes?: { id: string; name: string } | null;
   schools?: { id: string; name: string } | null;
-  curriculum?: { id: string; version: number; course_id: string } | null;
+  curriculum?: { id: string; version: number; course_id?: string; content?: unknown } | null;
 }
+
+function buildPlanWeekCreateLessonUrl(opts: {
+  plan: LessonPlan;
+  week: WeekEntry;
+  courseTitle: string;
+}): string {
+  const { plan, week: w, courseTitle } = opts;
+  const rawContent = plan.curriculum?.content;
+  const content = rawContent as SyllabusContentImport | undefined;
+  const hasTerms = Array.isArray(content?.terms) && content!.terms!.length > 0;
+
+  if (plan.curriculum_version_id && plan.course_id && hasTerms) {
+    const tn = inferTermNumberFromPlanTerm(plan.term);
+    const syWeek = findSyllabusWeek(content, tn, w.week);
+    const lp = syWeek?.lesson_plan;
+    let planSlice: CurriculumWeekPlanSlice | null = null;
+    if (lp) {
+      planSlice = {
+        objectives: lp.objectives?.length ? lp.objectives : undefined,
+        teacher_activities: lp.teacher_activities,
+        student_activities: lp.student_activities?.length
+          ? lp.student_activities
+          : w.activities?.trim()
+            ? [w.activities.trim()]
+            : undefined,
+        classwork: lp.classwork as CurriculumWeekPlanSlice['classwork'],
+        resources: lp.resources,
+        engagement_tips: lp.engagement_tips,
+        assignment: lp.assignment as CurriculumWeekPlanSlice['assignment'],
+        project: lp.project as CurriculumWeekPlanSlice['project'],
+      };
+    } else if (w.objectives?.trim() || w.activities?.trim()) {
+      planSlice = {
+        objectives: (w.objectives ?? '')
+          .split(/[,\n]/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+        student_activities: w.activities?.trim() ? [w.activities.trim()] : undefined,
+      };
+    }
+
+    const params = buildAddLessonQueryFromCurriculum({
+      curriculumId: plan.curriculum_version_id,
+      term: tn,
+      weekNumber: w.week,
+      courseId: plan.course_id,
+      programId: plan.courses?.program_id ?? undefined,
+      title: (w.topic || `Week ${w.week}`).slice(0, 240),
+      description: [w.objectives, w.activities].filter(Boolean).join('\n\n').slice(0, 800),
+      durationMinutes:
+        typeof lp?.duration_minutes === 'number' && Number.isFinite(lp.duration_minutes)
+          ? Math.min(240, Math.max(15, lp.duration_minutes))
+          : 60,
+      plan: planSlice,
+    });
+    params.set('lesson_plan_id', plan.id);
+    params.set('flow_origin', 'lesson-plan');
+    return `/dashboard/lessons/add?${params.toString()}`;
+  }
+
+  const weekDescription = [w.objectives, w.activities].filter(Boolean).join('\n\n');
+  const weekNotes = [
+    w.notes ? `Teacher Notes:\n${w.notes}` : null,
+    w.objectives ? `Learning Objectives:\n${w.objectives}` : null,
+    w.activities ? `Planned Activities:\n${w.activities}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return (
+    `/dashboard/lessons/add?` +
+    new URLSearchParams({
+      lesson_plan_id: plan.id,
+      week: String(w.week),
+      ...(plan.course_id ? { course_id: plan.course_id } : {}),
+      ...(w.topic ? { title: w.topic } : {}),
+      ...(w.topic ? { topic: w.topic } : {}),
+      ...(courseTitle ? { subject: courseTitle } : {}),
+      ...(weekDescription ? { description: weekDescription.slice(0, 2000) } : {}),
+      ...(weekNotes ? { lesson_notes: weekNotes.slice(0, 8000) } : {}),
+      flow_origin: 'lesson-plan',
+    }).toString()
+  );
+}
+
 type ProgressionPreview = {
   projected_terms?: Array<{
     key: string;
@@ -78,6 +177,30 @@ type ProgressionPreview = {
   repetition_risk?: 'low' | 'medium' | 'high';
 };
 type ProgressionScope = 'week' | 'term' | 'session' | 'full_program';
+
+type ProgressionGuideWeek = {
+  sequence: number;
+  project_key: string;
+  title: string;
+  track: string;
+  year_number: number | null;
+  term_number: number | null;
+  week_number: number | null;
+  week_index: number | null;
+  classwork_prompt: string | null;
+  estimated_minutes: number | null;
+};
+
+type ProgressionWeekGuidePayload = {
+  class_name: string | null;
+  grade_key: string | null;
+  track: string;
+  syllabus_phase: string;
+  program_name: string | null;
+  source: string;
+  weeks_count: number;
+  weeks: ProgressionGuideWeek[];
+};
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ['published'],
@@ -114,6 +237,10 @@ export default function LessonPlanDetailPage() {
   const [statusYear, setStatusYear] = useState(1);
   const [statusTerm, setStatusTerm] = useState(1);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [guidePanelOpen, setGuidePanelOpen] = useState(false);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [guideError, setGuideError] = useState<string | null>(null);
+  const [guideData, setGuideData] = useState<ProgressionWeekGuidePayload | null>(null);
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
@@ -142,6 +269,40 @@ export default function LessonPlanDetailPage() {
   useEffect(() => {
     if (!authLoading && profile) load();
   }, [authLoading, profile, load]);
+
+  useEffect(() => {
+    if (!guidePanelOpen || !canGenerateProgression || !id) return;
+    let cancelled = false;
+    setGuideLoading(true);
+    setGuideError(null);
+    fetch(`/api/lesson-plans/${id}/progression-week-guide`)
+      .then(async (res) => {
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof j.error === 'string' ? j.error : 'Failed to load progression guide');
+        if (!cancelled) setGuideData((j.data ?? null) as ProgressionWeekGuidePayload | null);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setGuideData(null);
+          setGuideError(err instanceof Error ? err.message : 'Failed to load progression guide');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGuideLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [guidePanelOpen, canGenerateProgression, id]);
+
+  const syllabusTermContent = useMemo((): SyllabusContent | null => {
+    if (!plan?.curriculum?.content || typeof plan.curriculum.content !== 'object') return null;
+    const c = plan.curriculum.content as SyllabusContent;
+    if (!c.terms?.length) return null;
+    const tn = inferTermNumberFromPlanTerm(plan.term);
+    const term = c.terms.find((t) => t.term === tn) ?? c.terms[0];
+    return { ...c, terms: [term] };
+  }, [plan?.curriculum?.content, plan?.term]);
 
   async function saveWeeks(updatedWeeks: WeekEntry[]) {
     setSaving(true);
@@ -673,7 +834,7 @@ export default function LessonPlanDetailPage() {
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-widest text-violet-300">AI Lesson Assistant</p>
                 <p className="text-xs text-card-foreground/70 mt-0.5 leading-snug">
-                  Click <span className="font-bold text-violet-300">Create Lesson</span> on any week below — the AI builder opens with topic, grade and subject pre-filled. Pick a mode (Academic · Project · Interactive) and generate a full rich lesson in seconds.
+                  Click <span className="font-bold text-violet-300">Create Lesson</span> on any week below — with a linked syllabus, student activities and objectives are carried into the builder automatically. Pick a mode (Academic · Project · Interactive) and generate a full rich lesson in seconds.
                 </p>
               </div>
             </div>
@@ -724,16 +885,114 @@ export default function LessonPlanDetailPage() {
           {plan.schools?.name && <div><span className="font-bold text-card-foreground/70">School:</span> {plan.schools.name}</div>}
         </div>
 
-        {/* Linked curriculum */}
+        {/* Linked curriculum + visible syllabus (this term) */}
         {plan.curriculum_version_id && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2">
-            <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
-            <span>Linked curriculum: {plan.curriculum?.course_id ?? plan.curriculum_version_id.slice(0, 8)}…
-              {plan.curriculum?.version ? ` (v${plan.curriculum.version})` : ''}
-            </span>
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="min-w-0">
+                  Linked syllabus v{plan.curriculum?.version ?? '—'} — term inferred from &ldquo;{plan.term ?? 'Term'}&rdquo;.
+                </span>
+              </div>
+              {plan.course_id && (
+                <Link
+                  href={`/dashboard/curriculum?course=${plan.course_id}${plan.courses?.program_id ? `&program=${plan.courses.program_id}` : ''}`}
+                  className="font-bold text-sky-300 hover:text-sky-200 underline underline-offset-2 shrink-0"
+                >
+                  Open in curriculum hub
+                </Link>
+              )}
+            </div>
+            {syllabusTermContent ? (
+              <details className="print:hidden rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
+                <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-blue-200 uppercase tracking-widest hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
+                  <span>Show syllabus for this term (reference)</span>
+                  <BookOpenIcon className="w-4 h-4 opacity-70" />
+                </summary>
+                <div className="border-t border-blue-500/20 px-2 py-3 max-h-[min(32rem,70vh)] overflow-y-auto bg-background/40">
+                  <SyllabusPreview content={syllabusTermContent} courseTitle={courseTitle} />
+                </div>
+              </details>
+            ) : (
+              <p className="text-[11px] text-card-foreground/50">
+                Syllabus JSON not loaded on this plan yet — republish or re-link curriculum, or open the curriculum hub to confirm content.
+              </p>
+            )}
           </div>
         )}
       </div>
+
+      {canGenerateProgression && (
+        <details
+          className="print:hidden bg-card border border-white/[0.08] rounded-2xl overflow-hidden"
+          onToggle={(e) => setGuidePanelOpen((e.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">Progression seed</p>
+              <p className="text-sm font-bold text-card-foreground mt-0.5">Grade week-by-week guide (registry)</p>
+              <p className="text-[11px] text-card-foreground/55 mt-1 leading-snug">
+                Same catalogue &ldquo;Generate progression&rdquo; uses — ordered by year, term, and week. Use it to align your plan topics before or after syllabus import.
+              </p>
+            </div>
+            <BookOpenIcon className="w-5 h-5 text-amber-400/80 shrink-0" />
+          </summary>
+          <div className="px-4 pb-4 border-t border-white/[0.06] pt-3 space-y-3">
+            {guideLoading && (
+              <div className="flex items-center gap-2 text-xs text-card-foreground/50">
+                <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading seeded weeks…
+              </div>
+            )}
+            {guideError && !guideLoading && (
+              <p className="text-xs text-rose-400 leading-relaxed">{guideError}</p>
+            )}
+            {guideData && !guideLoading && (
+              <>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-card-foreground/60">
+                  <span><span className="font-bold text-card-foreground/75">Track:</span> {guideData.track}</span>
+                  <span><span className="font-bold text-card-foreground/75">Grade key:</span> {guideData.grade_key ?? '—'}</span>
+                  <span><span className="font-bold text-card-foreground/75">Phase:</span> {guideData.syllabus_phase}</span>
+                  <span><span className="font-bold text-card-foreground/75">Weeks:</span> {guideData.weeks_count}</span>
+                  <span className="text-card-foreground/45">({guideData.source.replace(/_/g, ' ')})</span>
+                </div>
+                <div className="max-h-[min(28rem,55vh)] overflow-auto rounded-xl border border-white/[0.08]">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-white/[0.08]">
+                      <tr className="text-card-foreground/50 uppercase tracking-wide">
+                        <th className="px-2 py-2 font-bold">Y</th>
+                        <th className="px-2 py-2 font-bold">T</th>
+                        <th className="px-2 py-2 font-bold">W</th>
+                        <th className="px-2 py-2 font-bold">Idx</th>
+                        <th className="px-2 py-2 font-bold min-w-[8rem]">Title</th>
+                        <th className="px-2 py-2 font-bold hidden sm:table-cell">Classwork focus</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {guideData.weeks.map((row) => (
+                        <tr key={`${row.project_key}-${row.sequence}`} className="border-b border-white/[0.04] hover:bg-white/[0.02] align-top">
+                          <td className="px-2 py-1.5 text-card-foreground/70 whitespace-nowrap">{row.year_number ?? '—'}</td>
+                          <td className="px-2 py-1.5 text-card-foreground/70 whitespace-nowrap">{row.term_number ?? '—'}</td>
+                          <td className="px-2 py-1.5 text-card-foreground/70 whitespace-nowrap">{row.week_number ?? '—'}</td>
+                          <td className="px-2 py-1.5 text-card-foreground/70 whitespace-nowrap">{row.week_index ?? '—'}</td>
+                          <td className="px-2 py-1.5 text-card-foreground font-medium">{row.title}</td>
+                          <td className="px-2 py-1.5 text-card-foreground/55 hidden sm:table-cell max-w-md">
+                            {row.classwork_prompt ? (
+                              <span className="line-clamp-2">{row.classwork_prompt}</span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </details>
+      )}
 
       <style jsx global>{`
         @media print {
@@ -1181,25 +1440,7 @@ export default function LessonPlanDetailPage() {
               <div className="space-y-2">
                 {weeks.map(w => {
                   const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
-                  const weekDescription = [w.objectives, w.activities].filter(Boolean).join('\n\n');
-                  const weekNotes = [
-                    w.notes ? `Teacher Notes:\n${w.notes}` : null,
-                    w.objectives ? `Learning Objectives:\n${w.objectives}` : null,
-                    w.activities ? `Planned Activities:\n${w.activities}` : null,
-                  ].filter(Boolean).join('\n\n');
-                  const addLessonHref =
-                    `/dashboard/lessons/add?` +
-                    new URLSearchParams({
-                      lesson_plan_id: plan.id,
-                      week: String(w.week),
-                      ...(plan.course_id ? { course_id: plan.course_id } : {}),
-                      ...(w.topic ? { title: w.topic } : {}),
-                      ...(w.topic ? { topic: w.topic } : {}),
-                      ...(courseTitle ? { subject: courseTitle } : {}),
-                      ...(weekDescription ? { description: weekDescription } : {}),
-                      ...(weekNotes ? { lesson_notes: weekNotes } : {}),
-                      flow_origin: 'lesson-plan',
-                    }).toString();
+                  const addLessonHref = buildPlanWeekCreateLessonUrl({ plan, week: w, courseTitle });
                   return (
                     <div key={w.week} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/5 rounded-xl">
                       <div className="flex-1 min-w-0">

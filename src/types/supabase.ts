@@ -1460,6 +1460,11 @@ export type Database = {
           max_students: number | null
           name: string
           program_id: string | null
+          qa_grade_band: string | null
+          qa_grade_key: string | null
+          qa_grade_mode: string | null
+          qa_spine_lane: number | null
+          qa_track_hint: string | null
           schedule: string | null
           school_id: string | null
           start_date: string | null
@@ -1476,6 +1481,11 @@ export type Database = {
           max_students?: number | null
           name: string
           program_id?: string | null
+          qa_grade_band?: string | null
+          qa_grade_key?: string | null
+          qa_grade_mode?: string | null
+          qa_spine_lane?: number | null
+          qa_track_hint?: string | null
           schedule?: string | null
           school_id?: string | null
           start_date?: string | null
@@ -1492,6 +1502,11 @@ export type Database = {
           max_students?: number | null
           name?: string
           program_id?: string | null
+          qa_grade_band?: string | null
+          qa_grade_key?: string | null
+          qa_grade_mode?: string | null
+          qa_spine_lane?: number | null
+          qa_track_hint?: string | null
           schedule?: string | null
           school_id?: string | null
           start_date?: string | null
@@ -6026,6 +6041,71 @@ export type Database = {
           },
         ]
       }
+      platform_syllabus_week_template: {
+        Row: {
+          catalog_version: string
+          created_at: string
+          grade_key: string
+          grade_label: string
+          id: string
+          lane_index: number
+          metadata: Json
+          program_id: string
+          subtopics: Json
+          syllabus_phase: string
+          term_number: number
+          topic: string
+          track: string
+          week_index: number
+          week_number: number
+          year_number: number
+        }
+        Insert: {
+          catalog_version?: string
+          created_at?: string
+          grade_key: string
+          grade_label: string
+          id?: string
+          lane_index: number
+          metadata?: Json
+          program_id: string
+          subtopics?: Json
+          syllabus_phase: string
+          term_number: number
+          topic: string
+          track: string
+          week_index: number
+          week_number: number
+          year_number: number
+        }
+        Update: {
+          catalog_version?: string
+          created_at?: string
+          grade_key?: string
+          grade_label?: string
+          id?: string
+          lane_index?: number
+          metadata?: Json
+          program_id?: string
+          subtopics?: Json
+          syllabus_phase?: string
+          term_number?: number
+          topic?: string
+          track?: string
+          week_index?: number
+          week_number?: number
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_syllabus_week_template_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           created_at: string | null
@@ -9258,6 +9338,10 @@ export type Database = {
         Returns: boolean
       }
       check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
+      class_qa_path_offset: {
+        Args: { p_class_id: string; p_school_id: string | null }
+        Returns: number
+      }
       create_parent_and_link: {
         Args: {
           p_auth_user_id?: string
@@ -9362,6 +9446,7 @@ export type Database = {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
       }
+      qa_build_explicit_topic: { Args: { p_lane: number; p_week: number }; Returns: string }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       unlink_parent_from_student: {
         Args: { target_student_id: string }

@@ -10,6 +10,7 @@ import {
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
+  Squares2X2Icon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -234,6 +235,47 @@ export default function CurriculumPage() {
     notes: '',
   });
 
+  // Optional QA week spine: show DB template + class rotation preview before apply
+  const [qaSpineOpen, setQaSpineOpen] = useState(false);
+  const [qaTmplLoading, setQaTmplLoading] = useState(false);
+  const [qaTmplErr, setQaTmplErr] = useState('');
+  const [qaTmplMeta, setQaTmplMeta] = useState<{
+    total: number;
+    weeks_per_lane: Record<string, number>;
+  } | null>(null);
+  const [qaTmplRows, setQaTmplRows] = useState<
+    Array<{
+      week_index: number;
+      lane_index: number;
+      topic: string;
+      year_number?: number;
+      term_number?: number;
+      week_number?: number;
+    }>
+  >([]);
+  const [qaInspectLane, setQaInspectLane] = useState(1);
+  const [qaClassOptions, setQaClassOptions] = useState<
+    { id: string; name: string; program_id: string | null }[]
+  >([]);
+  const [qaClassId, setQaClassId] = useState('');
+  const [qaClassGradeMode, setQaClassGradeMode] = useState<'optional' | 'compulsory'>('optional');
+  const [qaClassModeSaving, setQaClassModeSaving] = useState(false);
+  const [qaClassModeErr, setQaClassModeErr] = useState('');
+  const [qaYear, setQaYear] = useState(1);
+  const [qaLaneOverride, setQaLaneOverride] = useState(0);
+  const [qaOverwrite, setQaOverwrite] = useState(false);
+  const [qaPreviewLoading, setQaPreviewLoading] = useState(false);
+  const [qaPreviewErr, setQaPreviewErr] = useState('');
+  const [qaPreviewStamp, setQaPreviewStamp] = useState('');
+  const [qaPreviewData, setQaPreviewData] = useState<{
+    path_offset: number;
+    lane_index: number;
+    lane_source: string;
+    terms: { term: number; weeks: { week: number; topic: string; spine_week: number }[] }[];
+  } | null>(null);
+  const [qaApplyLoading, setQaApplyLoading] = useState(false);
+  const [qaApplyErr, setQaApplyErr] = useState('');
+
   const isAdmin   = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const isSchool  = profile?.role === 'school';
@@ -338,6 +380,238 @@ export default function CurriculumPage() {
       // Ignore storage quota/security issues.
     }
   }, [gradeByScope, canGenerate]);
+
+  const programIdForQa = selectedCourse?.program_id ?? selectedProgram?.id ?? '';
+
+  const qaSpineSampleRows = useMemo(() => {
+    const lane = Math.min(11, Math.max(1, qaInspectLane));
+    return [...qaTmplRows]
+      .filter((r) => r.lane_index === lane)
+      .sort((a, b) => a.week_index - b.week_index)
+      .slice(0, 14);
+  }, [qaTmplRows, qaInspectLane]);
+
+  const selectedQaClass = useMemo(
+    () => qaClassOptions.find((c) => c.id === qaClassId) ?? null,
+    [qaClassOptions, qaClassId],
+  );
+  const qaSelectionStamp = useMemo(
+    () => `${qaClassId || 'none'}:${programIdForQa || 'none'}:${qaYear}:${qaLaneOverride || 0}`,
+    [qaClassId, programIdForQa, qaYear, qaLaneOverride],
+  );
+  const qaNeedsFreshPreview = Boolean(qaClassId) && qaPreviewStamp !== qaSelectionStamp;
+
+  const qaInlineSuggestions = useMemo(() => {
+    const tips: string[] = [
+      'Default mode: keep QA optional. Preview first, then apply only when it clearly matches class context.',
+      'If preview does not fit your class reality, skip apply and continue traditional week-by-week syllabus.',
+    ];
+    if (!qaClassId) {
+      tips.push('Select a class and run Preview class path before applying, so lane/offset are visible.');
+    }
+    if (qaClassId && qaClassGradeMode === 'compulsory') {
+      tips.push('This class is set to compulsory QA mode. Keep using preview before each apply to avoid wrong lane/year injection.');
+    }
+    if (selectedQaClass?.program_id && programIdForQa && selectedQaClass.program_id !== programIdForQa) {
+      tips.push('Selected class is from another programme. Prefer a same-programme class for trustworthy preview.');
+    }
+    if (qaOverwrite) {
+      tips.push('Overwrite is ON. This will replace existing weeks in all terms of this syllabus copy.');
+    }
+    return tips;
+  }, [qaClassId, qaClassGradeMode, qaOverwrite, selectedQaClass?.program_id, programIdForQa]);
+
+  useEffect(() => {
+    if (!selectedCourse?.id) {
+      setQaClassId('');
+      setQaPreviewData(null);
+      setQaPreviewStamp('');
+      setQaTmplMeta(null);
+      setQaTmplRows([]);
+      setQaTmplErr('');
+    }
+  }, [selectedCourse?.id]);
+
+  useEffect(() => {
+    if (!qaSpineOpen || !canGenerate || !programIdForQa) {
+      if (qaSpineOpen && canGenerate && !programIdForQa) {
+        setQaTmplErr('This course has no programme id — link it in the catalog first.');
+      }
+      return;
+    }
+    setQaTmplLoading(true);
+    setQaTmplErr('');
+    fetch(
+      `/api/platform-syllabus-template?program_id=${encodeURIComponent(programIdForQa)}&catalog_version=qa_spine_v1`,
+    )
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.error && !j.data) {
+          setQaTmplErr(typeof j.error === 'string' ? j.error : 'Template load failed');
+          setQaTmplMeta(null);
+          setQaTmplRows([]);
+          return;
+        }
+        const d = j.data;
+        if (!d) {
+          setQaTmplErr('Unexpected response');
+          return;
+        }
+        setQaTmplMeta({ total: d.total ?? 0, weeks_per_lane: d.weeks_per_lane ?? {} });
+        setQaTmplRows(
+          (d.rows ?? []).map((r: { week_index: number; lane_index: number; topic: string; year_number?: number; term_number?: number; week_number?: number }) => ({
+            week_index: r.week_index,
+            lane_index: r.lane_index,
+            topic: r.topic,
+            year_number: r.year_number,
+            term_number: r.term_number,
+            week_number: r.week_number,
+          })),
+        );
+      })
+      .catch(() => {
+        setQaTmplErr('Network error loading template');
+        setQaTmplMeta(null);
+        setQaTmplRows([]);
+      })
+      .finally(() => setQaTmplLoading(false));
+  }, [qaSpineOpen, canGenerate, programIdForQa]);
+
+  useEffect(() => {
+    if (!qaSpineOpen || !canGenerate) return;
+    fetch('/api/classes', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data ?? []) as { id: string; name: string; program_id: string | null }[];
+        setQaClassOptions(list);
+      })
+      .catch(() => setQaClassOptions([]));
+  }, [qaSpineOpen, canGenerate]);
+
+  useEffect(() => {
+    if (!qaClassId) {
+      setQaClassGradeMode('optional');
+      setQaClassModeErr('');
+      setQaPreviewStamp('');
+      return;
+    }
+    fetch(`/api/classes/${encodeURIComponent(qaClassId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        const mode = j?.data?.qa_grade_mode;
+        setQaClassGradeMode(mode === 'compulsory' ? 'compulsory' : 'optional');
+      })
+      .catch(() => {
+        setQaClassGradeMode('optional');
+      });
+  }, [qaClassId]);
+
+  const saveQaClassGradeMode = useCallback(async (mode: 'optional' | 'compulsory') => {
+    if (!qaClassId) return;
+    setQaClassModeSaving(true);
+    setQaClassModeErr('');
+    try {
+      const res = await fetch(`/api/classes/${encodeURIComponent(qaClassId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qa_grade_mode: mode }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setQaClassModeErr(j.error || 'Failed to update class policy');
+        return;
+      }
+      setQaClassGradeMode(mode);
+    } catch {
+      setQaClassModeErr('Network error while updating class policy');
+    } finally {
+      setQaClassModeSaving(false);
+    }
+  }, [qaClassId]);
+
+  const runQaSpinePreview = useCallback(async () => {
+    if (!qaClassId) {
+      setQaPreviewErr('Select a class to see how the spine rotates (school + class path).');
+      setQaPreviewData(null);
+      return;
+    }
+    if (!programIdForQa) {
+      setQaPreviewErr('Missing programme id on this course.');
+      return;
+    }
+    setQaPreviewLoading(true);
+    setQaPreviewErr('');
+    setQaPreviewData(null);
+    try {
+      const q = new URLSearchParams({
+        program_id: programIdForQa,
+        year: String(qaYear),
+      });
+      if (qaLaneOverride > 0) q.set('lane_index', String(qaLaneOverride));
+      const res = await fetch(`/api/classes/${encodeURIComponent(qaClassId)}/qa-spine-preview?${q}`);
+      const j = await res.json();
+      if (!res.ok) {
+        setQaPreviewErr(j.error || 'Preview failed');
+        return;
+      }
+      setQaPreviewData(j.data);
+      setQaPreviewStamp(qaSelectionStamp);
+    } catch {
+      setQaPreviewErr('Network error');
+    } finally {
+      setQaPreviewLoading(false);
+    }
+  }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp]);
+
+  const applyQaSpine = useCallback(async () => {
+    if (!curriculum || !selectedCourse) return;
+    if (qaClassId && qaNeedsFreshPreview) {
+      setQaApplyErr('Run Preview class path for current class/year/lane before apply.');
+      return;
+    }
+    if (qaOverwrite) {
+      const ok = window.confirm(
+        'Overwrite is ON. This will replace existing week rows in all terms for this syllabus copy. Continue?',
+      );
+      if (!ok) return;
+    }
+    setQaApplyLoading(true);
+    setQaApplyErr('');
+    try {
+      const res = await fetch('/api/curricula/apply-qa-spine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          curriculum_id: curriculum.id,
+          class_id: qaClassId || undefined,
+          year_number: qaYear,
+          lane_index: qaLaneOverride > 0 ? qaLaneOverride : undefined,
+          catalog_version: 'qa_spine_v1',
+          overwrite_existing: qaOverwrite,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setQaApplyErr(j.error || j.hint || 'Apply failed');
+        return;
+      }
+      const listRes = await fetch(`/api/curricula?course_id=${selectedCourse.id}`);
+      const listJ = await listRes.json();
+      const items: CurriculumDoc[] = listJ.data ?? [];
+      const u = items.find((c) => c.id === curriculum.id);
+      if (u) {
+        setCurriculum(u);
+        setCurriculumList(items);
+        const tRes = await fetch(`/api/curricula/${u.id}/track`);
+        const tJson = await tRes.json();
+        setTracking(tJson.data ?? []);
+      }
+    } catch {
+      setQaApplyErr('Network error');
+    } finally {
+      setQaApplyLoading(false);
+    }
+  }, [curriculum, selectedCourse, qaClassId, qaYear, qaLaneOverride, qaOverwrite, qaNeedsFreshPreview]);
 
   const openGenerateModal = useCallback(() => {
     let scope: 'platform' | string = 'platform';
@@ -1573,12 +1847,22 @@ export default function CurriculumPage() {
                   <ChartBarIcon className="w-3.5 h-3.5 text-orange-400" /> Progress Dashboard
                 </Link>
                 {canGenerate && (
-                  <button
-                    onClick={openGenerateModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
-                  >
-                    <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
-                  </button>
+                  <>
+                    <Link
+                      href="/dashboard/curriculum/learning-system"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-cyan-500/40 text-xs font-bold transition-all text-muted-foreground hover:text-cyan-200"
+                      title="How spine, syllabus, and lessons connect"
+                    >
+                      <Squares2X2Icon className="w-3.5 h-3.5 text-cyan-400" /> System map
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={openGenerateModal}
+                      className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
+                    >
+                      <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -1601,6 +1885,341 @@ export default function CurriculumPage() {
                   <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500 rounded-full inline-block" />In Progress: {tracking.filter(t=>t.status==='in_progress').length}</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 bg-zinc-500 rounded-full inline-block" />Skipped: {tracking.filter(t=>t.status==='skipped').length}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
+            {canGenerate && (
+              <div className="bg-card border border-dashed border-border/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQaSpineOpen((o) => !o);
+                    setQaApplyErr('');
+                    setQaPreviewErr('');
+                  }}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+                        Optional — QA week spine
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        Show what&rsquo;s in the platform template DB, preview path for a class, then align this syllabus
+                      </p>
+                    </div>
+                  </div>
+                  {qaSpineOpen ? (
+                    <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {qaSpineOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-border/60"
+                    >
+                      <div className="p-4 space-y-4 text-xs">
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Use this when you want a <span className="text-foreground font-bold">known progression</span> from{' '}
+                          <code className="text-[10px] bg-muted px-1">platform_syllabus_week_template</code>
+                          instead of a blind one-click. Pick programme year, optional lane override, and a class to see how weeks rotate (path offset) before writing into{' '}
+                          <span className="text-foreground font-bold">this syllabus copy</span> (v{curriculum.version}).
+                        </p>
+                        <div className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+                            Recommended flow (low-risk, not imposed)
+                          </p>
+                          <ul className="space-y-1 text-[11px] text-muted-foreground">
+                            {qaInlineSuggestions.map((tip, idx) => (
+                              <li key={`${tip}-${idx}`} className="flex gap-1.5">
+                                <span className="text-cyan-300 font-black shrink-0">•</span>
+                                <span>{tip}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        {programIdForQa ? (
+                          <p className="text-[10px] text-muted-foreground font-mono break-all">
+                            Programme: {programIdForQa}
+                          </p>
+                        ) : (
+                          <p className="text-amber-400 text-[11px]">No programme id on this course — fix catalog linkage first.</p>
+                        )}
+
+                        {qaTmplLoading && (
+                          <p className="text-muted-foreground animate-pulse">Loading template from API…</p>
+                        )}
+                        {qaTmplErr && (
+                          <p className="text-rose-400 text-[11px] font-bold">{qaTmplErr}</p>
+                        )}
+
+                        {qaTmplMeta && !qaTmplLoading && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              Database (catalog <span className="text-foreground">qa_spine_v1</span>)
+                            </p>
+                            <p className="text-foreground">
+                              <span className="font-black">{qaTmplMeta.total}</span> rows for this programme
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {Object.entries(qaTmplMeta.weeks_per_lane)
+                                .sort((a, b) => Number(a[0]) - Number(b[0]))
+                                .map(([ln, n]) => (
+                                  <span
+                                    key={ln}
+                                    className="text-[9px] font-black px-1.5 py-0.5 border border-border bg-muted/30"
+                                    title="Weeks stored for this lane"
+                                  >
+                                    L{ln}: {n}w
+                                  </span>
+                                ))}
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                              <div className="flex-1">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                  Inspect raw spine (lane)
+                                </label>
+                                <select
+                                  className={SELECT_CLS}
+                                  value={qaInspectLane}
+                                  onChange={(e) => setQaInspectLane(Number(e.target.value))}
+                                >
+                                  {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                                    <option key={n} value={n}>
+                                      Lane {n}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            {qaSpineSampleRows.length > 0 && (
+                              <div className="border border-border overflow-x-auto max-h-48 overflow-y-auto">
+                                <table className="w-full text-left text-[10px]">
+                                  <thead className="bg-muted/40 sticky top-0">
+                                    <tr>
+                                      <th className="p-1.5 font-black">w_idx</th>
+                                      <th className="p-1.5 font-black">Y/T/W</th>
+                                      <th className="p-1.5 font-black">Topic</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {qaSpineSampleRows.map((r) => (
+                                      <tr key={r.week_index} className="border-t border-border/50">
+                                        <td className="p-1.5 font-mono text-muted-foreground">{r.week_index}</td>
+                                        <td className="p-1.5 text-muted-foreground whitespace-nowrap">
+                                          {r.year_number ?? '—'}/{r.term_number ?? '—'}/{r.week_number ?? '—'}
+                                        </td>
+                                        <td className="p-1.5 text-foreground">{r.topic}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-border/60 space-y-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Align this syllabus
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                Programme year block (1–3)
+                              </label>
+                              <select
+                                className={SELECT_CLS}
+                                value={qaYear}
+                                onChange={(e) => {
+                                  setQaYear(Number(e.target.value));
+                                  setQaPreviewStamp('');
+                                }}
+                              >
+                                <option value={1}>Year 1</option>
+                                <option value={2}>Year 2</option>
+                                <option value={3}>Year 3</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                Lane (0 = auto from class)
+                              </label>
+                              <select
+                                className={SELECT_CLS}
+                                value={qaLaneOverride}
+                                onChange={(e) => {
+                                  setQaLaneOverride(Number(e.target.value));
+                                  setQaPreviewStamp('');
+                                }}
+                              >
+                                <option value={0}>Auto — use class fields / default</option>
+                                {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                                  <option key={n} value={n}>
+                                    Force lane {n}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                Class (optional — enables path rotation preview + class lane hints)
+                              </label>
+                              <select
+                                className={SELECT_CLS}
+                                value={qaClassId}
+                                onChange={(e) => {
+                                  setQaClassId(e.target.value);
+                                  setQaPreviewData(null);
+                                  setQaPreviewStamp('');
+                                }}
+                              >
+                                <option value="">— None (offset 0, default lane) —</option>
+                                {[...qaClassOptions]
+                                  .sort((a, b) => {
+                                    const ap = a.program_id === programIdForQa ? 0 : 1;
+                                    const bp = b.program_id === programIdForQa ? 0 : 1;
+                                    if (ap !== bp) return ap - bp;
+                                    return (a.name || '').localeCompare(b.name || '');
+                                  })
+                                  .map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name || c.id}
+                                      {c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
+                                    </option>
+                                  ))}
+                              </select>
+                              {selectedQaClass?.program_id && programIdForQa && selectedQaClass.program_id !== programIdForQa && (
+                                <p className="mt-1 text-[10px] text-amber-400">
+                                  Suggestion: this class belongs to another programme. Preview can still run, but same-programme class is safer for final apply.
+                                </p>
+                              )}
+                              {qaClassId && (
+                                <div className="mt-2 rounded-md border border-border/70 bg-muted/20 p-2.5 space-y-2">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                                    Class QA mode (impose only where needed)
+                                  </p>
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => void saveQaClassGradeMode('optional')}
+                                      disabled={qaClassModeSaving}
+                                      className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                        qaClassGradeMode === 'optional'
+                                          ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200'
+                                          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                                      } disabled:opacity-60`}
+                                    >
+                                      Optional (recommended)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void saveQaClassGradeMode('compulsory')}
+                                      disabled={qaClassModeSaving}
+                                      className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${
+                                        qaClassGradeMode === 'compulsory'
+                                          ? 'border-orange-500/50 bg-orange-500/15 text-orange-200'
+                                          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                                      } disabled:opacity-60`}
+                                    >
+                                      Compulsory (this class)
+                                    </button>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Current: <span className="font-bold text-foreground">{qaClassGradeMode}</span>. This affects selected class only.
+                                  </p>
+                                  {qaClassModeErr && (
+                                    <p className="text-[10px] text-rose-400 font-bold">{qaClassModeErr}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={qaOverwrite}
+                              onChange={(e) => setQaOverwrite(e.target.checked)}
+                            />
+                            <span className="text-[11px] text-muted-foreground">
+                              Overwrite existing week rows in all terms (if unchecked, only empty terms get the spine)
+                            </span>
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void runQaSpinePreview()}
+                              disabled={!qaClassId || qaPreviewLoading}
+                              className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"
+                            >
+                              {qaPreviewLoading ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <EyeIcon className="w-3.5 h-3.5" />
+                              )}
+                              Preview class path
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void applyQaSpine()}
+                              disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
+                              className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/50 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
+                            >
+                              {qaApplyLoading ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <BoltIcon className="w-3.5 h-3.5" />
+                              )}
+                              Apply spine to this syllabus
+                            </button>
+                          </div>
+                          {qaNeedsFreshPreview && (
+                            <p className="text-amber-400 text-[10px]">
+                              Preview required for current class/year/lane selection before apply.
+                            </p>
+                          )}
+                          {qaPreviewErr && (
+                            <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>
+                          )}
+                          {qaApplyErr && (
+                            <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>
+                          )}
+                          {qaPreviewData && (
+                            <div className="space-y-2 p-3 bg-muted/20 border border-border/80">
+                              <p className="text-[10px] font-black uppercase text-cyan-300">
+                                Preview — lane {qaPreviewData.lane_index} ({qaPreviewData.lane_source}) · offset{' '}
+                                {qaPreviewData.path_offset}
+                              </p>
+                              {qaPreviewData.terms.map((t) => (
+                                <div key={t.term}>
+                                  <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
+                                    {t.weeks.map((w) => (
+                                      <li key={w.week} className="flex gap-1 truncate">
+                                        <span className="shrink-0 text-foreground/70">W{w.week}</span>
+                                        <span className="truncate" title={w.topic}>
+                                          {w.topic}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 

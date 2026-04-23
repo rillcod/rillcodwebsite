@@ -17,6 +17,26 @@ async function getStaff() {
   return { user, profile };
 }
 
+async function callerCanManageSchool(
+  admin: any,
+  profile: { id: string; role: string; school_id: string | null },
+  schoolId: string | null,
+) {
+  if (profile.role === 'admin') return true;
+  if (!schoolId) return false;
+  if (profile.school_id === schoolId) return true;
+  if (profile.role === 'teacher') {
+    const { data: ts } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', profile.id)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+    return !!ts;
+  }
+  return profile.role === 'school' && profile.school_id === schoolId;
+}
+
 // GET /api/curricula/[id]/track — get all week tracking for this curriculum
 export async function GET(
   _req: NextRequest,
@@ -27,12 +47,19 @@ export async function GET(
 
   const { id } = await context.params;
   const admin = createAdminClient() as any;
+  const { data: curriculum, error: currErr } = await admin
+    .from('course_curricula')
+    .select('id, school_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (currErr) return NextResponse.json({ error: currErr.message }, { status: 500 });
+  if (!curriculum) return NextResponse.json({ error: 'Curriculum not found' }, { status: 404 });
+  const canSee = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
+  if (!canSee) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   let query = admin.from('curriculum_week_tracking').select('*').eq('curriculum_id', id);
-  // Schools only see their own tracking
-  if (auth.profile.role === 'school' && auth.profile.school_id) {
-    query = query.eq('school_id', auth.profile.school_id);
-  }
+  if (curriculum.school_id) query = query.eq('school_id', curriculum.school_id);
+  else query = query.is('school_id', null);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -67,7 +94,16 @@ export async function POST(
   }
 
   const admin = createAdminClient() as any;
-  const schoolId = auth.profile.school_id || null;
+  const { data: curriculum, error: currErr } = await admin
+    .from('course_curricula')
+    .select('id, school_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (currErr) return NextResponse.json({ error: currErr.message }, { status: 500 });
+  if (!curriculum) return NextResponse.json({ error: 'Curriculum not found' }, { status: 404 });
+  const canWrite = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
+  if (!canWrite) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const schoolId = curriculum.school_id ?? null;
 
   const payload: any = {
     curriculum_id: id,
