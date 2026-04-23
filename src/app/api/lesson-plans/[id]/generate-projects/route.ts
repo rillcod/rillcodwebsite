@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { hasPlanBindings } from '@/lib/api-guards';
 
 export async function POST(
   req: NextRequest,
@@ -38,6 +39,11 @@ export async function POST(
     if (plan.status !== 'published') {
       return NextResponse.json({ error: 'Only published plans can generate projects' }, { status: 422 });
     }
+    if (!hasPlanBindings(plan)) {
+      return NextResponse.json({ error: 'Lesson plan is missing course or school binding' }, { status: 422 });
+    }
+    const planCourseId = plan.course_id as string;
+    const planSchoolId = plan.school_id as string;
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
@@ -46,8 +52,8 @@ export async function POST(
     const { data: existingProjects } = await supabase
       .from('assignments')
       .select('id, metadata, assignment_type')
-      .eq('course_id', plan.course_id)
-      .eq('school_id', plan.school_id)
+      .eq('course_id', planCourseId)
+      .eq('school_id', planSchoolId)
       .eq('assignment_type', 'project');
     const existingWeekSet = new Set<number>(
       (existingProjects ?? [])
@@ -99,7 +105,8 @@ export async function POST(
             dueDate.setDate(dueDate.getDate() + (week.week * cadenceDays) + 7); // Extra week for projects
 
             // Call AI generate endpoint
-            const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
+            const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
+            const aiRes = await fetch(`${appBaseUrl}/api/ai/generate`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -138,9 +145,9 @@ export async function POST(
 
             // Save project as draft
             const { error: insertErr } = await supabase.from('assignments').insert({
-              course_id: plan.course_id,
+              course_id: planCourseId,
               class_id: plan.class_id,
-              school_id: plan.school_id,
+              school_id: planSchoolId,
               title: aiData.data.title || `${week.topic} Project`,
               description: aiData.data.description || '',
               instructions: aiData.data.instructions || '',

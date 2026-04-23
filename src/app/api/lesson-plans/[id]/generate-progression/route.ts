@@ -307,6 +307,10 @@ export async function POST(
     return NextResponse.json({ error: 'Lesson plan is missing school context.' }, { status: 422 });
   }
   const schoolId = plan.school_id;
+  if (!plan.course_id) {
+    return NextResponse.json({ error: 'Lesson plan is missing course context.' }, { status: 422 });
+  }
+  const courseId = plan.course_id;
   if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
     return NextResponse.json({ error: 'You can only generate progression for your school plans.' }, { status: 403 });
   }
@@ -337,7 +341,7 @@ export async function POST(
     .select('id, school_id, project_key, title, track, concept_tags, difficulty_level, classwork_prompt, estimated_minutes, metadata')
     .eq('is_active', true)
     .eq('program_id', program.id)
-    .or(`school_id.eq.${plan.school_id},school_id.is.null`)
+    .or(`school_id.eq.${schoolId},school_id.is.null`)
     .in('track', [track, 'mixed'])
     .order('difficulty_level', { ascending: true })
     .order('created_at', { ascending: true });
@@ -365,7 +369,7 @@ export async function POST(
   const { data: usageRows, error: usageErr } = await supabase
     .from('curriculum_project_usage')
     .select('project_id')
-    .eq('school_id', plan.school_id)
+    .eq('school_id', schoolId)
     .gte('year_number', cutoffYear);
   if (usageErr) return NextResponse.json({ error: usageErr.message }, { status: 500 });
   const usedProjectIds = new Set((usageRows ?? []).map((r) => r.project_id));
@@ -572,7 +576,7 @@ export async function POST(
     return selected.map(({ project, isRepeat }, idx) => ({
       project_id: project.id,
       school_id: schoolId,
-      course_id: plan.course_id,
+      course_id: courseId,
       lesson_plan_id: plan.id,
       class_id: plan.class_id,
       year_number: year,
@@ -609,12 +613,12 @@ export async function POST(
       desiredWorkItems.push({ marker: `PGRP:${key}:w${week.week}`, type: 'project', week, key });
     }
   }
-  if (plan.school_id && plan.course_id && desiredWorkItems.length > 0) {
+  if (desiredWorkItems.length > 0) {
     const { data: existingWorkRows, error: existingWorkErr } = await supabase
       .from('assignments')
       .select('id, assignment_type, metadata')
-      .eq('school_id', plan.school_id)
-      .eq('course_id', plan.course_id);
+      .eq('school_id', schoolId)
+      .eq('course_id', courseId);
     if (existingWorkErr) return NextResponse.json({ error: existingWorkErr.message }, { status: 500 });
     const existingWorkByMarker = new Map<string, string>();
     for (const row of existingWorkRows ?? []) {
@@ -642,7 +646,7 @@ export async function POST(
         const dueDate = new Date(termStart);
         dueDate.setDate(dueDate.getDate() + (w.week.week * 7) + (w.type === 'project' ? 7 : 0));
         return {
-          course_id: plan.course_id,
+          course_id: courseId,
           class_id: plan.class_id,
           school_id: schoolId,
           title: w.type === 'project' ? w.week.project.title : w.week.assignment.title,
@@ -671,7 +675,7 @@ export async function POST(
     }
   }
 
-  if (autoFlashcards && schoolId && plan.course_id) {
+  if (autoFlashcards) {
     const desiredDecks: Array<{ marker: string; title: string; week: GeneratedWeek }> = [];
     for (const key of generatedKeys) {
       const termObj = asObject(generatedTerms[key]);
@@ -690,7 +694,7 @@ export async function POST(
       .select('id,progression_policy_snapshot,course_id')
       .eq('created_by', user.id)
       .eq('school_id', schoolId)
-      .eq('course_id', plan.course_id);
+      .eq('course_id', courseId);
     if (existingDeckErr) return NextResponse.json({ error: existingDeckErr.message }, { status: 500 });
     const existingByMarker = new Map<string, { id: string }>();
     for (const deck of existingDecks ?? []) {
@@ -718,7 +722,7 @@ export async function POST(
         .insert({
           title: deckDef.title,
           lesson_id: null,
-          course_id: plan.course_id,
+          course_id: courseId,
           school_id: schoolId,
           created_by: user.id,
           school_progression_enabled: true,
