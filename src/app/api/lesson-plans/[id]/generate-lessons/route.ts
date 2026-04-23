@@ -95,7 +95,12 @@ export async function POST(
     // Extract curriculum context for richer AI generation
     const curriculumContent = plan.curriculum?.content as SyllabusContentImport | undefined;
     const allCurriculumTopics: string[] = curriculumContent?.terms
-      ? curriculumContent.terms.flatMap((t: { weeks?: { topic?: string }[] }) => t.weeks?.map((w) => w.topic).filter(Boolean) ?? [])
+      ? curriculumContent.terms.flatMap(
+          (t: { weeks?: { topic?: string }[] }) =>
+            t.weeks
+              ?.map((w) => w.topic)
+              .filter((topic): topic is string => typeof topic === 'string' && topic.trim().length > 0) ?? [],
+        )
       : [];
     const programName = (plan.courses as { programs?: { name?: string | null } | null } | null)?.programs?.name || (curriculumContent as { course_title?: string } | undefined)?.course_title || undefined;
     const courseName = (plan.courses as { title?: string | null } | null)?.title || undefined;
