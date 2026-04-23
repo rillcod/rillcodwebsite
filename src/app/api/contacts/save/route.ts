@@ -48,13 +48,13 @@ export async function POST(req: NextRequest) {
     // Check if contact already exists in students table
     const { data: existing } = await admin
       .from('students')
-      .select('id, full_name')
+      .select('id, full_name, name')
       .or(`parent_phone.eq.${phone},phone.eq.${phone}`)
       .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ 
-        error: `Contact already exists: ${existing.full_name}`,
+        error: `Contact already exists: ${existing.full_name || existing.name}`,
         existing: true 
       }, { status: 409 });
     }
@@ -63,12 +63,15 @@ export async function POST(req: NextRequest) {
     const { data: newContact, error: insertErr } = await admin
       .from('students')
       .insert({
+        name: name.trim(),
         full_name: name.trim(),
         parent_phone: phone,
         status: 'pending',
         enrollment_type: 'prospective',
+        school_name: typeof school_name === 'string' && school_name.trim() ? school_name.trim() : null,
+        section: typeof class_name === 'string' && class_name.trim() ? class_name.trim() : null,
+        created_by: caller.id,
         created_at: new Date().toISOString(),
-        metadata: { source: source || 'whatsapp', saved_by: caller.id },
       })
       .select()
       .single();
