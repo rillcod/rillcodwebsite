@@ -50,9 +50,16 @@ export async function GET(
     ? { lane: manualLane, source: 'query' as const }
     : resolveQaSpineLane(cls);
   const lane = resolved.lane;
+  const classSchoolId = cls.school_id;
+  if (!classSchoolId) {
+    return NextResponse.json(
+      { error: 'Class is missing school binding' },
+      { status: 422 },
+    );
+  }
 
   const { data: off, error: rpcErr } = await supabase.rpc('class_qa_path_offset', {
-    p_school_id: cls.school_id,
+    p_school_id: classSchoolId,
     p_class_id: classId,
   });
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 });
