@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-export default function PwaProvider() {
+export default function PwaProvider({ enabled = true }: { enabled?: boolean }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !enabled) return;
 
     const handleBeforeInstallPrompt = (event: any) => {
       event.preventDefault();
@@ -16,27 +16,13 @@ export default function PwaProvider() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    const promptPushPermission = async () => {
-      if (!("Notification" in window)) return;
-      const asked = window.localStorage.getItem("push-permission-asked");
-      if (asked) return;
-      window.localStorage.setItem("push-permission-asked", "1");
-      try {
-        await Notification.requestPermission();
-      } catch {
-        // Ignore permission errors
-      }
-    };
-
-    promptPushPermission();
-
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (!deferredPrompt) return;
+    if (!enabled || !deferredPrompt) return;
     // Auto-prompt is discouraged; expose a global helper instead.
     (window as any).installPwa = async () => {
       try {
@@ -47,7 +33,7 @@ export default function PwaProvider() {
         // no-op
       }
     };
-  }, [deferredPrompt]);
+  }, [deferredPrompt, enabled]);
 
   return null;
 }
