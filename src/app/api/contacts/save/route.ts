@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import type { Database, TablesInsert } from '@/types/supabase';
 
 function adminClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     const admin = adminClient();
 
     const body = await req.json();
-    const { phone, name, source } = body;
+    const { phone, name, source, school_name, class_name, role_label } = body;
 
     if (!phone || !name?.trim()) {
       return NextResponse.json({ error: 'phone and name required' }, { status: 400 });
@@ -81,6 +82,25 @@ export async function POST(req: NextRequest) {
       .from('whatsapp_conversations')
       .update({ contact_name: name.trim(), updated_at: new Date().toISOString() })
       .eq('phone_number', phone);
+
+    const bookRow: TablesInsert<'customer_contact_book'> = {
+      user_id: null,
+      role: typeof role_label === 'string' && role_label.trim() ? role_label.trim() : 'prospective',
+      full_name: name.trim(),
+      email: null,
+      phone,
+      school_name: typeof school_name === 'string' && school_name.trim() ? school_name.trim() : null,
+      class_name: typeof class_name === 'string' && class_name.trim() ? class_name.trim() : null,
+      source: typeof source === 'string' && source.trim() ? source.trim() : 'whatsapp_capture',
+      last_channel: 'whatsapp',
+      metadata: {
+        saved_by: caller.id,
+        student_table_id: newContact.id,
+      },
+      confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await admin.from('customer_contact_book').insert(bookRow);
 
     return NextResponse.json({ 
       success: true, 

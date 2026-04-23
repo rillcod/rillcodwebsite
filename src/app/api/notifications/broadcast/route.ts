@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification } from '@/lib/push';
+import { loadCommunicationPolicy } from '@/lib/communication/abusePolicy';
 
 /**
  * POST /api/notifications/broadcast
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { title, message, target = 'all', school_id, type = 'info' } = body;
+  const policy = await loadCommunicationPolicy();
 
   if (!title?.trim() || !message?.trim()) {
     return NextResponse.json({ error: 'Title and message are required' }, { status: 400 });
@@ -102,5 +104,8 @@ export async function POST(req: NextRequest) {
     in_app_sent: inAppSent,
     push_sent: pushSent,
     errors: errors.length ? errors : undefined,
+    routing_hint: policy.whatsapp_primary_mode && ['students', 'parents', 'all'].includes(target)
+      ? 'For urgent student/parent updates at scale, pair this with WhatsApp class broadcast/groups.'
+      : 'In-app broadcast completed.',
   });
 }

@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import type { TablesInsert } from '@/types/supabase';
+import { missingCustomerTags } from '@/lib/api-guards';
 
 async function requireStaff() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: profile } = await supabase.from('portal_users')
-    .select('id, role, full_name, email, school_name')
+    .select('id, role, full_name, email, phone, school_name, section_class')
     .eq('id', user.id).single();
   if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
   return { ...user, ...profile };
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { data: profile } = await supabase.from('portal_users')
-      .select('id, role, full_name, email, school_name')
+      .select('id, role, full_name, email, phone, school_name, section_class')
       .eq('id', user.id).single();
     if (!profile || !['parent', 'student'].includes(profile.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -102,6 +104,17 @@ export async function POST(req: NextRequest) {
   if (!body?.trim()) return NextResponse.json({ error: 'Message body is required' }, { status: 400 });
 
   if (['parent', 'student'].includes(effectiveSender.role)) {
+    const missing = missingCustomerTags(effectiveSender);
+    if (missing.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Please update your school and class information before sending support emails.',
+          code: 'profile_tags_required',
+          missing_fields: missing,
+        },
+        { status: 422 },
+      );
+    }
     const allowed = await canParentOrStudentEmailRecipient(effectiveSender, to.trim());
     if (!allowed) {
       return NextResponse.json({ error: 'You can only email staff in your assigned school support channels' }, { status: 403 });
@@ -110,6 +123,8 @@ export async function POST(req: NextRequest) {
 
   const senderName  = (effectiveSender as any).full_name || 'Rillcod Academy';
   const senderOrg   = (effectiveSender as any).school_name || 'Rillcod Academy';
+  const senderClass = (effectiveSender as any).section_class || 'Unspecified';
+  const senderRole = String((effectiveSender as any).role || 'user').toUpperCase();
 
   // Build branded HTML email
   const html = buildRillcodTransactionalEmailHtml({
@@ -118,6 +133,9 @@ export async function POST(req: NextRequest) {
     bodyHtml: `
       <p style="margin:0 0 12px;color:#e4e4e7;">
         <strong style="color:#fff;">From:</strong> ${escapeHtml(senderName)} via Rillcod Academy
+      </p>
+      <p style="margin:0 0 12px;color:#d4d4d8;font-size:13px;">
+        <strong style="color:#fff;">Origin:</strong> ${escapeHtml(senderRole)} · ${escapeHtml(senderOrg)} · ${escapeHtml(String(senderClass))}
       </p>
       <div style="background:#1a1a2e;border-left:3px solid #c0392b;padding:16px 20px;border-radius:0 8px 8px 0;margin:0 0 20px;">
         ${body.split('\n').map((line: string) =>
@@ -147,6 +165,30 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).throwOnError();
+
+    // Soft customer-book capture from support email channel.
+    if (['parent', 'student'].includes(effectiveSender.role)) {
+      const row: TablesInsert<'customer_contact_book'> = {
+        user_id: effectiveSender.id,
+        role: effectiveSender.role,
+        full_name: senderName,
+        email: effectiveSender.email ?? null,
+        phone: effectiveSender.phone ?? null,
+        school_name: effectiveSender.school_name ?? null,
+        class_name: effectiveSender.section_class ?? null,
+        source: 'self_confirmed_support_email',
+        last_channel: 'email',
+        metadata: {
+          recipient_email: to.trim().toLowerCase(),
+          sender_role: effectiveSender.role,
+        },
+        confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      await supabase
+        .from('customer_contact_book')
+        .upsert(row, { onConflict: 'user_id' });
+    }
 
     return NextResponse.json({ success: true, to, subject });
   } catch (err: any) {

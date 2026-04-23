@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     .order('week_index', { ascending: true });
   if (trErr) return NextResponse.json({ error: trErr.message }, { status: 500 });
 
-  let rows = (templateRows ?? []) as Array<{
+  const rows = (templateRows ?? []) as Array<{
     week_index: number;
     topic: string;
     subtopics: unknown;

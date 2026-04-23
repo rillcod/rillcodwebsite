@@ -1545,6 +1545,311 @@ export type Database = {
           },
         ]
       }
+      communication_abuse_events: {
+        Row: {
+          channel: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          reason: string
+          sender_id: string | null
+          sender_role: string | null
+          target_conversation_id: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          reason: string
+          sender_id?: string | null
+          sender_role?: string | null
+          target_conversation_id?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          reason?: string
+          sender_id?: string | null
+          sender_role?: string | null
+          target_conversation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_abuse_events_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_abuse_events_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      communication_conversation_meta: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          last_inbound_at: string | null
+          last_outbound_at: string | null
+          notes: string | null
+          priority: string
+          sla_due_at: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          notes?: string | null
+          priority?: string
+          sla_due_at?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          notes?: string | null
+          priority?: string
+          sla_due_at?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_conversation_meta_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_conversation_meta_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_conversation_meta_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      communication_escalations: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          target_conversation_id: string | null
+          target_user_id: string | null
+          trigger: string
+          trigger_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_conversation_id?: string | null
+          target_user_id?: string | null
+          trigger: string
+          trigger_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_conversation_id?: string | null
+          target_user_id?: string | null
+          trigger?: string
+          trigger_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "communication_escalations_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_escalations_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      communication_rate_limits: {
+        Row: {
+          created_at: string
+          daily_count: number
+          day_bucket: string
+          id: string
+          last_message_at: string | null
+          sender_id: string
+          sender_role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_count?: number
+          day_bucket: string
+          id?: string
+          last_message_at?: string | null
+          sender_id: string
+          sender_role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_count?: number
+          day_bucket?: string
+          id?: string
+          last_message_at?: string | null
+          sender_id?: string
+          sender_role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_rate_limits_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_rate_limits_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      communication_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          reporter_role: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          target_conversation_id: string | null
+          target_message_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          reporter_role: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_conversation_id?: string | null
+          target_message_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          reporter_role?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          target_conversation_id?: string | null
+          target_message_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "communication_reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       consent_forms: {
         Row: {
           body: string
@@ -2129,6 +2434,69 @@ export type Database = {
           },
         ]
       }
+      crm_opportunities: {
+        Row: {
+          close_probability: number | null
+          contact_id: string
+          contact_name: string
+          created_at: string
+          estimated_value: number | null
+          expected_close_at: string | null
+          id: string
+          notes: string | null
+          owner_id: string | null
+          owner_name: string | null
+          source: string | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          close_probability?: number | null
+          contact_id: string
+          contact_name: string
+          created_at?: string
+          estimated_value?: number | null
+          expected_close_at?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          source?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          close_probability?: number | null
+          contact_id?: string
+          contact_name?: string
+          created_at?: string
+          estimated_value?: number | null
+          expected_close_at?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          source?: string | null
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_opportunities_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_opportunities_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       crm_pipeline: {
         Row: {
           contact_id: string
@@ -2177,6 +2545,80 @@ export type Database = {
           {
             foreignKeyName: "crm_pipeline_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          contact_id: string
+          contact_name: string
+          created_at: string
+          created_by: string | null
+          due_at: string | null
+          id: string
+          owner_id: string | null
+          owner_name: string | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          contact_name: string
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          contact_name?: string
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
@@ -2515,6 +2957,72 @@ export type Database = {
           week_number?: number
         }
         Relationships: []
+      }
+      customer_contact_book: {
+        Row: {
+          class_name: string | null
+          confirmed_at: string
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          last_channel: string
+          metadata: Json
+          phone: string | null
+          role: string
+          school_name: string | null
+          source: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          class_name?: string | null
+          confirmed_at?: string
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          last_channel?: string
+          metadata?: Json
+          phone?: string | null
+          role: string
+          school_name?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          class_name?: string | null
+          confirmed_at?: string
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          last_channel?: string
+          metadata?: Json
+          phone?: string | null
+          role?: string
+          school_name?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_contact_book_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_contact_book_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
       }
       discussion_attachments: {
         Row: {
@@ -5804,6 +6312,71 @@ export type Database = {
           },
         ]
       }
+      platform_syllabus_week_template: {
+        Row: {
+          catalog_version: string
+          created_at: string
+          grade_key: string
+          grade_label: string
+          id: string
+          lane_index: number
+          metadata: Json
+          program_id: string
+          subtopics: Json
+          syllabus_phase: string
+          term_number: number
+          topic: string
+          track: string
+          week_index: number
+          week_number: number
+          year_number: number
+        }
+        Insert: {
+          catalog_version?: string
+          created_at?: string
+          grade_key: string
+          grade_label: string
+          id?: string
+          lane_index: number
+          metadata?: Json
+          program_id: string
+          subtopics?: Json
+          syllabus_phase: string
+          term_number: number
+          topic: string
+          track: string
+          week_index: number
+          week_number: number
+          year_number: number
+        }
+        Update: {
+          catalog_version?: string
+          created_at?: string
+          grade_key?: string
+          grade_label?: string
+          id?: string
+          lane_index?: number
+          metadata?: Json
+          program_id?: string
+          subtopics?: Json
+          syllabus_phase?: string
+          term_number?: number
+          topic?: string
+          track?: string
+          week_index?: number
+          week_number?: number
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_syllabus_week_template_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_transactions: {
         Row: {
           activity_type: string
@@ -6038,71 +6611,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
-          },
-        ]
-      }
-      platform_syllabus_week_template: {
-        Row: {
-          catalog_version: string
-          created_at: string
-          grade_key: string
-          grade_label: string
-          id: string
-          lane_index: number
-          metadata: Json
-          program_id: string
-          subtopics: Json
-          syllabus_phase: string
-          term_number: number
-          topic: string
-          track: string
-          week_index: number
-          week_number: number
-          year_number: number
-        }
-        Insert: {
-          catalog_version?: string
-          created_at?: string
-          grade_key: string
-          grade_label: string
-          id?: string
-          lane_index: number
-          metadata?: Json
-          program_id: string
-          subtopics?: Json
-          syllabus_phase: string
-          term_number: number
-          topic: string
-          track: string
-          week_index: number
-          week_number: number
-          year_number: number
-        }
-        Update: {
-          catalog_version?: string
-          created_at?: string
-          grade_key?: string
-          grade_label?: string
-          id?: string
-          lane_index?: number
-          metadata?: Json
-          program_id?: string
-          subtopics?: Json
-          syllabus_phase?: string
-          term_number?: number
-          topic?: string
-          track?: string
-          week_index?: number
-          week_number?: number
-          year_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "platform_syllabus_week_template_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -9339,7 +9847,7 @@ export type Database = {
       }
       check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
       class_qa_path_offset: {
-        Args: { p_class_id: string; p_school_id: string | null }
+        Args: { p_class_id: string; p_school_id: string }
         Returns: number
       }
       create_parent_and_link: {
@@ -9446,7 +9954,10 @@ export type Database = {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
       }
-      qa_build_explicit_topic: { Args: { p_lane: number; p_week: number }; Returns: string }
+      qa_build_explicit_topic: {
+        Args: { p_lane: number; p_week: number }
+        Returns: string
+      }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       unlink_parent_from_student: {
         Args: { target_student_id: string }

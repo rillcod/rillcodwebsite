@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const programId = url.searchParams.get('program_id');
   const courseId = url.searchParams.get('course_id');
   const track = url.searchParams.get('track');
+  const seedSource = url.searchParams.get('seed_source');
 
   let query = supabase
     .from('curriculum_project_registry')
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   if (programId) query = query.eq('program_id', programId);
   if (courseId) query = query.eq('course_id', courseId);
   if (track) query = query.eq('track', track);
+  if (seedSource) query = query.contains('metadata', { seed_source: seedSource });
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -70,7 +72,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'program_id, project_key, title, and track are required.' }, { status: 400 });
   }
 
-  const allowedTracks = new Set(['young_innovator', 'scratch', 'python', 'html_css', 'intro_ai_tools', 'mixed']);
+  const allowedTracks = new Set([
+    'young_innovator',
+    'scratch',
+    'python',
+    'html_css',
+    'intro_ai_tools',
+    'mixed',
+    'jss_web_app',
+    'jss_python',
+    'ss_uiux_mobile',
+  ]);
   if (!allowedTracks.has(track)) {
     return NextResponse.json({ error: 'Invalid track.' }, { status: 400 });
   }

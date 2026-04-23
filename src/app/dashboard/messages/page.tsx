@@ -6,6 +6,7 @@ import { ChatBubbleLeftRightIcon, PaperAirplaneIcon, ArrowLeftIcon, UserIcon, Ac
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface Thread {
   id: string;
@@ -33,6 +34,7 @@ interface Recipient {
   full_name: string;
   role: string;
   email: string | null;
+  phone: string | null;
   school_name: string | null;
 }
 
@@ -49,6 +51,7 @@ interface InternalMessage {
 
 export default function MessagesPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selected, setSelected] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,8 +62,16 @@ export default function MessagesPage() {
   const [recipientId, setRecipientId] = useState('');
   const [subject, setSubject] = useState('');
   const [directMessages, setDirectMessages] = useState<InternalMessage[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [policyHint, setPolicyHint] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const isParentOrStudent = profile?.role === 'parent' || profile?.role === 'student';
+
+  useEffect(() => {
+    if (isParentOrStudent) {
+      router.replace('/dashboard/inbox');
+    }
+  }, [isParentOrStudent, router]);
 
   useEffect(() => {
     if (isParentOrStudent) {
@@ -105,12 +116,21 @@ export default function MessagesPage() {
         full_name: u.full_name,
         role: u.role,
         email: u.email ?? null,
+        phone: u.phone ?? null,
         school_name: u.school_name ?? null,
       })) as Recipient[];
 
       setRecipients(eligible);
       if (eligible.length > 0 && !recipientId) setRecipientId(eligible[0].id);
       setDirectMessages((msgJson?.data ?? []) as InternalMessage[]);
+      const statRes = await fetch('/api/progression/communication-policy-status');
+      const stat = await statRes.json().catch(() => ({}));
+      const s = stat?.data;
+      if (s && typeof s.daily_remaining === 'number' && s.daily_limit < 9999) {
+        setPolicyHint(`Daily messages left: ${s.daily_remaining}/${s.daily_limit} • Cooldown: ${s.cooldown_seconds_between_messages}s`);
+      } else {
+        setPolicyHint('Messaging safety policy is active.');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to load communication channels');
     } finally {
@@ -192,104 +212,32 @@ export default function MessagesPage() {
     return t.portal_users_parent?.full_name ?? 'Parent';
   };
 
+  const selectedRecipient = recipients.find((r) => r.id === recipientId) ?? null;
+  const filteredRecipients = recipients.filter((r) => {
+    if (!recipientSearch.trim()) return true;
+    const q = recipientSearch.toLowerCase();
+    return (
+      r.full_name.toLowerCase().includes(q) ||
+      r.role.toLowerCase().includes(q) ||
+      (r.school_name ?? '').toLowerCase().includes(q)
+    );
+  });
+
   if (isParentOrStudent) {
     return (
       <div className="min-h-screen bg-background text-foreground">
-        <div className="max-w-6xl mx-auto px-4 py-8 space-y-5">
-          <div className="flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-5 h-5 text-orange-400" />
-            <h1 className="text-2xl sm:text-3xl font-black">School Communication Channels</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Message your assigned school support team (admin/teachers) using in-house chat, SendPulse email, or WhatsApp link.
-            Older messages are hidden automatically to keep this view clean.
-          </p>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-1 bg-card border border-border p-4 space-y-3">
-              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Available Channels</h2>
-              {loading ? (
-                <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              ) : recipients.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No scoped staff channels available yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {recipients.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setRecipientId(r.id)}
-                      className={`w-full text-left px-3 py-2 border rounded-none ${recipientId === r.id ? 'bg-orange-500/10 border-orange-500/40' : 'bg-background border-border hover:bg-muted'}`}
-                    >
-                      <p className="text-sm font-bold">{r.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground uppercase">{r.role}{r.school_name ? ` · ${r.school_name}` : ''}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="lg:col-span-2 bg-card border border-border p-4 space-y-3">
-              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Compose</h2>
-              <input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Subject (required for email)"
-                className="w-full bg-background border border-border px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
-              />
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message..."
-                rows={5}
-                className="w-full bg-background border border-border px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
-              />
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={sendInHouseMessage}
-                  disabled={!recipientId || !input.trim() || sending}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest"
-                >
-                  Send In-House
-                </button>
-                <button
-                  onClick={sendChannelEmail}
-                  disabled={!recipientId || !input.trim() || !subject.trim() || sending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest"
-                >
-                  Send Email
-                </button>
-                {recipientId && (
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(input.trim() || 'Hello, I need assistance from school support.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest"
-                  >
-                    WhatsApp
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-card border border-border p-4">
-            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Recent In-House Messages</h2>
-            <div className="space-y-2 max-h-[320px] overflow-y-auto">
-              {directMessages.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No recent messages.</p>
-              ) : directMessages.map((m) => {
-                const isMine = m.sender_id === profile?.id;
-                const peer = isMine ? m.recipient?.full_name : m.sender?.full_name;
-                return (
-                  <div key={m.id} className={`p-3 border ${isMine ? 'border-orange-500/30 bg-orange-500/5' : 'border-border bg-background'}`}>
-                    <p className="text-[11px] font-black uppercase text-muted-foreground">{isMine ? 'You →' : 'From'} {peer || 'Staff'}</p>
-                    {m.subject && <p className="text-xs font-bold mt-1">{m.subject}</p>}
-                    <p className="text-sm mt-1">{m.message}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{new Date(m.created_at).toLocaleString()}</p>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="max-w-3xl mx-auto px-4 py-10">
+          <div className="bg-card border border-border rounded-xl p-6 space-y-3">
+            <h1 className="text-xl font-black">Opening Guarded Inbox...</h1>
+            <p className="text-sm text-muted-foreground">
+              Student/parent messaging now uses the WhatsApp-style guarded inbox as the primary experience.
+            </p>
+            <Link
+              href="/dashboard/inbox"
+              className="inline-flex px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest"
+            >
+              Open Guarded Inbox
+            </Link>
           </div>
         </div>
       </div>

@@ -163,6 +163,12 @@ export default function UnifiedInbox() {
   const [filterUnread, setFilterUnread]       = useState(false);
   const [msgLoading, setMsgLoading]           = useState(false);
   const [sendError, setSendError]             = useState('');
+  const [policySignal, setPolicySignal]       = useState<string>('');
+  const [queueSummary, setQueueSummary]       = useState<{ all: number; unassigned: number; overdue: number; needs_escalation: number } | null>(null);
+  const [queueFilter, setQueueFilter]         = useState<'all' | 'unassigned' | 'overdue' | 'needs_escalation'>('all');
+  const [convPriority, setConvPriority]       = useState<'low' | 'medium' | 'high'>('medium');
+  const [convSlaDueAt, setConvSlaDueAt]       = useState('');
+  const [savingConvMeta, setSavingConvMeta]   = useState(false);
 
   // Contacts state
   const [contacts, setContacts]               = useState<Contact[]>([]);
@@ -208,10 +214,21 @@ export default function UnifiedInbox() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
+  const [showConfirmDetailsCard, setShowConfirmDetailsCard] = useState(false);
+  const [confirmingDetails, setConfirmingDetails] = useState(false);
+  const [confirmDetailsForm, setConfirmDetailsForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    school_name: '',
+    class_name: '',
+    confirmed: false,
+  });
 
   // Staff assignment (Multi-user)
   const [staff, setStaff] = useState<any[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [reportingConversation, setReportingConversation] = useState(false);
 
   // Subject dialog (replaces window.prompt for school/teacher convs)
   const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
@@ -224,6 +241,69 @@ export default function UnifiedInbox() {
   const isAdmin   = profile?.role === 'admin';
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
+  const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+
+  useEffect(() => {
+    if (!hasAccess) return;
+    fetch('/api/progression/communication-policy-status')
+      .then((r) => r.json())
+      .then((j) => {
+        const d = j.data;
+        if (!d) return;
+        if (typeof d.daily_remaining === 'number' && d.daily_limit < 9999) {
+          setPolicySignal(`Daily messages left: ${d.daily_remaining}/${d.daily_limit}. Cooldown: ${d.cooldown_seconds_between_messages}s.`);
+        } else {
+          setPolicySignal('Messaging safety policy is active.');
+        }
+      })
+      .catch(() => {});
+  }, [hasAccess]);
+
+  useEffect(() => {
+    if (!isStaff || activeTab !== 'students') return;
+    fetch(`/api/inbox/queue?filter=${queueFilter}`)
+      .then((r) => r.json())
+      .then((j) => setQueueSummary(j.summary ?? null))
+      .catch(() => {});
+  }, [isStaff, activeTab, queueFilter, conversations.length]);
+
+  useEffect(() => {
+    if (!activeConv || activeConv.type !== 'students' || !isStaff) return;
+    fetch(`/api/inbox/conversation-meta?conversation_id=${encodeURIComponent(activeConv.id)}`)
+      .then((r) => r.json())
+      .then((j) => {
+        const d = j.data;
+        setConvPriority((d?.priority === 'low' || d?.priority === 'high') ? d.priority : 'medium');
+        setConvSlaDueAt(typeof d?.sla_due_at === 'string' ? String(d.sla_due_at).slice(0, 16) : '');
+      })
+      .catch(() => {
+        setConvPriority('medium');
+        setConvSlaDueAt('');
+      });
+  }, [activeConv?.id, activeConv?.type, isStaff]);
+
+  const saveConversationMeta = async () => {
+    if (!activeConv || activeConv.type !== 'students') return;
+    setSavingConvMeta(true);
+    try {
+      const res = await fetch('/api/inbox/conversation-meta', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: activeConv.id,
+          priority: convPriority,
+          sla_due_at: convSlaDueAt ? new Date(convSlaDueAt).toISOString() : null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to save conversation policy');
+      setPolicySignal('Conversation priority/SLA saved.');
+    } catch (err: any) {
+      setSendError(err.message || 'Failed to save conversation policy');
+    } finally {
+      setSavingConvMeta(false);
+    }
+  };
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
@@ -249,6 +329,51 @@ export default function UnifiedInbox() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [profile?.id, activeTab]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!profile || !isStaff || activeTab !== 'students') return;
+    void fetchConversations('students');
+  }, [queueFilter]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!profile || !isParentOrStudent) return;
+    const key = `details_confirmed_${profile.id}`;
+    const confirmedOnce = typeof window !== 'undefined' ? window.localStorage.getItem(key) === '1' : false;
+    const hasRequired = Boolean(profile.full_name && profile.email && profile.phone && profile.school_name && profile.section_class);
+    setConfirmDetailsForm({
+      full_name: profile.full_name || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      school_name: profile.school_name || '',
+      class_name: profile.section_class || '',
+      confirmed: confirmedOnce,
+    });
+    setShowConfirmDetailsCard(!confirmedOnce || !hasRequired);
+  }, [profile?.id, isParentOrStudent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submitConfirmDetails = async () => {
+    if (!profile) return;
+    setConfirmingDetails(true);
+    setSendError('');
+    try {
+      const res = await fetch('/api/customer-book/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(confirmDetailsForm),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not confirm details');
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(`details_confirmed_${profile.id}`, '1');
+      }
+      setShowConfirmDetailsCard(false);
+      setPolicySignal('Profile details confirmed. You can now send support messages with proper school/class tags.');
+    } catch (err: any) {
+      setSendError(err.message || 'Could not confirm details');
+    } finally {
+      setConfirmingDetails(false);
+    }
+  };
 
   const handleRealtime = (type: InboxCategory, msg: any) => {
     if (type === activeTab) fetchConversations(type, false);
@@ -297,6 +422,27 @@ export default function UnifiedInbox() {
             portal_user_id: c.portal_user_id ?? undefined,
             assigned_staff_id: c.assigned_staff_id,
           })));
+          return;
+        }
+
+        if (isStaff && queueFilter !== 'all') {
+          const res = await fetch(`/api/inbox/queue?filter=${queueFilter}`);
+          const json = await res.json().catch(() => ({}));
+          const rows = Array.isArray(json?.data) ? json.data : [];
+          setConversations(rows.map((c: any) => ({
+            id: c.id,
+            type: 'students' as const,
+            phone_number: c.phone_number,
+            contact_name: c.contact_name || c.phone_number || 'Unknown',
+            last_message_at: c.last_message_at || '',
+            last_message_preview: '',
+            unread_count: c.unread_count || 0,
+            school_name: null,
+            role: 'student',
+            portal_user_id: undefined,
+            assigned_staff_id: c.assigned_staff_id ?? undefined,
+          })));
+          setQueueSummary(json?.summary ?? null);
           return;
         }
 
@@ -569,6 +715,7 @@ export default function UnifiedInbox() {
         full_name:   profileForm.full_name,
         phone:       profileForm.phone || undefined,
         school_name: profileForm.school_name || undefined,
+        section_class: profileForm.class_name || undefined,
       }).eq('id', profile!.id);
       setShowProfilePopup(false);
       // Now actually send the pending message
@@ -589,6 +736,9 @@ export default function UnifiedInbox() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Send failed');
         if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
+        if (json.policy && typeof json.policy.remaining_daily === 'number') {
+          setPolicySignal(`Daily messages left: ${json.policy.remaining_daily}.`);
+        }
         
         // Show warning if number is not on WhatsApp
         if (json.is_not_whatsapp_user) {
@@ -610,6 +760,29 @@ export default function UnifiedInbox() {
     } catch (err: any) {
       setSendError(err.message || 'Failed to send');
     } finally { setIsSending(false); }
+  };
+
+  const reportConversation = async () => {
+    if (!activeConv) return;
+    setReportingConversation(true);
+    try {
+      const res = await fetch('/api/progression/communication-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_conversation_id: activeConv.id,
+          reason: 'conversation_safety_concern',
+          details: `Reported from inbox (${activeConv.type})`,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to submit report');
+      setPolicySignal('Safety report submitted. Staff moderation queue updated.');
+    } catch (err: any) {
+      setSendError(err.message || 'Failed to submit safety report');
+    } finally {
+      setReportingConversation(false);
+    }
   };
 
   // ── Send message ───────────────────────────────────────────────────────────
@@ -642,6 +815,24 @@ export default function UnifiedInbox() {
       try {
         let data: any[] = [];
         if (activeTab === 'students') {
+          if (isParentOrStudent) {
+            const res = await fetch('/api/messages?channels=1');
+            const json = await res.json().catch(() => ({}));
+            const scoped = Array.isArray(json?.recipients) ? json.recipients : [];
+            data = scoped
+              .filter((u: any) => Boolean(u?.phone))
+              .map((u: any) => ({
+                id: u.id,
+                full_name: u.full_name || 'Staff',
+                phone: u.phone,
+                school_name: u.school_name || null,
+                role: u.role || 'staff',
+                isExternalWA: false,
+              }));
+            setDirectoryResults(data);
+            return;
+          }
+
           // WhatsApp tab — search ALL contacts with phone numbers (any role) + external phonebook
           let q = supabase.from('portal_users')
             .select('id, full_name, phone, school_name, role, enrollment_type')
@@ -697,6 +888,10 @@ export default function UnifiedInbox() {
 
   // ── Quick chat by number ───────────────────────────────────────────────────
   const startQuickChat = async () => {
+    if (isParentOrStudent) {
+      setQuickChatError('Quick chat by number is disabled for student/parent accounts.');
+      return;
+    }
     const phone = quickChatNumber.replace(/\D/g, '');
     if (!phone || phone.length < 7) {
       setQuickChatError('Please enter a valid phone number (at least 7 digits)');
@@ -863,10 +1058,19 @@ export default function UnifiedInbox() {
     try {
       const res = await fetch('/api/inbox/email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailForm),
+        body: JSON.stringify({
+          ...emailForm,
+          origin_school_name: (profile as any)?.school_name || '',
+          origin_class_name: (profile as any)?.section_class || '',
+        }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Email send failed');
+      if (!res.ok) {
+        if (json?.code === 'profile_tags_required') {
+          throw new Error('Update your school and class profile details before sending support email.');
+        }
+        throw new Error(json.error || 'Email send failed');
+      }
       setEmailSuccess(`Email sent to ${emailForm.to_name || emailForm.to}`);
       setTimeout(() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailSuccess(''); }, 2000);
     } catch (err: any) {
@@ -1143,6 +1347,28 @@ export default function UnifiedInbox() {
                 )}
               </div>
             </div>
+
+            {isStaff && activeTab === 'students' && queueSummary && (
+              <div className="px-3 pb-2 shrink-0 flex flex-wrap gap-1.5">
+                {[
+                  { id: 'all', label: `All ${queueSummary.all}` },
+                  { id: 'unassigned', label: `Unassigned ${queueSummary.unassigned}` },
+                  { id: 'overdue', label: `Overdue ${queueSummary.overdue}` },
+                  { id: 'needs_escalation', label: `Escalate ${queueSummary.needs_escalation}` },
+                ].map((q) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setQueueFilter(q.id as typeof queueFilter)}
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${
+                      queueFilter === q.id ? 'bg-violet-500/30 text-violet-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    }`}
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {filterUnread && (
               <div className="px-4 pb-1 shrink-0">
@@ -1621,6 +1847,44 @@ export default function UnifiedInbox() {
                         <Phone className="w-4 h-4" /> Open in WhatsApp
                       </a>
                     )}
+                    {isStaff && activeConv.type === 'students' && (
+                      <div className="mt-3 rounded-lg border border-white/10 bg-[#111b21]/70 p-3 space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Queue Controls</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={convPriority}
+                            onChange={(e) => setConvPriority((e.target.value as 'low' | 'medium' | 'high') || 'medium')}
+                            className="bg-[#2a3942] border border-white/10 rounded-lg px-2 py-2 text-xs text-white"
+                          >
+                            <option value="low">Low priority</option>
+                            <option value="medium">Medium priority</option>
+                            <option value="high">High priority</option>
+                          </select>
+                          <input
+                            type="datetime-local"
+                            value={convSlaDueAt}
+                            onChange={(e) => setConvSlaDueAt(e.target.value)}
+                            className="bg-[#2a3942] border border-white/10 rounded-lg px-2 py-2 text-xs text-white"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={saveConversationMeta}
+                          disabled={savingConvMeta}
+                          className="w-full py-2 rounded-lg bg-violet-600/30 hover:bg-violet-600/40 text-violet-200 text-xs font-black disabled:opacity-50"
+                        >
+                          {savingConvMeta ? 'Saving...' : 'Save queue policy'}
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={reportConversation}
+                      disabled={reportingConversation}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-sm font-black rounded-lg transition-colors mt-2 disabled:opacity-50"
+                    >
+                      {reportingConversation ? 'Submitting report...' : 'Report safety issue'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -1632,6 +1896,36 @@ export default function UnifiedInbox() {
                 <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10">
                   <span>{sendError}</span>
                   <button onClick={() => setSendError('')}><X className="w-3 h-3" /></button>
+                </div>
+              )}
+              {policySignal && (
+                <div className="px-4 py-2 bg-cyan-500/10 text-cyan-300 text-[11px] font-bold border-b border-cyan-500/10">
+                  {policySignal}
+                </div>
+              )}
+              {isParentOrStudent && showConfirmDetailsCard && (
+                <div className="border-b border-amber-500/20 bg-amber-500/10 px-3 py-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-200">Confirm your details</p>
+                  <p className="mt-1 text-[11px] text-white/75">Please confirm once so support emails always include your school and class.</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <input value={confirmDetailsForm.full_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, full_name: e.target.value }))} placeholder="Full name" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
+                    <input value={confirmDetailsForm.email} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
+                    <input value={confirmDetailsForm.phone} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
+                    <input value={confirmDetailsForm.school_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, school_name: e.target.value }))} placeholder="School" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
+                    <input value={confirmDetailsForm.class_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, class_name: e.target.value }))} placeholder="Class" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none sm:col-span-2" />
+                  </div>
+                  <label className="mt-2 flex items-center gap-2 text-[11px] text-white/80">
+                    <input type="checkbox" checked={confirmDetailsForm.confirmed} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, confirmed: e.target.checked }))} />
+                    I confirm these details are correct.
+                  </label>
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" onClick={submitConfirmDetails} disabled={confirmingDetails || !confirmDetailsForm.confirmed} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-black text-black disabled:opacity-50">
+                      {confirmingDetails ? 'Saving...' : 'Confirm details'}
+                    </button>
+                    <button type="button" onClick={() => setShowConfirmDetailsCard(false)} className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/80">
+                      Hide for now
+                    </button>
+                  </div>
                 </div>
               )}
               <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2.5">
@@ -2116,7 +2410,7 @@ export default function UnifiedInbox() {
       )}
 
       {/* ══ QUICK CHAT BY NUMBER (FLOATING BUTTON) ═════════════════════════ */}
-      {activeTab === 'students' && !showQuickChat && (
+      {activeTab === 'students' && !showQuickChat && !isParentOrStudent && (
         <button
           onClick={() => setShowQuickChat(true)}
           className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 z-40 group"

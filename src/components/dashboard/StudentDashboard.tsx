@@ -214,6 +214,7 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
@@ -472,6 +473,7 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },

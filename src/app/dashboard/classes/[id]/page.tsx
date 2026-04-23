@@ -60,6 +60,9 @@ export default function ClassDetailPage() {
   const [editingSession, setEditingSession] = useState<any>(null);
   const [sessionForm, setSessionForm] = useState({ topic: '', session_date: '', start_time: '', end_time: '', notes: '' });
   const [savingSession, setSavingSession] = useState(false);
+  const [pathClassMode, setPathClassMode] = useState<'full' | 'milestone'>('full');
+  const [pathStudentModes, setPathStudentModes] = useState<Record<string, 'inherit' | 'full' | 'milestone'>>({});
+  const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
 
   // Broadcast State
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -99,6 +102,20 @@ export default function ClassDetailPage() {
         console.error('[students API]', studentsHttpRes.status, studentsRes);
       }
       setEnrollments(studentsRes.students ?? []);
+      if (isStaff) {
+        const visRes = await fetch(`/api/progression/path-visibility?class_id=${id}`, { cache: 'no-store' });
+        if (visRes.ok) {
+          const visJson = await visRes.json();
+          const classMode = (visJson.data?.class_mode ?? 'full') as 'full' | 'milestone';
+          setPathClassMode(classMode);
+          const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
+          for (const row of (visJson.data?.students ?? [])) {
+            const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
+            nextModes[row.student_id] = mode;
+          }
+          setPathStudentModes(nextModes);
+        }
+      }
 
       // Only fetch program-related data if program_id exists
       if (program_id) {
@@ -155,6 +172,42 @@ export default function ClassDetailPage() {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveClassPathMode = async (mode: 'full' | 'milestone') => {
+    setPathVisibilitySaving('class');
+    try {
+      const res = await fetch('/api/progression/path-visibility', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: id, mode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save');
+      setPathClassMode(mode);
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to save class visibility mode');
+    } finally {
+      setPathVisibilitySaving(null);
+    }
+  };
+
+  const saveStudentPathMode = async (studentId: string, mode: 'inherit' | 'full' | 'milestone') => {
+    setPathVisibilitySaving(studentId);
+    try {
+      const res = await fetch('/api/progression/path-visibility', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, mode }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save');
+      setPathStudentModes((prev) => ({ ...prev, [studentId]: mode }));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to save student visibility mode');
+    } finally {
+      setPathVisibilitySaving(null);
     }
   };
 
@@ -776,6 +829,75 @@ export default function ClassDetailPage() {
                     </div>
                   )}
                 </div>
+
+                {isStaff && (
+                  <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Path Visibility Control</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Control what students and parents see for learning path progress.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-foreground">Class default:</span>
+                      <button
+                        type="button"
+                        onClick={() => saveClassPathMode('full')}
+                        disabled={pathVisibilitySaving === 'class'}
+                        className={`px-3 py-1.5 text-xs font-bold border rounded-none transition-colors ${
+                          pathClassMode === 'full'
+                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                            : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Full details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveClassPathMode('milestone')}
+                        disabled={pathVisibilitySaving === 'class'}
+                        className={`px-3 py-1.5 text-xs font-bold border rounded-none transition-colors ${
+                          pathClassMode === 'milestone'
+                            ? 'bg-violet-500/15 border-violet-500/30 text-violet-300'
+                            : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Milestone only
+                      </button>
+                    </div>
+
+                    <div className="border-t border-border pt-3">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                        Per-child override
+                      </p>
+                      {enrollments.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No enrolled students yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {enrollments.slice(0, 20).map((student: any) => (
+                            <div key={student.id} className="flex items-center justify-between gap-3 bg-background border border-border px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{student.full_name ?? 'Student'}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{student.email ?? ''}</p>
+                              </div>
+                              <select
+                                value={pathStudentModes[student.id] ?? 'inherit'}
+                                onChange={(e) => saveStudentPathMode(student.id, e.target.value as 'inherit' | 'full' | 'milestone')}
+                                disabled={pathVisibilitySaving === student.id}
+                                className="px-2 py-1.5 text-xs bg-card border border-border text-foreground"
+                              >
+                                <option value="inherit">Inherit class default</option>
+                                <option value="full">Full details</option>
+                                <option value="milestone">Milestone only</option>
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Recent Sessions */}
                 <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">

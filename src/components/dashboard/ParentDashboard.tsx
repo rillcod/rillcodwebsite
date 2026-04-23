@@ -37,6 +37,7 @@ interface DashStats {
 const QUICK_ACTIONS = [
   { name: 'My Children',    href: '/dashboard/my-children',        icon: UserGroupIcon,              desc: 'View all linked children',      bg: 'from-orange-600 to-orange-400',   ring: 'border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10' },
   { name: 'Report Cards',   href: '/dashboard/parent-results',     icon: DocumentChartBarIcon,       desc: 'View academic progress',        bg: 'from-violet-600 to-violet-400',   ring: 'border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10' },
+  { name: 'Path Progress',  href: '/dashboard/parent-path-progress',icon: BookOpenIcon,                desc: 'See current week and path',     bg: 'from-fuchsia-600 to-fuchsia-400', ring: 'border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10' },
   { name: 'Attendance',     href: '/dashboard/parent-attendance',  icon: ClipboardDocumentCheckIcon, desc: 'Check attendance records',      bg: 'from-emerald-600 to-emerald-400', ring: 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' },
   { name: 'Grades',         href: '/dashboard/parent-grades',      icon: ClipboardDocumentListIcon,  desc: 'View grades & assignments',     bg: 'from-blue-600 to-blue-400',       ring: 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10' },
   { name: 'Certificates',   href: '/dashboard/parent-certificates',icon: TrophyIcon,                 desc: "View child's certificates",     bg: 'from-amber-600 to-amber-400',     ring: 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' },

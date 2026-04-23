@@ -68,6 +68,8 @@ export async function PUT(req: NextRequest) {
   const nextPolicy: ProgressionPolicy = { ...currentPolicy };
   if (typeof body.strict_route_default === 'boolean') nextPolicy.strict_route_default = body.strict_route_default;
   if (typeof body.auto_flashcards_default === 'boolean') nextPolicy.auto_flashcards_default = body.auto_flashcards_default;
+  if (typeof body.project_based_default === 'boolean') nextPolicy.project_based_default = body.project_based_default;
+  if (typeof body.essential_routes_only === 'boolean') nextPolicy.essential_routes_only = body.essential_routes_only;
   if (body.mastery_mode === 'strict' || body.mastery_mode === 'soft') nextPolicy.mastery_mode = body.mastery_mode;
   if (Array.isArray(body.track_priority)) {
     nextPolicy.track_priority = body.track_priority.filter((v: unknown): v is string => typeof v === 'string');

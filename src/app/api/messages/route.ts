@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { evaluateAndTrackMessage } from '@/lib/communication/abusePolicy';
 
 function adminClient() {
   return createClient(
@@ -138,14 +139,14 @@ export async function GET(request: NextRequest) {
   if (allowedRecipientIds === null) {
     const { data: staff } = await admin
       .from('portal_users')
-      .select('id, full_name, role, email, school_name')
+      .select('id, full_name, role, email, phone, school_name')
       .eq('is_active', true)
       .in('role', ['admin', 'teacher', 'school']);
     recipients = staff ?? [];
   } else if (allowedRecipientIds.length > 0) {
     const { data: scoped } = await admin
       .from('portal_users')
-      .select('id, full_name, role, email, school_name')
+      .select('id, full_name, role, email, phone, school_name')
       .in('id', allowedRecipientIds);
     recipients = scoped ?? [];
   }
@@ -181,6 +182,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Recipient is outside your allowed school/support channel scope' }, { status: 403 });
   }
 
+  const policy = await evaluateAndTrackMessage({
+    senderId: caller.id,
+    senderRole: (caller.role ?? 'student') as 'student' | 'parent' | 'teacher' | 'admin' | 'school',
+    channel: 'inapp_direct',
+    message: message.trim(),
+    targetConversationId: null,
+  });
+  if (!policy.allowed) {
+    const status = policy.cooldownRemainingSeconds ? 429 : 403;
+    return NextResponse.json(
+      {
+        error: policy.reason ?? 'Message blocked by safety policy',
+        cooldown_remaining_seconds: policy.cooldownRemainingSeconds ?? null,
+        remaining_daily: policy.remainingDaily ?? null,
+        recommendation: policy.recommendation ?? 'none',
+      },
+      { status },
+    );
+  }
+
   const { data, error } = await admin
     .from('messages')
     .insert({
@@ -193,5 +214,11 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data,
+    policy: {
+      remaining_daily: policy.remainingDaily ?? null,
+      recommendation: policy.recommendation ?? 'none',
+    },
+  });
 }

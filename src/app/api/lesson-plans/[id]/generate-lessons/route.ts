@@ -6,6 +6,7 @@ import {
   inferTermNumberFromPlanTerm,
   type SyllabusContentImport,
 } from '@/lib/lesson-plans/syllabusImport';
+import { hasPlanBindings } from '@/lib/api-guards';
 
 const ALLOWED_LESSON_TYPES = [
   'lesson', 'video', 'interactive', 'hands-on', 'hands_on', 'workshop',
@@ -38,7 +39,7 @@ export async function POST(
     }
 
     // Fetch lesson plan with curriculum
-    const { data: plan, error: planErr } = await (supabase as any)
+    const { data: plan, error: planErr } = await supabase
       .from('lesson_plans')
       .select('*, courses(title, programs(name)), classes(name), curriculum:course_curricula(content, version)')
       .eq('id', id)
@@ -54,18 +55,26 @@ export async function POST(
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
-    const planData = plan.plan_data as any;
+    const planData = (plan.plan_data ?? {}) as Record<string, unknown>;
     const weeks = (planData?.weeks ?? []) as Array<{
       week: number;
       topic: string;
       objectives?: string;
       activities?: string;
     }>;
+    if (!hasPlanBindings(plan)) {
+      return NextResponse.json(
+        { error: 'Lesson plan is missing course or school binding' },
+        { status: 422 },
+      );
+    }
+    const planCourseId = plan.course_id as string;
+    const planSchoolId = plan.school_id as string;
     const { data: existingLessons } = await supabase
       .from('lessons')
       .select('id, metadata')
-      .eq('course_id', plan.course_id)
-      .eq('school_id', plan.school_id);
+      .eq('course_id', planCourseId)
+      .eq('school_id', planSchoolId);
     const existingWeekSet = new Set<number>(
       (existingLessons ?? [])
         .filter((l) => {
@@ -133,7 +142,8 @@ export async function POST(
                 : 60;
 
             // Call AI generate endpoint with full curriculum context
-            const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {
+            const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
+            const aiRes = await fetch(`${appBaseUrl}/api/ai/generate`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -178,8 +188,8 @@ export async function POST(
 
             // Save lesson as draft — store lesson_plan_id in metadata so we can find it later
             const { error: insertErr } = await supabase.from('lessons').insert({
-              course_id: plan.course_id,
-              school_id: plan.school_id,
+              course_id: planCourseId,
+              school_id: planSchoolId,
               title: aiData.data.title || week.topic,
               description: aiData.data.description || '',
               lesson_notes: aiData.data.lesson_notes || '',
@@ -206,7 +216,7 @@ export async function POST(
             titlesThisRun.push(savedTitle);
             generated++;
             emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error(`Error generating lesson for week ${week.week}:`, err);
             emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (error)` });
             skipped++;
@@ -225,8 +235,11 @@ export async function POST(
         'Connection': 'keep-alive',
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Bulk lesson generation error:', err);
-    return NextResponse.json({ error: err.message || 'Generation failed' }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Generation failed' },
+      { status: 500 },
+    );
   }
 }

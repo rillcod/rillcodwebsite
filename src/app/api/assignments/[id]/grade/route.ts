@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
+import type { Database, TablesUpdate } from '@/types/supabase';
+import { normalizeGradeValue } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
@@ -59,13 +61,14 @@ export async function POST(
     if (caller.role === 'teacher') {
       const ownAssignment = assignment.created_by === caller.id;
       const sameSchool = assignment.school_id && caller.school_id === assignment.school_id;
+      const assignmentSchoolId = assignment.school_id;
       const inTeacherSchools = !ownAssignment && !sameSchool && assignment.school_id
         ? await (async () => {
             const { data: ts } = await admin
               .from('teacher_schools')
               .select('school_id')
               .eq('teacher_id', caller.id)
-              .eq('school_id', assignment.school_id)
+              .eq('school_id', assignmentSchoolId as string)
               .maybeSingle();
             return !!ts;
           })()
@@ -87,6 +90,7 @@ export async function POST(
 
     const body = await request.json();
     const { submission_id, student_id, grade, feedback, status, submission_text } = body;
+    const normalizedGrade = normalizeGradeValue(grade);
 
     const assignWeight = assignment.weight ?? 0;
     const assignMax    = assignment.max_points ?? 100;
@@ -106,17 +110,17 @@ export async function POST(
         .maybeSingle();
       if (!sub) return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
 
-      const updatePayload: Record<string, unknown> = {
+      const updatePayload: TablesUpdate<'assignment_submissions'> = {
         updated_at: new Date().toISOString(),
       };
-      if (grade !== undefined) updatePayload.grade = grade ?? null;
+      if (normalizedGrade !== undefined) updatePayload.grade = normalizedGrade;
       if (feedback !== undefined) updatePayload.feedback = feedback ?? null;
       if (status !== undefined) updatePayload.status = status;
       if (submission_text !== undefined) updatePayload.submission_text = submission_text ?? null;
-      if (status === 'graded' || grade !== undefined) {
+      if (status === 'graded' || normalizedGrade !== undefined) {
         updatePayload.graded_by = caller.id;
         updatePayload.graded_at = new Date().toISOString();
-        updatePayload.weighted_score = computeWeightedScore(grade);
+        updatePayload.weighted_score = computeWeightedScore(normalizedGrade);
       }
 
       const { data, error } = await admin
@@ -144,7 +148,7 @@ export async function POST(
         .upsert({
           assignment_id,
           portal_user_id:  student_id,
-          grade:           grade ?? null,
+          grade:           normalizedGrade ?? null,
           feedback:        feedback ?? null,
           status:          status ?? 'graded',
           submission_text: submission_text ?? null,
@@ -152,7 +156,7 @@ export async function POST(
           graded_at:       new Date().toISOString(),
           submitted_at:    new Date().toISOString(),
           updated_at:      new Date().toISOString(),
-          weighted_score:  computeWeightedScore(grade),
+          weighted_score:  computeWeightedScore(normalizedGrade),
         }, { onConflict: 'assignment_id,portal_user_id' })
         .select('id, grade, status, weighted_score, portal_user_id')
         .single();
@@ -170,7 +174,10 @@ export async function POST(
     }
 
     return NextResponse.json({ error: 'submission_id or student_id required' }, { status: 400 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unexpected error' },
+      { status: 500 },
+    );
   }
 }

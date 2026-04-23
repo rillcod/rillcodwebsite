@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { brandAssets, companyInfo, contactInfo } from '@/config/brand';
 import {
   Users, Search, Plus, Phone, Mail, MessageSquare, FileText,
   ChevronRight, Loader2, Paperclip, Download, Trash2, X,
@@ -39,6 +41,16 @@ type Interaction = {
   created_at: string;
 };
 
+type UnifiedTimelineItem = {
+  id: string;
+  channel: 'crm' | 'whatsapp' | 'inapp';
+  type: string;
+  direction: 'inbound' | 'outbound' | 'system';
+  content: string;
+  created_at: string;
+  actor?: string;
+};
+
 type Attachment = {
   id: string;
   contact_id: string;
@@ -48,6 +60,14 @@ type Attachment = {
   uploaded_by_name?: string;
   created_at: string;
   signed_url?: string;
+};
+
+type OverdueTask = {
+  id: string;
+  title: string;
+  contact_name: string;
+  due_at: string | null;
+  priority: string;
 };
 
 type PipelineStage = 'prospect' | 'active' | 'at_risk' | 'churned' | 'won';
@@ -77,6 +97,14 @@ const ROLE_COLORS: Record<string, string> = {
   school:   'bg-indigo-500/20 text-indigo-400',
   admin:    'bg-violet-500/20 text-violet-400',
   external: 'bg-white/10 text-white/50',
+};
+
+const LETTERHEAD = {
+  company: companyInfo.name,
+  address: contactInfo.address,
+  supportEmail: contactInfo.email,
+  supportPhone: contactInfo.phone,
+  logoPath: brandAssets.logo,
 };
 
 function initials(name: string) {
@@ -130,6 +158,7 @@ export default function CRMPage() {
 
   // Interactions
   const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [unifiedTimeline, setUnifiedTimeline] = useState<UnifiedTimelineItem[]>([]);
   const [interactionsLoading, setInteractionsLoading] = useState(false);
   const [showAddInteraction, setShowAddInteraction] = useState(false);
   const [interactionType, setInteractionType] = useState<string>('note');
@@ -152,6 +181,7 @@ export default function CRMPage() {
 
   // WA message stats from supabase (communication count)
   const [waMessageCount, setWaMessageCount] = useState<number | null>(null);
+  const [myOverdueTasks, setMyOverdueTasks] = useState<OverdueTask[]>([]);
 
   const isAdmin = profile?.role === 'admin';
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role || '');
@@ -186,11 +216,20 @@ export default function CRMPage() {
     return () => clearTimeout(t);
   }, [fetchContacts, isStaff]);
 
+  useEffect(() => {
+    if (!isStaff) return;
+    fetch('/api/crm/tasks?mine=1&overdue=1&status=open')
+      .then((r) => r.json())
+      .then((j) => setMyOverdueTasks((Array.isArray(j?.data) ? j.data : []) as OverdueTask[]))
+      .catch(() => setMyOverdueTasks([]));
+  }, [isStaff, selectedContact?.id]);
+
   // ── Select contact — load interactions, attachments, pipeline ────────────────
 
   const selectContact = async (c: CRMContact) => {
     setSelectedContact(c);
     setInteractions([]); setAttachments([]);
+    setUnifiedTimeline([]);
     setShowAddInteraction(false); setUploadError('');
     setPipelineSaved(false);
 
@@ -203,6 +242,14 @@ export default function CRMPage() {
       const iJson = await iRes.json();
       setInteractions(iJson.interactions || []);
     } catch { /**/ } finally { setInteractionsLoading(false); }
+
+    try {
+      const tRes = await fetch(`/api/crm/timeline?contact_id=${encodeURIComponent(c.id)}`);
+      const tJson = await tRes.json();
+      setUnifiedTimeline((tJson.data ?? []) as UnifiedTimelineItem[]);
+    } catch {
+      setUnifiedTimeline([]);
+    }
 
     try {
       // Attachments
@@ -347,11 +394,39 @@ export default function CRMPage() {
         <div className="flex items-center gap-2 text-[11px] text-white/30 font-bold uppercase">
           <Users className="w-4 h-4" />
           <span>{contacts.length} contacts</span>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="ml-2 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 print:hidden"
+          >
+            Print
+          </button>
+          <Link
+            href="/dashboard/customer-book"
+            className="ml-2 px-3 py-1.5 rounded-lg border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 print:hidden"
+          >
+            Customer Book
+          </Link>
+        </div>
+      </div>
+
+      <div className="hidden print:flex items-start justify-between gap-4 border-b border-black pb-3">
+        <div className="flex items-start gap-3">
+          <img src={LETTERHEAD.logoPath} alt="Rillcod Academy logo" className="h-10 w-10 object-contain" />
+          <div>
+            <p className="text-lg font-black text-black">{LETTERHEAD.company}</p>
+            <p className="text-xs text-black/70">{LETTERHEAD.address}</p>
+            <p className="text-xs text-black/70">Support: {LETTERHEAD.supportEmail} · {LETTERHEAD.supportPhone}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-bold text-black">CRM Customer Retention Record</p>
+          <p className="text-xs text-black/70">{new Date().toLocaleString()}</p>
         </div>
       </div>
 
       {/* Pipeline summary bar */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {PIPELINE_STAGES.map(s => {
           const count = contacts.filter(c => c.pipeline_stage === s.value).length;
           return (
@@ -366,10 +441,10 @@ export default function CRMPage() {
       </div>
 
       {/* Main layout */}
-      <div className="flex gap-4 min-h-[600px]">
+      <div className="flex flex-col lg:flex-row gap-4 min-h-[600px]">
 
         {/* ── Left: Contact list ─────────────────────────────────────────────── */}
-        <div className="w-[320px] shrink-0 bg-white/[0.03] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden">
+        <div className="w-full lg:w-[320px] lg:shrink-0 bg-white/[0.03] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden">
 
           {/* Search + filters */}
           <div className="p-3 border-b border-white/[0.06] space-y-2">
@@ -392,8 +467,25 @@ export default function CRMPage() {
             </div>
           </div>
 
+          <div className="mx-3 mb-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-300/80">My overdue tasks</p>
+            {myOverdueTasks.length === 0 ? (
+              <p className="mt-1 text-[11px] text-white/45">No overdue tasks assigned to you.</p>
+            ) : (
+              <div className="mt-1.5 space-y-1.5">
+                {myOverdueTasks.slice(0, 4).map((t) => (
+                  <div key={t.id} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1.5">
+                    <p className="text-[11px] font-bold text-white">{t.contact_name}</p>
+                    <p className="text-[10px] text-white/60">{t.title}</p>
+                    {t.due_at && <p className="text-[10px] text-amber-300/70">Due: {formatDate(t.due_at)}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto max-h-[42vh] lg:max-h-none">
             {contactsLoading ? (
               <div className="flex justify-center p-10">
                 <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
@@ -440,10 +532,10 @@ export default function CRMPage() {
 
         {/* ── Right: Contact detail ──────────────────────────────────────────── */}
         {selectedContact ? (
-          <div className="flex-1 bg-white/[0.03] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden">
+          <div className="w-full flex-1 bg-white/[0.03] border border-white/[0.07] rounded-2xl flex flex-col overflow-hidden">
 
             {/* Contact header */}
-            <div className="px-5 py-4 border-b border-white/[0.06] flex items-start justify-between gap-4">
+            <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex flex-col sm:flex-row items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white shrink-0 ${
                   selectedContact.role === 'student' ? 'bg-emerald-600' : selectedContact.role === 'parent' ? 'bg-orange-600' :
@@ -475,7 +567,7 @@ export default function CRMPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-white/[0.06] px-2">
+            <div className="flex border-b border-white/[0.06] px-2 overflow-x-auto">
               {[
                 { key: 'timeline', label: 'Timeline', count: interactions.length },
                 { key: 'documents', label: 'Documents', count: attachments.length },
@@ -497,6 +589,41 @@ export default function CRMPage() {
               {/* ── TIMELINE TAB ─── */}
               {panel === 'timeline' && (
                 <>
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-white/40 mb-2">Unified timeline (auto-captured)</p>
+                    {unifiedTimeline.length === 0 ? (
+                      <p className="text-xs text-white/30">No auto-captured messages yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[230px] overflow-y-auto pr-1">
+                        {unifiedTimeline.slice(0, 30).map((item) => (
+                          <div key={item.id} className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-2.5 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                  item.channel === 'whatsapp'
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : item.channel === 'inapp'
+                                      ? 'bg-violet-500/20 text-violet-300'
+                                      : 'bg-orange-500/20 text-orange-300'
+                                }`}>
+                                  {item.channel}
+                                </span>
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                  item.direction === 'inbound' ? 'bg-blue-500/15 text-blue-300' : 'bg-orange-500/15 text-orange-300'
+                                }`}>
+                                  {item.direction}
+                                </span>
+                                {item.actor && <span className="text-[10px] text-white/35">by {item.actor}</span>}
+                              </div>
+                              <span className="text-[10px] text-white/25">{formatDate(item.created_at)}</span>
+                            </div>
+                            <p className="text-xs text-white/75 mt-1 whitespace-pre-wrap">{item.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Add interaction */}
                   {!showAddInteraction ? (
                     <button onClick={() => setShowAddInteraction(true)}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { loadCommunicationPolicy } from '@/lib/communication/abusePolicy';
 
 function adminClient() {
   return createClient(
@@ -33,7 +34,13 @@ export async function GET() {
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+  const policy = await loadCommunicationPolicy();
+  return NextResponse.json({
+    data: data ?? [],
+    routing_hint: policy.whatsapp_primary_mode
+      ? 'WhatsApp groups are preferred for large repetitive parent/student updates.'
+      : 'Groups available; in-app channels remain active fallback.',
+  });
 }
 
 // POST /api/whatsapp-groups — create a group
