@@ -66,7 +66,6 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/gamification',
   '/dashboard/moderation',
   '/dashboard/crm',
-  '/dashboard/activity-hub',
   '/dashboard/activity-logs',
   '/dashboard/reports',
   '/dashboard/billing',

@@ -249,6 +249,10 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Community' },
           { name: 'Activity Hub',      href: '/dashboard/activity-hub',    icon: SparklesIcon },
+          { name: 'Community Feed',    href: '/dashboard/engage',          icon: ChatBubbleLeftRightIcon },
+          { name: 'Mission Vault',     href: '/dashboard/vault',           icon: ArchiveBoxIcon },
+          { name: 'Skill Quests',      href: '/dashboard/missions',        icon: RocketLaunchIcon },
+          { name: 'Mastery Protocol',  href: '/dashboard/protocol',        icon: CommandLineIcon },
           { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
           { name: 'Showcase',          href: '/dashboard/showcase',        icon: SignalIcon },
           { name: 'Leaderboard',       href: '/dashboard/leaderboard',     icon: TrophyIcon },
