@@ -17,9 +17,13 @@ type PolicyProgram = {
 type EditablePolicy = {
   strict_route_default: boolean;
   auto_flashcards_default: boolean;
+  project_based_default: boolean;
+  essential_routes_only: boolean;
   mastery_mode: 'strict' | 'soft';
   track_priority: string[];
 };
+
+type ClassOption = { id: string; name: string; schools?: { name?: string } | null };
 
 function toEditablePolicy(program: PolicyProgram): EditablePolicy {
   const policy = program.progression_policy ?? {};
@@ -29,6 +33,8 @@ function toEditablePolicy(program: PolicyProgram): EditablePolicy {
   return {
     strict_route_default: policy.strict_route_default !== false,
     auto_flashcards_default: policy.auto_flashcards_default !== false,
+    project_based_default: policy.project_based_default === true,
+    essential_routes_only: policy.essential_routes_only === true,
     mastery_mode: policy.mastery_mode === 'soft' ? 'soft' : 'strict',
     track_priority: trackPriorityArray,
   };
@@ -42,6 +48,8 @@ export default function ProgressionPoliciesPage() {
   const [form, setForm] = useState<EditablePolicy>({
     strict_route_default: true,
     auto_flashcards_default: true,
+    project_based_default: false,
+    essential_routes_only: false,
     mastery_mode: 'strict',
     track_priority: [],
   });
@@ -51,19 +59,34 @@ export default function ProgressionPoliciesPage() {
   const [enabled, setEnabled] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [pathMode, setPathMode] = useState<'full' | 'milestone'>('full');
+  const [pathSaving, setPathSaving] = useState(false);
 
   useEffect(() => {
     if (!canManage) return;
     setLoading(true);
-    fetch('/api/progression/policies')
-      .then((r) => r.json())
-      .then((j) => {
-        const rows = (j.data ?? []) as PolicyProgram[];
+    (async () => {
+      try {
+        const [policyRes, clsRes] = await Promise.all([
+          fetch('/api/progression/policies'),
+          fetch('/api/classes'),
+        ]);
+        const policyJson = await policyRes.json().catch(() => ({}));
+        const clsJson = await clsRes.json().catch(() => ({}));
+        const rows = (policyJson.data ?? []) as PolicyProgram[];
+        const clsRows = (clsJson.data ?? []) as ClassOption[];
         setPrograms(rows);
+        setClasses(clsRows);
         if (rows.length > 0) setSelectedProgramId(rows[0].id);
-      })
-      .catch(() => toast.error('Failed to load progression policies'))
-      .finally(() => setLoading(false));
+        if (clsRows.length > 0) setSelectedClassId(clsRows[0].id);
+      } catch {
+        toast.error('Failed to load progression policies');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [canManage]);
 
   const selectedProgram = useMemo(
@@ -94,6 +117,8 @@ export default function ProgressionPoliciesPage() {
           school_progression_enabled: enabled,
           strict_route_default: form.strict_route_default,
           auto_flashcards_default: form.auto_flashcards_default,
+          project_based_default: form.project_based_default,
+          essential_routes_only: form.essential_routes_only,
           mastery_mode: form.mastery_mode,
           track_priority: trackPriority,
         }),
@@ -111,6 +136,32 @@ export default function ProgressionPoliciesPage() {
     }
   }
 
+  async function applyPathVisibility(scope: 'one' | 'all') {
+    setPathSaving(true);
+    try {
+      const payload =
+        scope === 'all'
+          ? { apply_to_all: true, mode: pathMode }
+          : { class_id: selectedClassId, mode: pathMode };
+      const res = await fetch('/api/progression/path-visibility', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Save failed');
+      if (scope === 'all') {
+        toast.success(`Path visibility updated for ${json.data?.updated_count ?? 0} classes`);
+      } else {
+        toast.success('Path visibility updated for selected class');
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setPathSaving(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -125,17 +176,43 @@ export default function ProgressionPoliciesPage() {
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
       <div className="bg-card border border-border rounded-2xl p-5">
-        <h1 className="text-xl font-black text-card-foreground">Progression Policy Control Panel</h1>
+        <h1 className="text-xl font-black text-card-foreground">LMS Settings - Progression Policies</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure per-program defaults for generation behavior without manual JSON editing.
+          Configure your LMS progression defaults per program without manual JSON editing.
         </p>
         <div className="mt-3">
-          <a
-            href="/dashboard/progression/analytics"
-            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-          >
-            Open Analytics Dashboard
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/dashboard/progression/settings"
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Open Settings Home
+            </a>
+            <a
+              href="/dashboard/progression/analytics"
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Open Analytics Dashboard
+            </a>
+            <a
+              href="/dashboard/progression/project-registry"
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Open Project Registry
+            </a>
+            <a
+              href="/dashboard/progression/audit"
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Open Audit Log
+            </a>
+            <a
+              href="/dashboard/progression/marker-integrity"
+              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Open Marker Integrity
+            </a>
+          </div>
         </div>
       </div>
 
@@ -180,6 +257,103 @@ export default function ProgressionPoliciesPage() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-border bg-background/50 p-3 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">Quick mode toggles</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryType('optional');
+                setEnabled(true);
+                setForm((f) => ({ ...f, project_based_default: false, essential_routes_only: false }));
+              }}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Optional mode
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryType('compulsory');
+                setEnabled(true);
+                setForm((f) => ({ ...f, project_based_default: false, essential_routes_only: true }));
+              }}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Compulsory mode
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryType('optional');
+                setEnabled(true);
+                setForm((f) => ({ ...f, project_based_default: true, essential_routes_only: false }));
+              }}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            >
+              Project-based mode
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-background/50 p-3 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">
+            Student/Parent Path Visibility
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Choose what path detail students and parents can see.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">
+                Mode
+              </label>
+              <select
+                value={pathMode}
+                onChange={(e) => setPathMode(e.target.value === 'milestone' ? 'milestone' : 'full')}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              >
+                <option value="full">Full details</option>
+                <option value="milestone">Milestone only</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">
+                One class
+              </label>
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
+              >
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.schools?.name ? ` (${c.schools.name})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => applyPathVisibility('one')}
+              disabled={pathSaving || !selectedClassId}
+              className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30 disabled:opacity-50"
+            >
+              Apply to one class
+            </button>
+            <button
+              type="button"
+              onClick={() => applyPathVisibility('all')}
+              disabled={pathSaving}
+              className="px-3 py-2 text-xs font-bold rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 disabled:opacity-50"
+            >
+              Apply to all classes
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -205,7 +379,34 @@ export default function ProgressionPoliciesPage() {
             />
             Auto Flashcards Default
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.project_based_default}
+              onChange={(e) => setForm((f) => ({ ...f, project_based_default: e.target.checked }))}
+            />
+            Project-based by default
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.essential_routes_only}
+              onChange={(e) => setForm((f) => ({ ...f, essential_routes_only: e.target.checked }))}
+            />
+            Essential routes only
+          </label>
         </div>
+
+        <details className="rounded-xl border border-border bg-card/50 p-3">
+          <summary className="cursor-pointer text-xs font-black uppercase tracking-widest text-muted-foreground">
+            Advanced details
+          </summary>
+          <div className="mt-2 text-xs text-muted-foreground space-y-1">
+            <p>Database: <code>programs.delivery_type</code>, <code>programs.progression_policy</code></p>
+            <p>API: <code>GET/PUT /api/progression/policies</code></p>
+            <p>Route behavior keys: <code>strict_route_default</code>, <code>essential_routes_only</code></p>
+          </div>
+        </details>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

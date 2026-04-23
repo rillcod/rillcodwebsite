@@ -103,6 +103,7 @@ function AddLessonPageContent() {
     order_index: '',
     content_layout: [] as any[]
   });
+  const requiresPlanGate = !curriculumSource && !termPlanId;
 
   // Initialize form from curriculum / syllabus deep links (URL or sessionStorage for large plans)
   useEffect(() => {
@@ -396,6 +397,10 @@ function AddLessonPageContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (requiresPlanGate) {
+      setError('Create this lesson from a term lesson plan first (Syllabus -> Lesson Plan -> Lesson).');
+      return;
+    }
     if (!form.title.trim() || !form.course_id) {
       setError('Title and course are required.');
       return;
@@ -569,7 +574,7 @@ function AddLessonPageContent() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || requiresPlanGate}
             className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-bold text-sm rounded-none shadow-lg shadow-orange-900/30 transition-all disabled:opacity-50 touch-manipulation"
           >
             {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> : <Save className="w-4 h-4" aria-hidden />}
@@ -608,6 +613,21 @@ function AddLessonPageContent() {
                 View plan →
               </Link>
             </div>
+          </div>
+        )}
+
+        {requiresPlanGate && (
+          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none">
+            <p className="text-sm font-black text-rose-300 uppercase tracking-widest">Lesson plan required first</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Hard progression gate is active: create/select a term lesson plan before adding lessons.
+            </p>
+            <Link
+              href={form.course_id ? `/dashboard/lesson-plans?course_id=${encodeURIComponent(form.course_id)}` : '/dashboard/lesson-plans'}
+              className="inline-flex mt-3 px-3 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-widest hover:bg-rose-500/30"
+            >
+              Open lesson plans
+            </Link>
           </div>
         )}
 

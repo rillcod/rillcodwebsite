@@ -148,6 +148,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     sqlMigrations: [
       '20260501000013_term_schedules.sql',
       '20260422000010_progression_lock_audit.sql',
+      '20260422000011_progression_marker_uniques.sql',
       '20260622000001_school_progression_policy.sql',
       '20260622000002_progression_engine.sql',
     ],
@@ -155,10 +156,14 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
       'POST /api/lesson-plans/[id]/generate-progression',
       'PATCH /api/lesson-plans/[id] (progression_term_status_update)',
       'GET /api/cron/term-scheduler (release weeks)',
+      'GET /api/progression/audit',
+      'GET /api/progression/marker-integrity',
     ],
     appPaths: [
       { label: 'Lesson plans (link syllabus, then generate progression)', path: '/dashboard/lesson-plans' },
       { label: 'Student progression (end of term / promote)', path: '/dashboard/progression' },
+      { label: 'Progression audit log', path: '/dashboard/progression/audit' },
+      { label: 'Marker integrity monitor', path: '/dashboard/progression/marker-integrity' },
     ],
     codeRefs: ['src/lib/progression/termStatus.ts', 'src/app/api/lesson-plans/[id]/generate-progression/route.ts'],
   },
@@ -195,10 +200,17 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     title: 'Assignments, projects, CBT, flashcards',
     purpose: 'Content types generated from the same week topic — metadata often stores curriculum_id + week.',
     db: [{ name: 'public.assignments' }, { name: '… (domain-specific tables)' }],
-    sqlMigrations: ['(see 20260501000058_expand_lesson_types.sql, etc.)'],
-    apiRoutes: ['/api/assignments (and related)'],
+    sqlMigrations: [
+      '20260422000003_seed_platform_progression_projects.sql',
+      '20260422000005_seed_jss_ss_projects.sql',
+      '20260422000009_seed_incremental_weekly_topics.sql',
+      '20260422000012_seed_grade_specific_progression.sql',
+      '(plus 20260501000058_expand_lesson_types.sql and related)',
+    ],
+    apiRoutes: ['/api/assignments (and related)', '/api/curriculum-projects'],
     appPaths: [
       { label: 'Curriculum → Generate tab', path: '/dashboard/curriculum?tab=generate' },
+      { label: 'Project seed registry (CRUD)', path: '/dashboard/progression/project-registry' },
     ],
   },
 ];

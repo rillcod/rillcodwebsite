@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { loadCommunicationPolicy } from '@/lib/communication/abusePolicy';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +105,7 @@ export async function POST(
           }, { status: 400 });
       }
     
+      const policy = await loadCommunicationPolicy();
       const prefixName = caller.full_name ? caller.full_name.split(' ')[0] : 'Teacher';
       const formattedMessage = `*[Rillcod: ${cls.name}]*\n_${prefixName} says:_ \n\n${body.text}`;
     
@@ -163,7 +165,13 @@ export async function POST(
         reachable_students: reachableStudents.length,
         messages_sent: successCount,
         failures: failureCount,
-        message: `WhatsApp broadcast sent to ${successCount} out of ${reachableStudents.length} reachable students (${students.length} total enrolled)`
+        message: `WhatsApp broadcast sent to ${successCount} out of ${reachableStudents.length} reachable students (${students.length} total enrolled)`,
+        routing_hint: {
+          channel: 'broadcast',
+          recommendation: policy.whatsapp_primary_mode
+            ? 'WhatsApp broadcast is the preferred scale channel for class-wide updates.'
+            : 'Use in-app announcement fallback if WhatsApp quota becomes constrained.',
+        },
       });
   } catch (err: any) {
       console.error('Broadcast error:', err);

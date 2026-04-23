@@ -168,16 +168,23 @@ export default function ProgressionPage() {
         </div>
       )}
 
-      {/* School curriculum route (separate from term-end student promotion above) */}
+      {/* LMS settings tools (separate from term-end student promotion above) */}
       {(profile.role === 'admin' || profile.role === 'teacher' || profile.role === 'school') && (
         <div className="p-4 rounded-xl border border-violet-500/25 bg-violet-500/5">
           <p className="text-xs font-black uppercase tracking-widest text-violet-300/90 mb-2">
-            School curriculum — weekly / term route
+            LMS settings and controls
           </p>
           <p className="text-sm text-muted-foreground mb-3">
-            Policies, generated week-by-week content, and analytics live here. Open a published lesson plan to run generation. This is not the same as student promote/repeat below.
+            These are your system settings for progression delivery: policy defaults, project seeds, audit trail, and marker integrity checks.
+            Open a published lesson plan to run generation. This is separate from student promote/repeat below.
           </p>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/progression/settings"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-500/25 border border-violet-400/40 text-violet-100 hover:bg-violet-500/35 transition-colors"
+            >
+              LMS settings home
+            </Link>
             <Link
               href="/dashboard/progression/policies"
               className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
@@ -185,10 +192,40 @@ export default function ProgressionPage() {
               Progression policies
             </Link>
             <Link
+              href="/dashboard/progression/operations"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Operations control center
+            </Link>
+            <Link
               href="/dashboard/progression/analytics"
               className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
             >
               Progression analytics
+            </Link>
+            <Link
+              href="/dashboard/progression/project-registry"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Project seed registry
+            </Link>
+            <Link
+              href="/dashboard/progression/audit"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Audit log
+            </Link>
+            <Link
+              href="/dashboard/progression/marker-integrity"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              Integrity check
+            </Link>
+            <Link
+              href="/dashboard/progression/qa-spine-catalog"
+              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
+            >
+              QA spine catalog
             </Link>
             <Link
               href="/dashboard/lesson-plans"

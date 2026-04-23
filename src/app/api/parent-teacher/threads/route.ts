@@ -11,6 +11,9 @@ export async function GET(req: NextRequest) {
 
   const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
   const role = profile?.role;
+  if (!['parent', 'teacher', 'admin', 'school'].includes(role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   let query = supabase
     .from('parent_teacher_threads')

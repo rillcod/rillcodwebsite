@@ -82,13 +82,24 @@ export default function ProgressionAnalyticsPage() {
         <div>
           <h1 className="text-xl font-black text-card-foreground flex items-center gap-2">
             <ChartBarIcon className="w-5 h-5 text-violet-400" />
-            Progression Analytics
+            LMS Settings - Progression Analytics
           </h1>
           <p className="text-sm text-muted-foreground mt-1">School-level metrics, class and student drilldown, and weak-topic heatmap.</p>
         </div>
-        <Link href="/dashboard/progression/policies" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">
-          Policy Controls
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/progression/settings" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">
+            Settings Home
+          </Link>
+          <Link href="/dashboard/progression/policies" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">
+            Policy Controls
+          </Link>
+          <Link href="/dashboard/progression/project-registry" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">
+            Project Registry
+          </Link>
+          <Link href="/dashboard/progression/marker-integrity" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">
+            Marker Integrity
+          </Link>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-5 gap-2">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { evaluateAndTrackMessage } from '@/lib/communication/abusePolicy';
 
 function adminClient() {
   return createClient(
@@ -136,6 +137,25 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
+    const policy = await evaluateAndTrackMessage({
+      senderId: caller.id,
+      senderRole: (caller.role ?? 'teacher') as 'student' | 'parent' | 'teacher' | 'admin' | 'school',
+      channel: 'whatsapp_direct',
+      message: message.trim(),
+      targetConversationId: conversation_id,
+    });
+    if (!policy.allowed) {
+      return NextResponse.json(
+        {
+          error: policy.reason ?? 'Message blocked by safety policy',
+          cooldown_remaining_seconds: policy.cooldownRemainingSeconds ?? null,
+          remaining_daily: policy.remainingDaily ?? null,
+          recommendation: policy.recommendation ?? 'none',
+        },
+        { status: policy.cooldownRemainingSeconds ? 429 : 403 },
+      );
+    }
+
     // Try to send via WhatsApp Business API
     const whatsappResult = await sendWhatsAppMessage(
       conversation.phone_number,
@@ -193,7 +213,11 @@ export async function POST(req: NextRequest) {
         success: true, 
         data: newMessage,
         whatsapp_status: 'sent',
-        message: 'Message sent via WhatsApp Business API'
+        message: 'Message sent via WhatsApp Business API',
+        policy: {
+          remaining_daily: policy.remainingDaily ?? null,
+          recommendation: policy.recommendation ?? 'none',
+        },
       });
     } else {
       const isNotWhatsAppUser = whatsappResult.isNotWhatsAppUser || whatsappResult.reason === 'not_whatsapp_user';
@@ -212,7 +236,11 @@ export async function POST(req: NextRequest) {
           : isRateLimitError
           ? `⚠️ Rate limit reached! You've hit WhatsApp's message limit (1,000 conversations/month or 250 messages/day). Message saved but not sent. Consider upgrading to paid tier.`
           : `Message saved but WhatsApp API failed: ${whatsappResult.error || whatsappResult.reason}. You can send manually via wa.me link.`,
-        fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(message.trim())}`
+        fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(message.trim())}`,
+        policy: {
+          remaining_daily: policy.remainingDaily ?? null,
+          recommendation: policy.recommendation ?? 'none',
+        },
       });
     }
   } catch (err: any) {

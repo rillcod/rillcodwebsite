@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import type { Database } from '@/types/supabase';
 
 function adminClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
@@ -22,7 +23,7 @@ async function requireStaff() {
   return profile;
 }
 
-async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null, role: string) {
+async function getTeacherSchoolIds(admin: ReturnType<typeof adminClient>, teacherId: string, fallbackSchoolId: string | null, role: string) {
   if (role === 'school' && fallbackSchoolId) return [fallbackSchoolId];
   const ids = new Set<string>();
   if (fallbackSchoolId) ids.add(fallbackSchoolId);
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
   const admin = adminClient();
   const allowedSchoolIds =
     caller.role !== 'admin'
-      ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null, caller.role)
+      ? await getTeacherSchoolIds(admin, caller.id, caller.school_id ?? null, caller.role)
       : [];
 
   if (payload.student_id && caller.role !== 'admin') {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       .select('school_id')
       .eq('id', String(payload.student_id))
       .maybeSingle();
-    const studentSchoolId = (student as any)?.school_id as string | null;
+    const studentSchoolId = student?.school_id ?? null;
     if (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId)) {
       return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
     }
