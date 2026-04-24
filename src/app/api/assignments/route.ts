@@ -78,8 +78,11 @@ export async function GET(request: NextRequest) {
       if (caller.school_name) orParts.push(`school_name.eq.${caller.school_name}`);
       if (orParts.length > 0) query = query.or(orParts.join(',')) as any;
     } else if (caller.role === 'student') {
-      // Active project-type assignments only; full filtering done below
-      query = query.eq('is_active', true).eq('assignment_type', 'project') as any;
+      // All active assignments scoped to student's school; visibility filtering done below
+      query = query.eq('is_active', true) as any;
+      if (caller.school_id) {
+        query = query.eq('school_id', caller.school_id) as any;
+      }
     }
 
     const { data, error } = await query;
