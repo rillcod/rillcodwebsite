@@ -80,7 +80,7 @@ export async function GET(
           .in('card_id', cardIds)
       : { data: [] as FlashcardReviewRow[] };
 
-    const reviewByCardId = new Map<string, FlashcardReviewRow>((reviews ?? []).map((review) => [review.card_id, review]));
+    const reviewByCardId = new Map((reviews ?? []).map((review) => [review.card_id, review]));
 
     // Process cards to determine due status
     const now = new Date();
