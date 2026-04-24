@@ -149,7 +149,59 @@ export async function fetchStudentAssignments(portalUserId: string) {
             assignments: a,
         }));
 
-    return [...(subs ?? []), ...unsubmitted];
+    // 6. Fetch active CBT exams scoped to student's enrolled programs
+    const now = new Date().toISOString();
+    let cbtQuery = client
+        .from('cbt_exams')
+        .select('id, title, description, duration_minutes, passing_score, end_date, program_id, course_id, courses(title, programs(name))')
+        .eq('is_active', true)
+        .or(`start_date.is.null,start_date.lte.${now}`)
+        .or(`end_date.is.null,end_date.gte.${now}`);
+    if (programIds.length > 0) {
+        cbtQuery = (cbtQuery as any).or(`program_id.in.(${programIds.join(',')}),program_id.is.null`);
+    } else {
+        cbtQuery = (cbtQuery as any).is('program_id', null);
+    }
+    const { data: cbtExams } = await cbtQuery;
+
+    // 7. Fetch student's CBT sessions to map attempt status
+    const cbtExamIds = (cbtExams ?? []).map((e: any) => e.id);
+    let cbtSessions: any[] = [];
+    if (cbtExamIds.length > 0) {
+        const { data: sessions } = await client
+            .from('cbt_sessions')
+            .select('id, exam_id, score, status, end_time')
+            .eq('user_id', portalUserId)
+            .in('exam_id', cbtExamIds);
+        cbtSessions = sessions ?? [];
+    }
+    const sessionByExam = new Map(cbtSessions.map((s: any) => [s.exam_id, s]));
+
+    // 8. Map CBT exams into unified submission-shaped records
+    const cbtItems = (cbtExams ?? []).map((exam: any) => {
+        const session = sessionByExam.get(exam.id);
+        return {
+            id: `cbt-${exam.id}`,
+            assignment_id: exam.id,
+            status: session ? 'submitted' : 'missing',
+            grade: session?.score ?? null,
+            feedback: null,
+            submitted_at: session?.end_time ?? null,
+            graded_at: null,
+            file_url: null,
+            assignments: {
+                id: exam.id,
+                title: exam.title,
+                description: exam.description,
+                due_date: exam.end_date ?? null,
+                max_points: 100,
+                assignment_type: 'cbt',
+                courses: exam.courses ?? null,
+            },
+        };
+    });
+
+    return [...(subs ?? []), ...unsubmitted, ...cbtItems];
 }
 
 // ── GRADES ────────────────────────────────────────────────────
