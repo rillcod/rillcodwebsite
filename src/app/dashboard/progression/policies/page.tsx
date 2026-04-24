@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowPathIcon } from '@/lib/icons';
+import { ArrowPathIcon, ArrowLeftIcon } from '@/lib/icons';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 type PolicyProgram = {
@@ -52,6 +53,22 @@ function toEditablePolicy(program: PolicyProgram): EditablePolicy {
   };
 }
 
+function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer group">
+      <div className="relative mt-0.5 shrink-0">
+        <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
+        <div className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-violet-600' : 'bg-muted'}`} />
+        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-4' : ''}`} />
+      </div>
+      <div>
+        <p className="text-sm font-bold text-foreground group-hover:text-violet-300 transition-colors">{label}</p>
+        {hint && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{hint}</p>}
+      </div>
+    </label>
+  );
+}
+
 export default function ProgressionPoliciesPage() {
   const { profile, loading: authLoading } = useAuth();
   const canManage = ['teacher', 'admin'].includes(profile?.role ?? '');
@@ -71,7 +88,6 @@ export default function ProgressionPoliciesPage() {
     qa_exam_drift_mode: 'fail',
     qa_five_step_mode: 'warn',
   });
-  const [newTrack, setNewTrack] = useState('');
   const [deliveryType, setDeliveryType] = useState<'optional' | 'compulsory'>('compulsory');
   const [frequency, setFrequency] = useState<1 | 2>(1);
   const [enabled, setEnabled] = useState<boolean>(true);
@@ -100,7 +116,7 @@ export default function ProgressionPoliciesPage() {
         if (rows.length > 0) setSelectedProgramId(rows[0].id);
         if (clsRows.length > 0) setSelectedClassId(clsRows[0].id);
       } catch {
-        toast.error('Failed to load progression policies');
+        toast.error('Failed to load policies');
       } finally {
         setLoading(false);
       }
@@ -124,7 +140,6 @@ export default function ProgressionPoliciesPage() {
     if (!selectedProgram) return;
     setSaving(true);
     try {
-      const trackPriority = form.track_priority.filter(Boolean);
       const res = await fetch('/api/progression/policies', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +153,7 @@ export default function ProgressionPoliciesPage() {
           project_based_default: form.project_based_default,
           essential_routes_only: form.essential_routes_only,
           mastery_mode: form.mastery_mode,
-          track_priority: trackPriority,
+          track_priority: form.track_priority.filter(Boolean),
           qa_min_pass_score: form.qa_min_pass_score,
           qa_required_teacher_steps: form.qa_required_teacher_steps,
           qa_required_student_steps: form.qa_required_student_steps,
@@ -149,10 +164,8 @@ export default function ProgressionPoliciesPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Save failed');
-      setPrograms((prev) =>
-        prev.map((p) => (p.id === selectedProgram.id ? (json.data as PolicyProgram) : p)),
-      );
-      toast.success('Progression policy saved');
+      setPrograms(prev => prev.map(p => p.id === selectedProgram.id ? (json.data as PolicyProgram) : p));
+      toast.success('Settings saved for ' + selectedProgram.name);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -163,10 +176,9 @@ export default function ProgressionPoliciesPage() {
   async function applyPathVisibility(scope: 'one' | 'all') {
     setPathSaving(true);
     try {
-      const payload =
-        scope === 'all'
-          ? { apply_to_all: true, mode: pathMode }
-          : { class_id: selectedClassId, mode: pathMode };
+      const payload = scope === 'all'
+        ? { apply_to_all: true, mode: pathMode }
+        : { class_id: selectedClassId, mode: pathMode };
       const res = await fetch('/api/progression/path-visibility', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -174,11 +186,9 @@ export default function ProgressionPoliciesPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Save failed');
-      if (scope === 'all') {
-        toast.success(`Path visibility updated for ${json.data?.updated_count ?? 0} classes`);
-      } else {
-        toast.success('Path visibility updated for selected class');
-      }
+      toast.success(scope === 'all'
+        ? `Updated ${json.data?.updated_count ?? 0} classes`
+        : 'Updated selected class');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -186,424 +196,291 @@ export default function ProgressionPoliciesPage() {
     }
   }
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-  if (!canManage) {
-    return <div className="p-6 text-sm text-muted-foreground">Teacher/Admin access required.</div>;
-  }
+  if (authLoading || loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!canManage) return (
+    <div className="p-6 text-sm text-muted-foreground">Teacher or Admin access required.</div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5">
+
+      {/* Header */}
       <div className="bg-card border border-border rounded-2xl p-5">
-        <h1 className="text-xl font-black text-card-foreground">LMS Settings - Progression Policies</h1>
+        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground mb-3">
+          <ArrowLeftIcon className="w-4 h-4" /> Back to LMS Settings
+        </Link>
+        <h1 className="text-xl font-black">Program Rules</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure your LMS progression defaults per program without manual JSON editing.
+          Control how each program runs — how often classes meet, how students unlock content, and what gets checked automatically.
         </p>
-        <div className="mt-3">
-          <div className="flex flex-wrap gap-2">
-            <a
-              href="/dashboard/progression/settings"
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Open Settings Home
-            </a>
-            <a
-              href="/dashboard/progression/analytics"
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Open Analytics Dashboard
-            </a>
-            <a
-              href="/dashboard/progression/project-registry"
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Open Project Registry
-            </a>
-            <a
-              href="/dashboard/progression/audit"
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Open Audit Log
-            </a>
-            <a
-              href="/dashboard/progression/marker-integrity"
-              className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Open Marker Integrity
-            </a>
-          </div>
-        </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <div>
-          <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Program</label>
-          <select
-            value={selectedProgramId}
-            onChange={(e) => setSelectedProgramId(e.target.value)}
-            className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-          >
-            {programs.map((program) => (
-              <option key={program.id} value={program.id}>
-                {program.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Program picker */}
+      <div className="bg-card border border-border rounded-2xl p-5 space-y-2">
+        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Which program are you setting rules for?</label>
+        <select
+          title="Select program"
+          value={selectedProgramId}
+          onChange={e => setSelectedProgramId(e.target.value)}
+          className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+        >
+          {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {programs.length === 0 && (
+          <p className="text-xs text-amber-400">No programs found. <Link href="/dashboard/programs" className="underline">Create a program first.</Link></p>
+        )}
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Delivery Mode Default</label>
-            <select
-              value={deliveryType}
-              onChange={(e) => setDeliveryType(e.target.value === 'optional' ? 'optional' : 'compulsory')}
-              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-            >
-              <option value="compulsory">Compulsory</option>
-              <option value="optional">Optional</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Session Frequency / Week</label>
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value === '2' ? 2 : 1)}
-              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-            >
-              <option value="1">1</option>
-              <option value="2">2</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-background/50 p-3 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">Quick mode toggles</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setDeliveryType('optional');
-                setEnabled(true);
-                setForm((f) => ({ ...f, project_based_default: false, essential_routes_only: false }));
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Optional mode
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDeliveryType('compulsory');
-                setEnabled(true);
-                setForm((f) => ({ ...f, project_based_default: false, essential_routes_only: true }));
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Compulsory mode
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDeliveryType('optional');
-                setEnabled(true);
-                setForm((f) => ({ ...f, project_based_default: true, essential_routes_only: false }));
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-            >
-              Project-based mode
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-background/50 p-3 space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">
-            Student/Parent Path Visibility
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Choose what path detail students and parents can see.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {selectedProgram && (
+        <>
+          {/* Basic setup */}
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">
-                Mode
-              </label>
-              <select
-                value={pathMode}
-                onChange={(e) => setPathMode(e.target.value === 'milestone' ? 'milestone' : 'full')}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              >
-                <option value="full">Full details</option>
-                <option value="milestone">Milestone only</option>
-              </select>
+              <p className="text-sm font-black text-foreground">Basic Setup</p>
+              <p className="text-xs text-muted-foreground mt-0.5">The fundamentals — is this program required, and how often do students attend?</p>
             </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">
-                One class
-              </label>
-              <select
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.schools?.name ? ` (${c.schools.name})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => applyPathVisibility('one')}
-              disabled={pathSaving || !selectedClassId}
-              className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30 disabled:opacity-50"
-            >
-              Apply to one class
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPathVisibility('all')}
-              disabled={pathSaving}
-              className="px-3 py-2 text-xs font-bold rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 disabled:opacity-50"
-            >
-              Apply to all classes
-            </button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Toggle
               checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
+              onChange={setEnabled}
+              label="This program is active"
+              hint="Turn off to pause progression tracking for this program without deleting anything."
             />
-            Progression Enabled
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.strict_route_default}
-              onChange={(e) => setForm((f) => ({ ...f, strict_route_default: e.target.checked }))}
-            />
-            Strict Route Default
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.auto_flashcards_default}
-              onChange={(e) => setForm((f) => ({ ...f, auto_flashcards_default: e.target.checked }))}
-            />
-            Auto Flashcards Default
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.project_based_default}
-              onChange={(e) => setForm((f) => ({ ...f, project_based_default: e.target.checked }))}
-            />
-            Project-based by default
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.essential_routes_only}
-              onChange={(e) => setForm((f) => ({ ...f, essential_routes_only: e.target.checked }))}
-            />
-            Essential routes only
-          </label>
-        </div>
 
-        <details className="rounded-xl border border-border bg-card/50 p-3">
-          <summary className="cursor-pointer text-xs font-black uppercase tracking-widest text-muted-foreground">
-            Advanced details
-          </summary>
-          <div className="mt-2 text-xs text-muted-foreground space-y-1">
-            <p>Database: <code>programs.delivery_type</code>, <code>programs.progression_policy</code></p>
-            <p>API: <code>GET/PUT /api/progression/policies</code></p>
-            <p>Route behavior keys: <code>strict_route_default</code>, <code>essential_routes_only</code></p>
-          </div>
-        </details>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Mastery Mode</label>
-            <select
-              value={form.mastery_mode}
-              onChange={(e) => setForm((f) => ({ ...f, mastery_mode: e.target.value === 'soft' ? 'soft' : 'strict' }))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-            >
-              <option value="strict">Strict unlock</option>
-              <option value="soft">Soft unlock</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Track Priority</label>
-            <div className="space-y-2">
-              {form.track_priority.map((track, idx) => (
-                <div key={`${track}-${idx}`} className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-sm">{track}</div>
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => {
-                      if (idx === 0) return f;
-                      const next = [...f.track_priority];
-                      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-                      return { ...f, track_priority: next };
-                    })}
-                    className="px-2 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => {
-                      if (idx >= f.track_priority.length - 1) return f;
-                      const next = [...f.track_priority];
-                      [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
-                      return { ...f, track_priority: next };
-                    })}
-                    className="px-2 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({
-                      ...f,
-                      track_priority: f.track_priority.filter((_, i) => i !== idx),
-                    }))}
-                    className="px-2 py-2 text-xs font-bold rounded-lg border border-rose-500/40 text-rose-300 hover:bg-rose-500/10"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <input
-                  value={newTrack}
-                  onChange={(e) => setNewTrack(e.target.value)}
-                  placeholder="Add track id (e.g., young_innovator)"
-                  className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const value = newTrack.trim();
-                    if (!value) return;
-                    setForm((f) => ({
-                      ...f,
-                      track_priority: f.track_priority.includes(value)
-                        ? f.track_priority
-                        : [...f.track_priority, value],
-                    }));
-                    setNewTrack('');
-                  }}
-                  className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Is this program required or optional?</label>
+                <select
+                  title="Delivery type"
+                  value={deliveryType}
+                  onChange={e => setDeliveryType(e.target.value === 'optional' ? 'optional' : 'compulsory')}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
                 >
-                  Add
-                </button>
+                  <option value="compulsory">Required — all students must complete it</option>
+                  <option value="optional">Optional — students choose to join</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">How many sessions per week?</label>
+                <select
+                  title="Session frequency"
+                  value={frequency}
+                  onChange={e => setFrequency(e.target.value === '2' ? 2 : 1)}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  <option value="1">Once a week</option>
+                  <option value="2">Twice a week</option>
+                </select>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-xl border border-border bg-background/50 p-4 space-y-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-violet-300">Syllabus QA Controls</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Define what your QA layer should enforce for coverage, 5-step structure, and syllabus rhythm drift.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* How students move through content */}
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Minimum Pass Score</label>
-              <input
-                type="number"
-                min={40}
-                max={100}
-                value={form.qa_min_pass_score}
-                onChange={(e) => setForm((f) => ({ ...f, qa_min_pass_score: Math.min(100, Math.max(40, Number(e.target.value || 75))) }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              />
+              <p className="text-sm font-black text-foreground">How Students Move Through Content</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Control whether students must pass each step before moving on, or can browse freely.</p>
             </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Teacher Steps Required</label>
-              <input
-                type="number"
-                min={1}
-                max={8}
-                value={form.qa_required_teacher_steps}
-                onChange={(e) => setForm((f) => ({ ...f, qa_required_teacher_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Student Steps Required</label>
-              <input
-                type="number"
-                min={1}
-                max={8}
-                value={form.qa_required_student_steps}
-                onChange={(e) => setForm((f) => ({ ...f, qa_required_student_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Assessment Drift Mode</label>
-              <select
-                value={form.qa_assessment_drift_mode}
-                onChange={(e) => setForm((f) => ({ ...f, qa_assessment_drift_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              >
-                <option value="warn">Warn</option>
-                <option value="fail">Fail</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">Exam Drift Mode</label>
-              <select
-                value={form.qa_exam_drift_mode}
-                onChange={(e) => setForm((f) => ({ ...f, qa_exam_drift_mode: e.target.value === 'warn' ? 'warn' : 'fail' }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              >
-                <option value="fail">Fail</option>
-                <option value="warn">Warn</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">5-Step Break Mode</label>
-              <select
-                value={form.qa_five_step_mode}
-                onChange={(e) => setForm((f) => ({ ...f, qa_five_step_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
-                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm"
-              >
-                <option value="warn">Warn</option>
-                <option value="fail">Fail</option>
-              </select>
-            </div>
-          </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={savePolicy}
-          disabled={saving || !selectedProgram}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl"
-        >
-          {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-          Save Policy
-        </button>
-      </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Content unlocking</label>
+              <select
+                title="Mastery mode"
+                value={form.mastery_mode}
+                onChange={e => setForm(f => ({ ...f, mastery_mode: e.target.value === 'soft' ? 'soft' : 'strict' }))}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+              >
+                <option value="strict">Locked — students must pass each lesson to unlock the next</option>
+                <option value="soft">Open — students can browse all content freely</option>
+              </select>
+            </div>
+
+            <Toggle
+              checked={form.strict_route_default}
+              onChange={v => setForm(f => ({ ...f, strict_route_default: v }))}
+              label="Follow the set learning path"
+              hint="Students follow lessons in the order you set. Turn off to let them jump around."
+            />
+
+            <Toggle
+              checked={form.essential_routes_only}
+              onChange={v => setForm(f => ({ ...f, essential_routes_only: v }))}
+              label="Core lessons only"
+              hint="Only show the essential lessons — hide bonus and extension content. Good for tight schedules."
+            />
+
+            <Toggle
+              checked={form.auto_flashcards_default}
+              onChange={v => setForm(f => ({ ...f, auto_flashcards_default: v }))}
+              label="Auto-create flashcards from lessons"
+              hint="When a lesson is generated, flashcard decks are created automatically for students to review."
+            />
+
+            <Toggle
+              checked={form.project_based_default}
+              onChange={v => setForm(f => ({ ...f, project_based_default: v }))}
+              label="Project-based learning"
+              hint="Lessons are built around hands-on projects rather than traditional step-by-step lessons."
+            />
+          </div>
+
+          {/* Grading & quality checks */}
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+            <div>
+              <p className="text-sm font-black text-foreground">Grading & Quality Checks</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Set the minimum score to pass, and how strictly the system checks lesson structure.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Minimum pass score (%)</label>
+                <input
+                  type="number"
+                  title="Minimum pass score"
+                  min={40} max={100}
+                  value={form.qa_min_pass_score}
+                  onChange={e => setForm(f => ({ ...f, qa_min_pass_score: Math.min(100, Math.max(40, Number(e.target.value || 75))) }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">Students need this score to pass a lesson or assessment.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Teacher steps per lesson</label>
+                <input
+                  type="number"
+                  title="Teacher steps required"
+                  min={1} max={8}
+                  value={form.qa_required_teacher_steps}
+                  onChange={e => setForm(f => ({ ...f, qa_required_teacher_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">How many teaching steps a lesson must have (e.g. intro, explain, practice…).</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Student steps per lesson</label>
+                <input
+                  type="number"
+                  title="Student steps required"
+                  min={1} max={8}
+                  value={form.qa_required_student_steps}
+                  onChange={e => setForm(f => ({ ...f, qa_required_student_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">How many student activity steps a lesson must include.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If assessments drift off-topic</label>
+                <select
+                  title="Assessment drift mode"
+                  value={form.qa_assessment_drift_mode}
+                  onChange={e => setForm(f => ({ ...f, qa_assessment_drift_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  <option value="warn">Show a warning but allow it</option>
+                  <option value="fail">Block it — must be fixed first</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If exams drift off-topic</label>
+                <select
+                  title="Exam drift mode"
+                  value={form.qa_exam_drift_mode}
+                  onChange={e => setForm(f => ({ ...f, qa_exam_drift_mode: e.target.value === 'warn' ? 'warn' : 'fail' }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  <option value="fail">Block it — must be fixed first</option>
+                  <option value="warn">Show a warning but allow it</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If a lesson is missing steps</label>
+                <select
+                  title="5-step break mode"
+                  value={form.qa_five_step_mode}
+                  onChange={e => setForm(f => ({ ...f, qa_five_step_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  <option value="warn">Show a warning but allow it</option>
+                  <option value="fail">Block it — must be fixed first</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* What students & parents can see */}
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+            <div>
+              <p className="text-sm font-black text-foreground">What Students & Parents Can See</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Control how much of the learning path is visible to students and parents.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Visibility level</label>
+                <select
+                  title="Path visibility mode"
+                  value={pathMode}
+                  onChange={e => setPathMode(e.target.value === 'milestone' ? 'milestone' : 'full')}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  <option value="full">Full — show all lessons and weeks</option>
+                  <option value="milestone">Milestones only — show key checkpoints, not every lesson</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Apply to one class</label>
+                <select
+                  title="Select class"
+                  value={selectedClassId}
+                  onChange={e => setSelectedClassId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                >
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}{c.schools?.name ? ` (${c.schools.name})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => applyPathVisibility('one')}
+                disabled={pathSaving || !selectedClassId}
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-border hover:bg-muted/30 disabled:opacity-50"
+              >
+                Apply to this class
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPathVisibility('all')}
+                disabled={pathSaving}
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 disabled:opacity-50"
+              >
+                Apply to all classes
+              </button>
+            </div>
+          </div>
+
+          {/* Save */}
+          <button
+            type="button"
+            onClick={savePolicy}
+            disabled={saving}
+            className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2"
+          >
+            {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
+            Save rules for {selectedProgram.name}
+          </button>
+        </>
+      )}
     </div>
   );
 }

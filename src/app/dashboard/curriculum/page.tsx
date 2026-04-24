@@ -1406,6 +1406,27 @@ export default function CurriculumPage() {
                 );
               })}
             </select>
+            {curriculum?.id && canGenerate && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm('Delete this syllabus copy and all its week tracking? This cannot be undone.')) return;
+                  const res = await fetch(`/api/curricula/${curriculum.id}`, { method: 'DELETE' });
+                  if (res.ok) {
+                    setCurriculum(null);
+                    setCurriculumList(prev => prev.filter(c => c.id !== curriculum.id));
+                    setTracking([]);
+                  } else {
+                    const j = await res.json().catch(() => ({}));
+                    alert(j.error ?? 'Delete failed');
+                  }
+                }}
+                className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 transition-colors"
+                title="Delete this syllabus copy"
+              >
+                Delete
+              </button>
+            )}
             <p className="text-[10px] text-muted-foreground sm:ml-auto max-w-prose">
               Multiple versions can exist (e.g. one per school). Choose which copy you are editing and generating from.
             </p>
