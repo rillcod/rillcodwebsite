@@ -88,8 +88,9 @@ export class CoursesService {
             .from('courses')
             .select('*, programs!inner(id, name)', { count: 'exact' });
 
-        if (filters.schoolIds && filters.schoolIds.length > 0) {
-            query = query.or(`school_id.in.(${filters.schoolIds.join(',')}),school_id.is.null`);
+        const ids = Array.isArray(filters.schoolIds) ? filters.schoolIds : (filters.schoolIds ? [filters.schoolIds] : []);
+        if (ids.length > 0) {
+            query = query.or(`school_id.in.(${ids.join(',')}),school_id.is.null`);
         }
 
         if (filters.programId) {

@@ -1,3 +1,8 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
+import { coursesService } from '@/services/courses.service';
+import { withValidation } from '@/proxies/validation.proxy';
 import { AppError } from '@/lib/errors';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
