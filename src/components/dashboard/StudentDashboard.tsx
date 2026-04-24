@@ -7,6 +7,7 @@ import {
   SparklesIcon, FireIcon, BoltIcon, CheckBadgeIcon,
   ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
   ArchiveBoxIcon, CommandLineIcon, UserGroupIcon, ChatBubbleLeftRightIcon,
+  ArrowRightIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
