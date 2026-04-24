@@ -58,9 +58,9 @@ function AddLessonPageContent() {
   const lessonPlanKey = sp.get('lesson_plan_key');
   const flowOrigin = sp.get('flow_origin');
   const classIdFromUrl = sp.get('class_id');
-  // Step 2 → Step 3 handoff: creating a lesson for an existing term plan's week.
+
+  // Step 2 → Step 3 handoff: creating a lesson linked to a specific term plan week
   const termPlanId = sp.get('lesson_plan_id');
-  const termPlanWeek = sp.get('week');
   const preTopicFromWeek = sp.get('topic');
   const preSubjectFromWeek = sp.get('subject');
   const preWeekNotes = sp.get('lesson_notes');
@@ -97,17 +97,15 @@ function AddLessonPageContent() {
     course_id: '',
     lesson_type: 'hands-on',
     duration_minutes: '60',
-    session_date: '',
     video_url: '',
     status: 'draft',
-    order_index: '',
-    content_layout: [] as any[]
+    content_layout: [] as any[],
   });
-  // When coming from the direct "Add Lesson" button (no plan context), show a
-  // soft advisory but do NOT block — teachers can still save standalone lessons.
+
+  // Only show advisory when there's no plan or curriculum context at all
   const showPlanAdvisory = !curriculumSource && !termPlanId;
 
-  // Initialize form from curriculum / syllabus deep links (URL or sessionStorage for large plans)
+  // Initialize form from curriculum / syllabus deep links
   useEffect(() => {
     if (!curriculumSource || !preTitle) return;
 
@@ -123,28 +121,16 @@ function AddLessonPageContent() {
       if (planData.teacher_activities || planData.student_activities || planData.classwork || planData.resources?.length) {
         const layoutBlocks: any[] = [];
         if (planData.objectives?.length) {
-          layoutBlocks.push({
-            type: 'objectives',
-            title: 'Learning Objectives',
-            items: planData.objectives,
-          });
+          layoutBlocks.push({ type: 'objectives', title: 'Learning Objectives', items: planData.objectives });
         }
         if (planData.teacher_activities?.length) {
           planData.teacher_activities.forEach((activity: string, i: number) => {
-            layoutBlocks.push({
-              type: 'activity',
-              title: `Teacher Activity ${i + 1}`,
-              instructions: activity,
-            });
+            layoutBlocks.push({ type: 'activity', title: `Teacher Activity ${i + 1}`, instructions: activity });
           });
         }
         if (planData.student_activities?.length) {
           planData.student_activities.forEach((activity: string, i: number) => {
-            layoutBlocks.push({
-              type: 'activity',
-              title: `Student Activity ${i + 1}`,
-              instructions: activity,
-            });
+            layoutBlocks.push({ type: 'activity', title: `Student Activity ${i + 1}`, instructions: activity });
           });
         }
         if (planData.classwork) {
@@ -155,11 +141,7 @@ function AddLessonPageContent() {
           });
         }
         if (planData.resources?.length) {
-          layoutBlocks.push({
-            type: 'resources',
-            title: 'Resources',
-            items: planData.resources,
-          });
+          layoutBlocks.push({ type: 'resources', title: 'Resources', items: planData.resources });
         }
         setForm(prev => ({ ...prev, content_layout: layoutBlocks }));
       }
@@ -180,50 +162,29 @@ function AddLessonPageContent() {
     }
   }, [curriculumSource, preTitle, preDescription, preDuration, preLessonPlan, lessonPlanKey]);
 
-  // Step 2 → Step 3 handoff defaults from term-plan week context.
+  // Step 2 → Step 3 handoff defaults from term-plan week context
   useEffect(() => {
     if (!termPlanId) return;
-    if (preTitle) {
-      setForm(prev => ({ ...prev, title: preTitle }));
-    }
-    if (preWeekDescription) {
-      setForm(prev => ({ ...prev, description: prev.description || preWeekDescription }));
-    }
-    if (preWeekNotes) {
-      setForm(prev => ({ ...prev, lesson_notes: prev.lesson_notes || preWeekNotes }));
-    }
-    if (preTopicFromWeek) {
-      setAiTopic(prev => prev || preTopicFromWeek);
-    }
-    if (preSubjectFromWeek) {
-      setAiSubject(prev => prev || preSubjectFromWeek);
-    }
+    if (preTitle) setForm(prev => ({ ...prev, title: preTitle }));
+    if (preWeekDescription) setForm(prev => ({ ...prev, description: prev.description || preWeekDescription }));
+    if (preWeekNotes) setForm(prev => ({ ...prev, lesson_notes: prev.lesson_notes || preWeekNotes }));
+    if (preTopicFromWeek) setAiTopic(prev => prev || preTopicFromWeek);
+    if (preSubjectFromWeek) setAiSubject(prev => prev || preSubjectFromWeek);
   }, [termPlanId, preTitle, preWeekDescription, preWeekNotes, preTopicFromWeek, preSubjectFromWeek]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
-
     const fetchData = async () => {
       const db = createClient();
-
-      // Fetch programs
       const { data: progData } = await db.from('programs').select('id, name').eq('is_active', true).order('name');
       setPrograms(progData ?? []);
 
-      let query = db
-        .from('courses')
-        .select('id, title, program_id, school_id, programs(name)')
-        .eq('is_active', true);
-
-      if (profile?.school_id) {
-        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
-      }
-
+      let query = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
+      if (profile?.school_id) query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
       const { data } = await query.order('title');
       const courseList = data ?? [];
       setCourses(courseList);
 
-      // Auto-select if IDs provided in URL
       if (preCourseId) {
         const c = courseList.find((x: any) => x.id === preCourseId);
         if (c?.program_id) setSelectedProgramId(c.program_id);
@@ -234,11 +195,9 @@ function AddLessonPageContent() {
         if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
       }
     };
-
     fetchData();
   }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
 
-  // Auto-fill subject from selected course
   const handleCourseChange = (courseId: string) => {
     setForm(prev => ({ ...prev, course_id: courseId }));
     if (courseId && !aiSubject) {
@@ -248,7 +207,6 @@ function AddLessonPageContent() {
     }
   };
 
-  // Full lesson generation — uses SSE streaming for live status feedback
   const handleAiGenerate = async (topicOverride?: string) => {
     const topicToUse = topicOverride || aiTopic;
     if (!topicToUse.trim()) { setAiError('Enter a topic first.'); setAiOpen(true); return; }
@@ -285,18 +243,15 @@ function AddLessonPageContent() {
       const contentType = res.headers.get('Content-Type') ?? '';
 
       if (contentType.includes('text/event-stream') && res.body) {
-        // Read SSE stream
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop() ?? '';
-
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
             try {
@@ -328,7 +283,6 @@ function AddLessonPageContent() {
           }
         }
       } else {
-        // Fallback: non-streaming response
         const payload = await res.json();
         const d = payload.data;
         setLastModel(payload.model ?? null);
@@ -355,7 +309,6 @@ function AddLessonPageContent() {
     }
   };
 
-  // Notes-only generation — only overwrites lesson_notes
   const handleGenerateNotesOnly = async () => {
     const topicToUse = form.title || aiTopic;
     if (!topicToUse.trim()) { setAiError('Enter a lesson title or topic first.'); setAiOpen(true); return; }
@@ -406,29 +359,16 @@ function AddLessonPageContent() {
     setSaving(true);
     setError(null);
     try {
-      const payload: any = {
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        lesson_notes: form.lesson_notes.trim() || null,
-        course_id: form.course_id,
-        lesson_type: normalizeLessonType(form.lesson_type, 'lesson'),
-        status: form.status,
-        video_url: form.video_url.trim() || null,
-        content_layout: form.content_layout,
-        created_by: profile?.id || '',
-      };
-      if (form.duration_minutes) payload.duration_minutes = parseInt(form.duration_minutes);
-      if (form.order_index) payload.order_index = parseInt(form.order_index) || null;
-      if (form.session_date) payload.session_date = new Date(form.session_date).toISOString();
-
       const aiMeta = {
         ai_lesson_mode: aiMode,
         ai_grade_level: aiGrade,
         ...(lastModel ? { last_ai_model: lastModel } : {}),
       };
 
+      // Build metadata — single source of truth for all context signals
+      let lessonMetadata: Record<string, unknown> = { ...aiMeta };
       if (curriculumSource && curriculumId && curriculumWeek) {
-        payload.metadata = {
+        lessonMetadata = {
           source: 'curriculum',
           curriculum_id: curriculumId,
           term: curriculumTerm ? parseInt(curriculumTerm, 10) : null,
@@ -439,19 +379,30 @@ function AddLessonPageContent() {
           ...aiMeta,
         };
       } else if (termPlanId) {
-        // Step 2 → Step 3 handoff: creating a lesson for a specific week of a term plan.
-        payload.metadata = {
+        lessonMetadata = {
           lesson_plan_id: termPlanId,
-          ...(termPlanWeek ? { week: parseInt(termPlanWeek, 10) } : {}),
+          ...(curriculumWeek ? { week: parseInt(curriculumWeek, 10) } : {}),
           ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
           ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
           ...aiMeta,
         };
       } else if (classIdFromUrl) {
-        payload.metadata = { class_id: classIdFromUrl, ...aiMeta };
-      } else {
-        payload.metadata = { ...aiMeta };
+        lessonMetadata = { class_id: classIdFromUrl, ...aiMeta };
       }
+
+      const payload: any = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        lesson_notes: form.lesson_notes.trim() || null,
+        course_id: form.course_id,
+        lesson_type: normalizeLessonType(form.lesson_type, 'lesson'),
+        status: form.status,
+        video_url: form.video_url.trim() || null,
+        content_layout: form.content_layout,
+        metadata: lessonMetadata,
+        created_by: profile?.id || '',
+        ...(form.duration_minutes ? { duration_minutes: parseInt(form.duration_minutes) } : {}),
+      };
 
       const res = await fetch('/api/lessons', {
         method: 'POST',
@@ -461,7 +412,7 @@ function AddLessonPageContent() {
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create lesson'); }
       const { data } = await res.json();
 
-      // Auto-create real assignments from assignment-block content blocks
+      // Auto-create assignments from assignment-block content blocks
       if (data?.id && form.content_layout.length > 0) {
         const assignmentBlocks = form.content_layout.filter((b: any) => b.type === 'assignment-block' && b.title?.trim());
         for (const block of assignmentBlocks) {
@@ -481,61 +432,11 @@ function AddLessonPageContent() {
         }
       }
 
-      // Save plan row for Protocol tab — always when curriculum-sourced (even sparse weeks), or when AI/blocks exist
-      const shouldUpsertLessonPlan =
-        !!data?.id &&
-        (
-          (curriculumSource && curriculumId && curriculumWeek) ||
-          aiObjectives.length > 0 ||
-          form.content_layout.length > 0
-        );
-
-      let savedLessonPlanId: string | null = data?.lesson_plan_id ?? null;
-
-      if (shouldUpsertLessonPlan) {
-        const db = createClient();
-        const activityText = form.content_layout
-          .filter((b: any) => b.type === 'activity')
-          .map((b: any) => [b.title ? `◆ ${b.title}` : null, b.instructions, b.steps?.map((s: string, si: number) => `  ${si + 1}. ${s}`).join('\n')].filter(Boolean).join('\n'))
-          .join('\n\n');
-        const assessmentText = form.content_layout
-          .filter((b: any) => b.type === 'quiz' || b.type === 'assignment-block')
-          .map((b: any) => b.type === 'quiz' ? `◈ Quiz: ${b.question}` : `◆ ${b.title || 'Assignment'}: ${b.instructions || ''}`)
-          .join('\n\n');
-
-        const lessonPlanData: any = {
-          lesson_id: data.id,
-          objectives: aiObjectives.length > 0 ? aiObjectives.join('\n') : null,
-          activities: activityText || null,
-          assessment_methods: assessmentText || null,
-        };
-
-        if (curriculumSource && curriculumId && curriculumWeek) {
-          lessonPlanData.plan_data = {
-            curriculum_id: curriculumId,
-            term: curriculumTerm ? parseInt(curriculumTerm, 10) : null,
-            week: parseInt(curriculumWeek, 10),
-            source: 'curriculum',
-            ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
-          };
-        }
-
-        const { data: planRow } = await db
-          .from('lesson_plans')
-          .upsert(lessonPlanData, { onConflict: 'lesson_id' })
-          .select('id')
-          .single();
-        if (planRow?.id) savedLessonPlanId = planRow.id;
-      }
-
       if (lessonPlanKey) clearStashedCurriculumLessonPlan(lessonPlanKey);
 
-      // Return to the term lesson plan detail when this lesson was created for
-      // a specific week of a term plan (Step 2 → Step 3 flow).
-      if (termPlanId && !curriculumSource) {
+      // Routing: term plan always takes priority, then lesson detail
+      if (termPlanId) {
         router.push(`/dashboard/lesson-plans/${termPlanId}`);
-      } else if (curriculumSource && savedLessonPlanId) {
-        router.push(`/dashboard/lesson-plans/${savedLessonPlanId}`);
       } else {
         router.push(`/dashboard/lessons/${data.id}`);
       }
@@ -553,10 +454,11 @@ function AddLessonPageContent() {
   );
 
   const currentCourse = courses.find((c: any) => c.id === form.course_id);
+  const courseSelectDisabled = !!selectedProgramId && courses.filter((c: any) => c.program_id === selectedProgramId).length === 0;
 
   return (
-    <div className={`space-y-8 pb-20`}>
-      {/* Shared pipeline stepper — only when we're in the standard flow (hide for modal-embed via minimal) */}
+    <div className="space-y-6 pb-20">
+      {/* Pipeline stepper — hidden in minimal embed mode */}
       {!isMinimal && (
         <PipelineStepper
           current="lessons"
@@ -568,428 +470,461 @@ function AddLessonPageContent() {
         />
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-bold text-sm rounded-none shadow-lg shadow-orange-900/30 transition-all disabled:opacity-50 touch-manipulation"
-          >
-            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> : <Save className="w-4 h-4" aria-hidden />}
-            {saving ? 'Creating…' : (isMinimal ? 'Create' : 'Create lesson')}
-          </button>
-          {!isMinimal ? (
-            <Link
-              href={termPlanId ? `/dashboard/lesson-plans/${termPlanId}` : '/dashboard/lessons'}
-              className="flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation sm:order-first py-1"
-            >
-              <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
-              {termPlanId ? 'Back to term plan' : 'Back to lessons'}
-            </Link>
-          ) : <div />}
-        </div>
+      {/* Back link */}
+      {!isMinimal && (
+        <Link
+          href={termPlanId ? `/dashboard/lesson-plans/${termPlanId}` : '/dashboard/lessons'}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px]"
+        >
+          <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+          {termPlanId ? 'Back to term plan' : 'Back to lessons'}
+        </Link>
+      )}
 
-        {/* Term-plan context banner */}
-        {termPlanId && !curriculumSource && (
-          <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-none">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <div className="w-10 h-10 bg-violet-500/20 flex items-center justify-center rounded-none border border-violet-500/30 shrink-0">
-                <BookOpen className="w-5 h-5 text-violet-400" aria-hidden />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-violet-400 uppercase tracking-widest">
-                  Creating lesson for Term Plan
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  This lesson will be linked back to the Term Lesson Plan{termPlanWeek ? ` · Week ${termPlanWeek}` : ''}.
-                </p>
-              </div>
+      {/* Page title */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="w-5 h-5 text-orange-400" />
+          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">New Lesson</span>
+        </div>
+        <h1 className="text-3xl font-extrabold text-foreground">Create Lesson</h1>
+        <p className="text-muted-foreground text-sm mt-1">Fill in the details below or use the AI assistant to generate content.</p>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium">
+          {error}
+        </div>
+      )}
+
+      {/* Context banners — shown one at a time based on origin */}
+      {termPlanId && !curriculumSource && (
+        <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="w-10 h-10 bg-violet-500/20 flex items-center justify-center rounded-xl border border-violet-500/30 shrink-0">
+              <BookOpen className="w-5 h-5 text-violet-400" aria-hidden />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-violet-400 uppercase tracking-widest">Creating for Term Plan</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                This lesson will be linked back to the Term Plan{curriculumWeek ? ` · Week ${curriculumWeek}` : ''}.
+              </p>
+            </div>
+            <Link
+              href={`/dashboard/lesson-plans/${termPlanId}`}
+              className="self-start sm:self-center px-3 py-2 sm:py-1.5 bg-violet-500/20 text-violet-400 text-xs font-bold uppercase tracking-widest rounded-lg border border-violet-500/30 whitespace-nowrap hover:bg-violet-500/30 transition-colors"
+            >
+              View plan →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {curriculumSource && curriculumId && curriculumWeek && (
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-xl border border-emerald-500/30 shrink-0">
+              <BookOpen className="w-5 h-5 text-emerald-400" aria-hidden />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-emerald-400 uppercase tracking-widest">
+                {flowOrigin === 'generate-tab' ? 'From Generate (syllabus)' : 'Creating from curriculum'}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Week {curriculumWeek}{curriculumTerm ? ` · Term ${curriculumTerm}` : ''}{classIdFromUrl ? ' · Class linked' : ''}
+              </p>
+            </div>
+            <span className="self-start sm:self-center px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest rounded-lg border border-emerald-500/30 whitespace-nowrap">
+              Curriculum sync
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showPlanAdvisory && (
+        <div className="p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-amber-300 uppercase tracking-widest">Standalone lesson</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Not linked to a term plan. To connect this to a syllabus-driven schedule, use{' '}
               <Link
-                href={`/dashboard/lesson-plans/${termPlanId}`}
-                className="self-start sm:self-center px-3 py-2 sm:py-1 bg-violet-500/20 text-violet-400 text-xs font-bold uppercase tracking-widest rounded-none border border-violet-500/30 whitespace-nowrap hover:bg-violet-500/30"
+                href={form.course_id ? `/dashboard/lesson-plans?course_id=${encodeURIComponent(form.course_id)}` : '/dashboard/lesson-plans'}
+                className="text-amber-300 underline"
               >
-                View plan →
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {showPlanAdvisory && (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-none">
-            <p className="text-sm font-black text-amber-300 uppercase tracking-widest">Standalone lesson</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              For the full pipeline experience (syllabus &rarr; plan &rarr; lesson), use a term lesson plan first. This lesson will still be saved but won&apos;t be linked to a plan.
+                lesson plans
+              </Link>{' '}
+              instead.
             </p>
-            <Link
-              href={form.course_id ? `/dashboard/lesson-plans?course_id=${encodeURIComponent(form.course_id)}` : '/dashboard/lesson-plans'}
-              className="inline-flex mt-3 px-3 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-widest hover:bg-amber-500/30"
-            >
-              Open lesson plans instead
-            </Link>
           </div>
-        )}
-
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpen className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">New Lesson</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-foreground">Create Lesson</h1>
-          <p className="text-muted-foreground text-sm mt-1">Fill in the details below or use the AI assistant to generate content.</p>
         </div>
+      )}
 
-        {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none text-rose-400 text-sm font-medium">
-            {error}
-          </div>
-        )}
-
-        {/* Curriculum Context Banner */}
-        {curriculumSource && curriculumId && curriculumWeek && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-none">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-none border border-emerald-500/30 shrink-0">
-                <BookOpen className="w-5 h-5 text-emerald-400" aria-hidden />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-emerald-400 uppercase tracking-widest">
-                  {flowOrigin === 'generate-tab' ? 'From Generate (syllabus)' : 'Creating from curriculum'}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Week {curriculumWeek}
-                  {curriculumTerm ? ` · Term ${curriculumTerm}` : ''}
-                  {classIdFromUrl ? ' · Linked to a class' : ''}
-                </p>
-              </div>
-              <span className="self-start sm:self-center px-3 py-2 sm:py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest rounded-none border border-emerald-500/30 whitespace-nowrap">
-                Curriculum sync
-              </span>
+      {/* AI Generate Panel */}
+      <div className="bg-gradient-to-br from-orange-500/10 to-orange-400/5 border border-orange-500/20 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAiOpen(o => !o)}
+          className="w-full flex items-center justify-between px-5 py-4 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+              <Sparkles className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-foreground uppercase tracking-widest">AI Lesson Assistant</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">
+                {lastModel
+                  ? <span>Guide: <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
+                  : 'Academic · Project · Interactive modes'}
+              </p>
             </div>
           </div>
-        )}
+          {aiOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </button>
 
-        {/* AI Generate Panel (OpenRouter Premium Engine) */}
-        <div className="bg-gradient-to-br from-orange-500/10 to-orange-400/5 border border-orange-500/20 rounded-none overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setAiOpen(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-none bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-                <Sparkles className="w-5 h-5 text-orange-400" />
+        {aiOpen && (
+          <div className="px-5 pb-5 space-y-4 border-t border-orange-500/20">
+            {aiError && (
+              <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                <span className="flex-shrink-0">⚠</span> {aiError}
               </div>
+            )}
+
+            {/* Lesson Mode Selector */}
+            <div className="pt-4 space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Mode</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { id: 'academic', label: 'Academic', Icon: GraduationCap, desc: 'Deep theory, notes & curriculum', activeClass: 'border-violet-500 bg-violet-500/10', textClass: 'text-violet-400' },
+                  { id: 'project', label: 'Project', Icon: Hammer, desc: 'Builds, labs & capstone missions', activeClass: 'border-emerald-500 bg-emerald-500/10', textClass: 'text-emerald-400' },
+                  { id: 'interactive', label: 'Interactive', Icon: Zap, desc: 'Quizzes, visualizers & animations', activeClass: 'border-cyan-500 bg-cyan-500/10', textClass: 'text-cyan-400' },
+                ] as const).map(({ id, label, Icon, desc, activeClass, textClass }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setAiMode(id)}
+                    className={`flex flex-col items-start gap-1.5 p-3 rounded-xl border text-left transition-all ${aiMode === id ? activeClass : 'border-border bg-card hover:border-white/20'}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={`w-3.5 h-3.5 ${aiMode === id ? textClass : 'text-muted-foreground'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${aiMode === id ? textClass : 'text-muted-foreground'}`}>{label}</span>
+                    </div>
+                    <span className="text-[9px] text-muted-foreground leading-tight">{desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1 md:col-span-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Topic *</label>
+                <input
+                  value={aiTopic}
+                  onChange={e => setAiTopic(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
+                  placeholder="e.g. Introduction to Python loops"
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
+                  {YOUNG_LEARNER_GRADES.some(g => aiGrade.startsWith(g) || aiGrade === g) && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-widest rounded-lg">
+                      🧩 Block Visual Mode
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={aiGrade}
+                  onChange={e => setAiGrade(e.target.value)}
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
+                >
+                  <optgroup label="Early Years">
+                    {['KG', 'KG–Basic 3'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </optgroup>
+                  <optgroup label="Primary">
+                    {['Basic 1', 'Basic 2', 'Basic 3', 'Basic 1–Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 4–Basic 6', 'Basic 1–Basic 6'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </optgroup>
+                  <optgroup label="Junior Secondary">
+                    {['JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </optgroup>
+                  <optgroup label="Senior Secondary">
+                    {['SS1', 'SS2', 'SS3', 'SS1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </optgroup>
+                  <optgroup label="Mixed">
+                    {['JSS1–SS3', 'Basic 1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </optgroup>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject</label>
+                <input
+                  value={aiSubject}
+                  onChange={e => setAiSubject(e.target.value)}
+                  placeholder="e.g. Python Programming"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleAiGenerate()}
+                disabled={aiGenerating || aiGeneratingNotes}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end ${
+                  aiMode === 'academic' ? 'bg-violet-600 hover:bg-violet-500' :
+                  aiMode === 'project'  ? 'bg-emerald-600 hover:bg-emerald-500' :
+                                          'bg-cyan-600 hover:bg-cyan-500'
+                }`}
+              >
+                {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiGenerating
+                  ? (aiStatus ?? 'Generating...')
+                  : `Build ${aiMode.charAt(0).toUpperCase() + aiMode.slice(1)} Lesson`}
+              </button>
+            </div>
+
+            <div className={`p-3 rounded-xl border text-[10px] leading-relaxed space-y-1.5 ${
+              aiMode === 'academic' ? 'bg-violet-500/5 border-violet-500/15 text-violet-300/70' :
+              aiMode === 'project'  ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-300/70' :
+                                      'bg-cyan-500/5 border-cyan-500/15 text-cyan-300/70'
+            }`}>
               <div>
-                <p className="text-sm font-black text-foreground uppercase tracking-widest">Quick Lesson Assistant</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">
-                  {lastModel
-                    ? <span>Guide: <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
-                    : 'Fun Projects, Moving Graphics, and Easy-to-Read Notes'}
-                </p>
+                {aiMode === 'academic' && <><span className="font-black uppercase">Academic:</span> Bloom's-aligned objectives, 2000+ word study notes, concept illustration cards, logic maps, and a comprehension quiz.</>}
+                {aiMode === 'project' && <><span className="font-black uppercase">Project:</span> Builder's blueprint, guided warm-up labs, step-by-step activity blocks, mini-task + capstone assignment-block, and Scratch blocks for younger learners.</>}
+                {aiMode === 'interactive' && <><span className="font-black uppercase">Interactive:</span> Quiz checkpoints, algorithm visualizers, motion-graphic animations, D3 data charts, and gamified level-up sections.</>}
               </div>
-            </div>
-            {aiOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-          </button>
-
-          {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-orange-500/20">
-              {aiError && (
-                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-none px-3 py-2">
-                  <span className="flex-shrink-0">⚠</span> {aiError}
+              {isYoungLearner && (
+                <div className="flex items-start gap-1.5 pt-1.5 border-t border-amber-500/20 text-amber-400/80">
+                  <span className="text-amber-400 text-[11px] leading-none mt-px">🧩</span>
+                  <span><span className="font-black text-amber-400">Young Learner mode</span> — Scratch block steps, simple visual cards, emoji-friendly labels, plain-language activity instructions. Technical code blocks and abstract charts suppressed for KG–Basic 6.</span>
                 </div>
               )}
-
-              {/* Lesson Mode Selector */}
-              <div className="pt-4 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Mode</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { id: 'academic', label: 'Academic', Icon: GraduationCap, desc: 'Deep theory, notes & curriculum', activeClass: 'border-violet-500 bg-violet-500/10', textClass: 'text-violet-400' },
-                    { id: 'project', label: 'Project', Icon: Hammer, desc: 'Builds, labs & capstone missions', activeClass: 'border-emerald-500 bg-emerald-500/10', textClass: 'text-emerald-400' },
-                    { id: 'interactive', label: 'Interactive', Icon: Zap, desc: 'Quizzes, visualizers & animations', activeClass: 'border-cyan-500 bg-cyan-500/10', textClass: 'text-cyan-400' },
-                  ] as const).map(({ id, label, Icon, desc, activeClass, textClass }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setAiMode(id)}
-                      className={`flex flex-col items-start gap-1.5 p-3 rounded-none border text-left transition-all ${aiMode === id ? activeClass : 'border-border bg-card shadow-sm hover:border-white/20'}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Icon className={`w-3.5 h-3.5 ${aiMode === id ? textClass : 'text-muted-foreground'}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${aiMode === id ? textClass : 'text-muted-foreground'}`}>{label}</span>
-                      </div>
-                      <span className="text-[9px] text-muted-foreground leading-tight">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-1 md:col-span-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Topic *</label>
-                  <input
-                    value={aiTopic}
-                    onChange={e => setAiTopic(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
-                    placeholder="e.g. Introduction to Python loops"
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
-                    {YOUNG_LEARNER_GRADES.some(g => aiGrade.startsWith(g) || aiGrade === g) && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-widest rounded-none">
-                        🧩 Block Visual Mode
-                      </span>
-                    )}
-                  </div>
-                  <select
-                    value={aiGrade}
-                    onChange={e => setAiGrade(e.target.value)}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
-                  >
-                    <optgroup label="Early Years">
-                      {['KG', 'KG–Basic 3'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </optgroup>
-                    <optgroup label="Primary">
-                      {['Basic 1', 'Basic 2', 'Basic 3', 'Basic 1–Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 4–Basic 6', 'Basic 1–Basic 6'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </optgroup>
-                    <optgroup label="Junior Secondary">
-                      {['JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </optgroup>
-                    <optgroup label="Senior Secondary">
-                      {['SS1', 'SS2', 'SS3', 'SS1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </optgroup>
-                    <optgroup label="Mixed">
-                      {['JSS1–SS3', 'Basic 1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
-                    </optgroup>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject</label>
-                  <input
-                    value={aiSubject}
-                    onChange={e => setAiSubject(e.target.value)}
-                    placeholder="e.g. Python Programming"
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAiGenerate()}
-                  disabled={aiGenerating || aiGeneratingNotes}
-                  className={`flex items-center justify-center gap-2 px-4 py-2.5 disabled:opacity-60 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all self-end ${
-                    aiMode === 'academic' ? 'bg-violet-600 hover:bg-violet-500' :
-                    aiMode === 'project'  ? 'bg-emerald-600 hover:bg-emerald-500' :
-                                           'bg-cyan-600 hover:bg-cyan-500'
-                  }`}
-                >
-                  {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  {aiGenerating
-                    ? (aiStatus ?? 'Generating...')
-                    : `Build ${aiMode.charAt(0).toUpperCase() + aiMode.slice(1)} Lesson`}
-                </button>
-              </div>
-
-              {/* Mode hint */}
-              <div className={`p-3 rounded-none border text-[10px] leading-relaxed space-y-1.5 ${
-                aiMode === 'academic' ? 'bg-violet-500/5 border-violet-500/15 text-violet-300/70' :
-                aiMode === 'project'  ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-300/70' :
-                                        'bg-cyan-500/5 border-cyan-500/15 text-cyan-300/70'
-              }`}>
-                <div>
-                  {aiMode === 'academic' && <><span className="font-black uppercase">Academic Mode:</span> Generates Bloom's-aligned objectives, 2000+ word study notes, concept illustration cards, logic maps, and a comprehension quiz. Best for theory-heavy curriculum.</>}
-                  {aiMode === 'project' && <><span className="font-black uppercase">Project Mode:</span> Generates a builder's blueprint, guided warm-up labs, step-by-step activity blocks, mini-task + capstone assignment-block, and Scratch blocks for younger learners.</>}
-                  {aiMode === 'interactive' && <><span className="font-black uppercase">Interactive Mode:</span> Generates 3+ quiz checkpoints, algorithm visualizers, motion-graphic animations, D3 data charts, and gamified level-up sections. Best for engagement-first learning.</>}
-                </div>
-                {isYoungLearner && (
-                  <div className="flex items-start gap-1.5 pt-1.5 border-t border-amber-500/20 text-amber-400/80">
-                    <span className="text-amber-400 text-[11px] leading-none mt-px">🧩</span>
-                    <span><span className="font-black text-amber-400">Young Learner Override active</span> — Scratch block steps, simple visual cards, emoji-friendly labels, and plain-language activity instructions will be prioritised. Technical code blocks and abstract charts are suppressed for KG–Basic 6.</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* AI Generated — Preview Banner (mobile-first, stacks on xs) */}
-        {!aiOpen && !aiGenerating && form.title && (
-          <div className="bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 border border-violet-500/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-violet-500/25 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-violet-300" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-black text-violet-300 uppercase tracking-widest">Lesson Generated</p>
-                <p className="text-sm font-bold text-foreground mt-0.5 truncate">{form.title}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Preview how this looks to students. You can regenerate or continue editing below.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowLessonPreview(true)}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all min-h-[44px]"
-              >
-                <Eye className="w-3.5 h-3.5" /> Preview
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-violet-500/30 hover:bg-violet-500/10 text-violet-300 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all min-h-[44px]"
-              >
-                <RefreshCw className="w-3 h-3" /> Regenerate
-              </button>
             </div>
           </div>
         )}
+      </div>
 
-        {/* Lesson Preview — mobile-first reader-style modal */}
-        <AnimatePresence>
-          {showLessonPreview && (
-            <LessonPreviewModal
-              key="lesson-preview"
-              title={form.title}
-              description={form.description}
-              lessonType={form.lesson_type}
-              durationMinutes={form.duration_minutes}
-              grade={aiGrade}
-              model={lastModel ?? undefined}
-              objectives={aiObjectives}
-              contentLayout={form.content_layout as any[]}
-              lessonNotes={form.lesson_notes}
-              onClose={() => setShowLessonPreview(false)}
-              onRegenerate={() => { setAiOpen(true); setShowLessonPreview(false); }}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Lesson Plan Section */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-8 space-y-6">
-          <div className="flex items-center gap-3 pb-3 border-b border-border">
-            <Settings2 className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Lesson Plan</h2>
-            <span className="text-[10px] text-muted-foreground font-medium ml-2">— core settings &amp; study notes</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Title *</label>
-                <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 flex items-center gap-1 transition-colors">
-                  <Sparkles className="w-3 h-3" /> Magic Suggest
-                </button>
-              </div>
-              <input
-                value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
-                placeholder="e.g. Building your first App"
-                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none"
-              />
+      {/* AI Generated preview banner */}
+      {!aiOpen && !aiGenerating && form.title && (
+        <div className="bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 border border-violet-500/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-violet-500/25 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-violet-300" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme *</label>
-              <div className="relative">
-                <select value={selectedProgramId}
-                  onChange={e => {
-                    const pid = e.target.value;
-                    setSelectedProgramId(pid);
-                    // Reset course if it doesn't belong to the new programme
-                    const currentCourse = courses.find((c: any) => c.id === form.course_id);
-                    if (currentCourse?.program_id !== pid) {
-                      setForm(prev => ({ ...prev, course_id: '' }));
-                    }
-                  }}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer">
-                  <option value="">Select Programme</option>
-                  {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-violet-300 uppercase tracking-widest">Lesson Generated</p>
+              <p className="text-sm font-bold text-foreground mt-0.5 truncate">{form.title}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Preview how this looks to students, then save or regenerate.
+              </p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Linked Course {selectedProgramId ? '*' : ''}
-              </label>
-              <div className="relative">
-                <select value={form.course_id} onChange={e => handleCourseChange(e.target.value)}
-                  disabled={!selectedProgramId}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer disabled:opacity-40">
-                  <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
-                  {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
-                    .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowLessonPreview(true)}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
+            >
+              <Eye className="w-3.5 h-3.5" /> Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-violet-500/30 hover:bg-violet-500/10 text-violet-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
+            >
+              <RefreshCw className="w-3 h-3" /> Regenerate
+            </button>
           </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <SelectField label="Type" value={form.lesson_type} options={['lesson', 'hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading', 'quiz', 'article', 'project', 'lab', 'live', 'practice', 'robotics', 'electronics', 'ai']} onChange={(v: string) => setForm({ ...form, lesson_type: v })} />
-            <Field label="Duration (min)" value={form.duration_minutes} type="number" onChange={(v: string) => setForm({ ...form, duration_minutes: v })} />
-            <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active']} onChange={(v: string) => setForm({ ...form, status: v })} />
-          </div>
+      {/* Preview modal */}
+      <AnimatePresence>
+        {showLessonPreview && (
+          <LessonPreviewModal
+            key="lesson-preview"
+            title={form.title}
+            description={form.description}
+            lessonType={form.lesson_type}
+            durationMinutes={form.duration_minutes}
+            grade={aiGrade}
+            model={lastModel ?? undefined}
+            objectives={aiObjectives}
+            contentLayout={form.content_layout as any[]}
+            lessonNotes={form.lesson_notes}
+            onClose={() => setShowLessonPreview(false)}
+            onRegenerate={() => { setAiOpen(true); setShowLessonPreview(false); }}
+          />
+        )}
+      </AnimatePresence>
 
-          <Field label="Brief Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
+      {/* Lesson Details */}
+      <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-6">
+        <div className="flex items-center gap-3 pb-3 border-b border-border">
+          <Settings2 className="w-4 h-4 text-orange-400" />
+          <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Lesson Details</h2>
+          <span className="text-[10px] text-muted-foreground font-medium ml-1">— core settings &amp; study notes</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Plan / Study Notes <span className="text-orange-400/60 normal-case font-medium text-[9px]">(intro & prerequisites shown to students before class)</span></label>
-              <button type="button" onClick={handleGenerateNotesOnly}
-                className="shrink-0 text-[9px] font-black text-orange-400 uppercase tracking-widest inline-flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50 min-h-[44px] sm:min-h-0 px-1 -mx-1 touch-manipulation"
-                disabled={aiGeneratingNotes || aiGenerating}>
-                {aiGeneratingNotes
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Writing...</>
-                  : <><Sparkles className="w-3 h-3" /> Notes only (lighter)</>}
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Title *</label>
+              <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 flex items-center gap-1 transition-colors">
+                <Sparkles className="w-3 h-3" /> Magic Suggest
               </button>
             </div>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Two-step option: use <strong className="text-foreground/90">Notes only</strong> when you do not want the full lesson builder yet — it fills this box only, using your current <strong className="text-foreground/90">{aiMode}</strong> mode and <strong className="text-foreground/90">{form.lesson_type.replace(/[-_]/g, ' ')}</strong> type. Build blocks later, or run the full assistant above when you are ready.
-            </p>
-            <textarea
-              value={form.lesson_notes}
-              onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
-              placeholder="Detailed study notes for the student..."
-              className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none"
-              rows={6}
+            <input
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Building your first App"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
             />
           </div>
-          <Field label="Video URL (YouTube/Direct)" value={form.video_url} onChange={(v: string) => setForm({ ...form, video_url: v })} />
-        </div>
-
-        {/* Content Builder Section */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-8 space-y-4">
-          <div className="flex items-center gap-3 pb-3 border-b border-border">
-            <Layout className="w-4 h-4 text-violet-400" />
-            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Content Builder</h2>
-            <span className="text-[10px] text-muted-foreground font-medium ml-2">— visual blocks, quizzes &amp; activities</span>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme</label>
+            <select
+              value={selectedProgramId}
+              onChange={e => {
+                const pid = e.target.value;
+                setSelectedProgramId(pid);
+                const cur = courses.find((c: any) => c.id === form.course_id);
+                if (cur?.program_id !== pid) setForm(prev => ({ ...prev, course_id: '' }));
+              }}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer"
+            >
+              <option value="">All programmes</option>
+              {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
           </div>
-          <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
         </div>
 
-        {/* Sticky Save Bar */}
-        <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center sm:text-left">
-            {form.content_layout.length} block{form.content_layout.length !== 1 ? 's' : ''} · {form.title || 'Untitled'}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Linked Course *
+            </label>
+            <select
+              value={form.course_id}
+              onChange={e => handleCourseChange(e.target.value)}
+              disabled={courseSelectDisabled}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer disabled:opacity-40"
+            >
+              <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
+              {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
+                .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</label>
+            <select
+              value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value })}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none cursor-pointer"
+            >
+              {['draft', 'scheduled', 'active'].map(o => <option key={o} value={o}>{o.toUpperCase()}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</label>
+            <select
+              value={form.lesson_type}
+              onChange={e => setForm({ ...form, lesson_type: e.target.value })}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none cursor-pointer"
+            >
+              {['lesson', 'hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading', 'quiz', 'article', 'project', 'lab', 'live', 'practice', 'robotics', 'electronics', 'ai'].map(o => (
+                <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Duration (min)</label>
+            <input
+              type="number"
+              value={form.duration_minutes}
+              onChange={e => setForm({ ...form, duration_minutes: e.target.value })}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Brief Description</label>
+          <textarea
+            value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            rows={3}
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Study Notes
+              <span className="text-muted-foreground/60 normal-case font-normal text-[9px] ml-1">(shown to students before class)</span>
+            </label>
+            <button
+              type="button"
+              onClick={handleGenerateNotesOnly}
+              className="shrink-0 text-[9px] font-black text-orange-400 uppercase tracking-widest inline-flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50 min-h-[44px] sm:min-h-0 px-1 -mx-1 touch-manipulation"
+              disabled={aiGeneratingNotes || aiGenerating}
+            >
+              {aiGeneratingNotes
+                ? <><Loader2 className="w-3 h-3 animate-spin" /> Writing...</>
+                : <><Sparkles className="w-3 h-3" /> Notes only (lighter)</>}
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Use <strong className="text-foreground/90">Notes only</strong> to fill this box without running the full lesson builder. Uses the current <strong className="text-foreground/90">{aiMode}</strong> mode and <strong className="text-foreground/90">{form.lesson_type.replace(/[-_]/g, ' ')}</strong> type.
           </p>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
-          >
-            {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> Creating…</> : <><Save className="w-4 h-4" aria-hidden /> Create lesson</>}
-          </button>
+          <textarea
+            value={form.lesson_notes}
+            onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
+            placeholder="Detailed study notes for the student..."
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none"
+            rows={6}
+          />
         </div>
 
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Video URL (YouTube / Direct)</label>
+          <input
+            value={form.video_url}
+            onChange={e => setForm({ ...form, video_url: e.target.value })}
+            placeholder="https://youtube.com/..."
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Content Builder */}
+      <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border">
+          <Layout className="w-4 h-4 text-violet-400" />
+          <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Content Builder</h2>
+          <span className="text-[10px] text-muted-foreground font-medium ml-1">— visual blocks, quizzes &amp; activities</span>
+        </div>
+        <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
+      </div>
+
+      {/* Sticky Save Bar */}
+      <div className="sticky bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center sm:text-left">
+          {form.content_layout.length} block{form.content_layout.length !== 1 ? 's' : ''} · {form.title || 'Untitled'}
+        </p>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={saving}
+          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
+        >
+          {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> Creating…</> : <><Save className="w-4 h-4" aria-hidden /> Create lesson</>}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1005,32 +940,5 @@ export default function AddLessonPage() {
     >
       <AddLessonPageContent />
     </Suspense>
-  );
-}
-
-function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: any) {
-  return (
-    <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
-      {textarea ? (
-        <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)}
-          className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none" />
-      ) : (
-        <input type={type} value={value} onChange={e => onChange(e.target.value)}
-          className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none" />
-      )}
-    </div>
-  );
-}
-
-function SelectField({ label, value, options, onChange }: any) {
-  return (
-    <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none cursor-pointer">
-        {options.map((o: any) => <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>)}
-      </select>
-    </div>
   );
 }

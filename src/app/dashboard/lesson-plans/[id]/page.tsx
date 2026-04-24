@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
-  BoltIcon,
+  BoltIcon, LockOpenIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -602,8 +602,8 @@ export default function LessonPlanDetailPage() {
   function cancelEdit() {
     setEditingWeek(null);
     setWeekDraft(null);
-    // Remove unsaved empty weeks
-    setWeeks(prev => prev.filter(w => w.topic.trim() !== '' || w.week !== (weeks.length)));
+    // Remove the last week if it was just added and has no topic
+    setWeeks(prev => prev.filter(w => w.topic.trim() !== '' || w.week !== prev.length));
   }
 
   function saveWeekEdit() {
@@ -1425,9 +1425,9 @@ export default function LessonPlanDetailPage() {
                           <button
                             onClick={() => unlockWeekWithOverride(w.week)}
                             className="p-1.5 hover:bg-cyan-500/10 rounded-lg transition-all"
-                            title="Override unlock"
+                            title="Override unlock this locked week"
                           >
-                            <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
+                            <LockOpenIcon className="w-3.5 h-3.5 text-cyan-400" />
                           </button>
                         )}
                         <button onClick={() => startEdit(w)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">

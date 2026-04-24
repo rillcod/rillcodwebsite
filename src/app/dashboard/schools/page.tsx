@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
   PhoneIcon, EnvelopeIcon, MapPinIcon, UsersIcon,
-  ExclamationTriangleIcon, EyeIcon, ChevronDownIcon, CheckIcon, KeyIcon,
+  ExclamationTriangleIcon, EyeIcon, ChevronDownIcon, KeyIcon,
   CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon,
   UserGroupIcon, AcademicCapIcon, ChartBarIcon, TrophyIcon, ArrowPathIcon,

@@ -276,6 +276,7 @@ export default function ProgressionPage() {
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Program</label>
           <select
+            title="Filter by program"
             value={filterProgram}
             onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }}
             className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-orange-500"
@@ -287,6 +288,7 @@ export default function ProgressionPage() {
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Course / Level</label>
           <select
+            title="Filter by course"
             value={filterCourse}
             onChange={e => setFilterCourse(e.target.value)}
             disabled={!filterProgram}
@@ -301,6 +303,7 @@ export default function ProgressionPage() {
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Term</label>
           <select
+            title="Filter by term"
             value={filterTerm}
             onChange={e => setFilterTerm(e.target.value)}
             className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-orange-500"
