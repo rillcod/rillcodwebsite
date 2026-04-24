@@ -325,17 +325,56 @@ export default function UnifiedInbox() {
     if (!profile) return;
     fetchConversations(activeTab);
     if (isAdmin || isSchool) fetchStaff();
-    
-    const ch = supabase.channel('wa_inbox')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
-        p => handleRealtime('students', p.new as any))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parent_teacher_messages' },
-        p => handleRealtime('parents', p.new as any))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'school_teacher_messages' },
-        p => handleRealtime('school', p.new as any))
-      .subscribe();
+
+    // For student/parent: filter realtime to their own conversation only
+    const channelName = `wa_inbox_${profile.id}`;
+    let ch;
+
+    if (isParentOrStudent) {
+      // Students/parents only need to watch whatsapp_messages for their own conversation
+      ch = supabase.channel(channelName)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'whatsapp_messages',
+        }, p => handleRealtime('students', p.new as any))
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+        }, () => fetchConversations('students', false))
+        .subscribe();
+    } else {
+      ch = supabase.channel(channelName)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
+          p => handleRealtime('students', p.new as any))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'parent_teacher_messages' },
+          p => handleRealtime('parents', p.new as any))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'school_teacher_messages' },
+          p => handleRealtime('school', p.new as any))
+        .subscribe();
+    }
+
     return () => { supabase.removeChannel(ch); };
   }, [profile?.id, activeTab]); // eslint-disable-line
+
+  // ── Polling fallback for student/parent (realtime can miss messages) ──────
+  useEffect(() => {
+    if (!profile || !isParentOrStudent) return;
+    const interval = setInterval(() => {
+      fetchConversations('students', false);
+    }, 15000); // poll every 15s
+    return () => clearInterval(interval);
+  }, [profile?.id, isParentOrStudent]); // eslint-disable-line
+
+  // ── Auto-open conversation for student/parent (they only have one) ────────
+  useEffect(() => {
+    if (!isParentOrStudent || activeConv || conversations.length === 0) return;
+    const conv = conversations[0];
+    setActiveConv(conv);
+    fetchMessages(conv);
+    setShowSidebar(false);
+  }, [conversations, isParentOrStudent]); // eslint-disable-line
 
   useEffect(() => {
     if (!profile || !isStaff || activeTab !== 'students') return;
@@ -406,10 +445,12 @@ export default function UnifiedInbox() {
     const convId = msg.conversation_id || msg.thread_id;
     if (activeConv && activeConv.id === convId) {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, normaliseMsg(msg)]);
-      // Mark as read immediately if it's the active conversation
       if (msg.direction === 'inbound' || msg.sender_id !== profile?.id) {
         markAsRead(activeConv);
       }
+    } else if (isParentOrStudent && convId) {
+      // For student/parent: if message is for their conversation (even if not open), refresh list
+      fetchConversations('students', false);
     }
   };
 
