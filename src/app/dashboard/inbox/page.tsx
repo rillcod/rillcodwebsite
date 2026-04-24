@@ -244,6 +244,12 @@ export default function UnifiedInbox() {
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const isTeacherOrStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
 
+  // Students and parents land on the 3-path empty state first on mobile,
+  // not the conversation sidebar — sidebar is reachable via back button.
+  useEffect(() => {
+    if (isParentOrStudent) setShowSidebar(false);
+  }, [isParentOrStudent]);
+
   useEffect(() => {
     if (!hasAccess) return;
     fetch('/api/progression/communication-policy-status')
@@ -584,12 +590,21 @@ export default function UnifiedInbox() {
         .neq('id', profile?.id ?? '')
         .order('full_name');
 
-      // School users only see students from their school + their assigned teachers
-      if (isSchool && profile?.school_id) {
+      // Students and parents: only their school's teachers + platform admins — no other students, parents, or external
+      if (isParentOrStudent) {
+        q = (q as any).in('role', ['teacher', 'admin']);
+        if (profile?.school_id) {
+          q = (q as any).or(`school_id.eq.${profile.school_id},role.eq.admin`);
+        } else {
+          q = (q as any).eq('role', 'admin');
+        }
+      }
+      // School users only see their own school users
+      else if (isSchool && profile?.school_id) {
         q = (q as any).eq('school_id', profile.school_id);
       }
-      // Teachers see all except other non-relevant roles (but DO include other teachers for collaboration)
-      if (isTeacher) {
+      // Teachers see students, parents, and staff (not other schools' students)
+      else if (isTeacher) {
         q = (q as any).in('role', ['student', 'parent', 'teacher', 'school', 'admin']);
       }
 
@@ -607,21 +622,23 @@ export default function UnifiedInbox() {
         portal_user_id: u.id,
       }));
 
-      // 2. Pull external WhatsApp contacts (conversations without a portal_user_id)
-      const { data: waConvs } = await supabase
-        .from('whatsapp_conversations')
-        .select('id, phone_number, contact_name, portal_user_id')
-        .is('portal_user_id', null)
-        .order('last_message_at', { ascending: false })
-        .limit(100);
-
-      const externalContacts: Contact[] = (waConvs ?? []).map((c: any) => ({
-        id:        c.id,
-        full_name: c.contact_name || c.phone_number || 'Unknown',
-        phone:     c.phone_number,
-        role:      'external',
-        source:    'whatsapp' as const,
-      }));
+      // 2. External WhatsApp contacts (staff-only — students/parents must not see these)
+      let externalContacts: Contact[] = [];
+      if (!isParentOrStudent) {
+        const { data: waConvs } = await supabase
+          .from('whatsapp_conversations')
+          .select('id, phone_number, contact_name, portal_user_id')
+          .is('portal_user_id', null)
+          .order('last_message_at', { ascending: false })
+          .limit(100);
+        externalContacts = (waConvs ?? []).map((c: any) => ({
+          id:        c.id,
+          full_name: c.contact_name || c.phone_number || 'Unknown',
+          phone:     c.phone_number,
+          role:      'external',
+          source:    'whatsapp' as const,
+        }));
+      }
 
       setContacts([...portalContacts, ...externalContacts]);
     } catch (err) { console.error('fetchContacts error:', err); }
