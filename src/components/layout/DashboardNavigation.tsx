@@ -308,7 +308,6 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Curriculum' },
           { name: 'Course & Syllabus', href: '/dashboard/curriculum',      icon: BookOpenIcon },
           { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
 
           { divider: true, label: 'Reports' },
           { name: 'Student Reports',   href: '/dashboard/results',         icon: DocumentChartBarIcon },

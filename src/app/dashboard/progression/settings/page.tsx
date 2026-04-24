@@ -20,6 +20,7 @@ type SettingsCard = {
   cta: string;
   roles: string;
   icon: ComponentType<{ className?: string }>;
+  allowedRoles: string[];
 };
 
 const SETTINGS_CARDS: SettingsCard[] = [
@@ -30,22 +31,25 @@ const SETTINGS_CARDS: SettingsCard[] = [
     cta: 'Open operations',
     roles: 'Admin, Teacher (School read-only)',
     icon: BoltIcon,
+    allowedRoles: ['admin', 'teacher', 'school'],
   },
   {
     title: 'Progression policies',
     description: 'Set delivery mode, weekly frequency, mastery mode, and track priority per program.',
     href: '/dashboard/progression/policies',
     cta: 'Open policies',
-    roles: 'Admin, Teacher',
+    roles: 'Admin, Teacher only',
     icon: Cog6ToothIcon,
+    allowedRoles: ['admin', 'teacher'],
   },
   {
     title: 'Project seed registry',
     description: 'Create, edit, activate/deactivate, or delete seeded project rows used in progression generation.',
     href: '/dashboard/progression/project-registry',
     cta: 'Open registry',
-    roles: 'Admin, Teacher, School',
+    roles: 'Admin, Teacher only',
     icon: RectangleStackIcon,
+    allowedRoles: ['admin', 'teacher'],
   },
   {
     title: 'Audit log',
@@ -54,6 +58,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
     cta: 'Open audit',
     roles: 'Admin, Teacher, School',
     icon: ClipboardDocumentListIcon,
+    allowedRoles: ['admin', 'teacher', 'school'],
   },
   {
     title: 'Marker integrity',
@@ -62,22 +67,25 @@ const SETTINGS_CARDS: SettingsCard[] = [
     cta: 'Open integrity',
     roles: 'Admin, Teacher, School',
     icon: ShieldExclamationIcon,
+    allowedRoles: ['admin', 'teacher', 'school'],
   },
   {
     title: 'Analytics',
     description: 'View completion trends, weak-topic heatmaps, class breakdown, and student-level performance.',
     href: '/dashboard/progression/analytics',
     cta: 'Open analytics',
-    roles: 'Admin, Teacher',
+    roles: 'Admin, Teacher only',
     icon: ChartBarIcon,
+    allowedRoles: ['admin', 'teacher'],
   },
   {
     title: 'QA spine catalog manager',
     description: 'Read-only visibility for active catalog version, lane counts, and last seed timestamp.',
     href: '/dashboard/progression/qa-spine-catalog',
     cta: 'Open catalog manager',
-    roles: 'Admin, Teacher',
+    roles: 'Admin, Teacher only',
     icon: RectangleStackIcon,
+    allowedRoles: ['admin', 'teacher'],
   },
   {
     title: 'Communication safety monitor',
@@ -86,6 +94,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
     cta: 'Open safety monitor',
     roles: 'Admin, Teacher, School',
     icon: ShieldExclamationIcon,
+    allowedRoles: ['admin', 'teacher', 'school'],
   },
   {
     title: 'Communication reports queue',
@@ -94,12 +103,13 @@ const SETTINGS_CARDS: SettingsCard[] = [
     cta: 'Open reports queue',
     roles: 'Admin, Teacher, School',
     icon: ClipboardDocumentListIcon,
+    allowedRoles: ['admin', 'teacher', 'school'],
   },
 ];
 
 export default function ProgressionSettingsHomePage() {
   const { profile, loading } = useAuth();
-  const canView = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+  const canView = ['admin', 'teacher'].includes(profile?.role ?? '');
 
   if (loading) {
     return (
@@ -109,7 +119,7 @@ export default function ProgressionSettingsHomePage() {
     );
   }
 
-  if (!canView) return <div className="p-6 text-sm text-muted-foreground">Staff access required.</div>;
+  if (!canView) return <div className="p-6 text-sm text-muted-foreground">Admin or Teacher access required.</div>;
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
@@ -128,7 +138,7 @@ export default function ProgressionSettingsHomePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {SETTINGS_CARDS.map((card) => {
+        {SETTINGS_CARDS.filter(card => card.allowedRoles.includes(profile?.role ?? '')).map((card) => {
           const Icon = card.icon;
           return (
             <Link
