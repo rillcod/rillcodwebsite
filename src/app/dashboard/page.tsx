@@ -46,8 +46,7 @@ const QUICK_ACTIONS = {
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'View class rosters' },
     { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
     { name: 'My Billing', href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon, desc: 'Invoices, payments, and receipts for your school' },
-  ],
-};
+  ],};
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
@@ -336,7 +335,7 @@ function transformStatsForTeacher(stats: any) {
 function transformStatsForSchool(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Registered Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Registered Students', value: stats.portalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
     { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400' },

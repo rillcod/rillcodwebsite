@@ -1529,7 +1529,7 @@ export default function StudentsPage() {
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-4">Student Management</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {(([
-                { label: 'Bulk Register', sub: 'Add many students at once', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' },
+                { label: 'Bulk Register', sub: 'Add many students at once', href: '/dashboard/students/bulk-register', icon: UserPlusIcon, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20', adminTeacherOnly: true },
                 { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20', adminTeacherOnly: true },
                 { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', adminTeacherOnly: true },
                 { label: 'Classes', sub: 'Manage class rosters', href: '/dashboard/classes', icon: UserGroupIcon, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20', adminTeacherOnly: true },
