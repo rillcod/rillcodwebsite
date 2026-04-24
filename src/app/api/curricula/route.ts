@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -224,6 +224,15 @@ export async function GET(req: NextRequest) {
     query = query.eq('is_visible_to_school', true);
   }
 
+  if (role === 'teacher') {
+    const sids = await getTeacherSchoolIds(user.id, profile?.school_id);
+    if (sids.length > 0) {
+      query = query.or(`school_id.is.null,school_id.in.(${sids.join(',')})`);
+    } else {
+      query = query.is('school_id', null);
+    }
+  }
+
   if (role === 'school') {
     if (profile?.school_id) {
       query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
@@ -295,14 +304,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (profile.role === 'teacher' && targetSchoolId) {
-    const { data: link } = await admin
-      .from('teacher_schools')
-      .select('id')
-      .eq('teacher_id', user.id)
-      .eq('school_id', targetSchoolId)
-      .maybeSingle();
-    const profileOk = profile.school_id === targetSchoolId;
-    if (!link && !profileOk) {
+    const sids = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!sids.includes(targetSchoolId)) {
       return NextResponse.json(
         { error: 'You can only create or update a syllabus for a school you are assigned to. Use the School scope dropdown.' },
         { status: 403 },

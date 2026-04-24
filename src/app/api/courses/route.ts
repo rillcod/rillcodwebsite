@@ -1,9 +1,5 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { coursesService } from '@/services/courses.service';
-import { withValidation } from '@/proxies/validation.proxy';
 import { AppError } from '@/lib/errors';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 const createCourseSchema = z.object({
     program_id: z.string().uuid("Invalid program ID"),
@@ -33,10 +29,15 @@ async function getHandler(req: Request, ctx: ApiContext) {
     const programId = url.searchParams.get('program_id') || undefined;
     const isPublished = url.searchParams.has('is_published') ? url.searchParams.get('is_published') === 'true' : undefined;
 
-    const tenantId = ctx.user?.tenantId;
+    const schoolIds: string[] = [];
+    if (ctx.user?.tenantId) schoolIds.push(ctx.user.tenantId);
+    if (ctx.user?.role === 'teacher' && ctx.user.id) {
+        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId);
+        sids.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
+    }
 
     const result = await coursesService.listCourses({
-        tenantId,
+        schoolIds,
         programId,
         page,
         limit,
@@ -58,8 +59,11 @@ async function postHandler(req: Request, ctx: ApiContext) {
     const { data, errorResponse } = await withValidation(req as any, createCourseSchema);
     if (errorResponse) return errorResponse;
 
-    if (ctx.user?.role === 'school' && !ctx.user?.tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
+    const schoolIds: string[] = [];
+    if (ctx.user?.tenantId) schoolIds.push(ctx.user.tenantId);
+    if (ctx.user?.role === 'teacher' && ctx.user.id) {
+        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId);
+        sids.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
     }
 
     const course = await coursesService.createCourse(data!, ctx.user?.tenantId as string);

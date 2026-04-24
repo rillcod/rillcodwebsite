@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { withValidation } from '@/proxies/validation.proxy';
 import { libraryService } from '@/services/library.service';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 const createContentSchema = z.object({
     title: z.string().min(3),
@@ -29,9 +30,16 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const page = parseInt(searchParams.get('page') ?? '0', 10);
     const pageSize = parseInt(searchParams.get('pageSize') ?? '50', 10);
 
-    const tenantId = ctx.user?.tenantId;
+    const role = ctx.user?.role;
+    let schoolIds: string[] | undefined;
+    
+    if (role === 'teacher') {
+        schoolIds = await getTeacherSchoolIds(ctx.user!.id, ctx.user?.tenantId ?? null);
+    } else if (ctx.user?.tenantId) {
+        schoolIds = [ctx.user.tenantId];
+    }
 
-    const items = await libraryService.listContent(tenantId, {
+    const items = await libraryService.listContent(schoolIds, {
         type,
         tag,
         query,
@@ -41,7 +49,7 @@ async function listHandler(req: Request, ctx: ApiContext) {
         order,
         page,
         pageSize,
-        role: ctx.user?.role,
+        role,
     });
 
     return NextResponse.json({ success: true, data: items });

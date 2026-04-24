@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { MidTermPlacement, PromotionPayload } from '@/types/progression.types';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,8 +48,23 @@ export async function GET(req: NextRequest) {
     .order('cohort_year', { ascending: false })
     .order('created_at', { ascending: false });
 
-  // Scope school role to their school only
-  const scopeSchoolId = caller.role === 'school' ? caller.school_id : searchParams.get('school_id');
+  // Scope school role to their school only, and validate teacher scope
+  let scopeSchoolId = searchParams.get('school_id');
+  
+  if (caller.role === 'school') {
+    scopeSchoolId = caller.school_id;
+  } else if (caller.role === 'teacher') {
+    const sids = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (scopeSchoolId) {
+      if (!sids.includes(scopeSchoolId)) {
+        return NextResponse.json({ error: 'Access denied to this school' }, { status: 403 });
+      }
+    } else if (sids.length > 0) {
+      // If no school_id provided, default to all their assigned schools
+      query = query.in('school_id', sids) as any;
+    }
+  }
+
   if (scopeSchoolId) query = query.eq('school_id', scopeSchoolId) as any;
 
   const courseId = searchParams.get('course_id');
@@ -83,6 +98,13 @@ export async function POST(req: NextRequest) {
 
   if (!student_id || !course_id || !term_label) {
     return NextResponse.json({ error: 'student_id, course_id and term_label are required' }, { status: 400 });
+  }
+
+  if (caller.role === 'teacher' && school_id) {
+    const sids = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (!sids.includes(school_id)) {
+      return NextResponse.json({ error: 'Access denied: You are not assigned to this school' }, { status: 403 });
+    }
   }
 
   const db = adminClient();

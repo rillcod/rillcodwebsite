@@ -98,7 +98,7 @@ export class LibraryService {
         return item;
     }
 
-    async listContent(tenantId: string | undefined, filters: ListFilters = {}) {
+    async listContent(schoolIds: string[] | undefined, filters: ListFilters = {}) {
         const supabase = await createClient();
         const pageSize = Math.min(filters.pageSize ?? 50, 100);
         const page = Math.max(filters.page ?? 0, 0);
@@ -110,8 +110,8 @@ export class LibraryService {
             .from('content_library')
             .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, school_id, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
 
-        if (tenantId) {
-            query = query.or(`school_id.eq.${tenantId},school_id.is.null`);
+        if (schoolIds && schoolIds.length > 0) {
+            query = query.or(`school_id.in.(${schoolIds.join(',')}),school_id.is.null`);
         } else if (role !== 'admin') {
             query = query.is('school_id', null);
         }

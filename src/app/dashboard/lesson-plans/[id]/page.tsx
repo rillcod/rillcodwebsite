@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
+  BoltIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -169,6 +170,31 @@ function buildPlanWeekCreateLessonUrl(opts: {
       flow_origin: 'lesson-plan',
     }).toString()
   );
+}
+
+function buildPlanWeekCreateCbtUrl(opts: {
+  plan: LessonPlan;
+  week: WeekEntry;
+  courseTitle: string;
+}): string {
+  const { plan, week: w } = opts;
+  const q = new URLSearchParams({
+    course_id: plan.course_id ?? '',
+    program_id: plan.courses?.program_id ?? '',
+    curriculum_id: plan.curriculum_version_id ?? '',
+    week: String(w.week),
+    topic: w.topic || '',
+    minimal: 'true',
+  });
+  // If it's week 3, 6 or last week, hint 'examination', else 'evaluation' (quiz)
+  const isAssessmentWeek = [3, 6].includes(w.week);
+  const isExamWeek = w.week >= 8; // simplified heuristic
+  if (isExamWeek || isAssessmentWeek) {
+    q.set('exam_type', 'examination');
+  } else {
+    q.set('exam_type', 'evaluation');
+  }
+  return `/dashboard/cbt/new?${q.toString()}`;
 }
 
 type ProgressionPreview = {
@@ -1364,6 +1390,28 @@ export default function LessonPlanDetailPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 print:hidden">
+                        <Link
+                          href={buildPlanWeekCreateLessonUrl({
+                            plan,
+                            week: w,
+                            courseTitle,
+                          })}
+                          className="p-1.5 hover:bg-violet-500/10 rounded-lg transition-all"
+                          title="Generate lesson for this week"
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5 text-violet-400" />
+                        </Link>
+                        <Link
+                          href={buildPlanWeekCreateCbtUrl({
+                            plan,
+                            week: w,
+                            courseTitle,
+                          })}
+                          className="p-1.5 hover:bg-amber-500/10 rounded-lg transition-all"
+                          title="Generate CBT/Flashcards for this week"
+                        >
+                          <BoltIcon className="w-3.5 h-3.5 text-amber-400" />
+                        </Link>
                         <button
                           onClick={() => toggleWeekCompleted(w.week)}
                           className={`p-1.5 rounded-lg transition-all ${
