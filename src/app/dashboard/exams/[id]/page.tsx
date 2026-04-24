@@ -158,6 +158,101 @@ export default function ExamDetailPage() {
 
   const totalPoints = questions.reduce((s, q) => s + q.points, 0);
 
+  const handlePrintExam = () => {
+    const docRef = `WRT-${Date.now().toString(36).toUpperCase()}`;
+    const dateStr = new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+    const course = exam?.courses?.title ?? '';
+
+    const optLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const questionRows = questions.map((q, i) => {
+      const isChoice = q.question_type === 'multiple_choice';
+      const opts = isChoice && Array.isArray(q.options)
+        ? q.options.filter(o => o.trim()).map((o, j) => `<span style="margin-right:14px;white-space:nowrap"><b>${optLabels[j]}.</b> ${o}</span>`).join('')
+        : '';
+      return `<div style="break-inside:avoid;margin-bottom:10px;padding:8px;border-left:2px solid #3b82f622;background:${i % 2 === 0 ? '#fafafa' : '#fff'}">
+  <div style="display:flex;align-items:flex-start;gap:8px">
+    <span style="font-weight:800;font-size:12px;color:#1e3a8a;min-width:24px">${i + 1}.</span>
+    <div style="flex:1">
+      <div style="font-size:12px;color:#111827;line-height:1.5">${q.question_text}</div>
+      ${isChoice ? `<div style="margin-top:6px;font-size:11px;color:#374151;display:flex;flex-wrap:wrap;gap:2px 0">${opts}</div>` : '<div style="margin-top:10px;border-bottom:1px solid #d1d5db;width:80%;height:1px"></div>'}
+      <span style="font-size:10px;color:#9ca3af;float:right">[${q.points} pt${q.points !== 1 ? 's' : ''}]</span>
+    </div>
+  </div>
+</div>`;
+    }).join('');
+
+    const answerRows = questions.map((q, i) => {
+      const isChoice = q.question_type === 'multiple_choice';
+      const optIdx = isChoice && Array.isArray(q.options) ? q.options.findIndex(o => o.trim() === String(q.correct_answer).trim() || o.trim() === q.options?.[parseInt(q.correct_answer)]) : -1;
+      const label = optIdx >= 0 ? optLabels[optIdx] : (q.correct_answer || '—');
+      return `<tr style="border-bottom:1px solid #e5e7eb">
+        <td style="padding:4px 8px;text-align:center;font-weight:700;font-size:11px;color:#1e3a8a">${i + 1}</td>
+        <td style="padding:4px 8px;font-size:10px;color:#111827">${q.question_text.slice(0, 80)}${q.question_text.length > 80 ? '...' : ''}</td>
+        <td style="padding:4px 8px;text-align:center;font-weight:800;font-size:11px;color:#059669">${isChoice ? label : '—'}</td>
+        <td style="padding:4px 8px;font-size:10px;color:#374151">${q.correct_answer || '—'}</td>
+        <td style="padding:4px 8px;text-align:center;font-size:10px;color:#6b7280">${q.points}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${exam?.title} — Exam Sheet</title>
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;padding:20px;color:#111}
+.header{display:flex;justify-content:space-between;border-bottom:3px solid #3b82f6;padding-bottom:10px;margin-bottom:15px}
+.title-box{background:#f0f7ff;border:1px solid #3b82f644;padding:12px;margin-bottom:15px;border-radius:8px}
+.meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.meta-cell{background:#f9fafb;border:1px solid #e5e7eb;padding:8px;text-align:center;border-radius:6px}
+.meta-label{font-size:9px;color:#6b7280;text-transform:uppercase}
+.meta-val{font-size:14px;font-weight:800}
+.name-box{border:1px solid #d1d5db;padding:10px;margin-bottom:15px;display:flex;gap:20px;border-radius:8px}
+.name-field{flex:1;border-bottom:1px solid #111;min-width:150px}
+.instructions{background:#fffbeb;border:1px solid #fcd34d;padding:10px;margin-bottom:15px;font-size:11px;border-radius:8px}
+.section-title{font-size:11px;font-weight:800;text-transform:uppercase;color:#1e3a8a;border-bottom:1px solid #3b82f633;padding-bottom:5px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th{background:#1e3a8a;color:white;padding:6px;font-size:10px;text-align:left}
+@media print{.no-print{display:none}}
+.page-break{page-break-before:always;margin-top:20px}
+</style></head><body>
+<div class="header">
+  <div><b style="font-size:20px;color:#3b82f6">Rillcod Technologies</b><br/><small>Academic Examination Service</small></div>
+  <div style="text-align:right;font-size:10px;color:#6b7280">Ref: ${docRef}<br/>Date: ${dateStr}</div>
+</div>
+<div class="title-box">
+  <div style="font-size:18px;font-weight:900;color:#1e3a8a">${exam?.title}</div>
+  <div style="font-size:11px;color:#374151;margin-top:4px">${exam?.description || ''}</div>
+  <div style="font-size:11px;color:#3b82f6;margin-top:4px;font-weight:700">${course}</div>
+</div>
+<div class="meta-grid">
+  <div class="meta-cell"><div class="meta-label">Duration</div><div class="meta-val">${exam?.duration_minutes} min</div></div>
+  <div class="meta-cell"><div class="meta-label">Total Points</div><div class="meta-val">${totalPoints}</div></div>
+  <div class="meta-cell"><div class="meta-label">Pass Mark</div><div class="meta-val">${exam?.passing_score}%</div></div>
+  <div class="meta-cell"><div class="meta-label">Attempts</div><div class="meta-val">${exam?.max_attempts}</div></div>
+</div>
+<div class="name-box">
+  <div><div style="font-size:10px;color:#6b7280">Student Name:</div><div class="name-field"></div></div>
+  <div><div style="font-size:10px;color:#6b7280">ID / Class:</div><div class="name-field"></div></div>
+</div>
+<div class="instructions"><b>Instructions:</b> Answer all questions clearly. Time allowed: ${exam?.duration_minutes} minutes.</div>
+<div class="section-title">Examination Sheet</div>
+${questionRows}
+<div class="page-break">
+  <div class="header" style="border-bottom-color:#059669"><b style="font-size:20px;color:#059669">Marking Guide</b></div>
+  <div style="font-size:11px;background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;margin-bottom:15px;color:#166534"><b>Confidential:</b> For examiner use only.</div>
+  <table>
+    <thead><tr><th>#</th><th>Question</th><th>Key</th><th>Expected Response</th><th>Pts</th></tr></thead>
+    <tbody>${answerRows}</tbody>
+  </table>
+</div>
+</body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 500);
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -211,12 +306,20 @@ export default function ExamDetailPage() {
           <DocumentTextIcon className="w-5 h-5 text-blue-400" />
           Questions ({questions.length})
         </h2>
-        {canManage && (
-          <button onClick={() => openForm()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-blue-500/20">
-            <PlusIcon className="w-4 h-4" /> Add Question
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {questions.length > 0 && (
+            <button onClick={handlePrintExam}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all text-sm border border-white/10">
+              <DocumentTextIcon className="w-4 h-4" /> Print Sheet
+            </button>
+          )}
+          {canManage && (
+            <button onClick={() => openForm()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-blue-500/20">
+              <PlusIcon className="w-4 h-4" /> Add Question
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Questions List */}
