@@ -37,7 +37,7 @@ async function getHandler(req: Request, ctx: ApiContext) {
     const schoolIds: string[] = [];
     if (ctx.user?.tenantId) schoolIds.push(ctx.user.tenantId);
     if (ctx.user?.role === 'teacher' && ctx.user.id) {
-        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId);
+        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId ?? null);
         sids.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
     }
 
@@ -67,7 +67,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
     const schoolIds: string[] = [];
     if (ctx.user?.tenantId) schoolIds.push(ctx.user.tenantId);
     if (ctx.user?.role === 'teacher' && ctx.user.id) {
-        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId);
+        const sids = await getTeacherSchoolIds(ctx.user.id, ctx.user.tenantId ?? null);
         sids.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
     }
 
