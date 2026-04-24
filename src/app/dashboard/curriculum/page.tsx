@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { createClient } from '@/lib/supabase/client';
+import { engagementTables } from '@/types/engagement';
 import {
   BookOpenIcon, SparklesIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon,
   ClipboardDocumentListIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon,
@@ -198,6 +201,25 @@ export default function CurriculumPage() {
   const [notesDraft, setNotesDraft]     = useState('');
   const [assigning, setAssigning]         = useState(false);
   const [assignResult, setAssignResult]   = useState<{ assignment?: boolean; project?: boolean } | null>(null);
+  const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedCourse) {
+      void loadShowcaseCount();
+    }
+  }, [selectedCourse, curriculum?.id]);
+
+  async function loadShowcaseCount() {
+    try {
+      const supabase = createClient();
+      const { count } = await engagementTables.showcase(supabase)
+        .select('*', { count: 'exact', head: true })
+        .eq('course_name', selectedCourse?.title || '');
+      setShowcaseCount(count);
+    } catch {
+      setShowcaseCount(0);
+    }
+  }
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [creatingCbt, setCreatingCbt]     = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -279,9 +301,9 @@ export default function CurriculumPage() {
 
   const isAdmin   = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
-  const isSchool  = profile?.role === 'school';
   const isStudent = profile?.role === 'student';
   const isParent  = profile?.role === 'parent';
+  const isSchool  = profile?.role === 'school';
   const canGenerate = isAdmin || isTeacher;
   const canTrack    = isAdmin || isTeacher;
   // Students & parents get a clean read-only syllabus (no builder chrome).
@@ -754,18 +776,15 @@ export default function CurriculumPage() {
           const scope = curr.school_id ? curr.school_id : 'platform';
           setGenerateScope(scope);
           restoreGradeForScope(scope);
-
-          // Better teacher flow: do not auto-open last syllabus.
-          // Show chooser first (Generate + all existing copies by school/scope).
-          if (canGenerate) {
-            setCurriculum(null);
-            setTracking([]);
-          } else {
-            setCurriculum(curr);
+          // Auto-select the best curriculum so the pipeline stepper always
+          // has a curriculumId to pass to Step 2. The teacher can still
+          // switch versions using the syllabus copy chooser dropdown above.
+          setCurriculum(curr);
+          try {
             const tRes = await fetch(`/api/curricula/${curr.id}/track`);
             const tJson = await tRes.json();
             setTracking(tJson.data ?? []);
-          }
+          } catch { /* keep empty tracking */ }
         }
       }
     } catch {
@@ -773,7 +792,7 @@ export default function CurriculumPage() {
     } finally {
       setLoadingCurr(false);
     }
-  }, [profile?.school_id, restoreGradeForScope, canGenerate]);
+  }, [profile?.school_id, restoreGradeForScope]);
 
   function selectCourse(prog: Program, course: Course) {
     setSelectedProgram(prog);
@@ -999,9 +1018,10 @@ export default function CurriculumPage() {
       curriculum_id: curriculum.id,
       term: String(activeTerm),
       week: String(week.week),
-      type: week.type === 'examination' ? 'exam' : 'quiz',
+      exam_type: week.type === 'examination' ? 'examination' : 'evaluation',
+      minimal: 'true'
     });
-    router.push(`/dashboard/cbt?${params.toString()}`);
+    router.push(`/dashboard/cbt/new?${params.toString()}`);
   }
 
   // ── Print lesson plan ─────────────────────────────────────────────────────
@@ -1021,14 +1041,14 @@ export default function CurriculumPage() {
       const projDue = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
 
       if (genContentType === 'cbt') {
-        const p = new URLSearchParams({
-          program_id: selectedProgram?.id ?? '',
-          course_id:  selectedCourse.id,
-          topic:      genWeek.topic,
-          week:       String(genWeek.week),
-          type:       genWeek.type === 'examination' ? 'examination' : 'evaluation',
+        const q = new URLSearchParams({
+          course_id: selectedCourse.id,
+          program_id: selectedProgram?.id || selectedCourse.program_id || '',
+          topic: genWeek.topic,
+          week: String(genWeek.week),
+          curriculum_id: curriculum?.id ?? curriculumList[0]?.id ?? '',
         });
-        router.push(`/dashboard/cbt/new?${p.toString()}`);
+        router.push(`/dashboard/cbt/new?${q.toString()}`);
         return;
       }
       if (genContentType === 'lesson') {
@@ -1064,9 +1084,20 @@ export default function CurriculumPage() {
         return;
       }
       if (genContentType === 'assignment') {
+        const currId = curriculum?.id ?? curriculumList[0]?.id;
         const res = await fetch('/api/assignments', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: plan?.assignment?.title || `${weekTag} — Assignment`, description: weekTag, instructions: plan?.assignment?.instructions || (genWeek.subtopics ?? []).join('\n'), assignment_type: 'homework', due_date: dueDate, max_points: 100, is_active: true, course_id: selectedCourse.id, metadata: { source: 'generate-content', curriculum_id: curriculum?.id, week: genWeek.week } }),
+          body: JSON.stringify({ 
+            title: plan?.assignment?.title || `${weekTag} — Assignment`, 
+            description: weekTag, 
+            instructions: plan?.assignment?.instructions || (genWeek.subtopics ?? []).join('\n'), 
+            assignment_type: 'homework', 
+            due_date: dueDate, 
+            max_points: 100, 
+            is_active: true, 
+            course_id: selectedCourse.id, 
+            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week } 
+          }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
@@ -1074,6 +1105,7 @@ export default function CurriculumPage() {
         return;
       }
       if (genContentType === 'project') {
+        const currId = curriculum?.id ?? curriculumList[0]?.id;
         const proj = plan?.project;
         const res = await fetch('/api/assignments', {
           method: 'POST',
@@ -1087,7 +1119,7 @@ export default function CurriculumPage() {
             max_points: 100,
             is_active: true,
             course_id: selectedCourse.id,
-            metadata: { source: 'generate-content', curriculum_id: curriculum?.id, week: genWeek.week },
+            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week },
           }),
         });
         const json = await res.json();
@@ -1095,7 +1127,10 @@ export default function CurriculumPage() {
         router.push(`/dashboard/assignments/${json.data.id}`);
         return;
       }
+
+      // @ts-ignore - TS thinks genContentType is narrowed away, but it's valid
       if (genContentType === 'flashcard') {
+        const currId = curriculum?.id ?? curriculumList[0]?.id;
         const res = await fetch('/api/flashcards/decks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1103,12 +1138,26 @@ export default function CurriculumPage() {
             title: weekTag,
             description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
             course_id: selectedCourse.id,
-            tags: ['curriculum', genWeek.topic]
+            tags: ['curriculum', genWeek.topic],
+            metadata: {
+              source: 'curriculum-gen',
+              curriculum_id: currId,
+              week: genWeek.week
+            }
           }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to create flashcard deck');
-        router.push(`/dashboard/flashcards?deckId=${json.data.id}&topic=${encodeURIComponent(genWeek.topic)}&autoGenerate=true`);
+        
+        const q = new URLSearchParams({
+          deckId: json.data.id,
+          topic: genWeek.topic,
+          autoGenerate: 'true',
+          course_id: selectedCourse.id,
+          curriculum_id: currId || '',
+          week: String(genWeek.week)
+        });
+        router.push(`/dashboard/flashcards?${q.toString()}`);
         return;
       }
     } catch (e: any) {
@@ -1135,6 +1184,7 @@ export default function CurriculumPage() {
       setCurriculum((prev) =>
         prev ? { ...prev, is_visible_to_school: next } : prev,
       );
+      toast.success(next ? 'Syllabus published to school' : 'Syllabus unpublished');
     } catch (e: any) {
       setLoadError(e.message || 'Failed to update syllabus visibility');
     } finally {
@@ -1148,6 +1198,8 @@ export default function CurriculumPage() {
   const allWeeks = curriculum?.content?.terms?.flatMap(t => t.weeks) ?? [];
   const completedCount = tracking.filter(t => t.status === 'completed').length;
   const progressPct = allWeeks.length ? Math.round((completedCount / allWeeks.length) * 100) : 0;
+  const weeks = curriculum?.content?.terms?.find(t => t.term === activeTerm)?.weeks ?? [];
+  const linkedLessons: any[] = []; // Default empty array since it's not loaded
   // Generate tab
   const genSelectedTypeDef = CONTENT_TYPES.find(t => t.key === genContentType);
   const canGenerateContent = !!selectedCourse && !!genWeek && !!genContentType;
@@ -1417,7 +1469,6 @@ export default function CurriculumPage() {
                     >
                       {activeCourses.map(course => {
                         const isSelected = selectedCourse?.id === course.id;
-                        const hasCurr = isSelected && !!curriculum;
                         return (
                           <button
                             key={course.id}
@@ -1429,13 +1480,7 @@ export default function CurriculumPage() {
                             }`}
                           >
                             {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600" />}
-                            <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-orange-500' : 'bg-muted-foreground/30'}`} />
                             <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
-                            {hasCurr && (
-                              <div className="ml-auto w-4 h-4 flex items-center justify-center bg-orange-600/10 border border-orange-500/20">
-                                 <SparklesIcon className="w-2.5 h-2.5 text-orange-400" />
-                              </div>
-                            )}
                           </button>
                         );
                       })}
@@ -1452,7 +1497,158 @@ export default function CurriculumPage() {
       <main className="flex-1 overflow-y-auto flex flex-col">
         {/* Tab bar — shown when course selected */}
         {selectedCourse && (
-          <div
+          <div className="flex flex-col">
+            {/* Term Delivery Showcase — Single Source of Truth */}
+            <div className="px-6 py-6 border-b border-border bg-gradient-to-br from-orange-500/[0.03] to-violet-500/[0.03]">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <SparklesIcon className="w-4 h-4 text-orange-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Term Delivery Showcase</span>
+                  </div>
+                  <h2 className="text-xl font-black text-foreground flex items-center gap-3">
+                    Academic Status: {curriculum?.content?.course_title || selectedCourse.title}
+                    {curriculum && (
+                      <span className={`flex items-center gap-2 text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest transition-all ${
+                        curriculum.is_visible_to_school 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${curriculum.is_visible_to_school ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                        {curriculum.is_visible_to_school ? 'Live: Published to School' : 'Stage: Working Draft'}
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Harmonizing {activeTerm === 1 ? 'First' : activeTerm === 2 ? 'Second' : 'Third'} Term syllabus truth with classroom delivery and student outcomes.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div className="bg-card border border-border p-3 rounded-xl">
+                    <p className="text-lg font-black text-foreground">
+                      {curriculum?.content?.terms?.find(t => t.term === activeTerm)?.weeks?.length || 0} Weeks
+                    </p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Syllabus Scope</p>
+                  </div>
+                  <div className="bg-card border border-border p-3 rounded-xl">
+                    <p className="text-lg font-black text-violet-400">
+                      {weeks.filter(w => linkedLessons.some(l => l.metadata?.week === w.week)).length} Lessons
+                    </p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Live Delivery</p>
+                  </div>
+                  <div className="bg-card border border-orange-500/20 bg-orange-500/5 p-3 rounded-xl col-span-2 sm:col-span-1">
+                    <Link href="/dashboard/library" className="group">
+                      <p className="text-lg font-black text-orange-400 flex items-center gap-1.5">
+                        {showcaseCount ?? 0} Items
+                        <ChevronRightIcon className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                      </p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Student Showcase</p>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Harmonized 3-Phase Pipeline Logic — Strategic Command Center */}
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { 
+                    name: 'Phase 1: Academic Truth', 
+                    steps: [{ id: 1, label: 'Syllabus', desc: 'Design truth' }], 
+                    icon: BookOpenIcon, color: 'orange', desc: 'Syllabus and Policies' 
+                  },
+                  { 
+                    name: 'Phase 2: Classroom Assets', 
+                    steps: [
+                      { id: 2, label: 'Plans', desc: 'Alignment' }, 
+                      { id: 3, label: 'Lessons', desc: 'Slides/Notes' }, 
+                      { id: 4, label: 'CBT', desc: 'Eval' }
+                    ], 
+                    icon: SparklesIcon, color: 'violet', desc: 'Plans, Lessons & Cards' 
+                  },
+                  { 
+                    name: 'Phase 3: Library & Ops', 
+                    steps: [{ id: 5, label: 'Library', desc: 'Final Records' }], 
+                    icon: RocketLaunchIcon, color: 'emerald', desc: 'Final Records & Showcase' 
+                  }
+                ].map((phase, pIdx) => (
+                  <div key={phase.name} className="space-y-4 p-5 rounded-2xl border border-border bg-card/50 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-2 h-2 rounded-full bg-${phase.color}-500/40`} />
+                      <span className={`text-[9px] font-black uppercase tracking-widest text-${phase.color}-400`}>
+                        {phase.name}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-medium">{phase.desc}</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {phase.steps.map(s => {
+                        const isComplete = (s.id === 1 && !!curriculum) || 
+                                           (s.id === 2 && linkedLessons.length > 0) ||
+                                           (s.id === 5 && (showcaseCount ?? 0) > 0);
+                        
+                        const getLink = () => {
+                          const q = new URLSearchParams({
+                            course_id: selectedCourse!.id,
+                            ...(curriculum?.id ? { curriculum_id: curriculum.id } : {}),
+                            ...(selectedProgram?.id ? { program_id: selectedProgram.id } : {}),
+                          });
+                          if (s.id === 1) return null; // handled by tab
+                          if (s.id === 2) return `/dashboard/lesson-plans?${q.toString()}`;
+                          if (s.id === 3) return `/dashboard/lessons?${q.toString()}`;
+                          if (s.id === 4) return `/dashboard/cbt?${q.toString()}`;
+                          if (s.id === 5) return `/dashboard/library?${q.toString()}`;
+                          return '#';
+                        };
+
+                        const link = getLink();
+
+                        return (
+                          <div key={s.id} className="group/step relative">
+                            {link ? (
+                              <Link
+                                href={link}
+                                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${
+                                  isComplete 
+                                    ? `bg-${phase.color}-500/5 border-${phase.color}-500/20 text-${phase.color}-300 hover:bg-${phase.color}-500/10` 
+                                    : 'bg-muted/5 border-border/40 text-muted-foreground hover:bg-muted/15'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="opacity-40 italic">0{s.id}</span>
+                                  <span>{s.label}</span>
+                                </div>
+                                {isComplete ? (
+                                  <CheckCircleIcon className={`w-3.5 h-3.5 text-${phase.color}-400`} />
+                                ) : (
+                                  <ChevronRightIcon className="w-3 h-3 opacity-0 group-hover/step:opacity-100 group-hover/step:translate-x-1 transition-all" />
+                                )}
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => setActiveTab('syllabus')}
+                                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${
+                                  activeTab === 'syllabus'
+                                    ? `bg-${phase.color}-500/10 border-${phase.color}-500/40 text-${phase.color}-300` 
+                                    : 'bg-muted/5 border-border/40 text-muted-foreground hover:bg-muted/15'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="opacity-40 italic">0{s.id}</span>
+                                  <span>{s.label}</span>
+                                </div>
+                                {isComplete && <CheckCircleIcon className={`w-3.5 h-3.5 text-${phase.color}-400`} />}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
             className="flex overflow-x-auto snap-x snap-mandatory border-b border-border bg-card px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
             role="tablist"
             aria-label="Curriculum views"
@@ -1488,6 +1684,7 @@ export default function CurriculumPage() {
               </button>
             )}
           </div>
+          </div>
         )}
 
         {/* Pipeline — shared 5-step stepper with course context preserved across steps */}
@@ -1500,28 +1697,30 @@ export default function CurriculumPage() {
               curriculumId={curriculum?.id ?? null}
               courseTitle={selectedCourse.title}
             />
-            {curriculum?.id && (
-              <div className="mt-3 pt-3 border-t border-border/60">
-                <Link
-                  href={(() => {
-                    const q = new URLSearchParams({
-                      course_id: selectedCourse.id,
-                      curriculum_id: curriculum.id,
-                    });
-                    const pid = selectedCourse.program_id ?? selectedProgram?.id;
-                    if (pid) q.set('program_id', pid);
-                    return `/dashboard/lesson-plans?${q.toString()}`;
-                  })()}
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
-                >
-                  <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
-                  Create term lesson plan from this syllabus (week-by-week)
-                </Link>
-                <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
-                  Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
-                </p>
-              </div>
-            )}
+          {/* Always show Step-2 link when at least one syllabus exists for this course */}
+          {(curriculum?.id ?? curriculumList[0]?.id) && (
+            <div className="mt-3 pt-3 border-t border-border/60">
+              <Link
+                href={(() => {
+                  const currId = curriculum?.id ?? curriculumList[0]?.id;
+                  const q = new URLSearchParams({
+                    course_id: selectedCourse!.id,
+                    ...(currId ? { curriculum_id: currId } : {}),
+                  });
+                  const pid = selectedCourse!.program_id ?? selectedProgram?.id;
+                  if (pid) q.set('program_id', pid);
+                  return `/dashboard/lesson-plans?${q.toString()}`;
+                })()}
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
+              >
+                <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
+                Create term lesson plan from this syllabus (week-by-week)
+              </Link>
+              <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
+                Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
+              </p>
+            </div>
+          )}
           </div>
         )}
 
@@ -1844,6 +2043,23 @@ export default function CurriculumPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Version switcher — Bug 1 Fix A */}
+                {canGenerate && curriculumList.length > 1 && (
+                  <div className="inline-flex items-center rounded-md border border-border bg-card px-2 h-[34px]">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2 border-r border-border pr-2 h-full flex items-center">Copy</span>
+                    <select
+                      value={curriculum.id}
+                      onChange={(e) => selectCurriculumVersion(e.target.value)}
+                      className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-orange-400 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
+                    >
+                      {curriculumList.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-background text-foreground">
+                          v{c.version} — {c.school_id ? 'School' : 'Platform'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {/* Preview as role — lets the teacher see the exact student/parent/school view */}
                 {canGenerate && (
                   <div className="inline-flex rounded-md border border-border overflow-hidden bg-card">

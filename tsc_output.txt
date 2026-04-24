@@ -1,0 +1,16 @@
+src/app/dashboard/curriculum/page.tsx(4,25): error TS2307: Cannot find module '@/contexts/auth-context' or its corresponding type declarations.
+src/app/dashboard/curriculum/page.tsx(14,8): error TS2307: Cannot find module '@/lib/icons' or its corresponding type declarations.
+src/app/dashboard/curriculum/page.tsx(16,51): error TS2307: Cannot find module '@/lib/curriculum/add-lesson-from-curriculum' or its corresponding type declarations.
+src/app/dashboard/curriculum/page.tsx(17,29): error TS2307: Cannot find module '@/components/pipeline/PipelineStepper' or its corresponding type declarations.
+src/app/dashboard/curriculum/page.tsx(22,8): error TS2307: Cannot find module '@/components/curriculum/SyllabusPreview' or its corresponding type declarations.
+src/app/dashboard/curriculum/page.tsx(211,24): error TS2304: Cannot find name 'createClient'.
+src/app/dashboard/curriculum/page.tsx(212,31): error TS2304: Cannot find name 'engagementTables'.
+src/app/dashboard/curriculum/page.tsx(386,35): error TS2304: Cannot find name 'isSchool'.
+src/app/dashboard/curriculum/page.tsx(401,27): error TS2304: Cannot find name 'isSchool'.
+src/app/dashboard/curriculum/page.tsx(1183,7): error TS2304: Cannot find name 'toast'.
+src/app/dashboard/curriculum/page.tsx(1530,24): error TS2304: Cannot find name 'weeks'.
+src/app/dashboard/curriculum/page.tsx(1530,42): error TS2304: Cannot find name 'linkedLessons'.
+src/app/dashboard/curriculum/page.tsx(1580,59): error TS2304: Cannot find name 'linkedLessons'.
+src/app/dashboard/curriculum/page.tsx(1873,32): error TS2304: Cannot find name 'isSchool'.
+src/app/dashboard/curriculum/page.tsx(1974,29): error TS2304: Cannot find name 'isSchool'.
+src/app/dashboard/curriculum/page.tsx(1992,34): error TS2304: Cannot find name 'isSchool'.

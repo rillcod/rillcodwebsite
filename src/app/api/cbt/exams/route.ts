@@ -48,6 +48,7 @@ async function teacherSchoolIds(caller: Caller): Promise<string[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(_request: NextRequest) {
   try {
+    const { searchParams } = new URL(_request.url);
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -61,16 +62,31 @@ export async function GET(_request: NextRequest) {
         .order('created_at', { ascending: false });
 
       if (caller.role === 'admin') {
-        // No filter — admins see all
-      } else if (caller.role === 'school') {
-        if (!caller.school_id) return NextResponse.json({ data: [] });
-        query = query.eq('school_id', caller.school_id) as any;
-      } else if (caller.role === 'teacher') {
-        const schoolIds = await teacherSchoolIds(caller);
-        // Exams they created OR scoped to any of their assigned schools
-        const orParts = [`created_by.eq.${caller.id}`];
-        if (schoolIds.length > 0) orParts.push(`school_id.in.(${schoolIds.join(',')})`);
-        query = query.or(orParts.join(',')) as any;
+        // Platform admins see all, but can filter by school_id if passed
+        const filterSid = searchParams.get('school_id');
+        if (filterSid) query = query.eq('school_id', filterSid) as any;
+      } else {
+        const schoolIds: string[] = [];
+        if (caller.school_id) schoolIds.push(caller.school_id);
+        
+        const teacherIds = await teacherSchoolIds(caller);
+        teacherIds.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
+
+        if (schoolIds.length > 0) {
+          // Resolve names for dual filtering (safe multi-tenancy as requested)
+          const { data: schools } = await admin.from('schools').select('name').in('id', schoolIds);
+          const names = (schools ?? []).map(s => s.name).filter(Boolean);
+          
+          const idFilter = `school_id.in.(${schoolIds.join(',')})`;
+          if (names.length > 0) {
+            const nameFilters = names.map(n => `school_name.eq.${JSON.stringify(n)}`).join(',');
+            query = query.or(`${idFilter},${nameFilters},created_by.eq.${caller.id}`) as any;
+          } else {
+            query = query.or(`${idFilter},created_by.eq.${caller.id}`) as any;
+          }
+        } else {
+          query = query.eq('created_by', caller.id) as any;
+        }
       }
 
       const { data, error } = await query;
@@ -133,13 +149,15 @@ export async function POST(request: NextRequest) {
     };
 
     const allowedExamFields = [
-      'title', 'description', 'program_id', 'course_id',
+      'title', 'description', 'program_id', 'course_id', 'exam_type',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
       'start_date', 'end_date', 'metadata',
     ];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
     }
+
+    const admin = adminClient();
 
     // school_id: validate teacher is assigned to the school
     const requestedSchoolId: string | null = typeof examFields.school_id === 'string' ? examFields.school_id : null;
@@ -161,11 +179,16 @@ export async function POST(request: NextRequest) {
       if ('school_id' in examFields) examPayload.school_id = examFields.school_id ?? null;
     }
 
+    // Always try to attach school_name if school_id is present (safe multi-tenancy)
+    if (examPayload.school_id) {
+      const { data: s } = await admin.from('schools').select('name').eq('id', examPayload.school_id).single();
+      if (s?.name) examPayload.school_name = s.name;
+    }
+
     if (!examPayload.title) {
       return NextResponse.json({ error: 'Exam title is required' }, { status: 400 });
     }
 
-    const admin = adminClient();
     const { data: exam, error: examErr } = await admin
       .from('cbt_exams')
       .insert(examPayload)

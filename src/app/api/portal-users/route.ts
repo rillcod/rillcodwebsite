@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const roleFilter = searchParams.get('role');      // e.g. 'student'
     const classFilter = searchParams.get('class_id'); // e.g. UUID
-    const scoped     = searchParams.get('scoped') === 'true'; // apply school scoping
+    const scoped = searchParams.get('scoped') === 'true'; // apply school scoping
 
     let query = admin
       .from('portal_users')
@@ -120,7 +120,7 @@ export async function PATCH(request: NextRequest) {
     // Whitelist allowed fields — never let callers set arbitrary columns
     const admin = adminClient();
     const allowed: Record<string, unknown> = {};
-    if ('class_id'  in update) allowed.class_id  = update.class_id ?? null;
+    if ('class_id' in update) allowed.class_id = update.class_id ?? null;
     if ('school_id' in update) {
       allowed.school_id = update.school_id ?? null;
       // Sync school_name so the column stays accurate after refresh

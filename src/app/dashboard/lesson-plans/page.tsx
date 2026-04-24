@@ -541,26 +541,34 @@ function LessonPlansPageInner() {
   }, [autoClassMatch, form.class_id, formClasses, autoMatchClassHints]);
 
   // Auto mode should drive the flow forward:
-  // - pick current term if empty
+  // - pick current term if empty (only once when form first opens)
   // - pick the single available syllabus copy when obvious
-  // - move focus to final step once context is ready
+  // - move focus to final step once context is ready (only when everything is filled)
   useEffect(() => {
     if (!autoClassMatch || !showForm) return;
 
+    // Step A: auto-fill term — only when it's genuinely empty
     if (!form.term) {
       setForm(f => ({ ...f, term: getCurrentTermLabel() }));
-      return;
+      return; // stop here, let the next render handle the next step
     }
 
+    // Step B: auto-pick curriculum — only when course is set AND no curriculum chosen yet
+    // AND there is exactly one visible option (avoids repeated state churn).
     if (
       form.course_id &&
       !form.curriculum_version_id &&
       visibleCurricula.length === 1
     ) {
-      setForm(f => ({ ...f, curriculum_version_id: visibleCurricula[0].id }));
+      setForm(f =>
+        f.curriculum_version_id === visibleCurricula[0].id
+          ? f // already set — bail out to prevent loop
+          : { ...f, curriculum_version_id: visibleCurricula[0].id },
+      );
       return;
     }
 
+    // Step C: scroll to schedule step when everything is filled (no state mutation — safe)
     const readyForLastStep =
       !!form.term &&
       !!form.course_id &&
@@ -724,9 +732,25 @@ function LessonPlansPageInner() {
             {plans.length === 0 ? 'No lesson plans yet' : 'No plans match these filters'}
           </p>
           <p className="text-xs text-card-foreground/40 max-w-md">
-            Term lesson plans group your lessons by term, class and course. Generate a syllabus first for the best pre-fill.
+            {plans.length === 0 
+              ? 'Term lesson plans group your lessons by term, class and course. Generate a syllabus first for the best pre-fill.'
+              : 'Try clearing your search or category filters to see more plans.'}
           </p>
           <div className="flex flex-wrap gap-2 justify-center mt-2">
+            {(filterProgramId || filterClassId || filterTerm || filterStatus || search) && plans.length > 0 && (
+              <button
+                onClick={() => {
+                  setFilterProgramId('');
+                  setFilterClassId('');
+                  setFilterTerm('');
+                  setFilterStatus('');
+                  setSearch('');
+                }}
+                className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg"
+              >
+                Clear all filters
+              </button>
+            )}
             <Link
               href="/dashboard/curriculum"
               className="text-orange-400 text-sm font-bold hover:underline px-3 py-1.5 border border-orange-500/30 rounded-lg"

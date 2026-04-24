@@ -19,7 +19,7 @@ async function requireStaff() {
     .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
+  if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
   return profile;
 }
 

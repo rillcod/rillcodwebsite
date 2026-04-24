@@ -12,7 +12,7 @@ function adminClient() {
 async function requireInboxUser(req: NextRequest) {
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  
+
   if (authErr || !user) {
     throw new Error('Unauthorized');
   }
@@ -24,7 +24,7 @@ async function requireInboxUser(req: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin', 'teacher', 'school', 'parent', 'student'].includes(profile.role)) {
+  if (!profile || !['admin', 'teacher', 'parent', 'student'].includes(profile.role)) {
     throw new Error('Forbidden: Inbox access denied');
   }
 
@@ -49,9 +49,26 @@ export async function GET(req: NextRequest) {
         .from('whatsapp_conversations')
         .select('id, portal_user_id')
         .eq('id', conversationId);
+
       if (caller.role === 'parent' || caller.role === 'student') {
         convScope = convScope.eq('portal_user_id', caller.id);
+      } else if (caller.role === 'teacher') {
+        // Teacher must belong to the same school as the student in the conversation
+        if (!caller.school_id) return NextResponse.json({ error: 'Teacher school not assigned' }, { status: 403 });
+
+        // Use a subquery to verify the student's school
+        const { data: validStudent } = await admin
+          .from('whatsapp_conversations')
+          .select('id, portal_users!inner(school_id)')
+          .eq('id', conversationId)
+          .eq('portal_users.school_id', caller.school_id)
+          .maybeSingle();
+
+        if (!validStudent) {
+          return NextResponse.json({ error: 'Access denied: student not in your school' }, { status: 403 });
+        }
       }
+
       const { data: conversation, error: convErr } = await convScope.single();
 
       if (convErr || !conversation) {
@@ -84,13 +101,18 @@ export async function GET(req: NextRequest) {
       .from('whatsapp_conversations')
       .select(`
         *,
-        portal_users:portal_user_id(id, full_name, email, phone)
+        portal_users!inner(id, full_name, email, phone, school_id)
       `)
       .order('last_message_at', { ascending: false })
       .limit(100);
+
     if (caller.role === 'parent' || caller.role === 'student') {
       convQuery = convQuery.eq('portal_user_id', caller.id);
+    } else if (caller.role === 'teacher') {
+      if (!caller.school_id) return NextResponse.json({ data: [] });
+      convQuery = convQuery.eq('portal_users.school_id', caller.school_id);
     }
+
     const { data: conversations, error } = await convQuery;
 
     if (error) {

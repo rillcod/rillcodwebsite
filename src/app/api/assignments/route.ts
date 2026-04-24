@@ -91,18 +91,18 @@ export async function GET(request: NextRequest) {
     if (caller.role === 'student') {
       rows = rows.filter((a: any) => {
         const m = a.metadata || {};
-        const vis   = m.visibility;
-        const wm    = m.work_mode;
-        const tcid  = m.target_class_id;
+        const vis = m.visibility;
+        const wm = m.work_mode;
+        const tcid = m.target_class_id;
         const tids: string[] = m.target_student_ids || [];
-        const grps: any[]    = m.groups || [];
+        const grps: any[] = m.groups || [];
 
         // Visibility
         if (vis === 'class') {
           const classMatch =
             (tcid && caller.class_id && tcid === caller.class_id) ||
             (m.target_class_name && caller.section_class &&
-             m.target_class_name.toLowerCase().trim() === caller.section_class.toLowerCase().trim());
+              m.target_class_name.toLowerCase().trim() === caller.section_class.toLowerCase().trim());
           if (!classMatch) return false;
         } else {
           // school-wide or unset
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
             !a.school_id ||
             (caller.school_id && a.school_id === caller.school_id) ||
             (caller.school_name && a.school_name &&
-             a.school_name.toLowerCase() === caller.school_name.toLowerCase());
+              a.school_name.toLowerCase() === caller.school_name.toLowerCase());
           if (!schoolMatch) return false;
         }
 
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     let resolvedSchoolName: string | null = null;
 
     if (caller.role === 'admin') {
-      resolvedSchoolId   = body.school_id   ?? null;
+      resolvedSchoolId = body.school_id ?? null;
       resolvedSchoolName = body.school_name ?? null;
     } else {
       // Teacher: validate school_id against their assignments
@@ -180,10 +180,10 @@ export async function POST(request: NextRequest) {
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
     ];
     const payload: Record<string, unknown> = {
-      created_by:  caller.id,
-      school_id:   resolvedSchoolId,
+      created_by: caller.id,
+      school_id: resolvedSchoolId,
       school_name: resolvedSchoolName,
-      created_at:  new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
     for (const f of allowedFields) {
       if (f in body) payload[f] = body[f] ?? null;

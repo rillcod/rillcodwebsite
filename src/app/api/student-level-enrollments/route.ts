@@ -52,16 +52,16 @@ export async function GET(req: NextRequest) {
   const scopeSchoolId = caller.role === 'school' ? caller.school_id : searchParams.get('school_id');
   if (scopeSchoolId) query = query.eq('school_id', scopeSchoolId) as any;
 
-  const courseId   = searchParams.get('course_id');
-  const programId  = searchParams.get('program_id');
-  const studentId  = searchParams.get('student_id');
-  const status     = searchParams.get('status');
+  const courseId = searchParams.get('course_id');
+  const programId = searchParams.get('program_id');
+  const studentId = searchParams.get('student_id');
+  const status = searchParams.get('status');
   const cohortYear = searchParams.get('cohort_year');
 
-  if (courseId)   query = query.eq('course_id', courseId) as any;
-  if (programId)  query = query.eq('program_id', programId) as any;
-  if (studentId)  query = query.eq('student_id', studentId) as any;
-  if (status)     query = query.eq('status', status) as any;
+  if (courseId) query = query.eq('course_id', courseId) as any;
+  if (programId) query = query.eq('program_id', programId) as any;
+  if (studentId) query = query.eq('student_id', studentId) as any;
+  if (status) query = query.eq('status', status) as any;
   if (cohortYear) query = query.eq('cohort_year', parseInt(cohortYear)) as any;
 
   const { data, error } = await query;
@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
     .insert({
       student_id,
       course_id,
-      school_id:   school_id   ?? null,
-      program_id:  program_id  ?? null,
+      school_id: school_id ?? null,
+      program_id: program_id ?? null,
       cohort_year: cohort_year ?? new Date().getFullYear(),
       term_label,
-      start_week:  start_week  ?? 1,
+      start_week: start_week ?? 1,
       module_name: module_name ?? null,
       status: 'active',
     })
