@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
