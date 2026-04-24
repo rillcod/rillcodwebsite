@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -300,6 +300,8 @@ export default function CurriculumPage() {
   } | null>(null);
   const [qaApplyLoading, setQaApplyLoading] = useState(false);
   const [qaApplyErr, setQaApplyErr] = useState('');
+  // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
+  const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -373,9 +375,25 @@ export default function CurriculumPage() {
             setSelectedProgram(p);
             if (deepCourseId) {
               const c = (p.courses ?? []).find((x) => x.id === deepCourseId);
-              if (c) setSelectedCourse(c);
+              if (c) {
+                setSelectedCourse(c);
+                loadCurriculumRef.current?.(c.id);
+              }
             }
             return;
+          }
+        }
+        // Handle ?course=xxx without a program param — search all programs
+        if (deepCourseId) {
+          for (const p of progs) {
+            const c = (p.courses ?? []).find((x) => x.id === deepCourseId);
+            if (c) {
+              setExpandedPrograms(new Set([p.id]));
+              setSelectedProgram(p);
+              setSelectedCourse(c);
+              loadCurriculumRef.current?.(c.id);
+              return;
+            }
           }
         }
         if (progs.length === 1) {
@@ -802,6 +820,7 @@ export default function CurriculumPage() {
       setLoadingCurr(false);
     }
   }, [profile?.school_id, restoreGradeForScope]);
+  loadCurriculumRef.current = loadCurriculum;
 
   function selectCourse(prog: Program, course: Course) {
     setSelectedProgram(prog);
@@ -1785,7 +1804,7 @@ export default function CurriculumPage() {
                           if (!e.target.value) { setGenWeek(null); setGenContentType(null); return; }
                           const [tNum, wNum] = e.target.value.split('-').map(Number);
                           const found = (curriculum.content.terms ?? []).flatMap(t =>
-                            t.weeks.map(w => ({ ...w, termNumber: t.term }))
+                            (t.weeks ?? []).map(w => ({ ...w, termNumber: t.term }))
                           ).find(w => w.termNumber === tNum && w.week === wNum);
                           setGenWeek(found ?? null);
                           setGenContentType(null);
@@ -1793,7 +1812,7 @@ export default function CurriculumPage() {
                         className={SELECT_CLS}
                       >
                         <option value="">— Select Week —</option>
-                        {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => (
+                        {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => (
                           <optgroup key={term.term} label={term.title}>
                             {[...(term.weeks ?? [])].sort((a, b) => a.week - b.week).map(w => (
                               <option key={`${term.term}-${w.week}`} value={`${term.term}-${w.week}`}>
@@ -2121,7 +2140,7 @@ export default function CurriculumPage() {
                       {/* Term tabs */}
                       {termCount > 0 && (
                         <div className="flex gap-1 bg-card border border-border p-1 w-fit">
-                          {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => {
+                          {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
                             const termTracking = tracking.filter(t => t.term_number === term.term);
                             const termWeeks = term.weeks?.length ?? 0;
                             const termDone = termTracking.filter(t => t.status === 'completed').length;

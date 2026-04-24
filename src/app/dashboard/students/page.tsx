@@ -190,7 +190,7 @@ export default function StudentsPage() {
   // Enrolled portal students (portal_users role=student)
   const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled'>('all');
   const [portalStudents, setPortalStudents] = useState<any[]>([]);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [_portalLoading, setPortalLoading] = useState(false);
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
   const [assigningSchool, setAssigningSchool] = useState<string | null>(null); // portal student id being assigned
@@ -610,7 +610,6 @@ export default function StudentsPage() {
       const cls = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '—';
       const email = s.student_email || s.email || s.parent_email || '—';
       const school = s.school_name || '—';
-      const status = s.status || '—';
       const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
       return `
         <tr style="background:${bg};border-bottom:1px solid #e5e7eb;">
@@ -998,8 +997,6 @@ export default function StudentsPage() {
   ])].sort() as string[];
 
   const pending = normalizedApplications.filter(s => s.status === 'pending').length;
-  const approved = normalizedApplications.filter(s => s.status === 'approved').length;
-  const rejected = normalizedApplications.filter(s => s.status === 'rejected').length;
 
   // ── Calculate age ──────────────────────────────────────────
   const calcAge = (dob?: string) => {
@@ -1617,13 +1614,13 @@ export default function StudentsPage() {
                   value={search} onChange={e => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 transition-colors" />
               </div>
-              <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
+              <select title="Filter by student type" value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
                 className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="all">All Students</option>
                 <option value="enrolled">Enrolled Portal</option>
                 <option value="applications">Applications</option>
               </select>
-              <select value={filter} onChange={e => setFilter(e.target.value)}
+              <select title="Filter by status" value={filter} onChange={e => setFilter(e.target.value)}
                 className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -1635,12 +1632,12 @@ export default function StudentsPage() {
             {/* Registry print filters */}
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
               <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex-shrink-0 sm:mt-0 mt-1">Filter for print:</span>
-              <select value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
+              <select title="Filter by school" value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
                 className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="">All Schools</option>
                 {distinctSchoolsReg.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <select value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
+              <select title="Filter by class" value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
                 className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="">All Classes / Grades</option>
                 {distinctClassesReg.map(c => <option key={c} value={c}>{c}</option>)}

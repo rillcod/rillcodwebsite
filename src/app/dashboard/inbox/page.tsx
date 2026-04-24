@@ -233,8 +233,9 @@ export default function UnifiedInbox() {
   // Subject dialog (replaces window.prompt for school/teacher convs)
   const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef  = useRef<HTMLDivElement>(null);
+  const textareaRef     = useRef<HTMLTextAreaElement>(null);
+  const activeConvRef   = useRef<Conversation | null>(null);
 
   const isSchool  = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
@@ -242,7 +243,9 @@ export default function UnifiedInbox() {
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
-  const isTeacherOrStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
+
+  // Keep ref in sync every render so realtime callbacks always see the current conversation
+  activeConvRef.current = activeConv;
 
   // Students and parents land on the 3-path empty state first on mobile,
   // not the conversation sidebar — sidebar is reachable via back button.
@@ -275,8 +278,10 @@ export default function UnifiedInbox() {
   }, [isStaff, activeTab, queueFilter, conversations.length]);
 
   useEffect(() => {
-    if (!activeConv || activeConv.type !== 'students' || !isStaff) return;
-    fetch(`/api/inbox/conversation-meta?conversation_id=${encodeURIComponent(activeConv.id)}`)
+    const convId = activeConv?.id;
+    const convType = activeConv?.type;
+    if (!convId || convType !== 'students' || !isStaff) return;
+    fetch(`/api/inbox/conversation-meta?conversation_id=${encodeURIComponent(convId)}`)
       .then((r) => r.json())
       .then((j) => {
         const d = j.data;
@@ -443,10 +448,13 @@ export default function UnifiedInbox() {
   const handleRealtime = (type: InboxCategory, msg: any) => {
     if (type === activeTab) fetchConversations(type, false);
     const convId = msg.conversation_id || msg.thread_id;
-    if (activeConv && activeConv.id === convId) {
+    // Read from ref so this callback always sees the current conversation,
+    // even when the subscription was established before the user navigated.
+    const currentConv = activeConvRef.current;
+    if (currentConv && currentConv.id === convId) {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, normaliseMsg(msg)]);
       if (msg.direction === 'inbound' || msg.sender_id !== profile?.id) {
-        markAsRead(activeConv);
+        markAsRead(currentConv);
       }
     } else if (isParentOrStudent && convId) {
       // For student/parent: if message is for their conversation (even if not open), refresh list
@@ -1525,6 +1533,7 @@ export default function UnifiedInbox() {
                         {assignedStaff ? (
                           <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#111b21] overflow-hidden bg-white/10 shrink-0" title={`Assigned to ${assignedStaff.full_name}`}>
                             {assignedStaff.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={assignedStaff.avatar_url} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-violet-600 text-[8px] font-black text-white">
@@ -1784,6 +1793,7 @@ export default function UnifiedInbox() {
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
                           >
                             <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               {s.avatar_url ? <img src={s.avatar_url} alt="" className="w-full h-full object-cover" /> : initials(s.full_name)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2266,7 +2276,7 @@ export default function UnifiedInbox() {
             </div>
             {activeTab === 'parents' && (
               <div className="px-5 py-3 bg-[#111b21] border-t border-white/[0.05] text-[11px] text-white/25 text-center">
-                To start a parent conversation, initiate from the student's profile.
+                To start a parent conversation, initiate from the student&apos;s profile.
               </div>
             )}
           </div>
@@ -2680,7 +2690,7 @@ export default function UnifiedInbox() {
                   />
                 </div>
                 <p className="text-[10px] text-white/30 mt-2 ml-1">
-                  Enter any phone number to start a WhatsApp conversation. The number doesn't need to be in your contacts.
+                  Enter any phone number to start a WhatsApp conversation. The number doesn&apos;t need to be in your contacts.
                 </p>
               </div>
 

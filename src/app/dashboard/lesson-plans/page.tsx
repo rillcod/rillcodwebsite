@@ -402,6 +402,7 @@ function LessonPlansPageInner() {
       }
       if (filterClassId && p.class_id !== filterClassId) return false;
       if (filterCourseId && p.course_id !== filterCourseId && p.lessons?.course_id !== filterCourseId) return false;
+      if (filterTerm && !(p.term ?? '').toLowerCase().startsWith(filterTerm.toLowerCase())) return false;
       if (filterStatus && (p.status ?? 'draft') !== filterStatus) return false;
       if (!search) return true;
       const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? '';
@@ -982,7 +983,7 @@ function LessonPlansPageInner() {
                   </select>
                   {visibleCurricula.length === 0 && (
                     <p className="text-[11px] text-amber-400 mt-1.5">
-                      No syllabus for this course yet — <Link href={`/dashboard/curriculum?course_id=${form.course_id}`} className="underline">generate one first</Link> for richer prefills.
+                      No syllabus for this course yet — <Link href={`/dashboard/curriculum?course=${form.course_id}`} className="underline">generate one first</Link> for richer prefills.
                     </p>
                   )}
                   {form.curriculum_version_id && (
