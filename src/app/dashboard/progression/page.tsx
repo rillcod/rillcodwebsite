@@ -169,8 +169,8 @@ export default function ProgressionPage() {
         </div>
       )}
 
-      {/* LMS settings tools control center */}
-      {(profile.role === 'admin' || profile.role === 'teacher' || profile.role === 'school') && (
+      {/* LMS settings tools control center — admin/teacher only */}
+      {canPromote && (
         <div className="p-5 sm:p-6 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.03] to-fuchsia-500/[0.03]">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
