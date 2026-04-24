@@ -277,6 +277,7 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
 }
 export default function ContentLibraryPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,17 +323,12 @@ export default function ContentLibraryPage() {
     
     const courseId = searchParams.get('course_id');
     if (courseId) {
-      createClient().from("courses").select("id, title, subject").eq("id", courseId).single()
+      createClient().from("courses").select("id, title").eq("id", courseId).single()
         .then(({ data }) => {
           if (data) {
             setSelectedCourse(data as any);
-            // Auto-filter by subject if the course has one
-            if (data.subject) {
-              setSubjectFilter(data.subject);
-            } else {
-              // Otherwise try searching by course title
-              setSearch(data.title);
-            }
+            // Try searching by course title
+            setSearch(data.title);
           }
         });
     }
@@ -419,7 +415,6 @@ export default function ContentLibraryPage() {
     </div>
   );
 
-  const searchParams = useSearchParams();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Content Pipeline Stepper (staff only) ── */}
@@ -638,7 +633,7 @@ export default function ContentLibraryPage() {
               <div className="flex border border-border min-h-[40px]" role="group" aria-label="Layout">
                 <button
                   onClick={() => setViewMode('grid')}
-                  aria-pressed={viewMode === 'grid'}
+                  aria-pressed={viewMode === 'grid' ? 'true' : 'false'}
                   className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
                     viewMode === 'grid' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
                   }`}
@@ -647,7 +642,7 @@ export default function ContentLibraryPage() {
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  aria-pressed={viewMode === 'list'}
+                  aria-pressed={viewMode === 'list' ? 'true' : 'false'}
                   className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
                     viewMode === 'list' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
                   }`}
