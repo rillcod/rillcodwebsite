@@ -25,7 +25,7 @@ export interface CourseInput {
 }
 
 export interface CourseFilters {
-    tenantId?: string;
+    schoolIds?: string[];
     programId?: string;
     page?: number;
     limit?: number;
@@ -74,7 +74,8 @@ export class CoursesService {
         const limit = filters.limit || 20;
         const offset = (page - 1) * limit;
 
-        const cacheKey = `courses:${filters.tenantId || 'all'}:p${filters.programId || 'all'}:pg${page}:l${limit}:pub${filters.isPublished}`;
+        const schoolIdsKey = filters.schoolIds ? filters.schoolIds.join(',') : 'all';
+        const cacheKey = `courses:${schoolIdsKey}:p${filters.programId || 'all'}:pg${page}:l${limit}:pub${filters.isPublished}`;
 
         const cached = await redisCache.get<{ data: any[], metadata: any }>(cacheKey);
         if (cached) {
@@ -87,8 +88,8 @@ export class CoursesService {
             .from('courses')
             .select('*, programs!inner(id, name)', { count: 'exact' });
 
-        if (filters.tenantId) {
-            query = query.eq('school_id', filters.tenantId);
+        if (filters.schoolIds && filters.schoolIds.length > 0) {
+            query = query.or(`school_id.in.(${filters.schoolIds.join(',')}),school_id.is.null`);
         }
 
         if (filters.programId) {
@@ -126,12 +127,12 @@ export class CoursesService {
         return result;
     }
 
-    async getCourse(id: string, tenantId?: string) {
+    async getCourse(id: string, schoolIds?: string[]) {
         const supabase = await createClient();
         let query = supabase.from('courses').select('*, programs!inner(name, id)').eq('id', id);
 
-        if (tenantId) {
-            query = query.eq('school_id', tenantId);
+        if (schoolIds && schoolIds.length > 0) {
+            query = query.or(`school_id.in.(${schoolIds.join(',')}),school_id.is.null`);
         }
 
         const { data, error } = await query.single();

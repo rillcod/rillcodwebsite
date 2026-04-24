@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,20 +22,6 @@ async function getCaller(): Promise<Caller | null> {
     .eq('id', user.id)
     .single();
   return (caller as Caller) ?? null;
-}
-
-/** All school IDs a teacher is assigned to (primary + teacher_schools). */
-async function teacherSchoolIds(caller: Caller): Promise<string[]> {
-  const ids: string[] = [];
-  if (caller.school_id) ids.push(caller.school_id);
-  const { data: ts } = await adminClient()
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', caller.id);
-  (ts ?? []).forEach((r: any) => {
-    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
-  });
-  return ids;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,27 +50,19 @@ export async function GET(_request: NextRequest) {
         // Platform admins see all, but can filter by school_id if passed
         const filterSid = searchParams.get('school_id');
         if (filterSid) query = query.eq('school_id', filterSid) as any;
-      } else {
-        const schoolIds: string[] = [];
-        if (caller.school_id) schoolIds.push(caller.school_id);
-        
-        const teacherIds = await teacherSchoolIds(caller);
-        teacherIds.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
-
+      } else if (caller.role === 'teacher') {
+        const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
         if (schoolIds.length > 0) {
-          // Resolve names for dual filtering (safe multi-tenancy as requested)
-          const { data: schools } = await admin.from('schools').select('name').in('id', schoolIds);
-          const names = (schools ?? []).map(s => s.name).filter(Boolean);
-          
-          const idFilter = `school_id.in.(${schoolIds.join(',')})`;
-          if (names.length > 0) {
-            const nameFilters = names.map(n => `school_name.eq.${JSON.stringify(n)}`).join(',');
-            query = query.or(`${idFilter},${nameFilters},created_by.eq.${caller.id}`) as any;
-          } else {
-            query = query.or(`${idFilter},created_by.eq.${caller.id}`) as any;
-          }
+          const idFilter = `school_id.in.(${schoolIds.join(',')}),school_id.is.null`;
+          query = query.or(`${idFilter},created_by.eq.${caller.id}`) as any;
         } else {
-          query = query.eq('created_by', caller.id) as any;
+          query = query.or(`school_id.is.null,created_by.eq.${caller.id}`) as any;
+        }
+      } else if (caller.role === 'school') {
+        if (caller.school_id) {
+          query = query.or(`school_id.eq.${caller.school_id},school_id.is.null`) as any;
+        } else {
+          query = query.is('school_id', null);
         }
       }
 

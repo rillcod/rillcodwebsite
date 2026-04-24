@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { loadCommunicationPolicy } from '@/lib/communication/abusePolicy';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -14,7 +13,7 @@ async function requireStaff(allowSchool = false) {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: profile } = await supabase
+  const { data: profile } = await adminClient()
     .from('portal_users')
     .select('id, role, school_id')
     .eq('id', user.id)
@@ -22,20 +21,6 @@ async function requireStaff(allowSchool = false) {
   const allowedRoles = allowSchool ? ['admin', 'teacher', 'school'] : ['admin', 'teacher'];
   if (!profile || !allowedRoles.includes(profile.role)) return null;
   return profile;
-}
-
-async function teacherSchoolIds(callerId: string, primarySchoolId: string | null): Promise<string[]> {
-  const ids: string[] = [];
-  if (primarySchoolId) ids.push(primarySchoolId);
-  const admin = adminClient();
-  const { data: ts } = await admin
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', callerId);
-  (ts ?? []).forEach((r: any) => {
-    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
-  });
-  return ids;
 }
 
 // GET /api/whatsapp-groups — list groups for caller's school (or all for admin)
@@ -47,7 +32,7 @@ export async function GET() {
   let q = admin.from('whatsapp_groups').select('*').order('name');
   
   if (caller.role === 'teacher') {
-    const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
     if (schoolIds.length > 0) {
       q = q.in('school_id', schoolIds);
     } else {
@@ -81,7 +66,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid WhatsApp group link' }, { status: 400 });
   }
 
-  const resolvedSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;
+  let resolvedSchoolId: string | null;
+  if (caller.role === 'admin') {
+    resolvedSchoolId = school_id || null;
+  } else if (caller.role === 'teacher') {
+    const sids = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (school_id) {
+      if (!sids.includes(school_id)) {
+        return NextResponse.json({ error: 'Access denied: You are not assigned to this school' }, { status: 403 });
+      }
+      resolvedSchoolId = school_id;
+    } else {
+      resolvedSchoolId = caller.school_id;
+    }
+  } else {
+    resolvedSchoolId = caller.school_id;
+  }
 
   const admin = adminClient();
   const { data, error } = await admin.from('whatsapp_groups').insert({

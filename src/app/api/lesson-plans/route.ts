@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from './authz';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import {
   inferTermNumberFromPlanTerm,
   mapSyllabusWeekToPlanRow,
@@ -14,21 +13,6 @@ async function getUser() {
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   return data ? { ...user, role: data.role, school_id: data.school_id } : null;
-}
-
-async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const db = createAdminClient();
-  const { data } = await db
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
 }
 
 function canCreateLessonPlan(role: string | undefined) {
@@ -63,7 +47,7 @@ export async function GET(request: Request) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const teacherSchoolIds =
+  const tSchoolIds =
     user.role === 'teacher' ? await getTeacherSchoolIds(user.id, user.school_id) : [];
 
   // Filter by scope access for non-admins
@@ -77,7 +61,7 @@ export async function GET(request: Request) {
           // Prefer the plan's own created_by for term-level plans (no lesson_id).
           created_by: p?.created_by ?? p?.lessons?.created_by ?? null,
         },
-        teacherSchoolIds,
+        tSchoolIds,
       ),
     );
   }
