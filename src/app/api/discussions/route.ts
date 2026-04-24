@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
