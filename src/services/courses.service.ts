@@ -127,12 +127,13 @@ export class CoursesService {
         return result;
     }
 
-    async getCourse(id: string, schoolIds?: string[]) {
+    async getCourse(id: string, schoolIds?: string | string[]) {
         const supabase = await createClient();
         let query = supabase.from('courses').select('*, programs!inner(name, id)').eq('id', id);
 
-        if (schoolIds && schoolIds.length > 0) {
-            query = query.or(`school_id.in.(${schoolIds.join(',')}),school_id.is.null`);
+        const ids = typeof schoolIds === 'string' ? [schoolIds] : schoolIds;
+        if (ids && ids.length > 0) {
+            query = query.or(`school_id.in.(${ids.join(',')}),school_id.is.null`);
         }
 
         const { data, error } = await query.single();
