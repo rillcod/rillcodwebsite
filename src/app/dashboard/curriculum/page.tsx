@@ -229,6 +229,7 @@ export default function CurriculumPage() {
   const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(null);
   // Generate Content tab state
   const [genWeek, setGenWeek] = useState<CurriculumWeek | null>(null);
@@ -1360,8 +1361,14 @@ export default function CurriculumPage() {
               {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Course Syllabus Builder'}
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">
-            <div className="relative flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setShowHelp(h => !h)}
+            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors"
+          >
+            {showHelp ? 'Hide guide' : '? How to use'}
+          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">            <div className="relative flex-1 min-w-0">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
                 type="search"
@@ -1433,6 +1440,47 @@ export default function CurriculumPage() {
           </div>
         )}
       </div>
+
+      {/* ── How to use guide ── */}
+      {showHelp && (
+        <div className="shrink-0 border-b border-orange-500/20 bg-orange-500/5 px-4 py-4">
+          <div className="max-w-[1800px] mx-auto space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">How to build a syllabus — step by step</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-orange-400">Step 1 — Pick a course</p>
+                <p className="text-muted-foreground">Click any course in the left panel. If you don't see any, go to Programs → Courses and create one first.</p>
+              </div>
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-orange-400">Step 2 — Generate the syllabus</p>
+                <p className="text-muted-foreground">On the Syllabus tab, click "Generate Syllabus". The AI will create a full term-by-term week plan. You can regenerate as many times as you like.</p>
+              </div>
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-orange-400">Step 3 — Generate lesson plans</p>
+                <p className="text-muted-foreground">Go to Lesson Plans in the sidebar. Link this course and syllabus, pick a class and term, then generate week-by-week lesson plans from it.</p>
+              </div>
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-orange-400">Step 4 — Track delivery</p>
+                <p className="text-muted-foreground">As you teach each week, mark it as "In Progress" or "Completed" on the Syllabus tab. This feeds the Delivery Progress report.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-foreground">Syllabus copies</p>
+                <p className="text-muted-foreground">Each school can have its own version of a syllabus. The dropdown at the top lets you switch between them. Use "Delete" to wipe one and start fresh.</p>
+              </div>
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-foreground">School scope</p>
+                <p className="text-muted-foreground">The "School" dropdown sets which school's copy you're editing. "Platform template" is the shared master — changes there affect all schools that haven't customised it.</p>
+              </div>
+              <div className="bg-card border border-border p-3 space-y-1">
+                <p className="font-black text-foreground">Publish to school</p>
+                <p className="text-muted-foreground">The "Publish" toggle on the syllabus makes it visible to the school's staff. Until you publish, only teachers and admins can see it.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
 
@@ -2302,335 +2350,161 @@ export default function CurriculumPage() {
                         </div>
                       )}
 
-                      {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
+                      {/* Standard Teaching Path (QA Spine) — optional, action-focused */}
                       {canGenerate && (
-                        <div className="bg-card border border-dashed border-border/80 space-y-3 p-3 sm:p-4">
-                          <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Simple flow</p>
-                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                              1) Open/create syllabus. 2) Use <span className="text-foreground font-bold">Teaching path tool (optional)</span> to preview before apply.
-                              3) Generate term progression. 4) Run weekly tracking, lessons, and assignments.
-                            </p>
-                          </div>
+                        <div className="bg-card border border-border space-y-0">
                           <button
                             type="button"
-                            onClick={() => {
-                              setQaSpineOpen((o) => !o);
-                              setQaApplyErr('');
-                              setQaPreviewErr('');
-                            }}
-                            className="w-full flex items-center justify-between gap-3 px-2 sm:px-1 py-1 text-left hover:bg-muted/20 transition-colors"
+                            onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-                                  Optional — Teaching Path Tool
-                                </p>
-                                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                                  Show what&rsquo;s in the platform template DB, preview path for a class, then align this syllabus
-                                </p>
+                              <div>
+                                <p className="text-xs font-black text-foreground">Standard Teaching Path</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">Optional — align this syllabus to a pre-built curriculum sequence</p>
                               </div>
                             </div>
-                            {qaSpineOpen ? (
-                              <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                            ) : (
-                              <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                            )}
+                            {qaSpineOpen
+                              ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                              : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
                           </button>
+
                           <AnimatePresence>
                             {qaSpineOpen && (
                               <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden border-t border-border/60"
+                                className="overflow-hidden border-t border-border"
                               >
-                                <div className="p-4 space-y-4 text-xs">
-                                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Use this tool when you want a ready teaching path from the platform template. Preview first, then apply only if it fits this class and year for this syllabus copy (v{curriculum.version}).
-                                  </p>
-                                  <div className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-3 space-y-2">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-                                      Recommended flow (low-risk, not imposed)
-                                    </p>
-                                    <ul className="space-y-1 text-[11px] text-muted-foreground">
-                                      {qaInlineSuggestions.map((tip, idx) => (
-                                        <li key={`${tip}-${idx}`} className="flex gap-1.5">
-                                          <span className="text-cyan-300 font-black shrink-0">•</span>
-                                          <span>{tip}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                  {programIdForQa ? (
-                                    <p className="text-[10px] text-muted-foreground font-mono break-all">
-                                      Programme: {programIdForQa}
-                                    </p>
+                                <div className="p-4 space-y-4">
+                                  {!programIdForQa ? (
+                                    <p className="text-[11px] text-amber-400">This course has no programme linked — fix the course catalog first before applying a teaching path.</p>
                                   ) : (
-                                    <p className="text-amber-400 text-[11px]">No programme id on this course — fix catalog linkage first.</p>
-                                  )}
-
-                                  {qaTmplLoading && (
-                                    <p className="text-muted-foreground animate-pulse">Loading template from API…</p>
-                                  )}
-                                  {qaTmplErr && (
-                                    <p className="text-rose-400 text-[11px] font-bold">{qaTmplErr}</p>
-                                  )}
-
-                                  {qaTmplMeta && !qaTmplLoading && (
-                                    <div className="space-y-2">
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                        Database (catalog <span className="text-foreground">qa_spine_v1</span>)
+                                    <>
+                                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                        Pick your class, preview the week-by-week sequence, then apply it to this syllabus (v{curriculum.version}).
+                                        Skip this step entirely if you prefer to build your own week order from scratch.
                                       </p>
-                                      <p className="text-foreground">
-                                        <span className="font-black">{qaTmplMeta.total}</span> rows for this programme
-                                      </p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {Object.entries(qaTmplMeta.weeks_per_lane)
-                                          .sort((a, b) => Number(a[0]) - Number(b[0]))
-                                          .map(([ln, n]) => (
-                                            <span
-                                              key={ln}
-                                              className="text-[9px] font-black px-1.5 py-0.5 border border-border bg-muted/30"
-                                              title="Weeks stored for this lane"
-                                            >
-                                              L{ln}: {n}w
-                                            </span>
-                                          ))}
-                                      </div>
-                                      <div className="flex flex-col sm:flex-row sm:items-end gap-2">
-                                        <div className="flex-1">
-                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                            Inspect raw spine (lane)
-                                          </label>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Class</label>
                                           <select
                                             className={SELECT_CLS}
-                                            value={qaInspectLane}
-                                            onChange={(e) => setQaInspectLane(Number(e.target.value))}
+                                            value={qaClassId}
+                                            onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
                                           >
-                                            {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
-                                              <option key={n} value={n}>
-                                                Lane {n}
-                                              </option>
-                                            ))}
+                                            <option value="">— Select class —</option>
+                                            {[...qaClassOptions]
+                                              .sort((a, b) => {
+                                                const ap = a.program_id === programIdForQa ? 0 : 1;
+                                                const bp = b.program_id === programIdForQa ? 0 : 1;
+                                                if (ap !== bp) return ap - bp;
+                                                return (a.name || '').localeCompare(b.name || '');
+                                              })
+                                              .map((c) => (
+                                                <option key={c.id} value={c.id}>
+                                                  {c.name || c.id}{c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
+                                                </option>
+                                              ))}
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Teaching year</label>
+                                          <select
+                                            className={SELECT_CLS}
+                                            value={qaYear}
+                                            onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
+                                          >
+                                            <option value={1}>Year 1</option>
+                                            <option value={2}>Year 2</option>
+                                            <option value={3}>Year 3</option>
                                           </select>
                                         </div>
                                       </div>
-                                      {qaSpineSampleRows.length > 0 && (
-                                        <div className="border border-border overflow-x-auto max-h-48 overflow-y-auto">
-                                          <table className="w-full text-left text-[10px]">
-                                            <thead className="bg-muted/40 sticky top-0">
-                                              <tr>
-                                                <th className="p-1.5 font-black">w_idx</th>
-                                                <th className="p-1.5 font-black">Y/T/W</th>
-                                                <th className="p-1.5 font-black">Topic</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {qaSpineSampleRows.map((r) => (
-                                                <tr key={r.week_index} className="border-t border-border/50">
-                                                  <td className="p-1.5 font-mono text-muted-foreground">{r.week_index}</td>
-                                                  <td className="p-1.5 text-muted-foreground whitespace-nowrap">
-                                                    {r.year_number ?? '—'}/{r.term_number ?? '—'}/{r.week_number ?? '—'}
-                                                  </td>
-                                                  <td className="p-1.5 text-foreground">{r.topic}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
+
+                                      {qaClassId && (
+                                        <div className="flex gap-2 flex-wrap">
+                                          <button
+                                            type="button"
+                                            disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
+                                            onClick={() => void saveQaClassGradeMode('optional')}
+                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                          >Flexible (recommended)</button>
+                                          <button
+                                            type="button"
+                                            disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
+                                            onClick={() => void saveQaClassGradeMode('compulsory')}
+                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-orange-500/40 bg-orange-500/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                          >Compulsory</button>
+                                          {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
                                         </div>
                                       )}
-                                    </div>
+
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
+                                        <span className="text-[11px] text-muted-foreground">Replace existing weeks (if unchecked, only empty terms are filled)</span>
+                                      </label>
+
+                                      <div className="flex gap-2 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => void runQaSpinePreview()}
+                                          disabled={!qaClassId || qaPreviewLoading}
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                                        >
+                                          {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                                          Preview sequence
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => void applyQaSpine()}
+                                          disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50 transition-colors"
+                                        >
+                                          {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
+                                          Apply to syllabus
+                                        </button>
+                                      </div>
+
+                                      {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Run Preview first before applying.</p>}
+                                      {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
+                                      {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
+
+                                      {qaPreviewData && (
+                                        <div className="p-3 bg-muted/20 border border-border space-y-3">
+                                          <p className="text-[10px] font-black uppercase text-cyan-300">
+                                            Preview — path {qaPreviewData.lane_index} · {qaPreviewData.lane_source} · offset {qaPreviewData.path_offset}
+                                          </p>
+                                          {qaPreviewData.terms.map((t) => (
+                                            <div key={t.term}>
+                                              <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
+                                                {t.weeks.map((w) => (
+                                                  <li key={w.week} className="flex gap-1.5 truncate">
+                                                    <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
+                                                    <span className="truncate">{w.topic}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
                                   )}
 
-                                  <div className="pt-2 border-t border-border/60 space-y-3">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                      Use this teaching path in syllabus
-                                    </p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                      <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                          Teaching year block (1–3)
-                                        </label>
-                                        <select
-                                          className={SELECT_CLS}
-                                          value={qaYear}
-                                          onChange={(e) => {
-                                            setQaYear(Number(e.target.value));
-                                            setQaPreviewStamp('');
-                                          }}
-                                        >
-                                          <option value={1}>Year 1</option>
-                                          <option value={2}>Year 2</option>
-                                          <option value={3}>Year 3</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                          Path option (0 = auto from class)
-                                        </label>
-                                        <select
-                                          className={SELECT_CLS}
-                                          value={qaLaneOverride}
-                                          onChange={(e) => {
-                                            setQaLaneOverride(Number(e.target.value));
-                                            setQaPreviewStamp('');
-                                          }}
-                                        >
-                                          <option value={0}>Auto — use class fields / default</option>
-                                          {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
-                                            <option key={n} value={n}>
-                                              Force lane {n}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div className="sm:col-span-2">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                          Class (optional — turns on class-based preview)
-                                        </label>
-                                        <select
-                                          className={SELECT_CLS}
-                                          value={qaClassId}
-                                          onChange={(e) => {
-                                            setQaClassId(e.target.value);
-                                            setQaPreviewData(null);
-                                            setQaPreviewStamp('');
-                                          }}
-                                        >
-                                          <option value="">— None (offset 0, default lane) —</option>
-                                          {[...qaClassOptions]
-                                            .sort((a, b) => {
-                                              const ap = a.program_id === programIdForQa ? 0 : 1;
-                                              const bp = b.program_id === programIdForQa ? 0 : 1;
-                                              if (ap !== bp) return ap - bp;
-                                              return (a.name || '').localeCompare(b.name || '');
-                                            })
-                                            .map((c) => (
-                                              <option key={c.id} value={c.id}>
-                                                {c.name || c.id}
-                                                {c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
-                                              </option>
-                                            ))}
-                                        </select>
-                                        {selectedQaClass?.program_id && programIdForQa && selectedQaClass.program_id !== programIdForQa && (
-                                          <p className="mt-1 text-[10px] text-amber-400">
-                                            Suggestion: this class belongs to another programme. Preview can still run, but same-programme class is safer for final apply.
-                                          </p>
-                                        )}
-                                        {qaClassId && (
-                                          <div className="mt-2 rounded-md border border-border/70 bg-muted/20 p-2.5 space-y-2">
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                              Class QA mode (impose only where needed)
-                                            </p>
-                                            <div className="flex flex-col sm:flex-row gap-2">
-                                              <button
-                                                type="button"
-                                                onClick={() => void saveQaClassGradeMode('optional')}
-                                                disabled={qaClassModeSaving}
-                                                className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional'
-                                                    ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200'
-                                                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                                                  } disabled:opacity-60`}
-                                              >
-                                                Flexible (recommended)
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => void saveQaClassGradeMode('compulsory')}
-                                                disabled={qaClassModeSaving}
-                                                className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory'
-                                                    ? 'border-orange-500/50 bg-orange-500/15 text-orange-200'
-                                                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                                                  } disabled:opacity-60`}
-                                              >
-                                                Make compulsory (this class)
-                                              </button>
-                                            </div>
-                                            <p className="text-[10px] text-muted-foreground">
-                                              Current: <span className="font-bold text-foreground">{qaClassGradeMode}</span>. This affects selected class only.
-                                            </p>
-                                            {qaClassModeErr && (
-                                              <p className="text-[10px] text-rose-400 font-bold">{qaClassModeErr}</p>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <label className="flex items-start gap-2 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        className="mt-0.5"
-                                        checked={qaOverwrite}
-                                        onChange={(e) => setQaOverwrite(e.target.checked)}
-                                      />
-                                      <span className="text-[11px] text-muted-foreground">
-                                        Replace existing weeks in all terms (if unchecked, only empty terms are filled)
-                                      </span>
-                                    </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => void runQaSpinePreview()}
-                                        disabled={!qaClassId || qaPreviewLoading}
-                                        className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"
-                                      >
-                                        {qaPreviewLoading ? (
-                                          <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                          <EyeIcon className="w-3.5 h-3.5" />
-                                        )}
-                                        Preview for this class
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => void applyQaSpine()}
-                                        disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                        className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/50 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
-                                      >
-                                        {qaApplyLoading ? (
-                                          <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                          <BoltIcon className="w-3.5 h-3.5" />
-                                        )}
-                                        Use this path in syllabus
-                                      </button>
-                                    </div>
-                                    {qaNeedsFreshPreview && (
-                                      <p className="text-amber-400 text-[10px]">
-                                        Preview required for current class/year/lane selection before apply.
-                                      </p>
-                                    )}
-                                    {qaPreviewErr && (
-                                      <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>
-                                    )}
-                                    {qaApplyErr && (
-                                      <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>
-                                    )}
-                                    {qaPreviewData && (
-                                      <div className="space-y-2 p-3 bg-muted/20 border border-border/80">
-                                        <p className="text-[10px] font-black uppercase text-cyan-300">
-                                          Preview — lane {qaPreviewData.lane_index} ({qaPreviewData.lane_source}) · offset{' '}
-                                          {qaPreviewData.path_offset}
-                                        </p>
-                                        {qaPreviewData.terms.map((t) => (
-                                          <div key={t.term}>
-                                            <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
-                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
-                                              {t.weeks.map((w) => (
-                                                <li key={w.week} className="flex gap-1 truncate">
-                                                  <span className="shrink-0 text-foreground/70">W{w.week}</span>
-                                                  <span className="truncate" title={w.topic}>
-                                                    {w.topic}
-                                                  </span>
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
+                                  <div className="pt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                                    <Link href="/dashboard/progression/qa-spine-catalog" className="text-cyan-400 hover:underline font-bold">
+                                      View catalog details →
+                                    </Link>
+                                    <span>·</span>
+                                    <Link href="/dashboard/curriculum/learning-system" className="text-muted-foreground hover:text-foreground">
+                                      How this works
+                                    </Link>
                                   </div>
                                 </div>
                               </motion.div>

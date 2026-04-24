@@ -25,6 +25,15 @@ type SettingsCard = {
 
 const SETTINGS_CARDS: SettingsCard[] = [
   {
+    title: 'How the learning system works',
+    description: 'One-page map: Program → QA Spine → Class → Syllabus → Term Plan → Weekly delivery. Understand the order before configuring anything.',
+    href: '/dashboard/curriculum/learning-system',
+    cta: 'Open system map',
+    roles: 'Admin, Teacher',
+    icon: RectangleStackIcon,
+    allowedRoles: ['admin', 'teacher'],
+  },
+  {
     title: 'Operations control center',
     description: 'Manage calendar, approvals, permissions, assessment, promotion, alerts, communication, integrity, and PWA behavior.',
     href: '/dashboard/progression/operations',
@@ -34,8 +43,8 @@ const SETTINGS_CARDS: SettingsCard[] = [
     allowedRoles: ['admin', 'teacher', 'school'],
   },
   {
-    title: 'Progression policies',
-    description: 'Set delivery mode, weekly frequency, mastery mode, and track priority per program.',
+    title: 'Delivery policies (per program)',
+    description: 'Set delivery mode (optional/compulsory), weekly frequency, mastery mode, and track priority per program.',
     href: '/dashboard/progression/policies',
     cta: 'Open policies',
     roles: 'Admin, Teacher only',
@@ -44,7 +53,7 @@ const SETTINGS_CARDS: SettingsCard[] = [
   },
   {
     title: 'Project seed registry',
-    description: 'Create, edit, activate/deactivate, or delete seeded project rows used in progression generation.',
+    description: 'Reusable project templates that power weekly progression generation. Edit, activate, or deactivate seeds per track and difficulty.',
     href: '/dashboard/progression/project-registry',
     cta: 'Open registry',
     roles: 'Admin, Teacher only',
@@ -129,11 +138,11 @@ export default function ProgressionSettingsHomePage() {
           className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          Back to progression
+          Back to Term Review
         </Link>
-        <h1 className="text-xl font-black text-card-foreground mt-3">LMS Settings Home</h1>
+        <h1 className="text-xl font-black text-card-foreground mt-3">LMS Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          One place to manage progression rules, seed content, audit transparency, and data integrity checks.
+          Configure how your school delivers courses: QA spine, delivery policies, project seeds, audit logs, and more.
         </p>
       </div>
 
