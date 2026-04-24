@@ -53,12 +53,13 @@ async function handleRequest(req: NextRequest) {
         .eq('week_number', currentWeek)
         .eq('status', 'draft');
 
-      // Release assignments for current week
+      // Release assignments for current week — keyed via metadata.lesson_plan_id + metadata.week_number
       await supabase
         .from('assignments')
         .update({ is_active: true, updated_at: new Date().toISOString() })
-        .eq('lesson_id', schedule.lesson_plan_id)
-        .eq('status', 'draft');
+        .filter('metadata->>lesson_plan_id', 'eq', schedule.lesson_plan_id)
+        .filter('metadata->>week_number', 'eq', String(currentWeek))
+        .or('is_active.is.null,is_active.eq.false');
 
       // Increment current_week
       await supabase

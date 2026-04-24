@@ -180,7 +180,7 @@ export async function POST(
               continue;
             }
 
-            // Save assignment as draft
+            // Save assignment as draft — is_active:false so term-scheduler releases it week-by-week
             const { error: insertErr } = await supabase.from('assignments').insert({
               course_id: planCourseId,
               class_id: plan.class_id,
@@ -191,6 +191,7 @@ export async function POST(
               assignment_type: aiData.data.assignment_type || 'homework',
               due_date: dueDate.toISOString(),
               max_points: 100,
+              is_active: false,
               metadata: {
                 ...aiData.data.metadata,
                 lesson_plan_id: plan.id,
