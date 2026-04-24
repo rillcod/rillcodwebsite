@@ -1264,19 +1264,93 @@ export default function CurriculumPage() {
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Learner / School read-only layout ───────────────────────────────────
+  if (learnerMode || isSchool) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background text-foreground">
+        <div className="shrink-0 border-b border-border bg-card px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Course Syllabus</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {selectedCourse ? selectedCourse.title : 'Select a course to view its syllabus'}
+          </p>
+        </div>
+
+        <div className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+          {!selectedCourse ? (
+            <div className="space-y-4">
+              {programs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                  <BookOpenIcon className="w-10 h-10 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">No courses available for your school yet.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {quickChooserCourses.length} course{quickChooserCourses.length !== 1 ? 's' : ''} available
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {quickChooserCourses.map(({ prog, course }) => (
+                      <button
+                        key={course.id}
+                        type="button"
+                        onClick={() => selectCourse(prog, course)}
+                        className="text-left border border-border bg-card hover:border-orange-500/40 hover:bg-muted/20 p-4 space-y-1.5 transition-colors"
+                      >
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">{prog.name}</p>
+                        <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">View syllabus →</p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : loadingCurr ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
+              <p className="text-sm text-rose-400">{loadError}</p>
+              <button onClick={() => setSelectedCourse(null)} className="text-xs text-muted-foreground border border-border px-3 py-1.5 hover:bg-muted/30">← Back to courses</button>
+            </div>
+          ) : !curriculum ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center space-y-3">
+              <BookOpenIcon className="w-12 h-12 text-muted-foreground/30" />
+              <div>
+                <p className="font-bold text-sm">{selectedCourse.title}</p>
+                <p className="text-muted-foreground text-sm mt-1">Syllabus not published yet — check back soon.</p>
+              </div>
+              <button onClick={() => setSelectedCourse(null)} className="text-xs text-orange-400 border border-orange-500/30 px-3 py-1.5 hover:bg-orange-500/10">← Back to courses</button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setSelectedCourse(null); setCurriculum(null); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Courses</button>
+                <span className="text-muted-foreground/40">›</span>
+                <span className="text-xs font-bold text-orange-400">{selectedCourse.title}</span>
+              </div>
+              <SyllabusPreview
+                content={curriculum.content as unknown as SyllabusContent}
+                courseTitle={selectedCourse.title}
+                audienceIsLearner
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render (staff: teacher / admin) ─────────────────────────────────────
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* Builder scope — search + context (always find another course) */}
-      <div className="shrink-0 border-b border-border bg-gradient-to-b from-card to-background z-20">
-        <div className="px-4 py-3 md:py-3.5 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+      {/* Header — search + course context */}
+      <div className="shrink-0 border-b border-border bg-card z-20">
+        <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Syllabus builder</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Pick a <span className="text-foreground/90 font-bold">program</span> and <span className="text-foreground/90 font-bold">course</span>, then work the syllabus and Generate tab. Search narrows the list; all programmes start expanded so you can see every course.
-            </p>
-            <p className="text-[10px] text-muted-foreground/75 mt-1.5 max-w-3xl leading-relaxed">
-              <span className="text-foreground/70 font-bold">Course vs class:</span> the syllabus is shared for the whole course. To generate or schedule for a specific school <span className="text-foreground/70 font-bold">class</span> (e.g. JSS1A), use <Link href="/dashboard/lesson-plans" className="text-orange-400 font-bold underline underline-offset-2">Lesson Plans</Link> — that is where class, school, and week filters live.
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">
+              {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Course Syllabus Builder'}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">
@@ -1798,123 +1872,61 @@ export default function CurriculumPage() {
                   </button>
                 </div>
               ) : !curriculum ? (
-                /* No curriculum (or not yet published for learners) */
-                <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4 space-y-4">
-                  {canGenerate && curriculumList.length > 0 && (
-                    <div className="w-full max-w-5xl text-left bg-card border border-border p-4 sm:p-5 space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Syllabus Flow</p>
-                          <h3 className="text-base font-black mt-1">1) Generate Syllabus  2) Pick Existing Syllabus Copy</h3>
-                          <p className="text-[11px] text-muted-foreground mt-1">
-                            Choose by school + category (scope), then open the exact copy you want to edit.
-                          </p>
-                        </div>
-                        <button
-                          onClick={openGenerateModal}
-                          className="px-4 py-2 text-xs font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
-                        >
-                          Generate Syllabus
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {curriculumList.map((c) => {
-                          const scopeCategory = c.school_id ? 'School syllabus' : 'Platform syllabus';
-                          const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
-                          const terms = c.content?.terms?.length ?? 0;
-                          const weeks = (c.content?.terms ?? []).reduce((sum, t) => sum + ((t?.weeks ?? []).length), 0);
-                          return (
-                            <button
-                              key={c.id}
-                              onClick={() => { void selectCurriculumVersion(c.id); }}
-                              className="text-left bg-background border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
-                                <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground">
-                                Category: <span className="text-foreground font-bold">{scopeCategory}</span>
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
-                              </p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus</p>
-                            </button>
-                          );
-                        })}
-                      </div>
+                /* No curriculum yet — staff empty state */
+                <div className="px-4 py-8 max-w-3xl mx-auto space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-black">{selectedCourse.title}</h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">No syllabus yet for this course.</p>
+                    </div>
+                    {canGenerate && (
+                      <button
+                        onClick={openGenerateModal}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors shrink-0"
+                      >
+                        <SparklesIcon className="w-4 h-4" /> Generate Syllabus
+                      </button>
+                    )}
+                  </div>
+                  {curriculumList.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {curriculumList.map((c) => {
+                        const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
+                        const terms = c.content?.terms?.length ?? 0;
+                        const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => { void selectCurriculumVersion(c.id); }}
+                            className="text-left bg-card border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
+                            </p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus →</p>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                  {renderSyllabusScopeCard(
-                    'Syllabus setup first',
-                    'Set school and class first, then generate. If you switch school, this view auto-picks that school syllabus copy when it exists.',
-                  )}
-                  <SparklesIcon className="w-14 h-14 text-orange-400 mb-2" />
-                  <h2 className="text-xl font-black">{selectedCourse.title}</h2>
-                  {learnerMode || isSchool ? (
-                    <p className="text-muted-foreground text-sm max-w-sm">
-                      Your teacher is still preparing the syllabus for this course. It will
-                      appear here as soon as it&rsquo;s published.
-                    </p>
-                  ) : (
-                    <p className="text-muted-foreground text-sm max-w-sm">
-                      No curriculum exists for this course yet. Generate a complete AI
-                      curriculum with lesson plans, assessments, and examinations.
-                    </p>
-                  )}
-                  {canGenerate ? (
-                    <button
-                      onClick={openGenerateModal}
-                      className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors"
-                    >
-                      <SparklesIcon className="w-4 h-4" /> Generate Syllabus
-                    </button>
-                  ) : !learnerMode && !isSchool ? (
-                    <p className="text-xs text-muted-foreground">Contact your administrator to generate a course syllabus.</p>
-                  ) : null}
-                </div>
-              ) : learnerMode ? (
-                /* Learner (student / parent) — clean read-only syllabus */
-                <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
-                  <div className="mb-4 flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {selectedProgram?.name}
-                    </span>
-                    <span className="text-muted-foreground/40">›</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                      {selectedCourse.title}
-                    </span>
-                  </div>
-                  <SyllabusPreview
-                    content={curriculum.content as unknown as SyllabusContent}
-                    courseTitle={selectedCourse.title}
-                    audienceIsLearner
-                  />
                 </div>
               ) : (
                 /* Curriculum content */
                 <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
-                  {renderSyllabusScopeCard(
-                    'Active syllabus context',
-                    `You are viewing: ${scopeLabel}. Changing school here also switches the visible syllabus copy if that school already has one.`,
-                    true,
-                  )}
-
                   {/* Header */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{selectedProgram?.name}</span>
-                        <span className="text-muted-foreground/40">›</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{selectedCourse.title}</span>
-                      </div>
-                      <h1 className="text-2xl font-black leading-tight">{curriculum.content.course_title}</h1>
+                      <h1 className="text-xl font-black leading-tight">{curriculum.content.course_title}</h1>
                       <p className="text-xs text-muted-foreground mt-1">
-                        v{curriculum.version} · {termCount} term{termCount !== 1 ? 's' : ''} · {allWeeks.length} weeks total
+                        v{curriculum.version} · {termCount} term{termCount !== 1 ? 's' : ''} · {allWeeks.length} weeks
                         {allWeeks.length > 0 && (
                           <span className="ml-2 text-emerald-400 font-bold">{progressPct}% delivered</span>
                         )}
+                        {' · '}<span className="text-orange-400 font-bold">{scopeLabel}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
