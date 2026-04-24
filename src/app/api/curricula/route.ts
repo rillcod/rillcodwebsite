@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
@@ -123,13 +123,13 @@ Return ONLY valid JSON with this shape (no preamble, no markdown fences):
 }
 
 function safeParseJSON(raw: string): any {
-  try { return JSON.parse(raw); } catch {}
+  try { return JSON.parse(raw); } catch { }
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch {} }
+  if (fenced) { try { return JSON.parse(fenced[1].trim()); } catch { } }
   const brace = raw.indexOf('{');
   const lastBrace = raw.lastIndexOf('}');
   if (brace !== -1 && lastBrace !== -1) {
-    try { return JSON.parse(raw.slice(brace, lastBrace + 1)); } catch {}
+    try { return JSON.parse(raw.slice(brace, lastBrace + 1)); } catch { }
   }
   return null;
 }
@@ -226,7 +226,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (role === 'teacher') {
-    const sids = await getTeacherSchoolIds(user.id, profile?.school_id);
+    const sids = await getTeacherSchoolIds(user.id, profile?.school_id ?? null);
     if (sids.length > 0) {
       query = query.or(`school_id.is.null,school_id.in.(${sids.join(',')})`);
     } else {
@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (profile.role === 'teacher' && targetSchoolId) {
-    const sids = await getTeacherSchoolIds(user.id, profile.school_id);
+    const sids = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
     if (!sids.includes(targetSchoolId)) {
       return NextResponse.json(
         { error: 'You can only create or update a syllabus for a school you are assigned to. Use the School scope dropdown.' },
