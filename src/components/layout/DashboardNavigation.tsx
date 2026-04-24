@@ -58,16 +58,26 @@ export default function DashboardNavigation() {
     if (isMinimal || !profile) return;
     const db = createClient();
 
+    const isStaff = ['admin', 'teacher', 'school'].includes(profile.role);
+    let waQuery = db.from('whatsapp_conversations').select('unread_count');
+    if (isStaff) {
+      if (profile.role === 'teacher') {
+        waQuery = waQuery.eq('assigned_staff_id', profile.id);
+      }
+    } else {
+      waQuery = waQuery.eq('portal_user_id', profile.id);
+    }
+
     Promise.all([
-      db.from('messages').select('id', { count: 'exact', head: true })
-        .eq('recipient_id', profile.id).eq('is_read', false),
+      waQuery,
       (db.from('newsletter_delivery' as any)).select('id', { count: 'exact', head: true })
         .eq('user_id', profile.id).eq('is_viewed', false),
       db.from('notifications').select('id', { count: 'exact', head: true })
         .eq('user_id', profile.id).eq('is_read', false),
-    ]).then(([msgRes, nwlRes, notifRes]) => {
+    ]).then(([waRes, nwlRes, notifRes]) => {
+      const waCount = (waRes.data ?? []).reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
       const nc = notifRes.count ?? 0;
-      const total = (msgRes.count ?? 0) + (nwlRes.count ?? 0) + nc;
+      const total = waCount + (nwlRes.count ?? 0) + nc;
       setUnreadCount(total);
       setNotifUnread(nc);
     });
@@ -271,10 +281,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Account' },
           { name: 'My Access Card',    href: '/dashboard/my-card',         icon: CreditCardIcon },
           { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
-          ...(['bootcamp', 'online'].includes((profile as any).enrollment_type ?? '')
-            ? [{ name: 'My Payments', href: '/dashboard/my-payments', icon: BanknotesIcon }]
-            : []),
-          { name: 'Messages',          href: '/dashboard/messages',        icon: EnvelopeIcon },
+          { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
           { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
           { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
@@ -343,10 +350,10 @@ export default function DashboardNavigation() {
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
+          { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
           { name: 'Share Feedback',    href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Support',           href: '/dashboard/support',         icon: QuestionMarkCircleIcon },
           { name: 'Consent Forms',     href: '/dashboard/consent-forms',   icon: ClipboardDocumentCheckIcon },
-          { name: 'Messages',          href: '/dashboard/messages',        icon: EnvelopeIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },
           { name: 'Newsletters',       href: '/dashboard/newsletters',     icon: DocumentTextIcon },
           { name: 'Profile',           href: '/dashboard/profile',         icon: UserIcon },
@@ -363,7 +370,7 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
   const BOTTOM_NAV_NAMES = new Set(
     profile?.role === 'student'
-      ? ['Dashboard', 'Learning Center', 'CBT Exams', 'My Report Card', 'Messages']
+      ? ['Dashboard', 'Learning Center', 'CBT Exams', 'My Report Card', 'WhatsApp Inbox']
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Student Reports', 'My Billing', 'WhatsApp Inbox']
         : profile?.role === 'admin'
@@ -371,7 +378,7 @@ export default function DashboardNavigation() {
           : profile?.role === 'teacher'
             ? ['Dashboard', 'My Classes', 'Lessons', 'Progress Reports', 'WhatsApp Inbox']
             : profile?.role === 'parent'
-              ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'Messages']
+              ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'WhatsApp Inbox']
               : ['Dashboard']
   );
   const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 5);
@@ -392,7 +399,7 @@ export default function DashboardNavigation() {
         </Link>
         <div className="flex items-center gap-1.5">
           {unreadCount > 0 && (
-            <Link href="/dashboard/messages" className="relative p-2">
+            <Link href="/dashboard/inbox" className="relative p-2">
               <BellIcon className="w-5 h-5 text-sidebar-foreground/40" />
               <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -505,8 +512,8 @@ export default function DashboardNavigation() {
                     : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
                 }`} />
                 <span className="truncate">{name}</span>
-                {name === 'Messages' && unreadCount > 0 && (
-                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-rose-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
+                {name === 'WhatsApp Inbox' && unreadCount > 0 && (
+                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -572,8 +579,8 @@ export default function DashboardNavigation() {
                   : ''
               }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-orange-400' : 'text-sidebar-foreground/35'}`} />
-                {name === 'Messages' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
+                {name === 'WhatsApp Inbox' && unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-orange-500 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}

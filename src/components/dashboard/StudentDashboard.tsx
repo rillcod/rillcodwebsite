@@ -246,190 +246,164 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 p-4 sm:p-6">
 
-      {/* Hero: XP + Streak + Level */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-card to-background border border-border p-6 sm:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[80px] -mr-32 -mt-32 pointer-events-none" />
-        <div className="relative z-10">
-
-          {/* ── Mobile layout: avatar+score row, then greeting+stats ── */}
-          <div className="sm:hidden">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <div className={`w-14 h-14 border-2 ${levelConf.border} bg-card flex items-center justify-center text-3xl shadow-xl`}>
-                  {levelConf.emoji}
-                </div>
-                <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${levelConf.text} bg-background border ${levelConf.border}`}>
-                  {levelConf.label}
-                </div>
-              </div>
-              {/* Score ring */}
-              <RadialRing
-                value={data.avgScore}
-                max={100}
-                size={72}
-                strokeWidth={7}
-                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose}
-                label="Score"
-              />
-            </div>
-            <h1 className="text-xl font-black text-foreground tracking-tight leading-tight">
-              Welcome back, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
-            </h1>
-            <p className="text-xs text-muted-foreground font-medium mt-1">Ready to level up today?</p>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {[
-                { icon: FireIcon, val: data.streak, label: 'Day Streak', color: 'text-orange-500' },
-                { icon: TrophyIcon, val: data.xp.toLocaleString(), label: 'XP Earned', color: 'text-amber-500' },
-                { icon: CheckBadgeIcon, val: data.lessonsDone, label: 'Lessons', color: 'text-emerald-500' },
-                { icon: StarIcon, val: data.leaderboardRank ? `#${data.leaderboardRank}` : '—', label: 'Global Rank', color: 'text-cyan-400' },
-              ].map(({ icon: Icon, val, label, color }) => (
-                <div key={label} className="flex items-center gap-1.5 min-w-0">
-                  <Icon className={`w-3.5 h-3.5 ${color} shrink-0`} />
-                  <span className="text-sm font-black text-foreground tabular-nums">{val}</span>
-                  <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest truncate">{label}</span>
-                </div>
-              ))}
-            </div>
+      {/* ── TOP SECTION: PRIMARY LEARNING ACTIONS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        
+        {/* Next Mission / Learning Hub - BIG CARD */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <RocketLaunchIcon className="w-4 h-4 text-orange-500" />
+              Active Mission
+            </h2>
+            <Link href="/dashboard/learning" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">
+              Learning Center →
+            </Link>
           </div>
 
-          {/* ── Desktop layout: avatar | greeting+stats | score in a row ── */}
-          <div className="hidden sm:flex items-center gap-6">
+          {data.nextLesson ? (
+            <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
+              className="group flex flex-col gap-5 p-8 bg-gradient-to-br from-orange-600/10 via-card to-background border border-orange-500/30 hover:border-orange-500/50 transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+              <div className="flex items-center justify-between relative z-10">
+                <div className="px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
+                <div className="flex items-center gap-1 text-orange-400 text-[10px] font-black uppercase tracking-widest">
+                  <SparklesIcon className="w-4 h-4 animate-pulse" /> +15 XP
+                </div>
+              </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-[0.2em] mb-1.5">Current Module</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight leading-none group-hover:text-orange-400 transition-colors">
+                  {data.nextLesson.title}
+                </h3>
+              </div>
+              <div className="flex items-center gap-3 relative z-10 pt-2">
+                 <div className="px-10 py-3 bg-orange-600 group-hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-orange-950/20">
+                    Resume Now
+                 </div>
+                 <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
+              </div>
+            </Link>
+          ) : (
+            <Link href="/dashboard/learning"
+              className="group flex flex-col gap-6 p-10 bg-card border border-dashed border-border hover:border-orange-500/30 transition-all text-center items-center justify-center min-h-[200px]">
+              <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center text-3xl">📚</div>
+              <div>
+                <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Select a Programme</h3>
+                <p className="text-xs text-muted-foreground mt-1">You don't have an active mission. Start one in the Learning Center.</p>
+              </div>
+              <div className="px-8 py-3 bg-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
+            </Link>
+          )}
+        </div>
+
+        {/* Programme Sidebar Card */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
+            <ArchiveBoxIcon className="w-4 h-4 text-blue-500" />
+            Enrollment
+          </h2>
+          <div className="bg-card border border-border p-6 flex flex-col gap-6 h-[calc(100%-2rem)]">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Active Track</span>
+                <span className="text-[10px] font-black text-muted-foreground">LVL {data.lessonsDone}</span>
+              </div>
+              <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
+                {profile?.enrollment_type || 'Core Learning'}
+              </h4>
+              <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
+                Your current learning path is synchronized with the latest Rillcod curriculum.
+              </p>
+            </div>
+            
+            <div className="space-y-3 pt-4 border-t border-border">
+               <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-blue-500/30 transition-all">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Detailed Progress</span>
+                  <ArrowRightIcon className="w-3.5 h-3.5 text-blue-500" />
+               </Link>
+               <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Tasks & HW</span>
+                  <div className="flex items-center gap-2">
+                    {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
+                    <ArrowRightIcon className="w-3.5 h-3.5 text-rose-500" />
+                  </div>
+               </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── STATS & PROGRESS SECTION ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        
+        {/* Profile/Level Card */}
+        <div className="lg:col-span-3 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+          
+          <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="relative shrink-0">
-              <div className={`w-16 h-16 border-2 ${levelConf.border} bg-card flex items-center justify-center text-3xl shadow-xl`}>
+              <div className={`w-20 h-20 border-2 ${levelConf.border} bg-background flex items-center justify-center text-4xl shadow-2xl`}>
                 {levelConf.emoji}
               </div>
-              <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest ${levelConf.text} bg-background border ${levelConf.border}`}>
+              <div className={`absolute -bottom-2 -right-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${levelConf.text} bg-card border ${levelConf.border} shadow-lg`}>
                 {levelConf.label}
               </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl lg:text-3xl font-black text-foreground tracking-tight leading-tight">
-                Welcome back, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
-              </h1>
-              <p className="text-xs text-muted-foreground font-medium mt-1">Ready to level up today?</p>
-              <div className="flex flex-wrap gap-4 mt-4">
-                <div className="flex items-center gap-2">
-                  <FireIcon className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-black text-foreground">{data.streak}</span>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Day Streak</span>
+
+            <div className="flex-1 min-w-0 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Performance Matrix</h2>
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                    Global Rank: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Unranked'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <TrophyIcon className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-black text-foreground">{data.xp.toLocaleString()}</span>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">XP</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm font-black text-foreground">{data.lessonsDone}</span>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</span>
-                </div>
-                {data.leaderboardRank && (
-                  <div className="flex items-center gap-2">
-                    <StarIcon className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm font-black text-foreground">#{data.leaderboardRank}</span>
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Rank</span>
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-orange-500 tabular-nums leading-none">{data.streak}</p>
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Streak</p>
                   </div>
-                )}
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-amber-500 tabular-nums leading-none">{data.xp.toLocaleString()}</p>
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">XP</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-emerald-500 tabular-nums leading-none">{data.avgScore}%</p>
+                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg</p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="shrink-0">
-              <RadialRing
-                value={data.avgScore}
-                max={100}
-                size={88}
-                strokeWidth={8}
-                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.rose}
-                label="Avg Score"
+
+              <GaugeBar
+                value={Math.round(xpPct)}
+                label={`${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`}
+                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.orange}
+                height={8}
               />
             </div>
           </div>
-
         </div>
 
-        {/* XP Progress */}
-        <div className="mt-6 relative z-10">
-          <GaugeBar
-            value={Math.round(xpPct)}
-            label={`${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`}
-            color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.orange}
-            height={6}
-          />
-        </div>
-      </div>
-
-      {/* Next Mission + Smart Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {/* Resume Learning */}
-        {data.nextLesson ? (
-          <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
-            className="group col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col gap-4 p-6 bg-orange-600/10 border border-orange-600/20 hover:border-orange-500/40 hover:bg-orange-600/15 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="px-2.5 py-1 bg-orange-600 text-white text-[8px] font-black uppercase tracking-widest">Next Up</div>
-              <span className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest">+10 XP</span>
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+          <div className="bg-card border border-border p-4 flex flex-col justify-between">
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</p>
+            <div className="flex items-end justify-between mt-2">
+              <p className="text-2xl font-black text-foreground tabular-nums">{data.lessonsDone}</p>
+              <CheckBadgeIcon className="w-5 h-5 text-emerald-500/50" />
             </div>
-            <div>
-              <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-1">Resume Learning</p>
-              <h3 className="text-base font-black text-foreground uppercase tracking-tight leading-tight group-hover:text-orange-400 transition-colors line-clamp-2">
-                {data.nextLesson.title}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 text-orange-400 text-[9px] font-black uppercase tracking-widest mt-auto">
-              <RocketLaunchIcon className="w-4 h-4" /> Start Lesson →
-            </div>
-          </Link>
-        ) : (
-          <Link href="/dashboard/learning"
-            className="group col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col gap-4 p-6 bg-blue-600/10 border border-blue-600/20 hover:border-blue-500/40 transition-all">
-            <div className="px-2.5 py-1 bg-blue-600 text-white text-[8px] font-black uppercase tracking-widest w-fit">Explore</div>
-            <h3 className="text-base font-black text-foreground uppercase tracking-tight">Browse Programs</h3>
-            <p className="text-[10px] text-muted-foreground font-medium">Find a program to enroll in and start learning.</p>
-          </Link>
-        )}
-
-        {/* Pending Assignments */}
-        <Link href="/dashboard/assignments"
-          className={`group flex flex-col gap-4 p-6 border transition-all hover:scale-[1.01] ${data.pendingAssignments > 0 ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40' : 'bg-card border-border hover:border-orange-500/20'}`}>
-          <div className="flex items-center justify-between">
-            <ClipboardDocumentListIcon className={`w-7 h-7 ${data.pendingAssignments > 0 ? 'text-rose-400' : 'text-muted-foreground'}`} />
-            {data.pendingAssignments > 0 && (
-              <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-none animate-pulse">
-                {data.pendingAssignments}
-              </span>
-            )}
           </div>
-          <div>
-            <p className={`text-2xl font-black tabular-nums ${data.pendingAssignments > 0 ? 'text-rose-400' : 'text-foreground'}`}>
-              {data.pendingAssignments}
-            </p>
-            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">
-              {data.pendingAssignments > 0 ? 'Pending Submission' : 'No Pending Work'}
-            </p>
-          </div>
-        </Link>
-
-        {/* Badges */}
-        <div className="group flex flex-col gap-4 p-6 bg-card border border-border">
-          <div className="flex items-center justify-between">
-            <SparklesIcon className="w-7 h-7 text-amber-500" />
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{data.badges.length} Earned</span>
-          </div>
-          {data.badges.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {data.badges.slice(0, 4).map((badge: any, i: number) => (
-                <div key={i} title={badge.name}
-                  className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">
-                  {badge.icon_url ? <img src={badge.icon_url} alt={badge.name} className="w-5 h-5" /> : '🏅'}
-                </div>
-              ))}
+          <div className="bg-card border border-border p-4 flex flex-col justify-between">
+            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Badges</p>
+            <div className="flex items-end justify-between mt-2">
+              <p className="text-2xl font-black text-foreground tabular-nums">{data.badges.length}</p>
+              <SparklesIcon className="w-5 h-5 text-amber-500/50" />
             </div>
-          ) : (
-            <p className="text-[10px] text-muted-foreground font-medium">Complete lessons to earn badges</p>
-          )}
-          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-auto">Achievements</p>
+          </div>
         </div>
       </div>
+
 
       {/* AI Lesson Hook */}
       {data.nextLesson && (

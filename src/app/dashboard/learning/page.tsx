@@ -369,7 +369,191 @@ export default function StudentLearningPage() {
           </div>
         )}
 
-        {/* Unified Hero Section */}
+        {/* Journey Map Section - PRIORITIZED */}
+        <section className="space-y-6 pt-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">
+              {isKids ? '🗺️ My Adventure Path' : 'Curriculum: Current Lessons'}
+            </h2>
+            {nextLesson && (
+               <Link href={`/dashboard/lessons/${nextLesson.id}`} className="text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-[0.2em] transition-colors border-b-2 border-orange-500/20 pb-1">
+                 Next Up: {nextLesson.title} →
+               </Link>
+            )}
+          </div>
+
+          <div className="relative bg-card border border-border p-8 lg:p-16 overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-500/[0.03] via-transparent to-transparent pointer-events-none" />
+            
+            <div className="relative overflow-x-auto pb-12 custom-scrollbar scroll-smooth">
+              <div className="flex items-center gap-8 sm:gap-14 min-w-max px-10">
+                {lessons.length > 0 ? (
+                  lessons.map((lesson, idx) => {
+                    const isCompleted = completedLessonIds.has(lesson.id);
+                    const isNext = nextLesson?.id === lesson.id;
+                    const isLocked = !isCompleted && !isNext;
+                    
+                    return (
+                      <div key={lesson.id} className="flex items-center">
+                        {idx > 0 && (
+                          <div className={`h-1 w-16 sm:w-28 transition-all duration-1000 mr-8 sm:mr-14 ${completedLessonIds.has(lessons[idx - 1]?.id) ? 'bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.4)]' : 'bg-muted/30'}`} />
+                        )}
+                        <motion.a
+                          href={`/dashboard/lessons/${lesson.id}`}
+                          whileHover={{ scale: 1.1, y: -5 }}
+                          className={`relative flex flex-col items-center gap-4 group cursor-pointer ${isLocked ? 'pointer-events-none' : ''}`}
+                        >
+                          <div className={`w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center border-4 transition-all duration-500 relative ${
+                            isCompleted
+                              ? 'bg-orange-600 border-orange-400 text-white shadow-[0_0_20px_rgba(234,88,12,0.4)]'
+                              : isNext
+                              ? 'bg-orange-600/10 border-orange-600 text-orange-500 animate-[pulse_2s_infinite] shadow-[0_0_25px_rgba(234,88,12,0.2)]'
+                              : 'bg-muted/40 border-border text-muted-foreground/30 saturate-0'
+                          }`}>
+                            {isCompleted ? <CheckBadgeIcon className="w-10 h-10" /> : isNext ? <RocketLaunchIcon className="w-10 h-10" /> : <LockClosedIcon className="w-6 h-6" />}
+                            
+                            {isNext && (
+                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] font-black uppercase px-3 py-2 whitespace-nowrap tracking-widest shadow-2xl skew-x-[-10deg]">
+                                ACTIVE SECTOR
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-orange-600 rotate-45" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center max-w-[120px]">
+                            <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1.5 ${isNext ? 'text-orange-500' : 'text-muted-foreground/60'}`}>
+                              {lesson?.courses?.programs?.name?.split(' ')[0] || 'Core'} · {lesson.lesson_type || 'Module'}
+                            </p>
+                            <p className={`text-xs font-black leading-tight truncate w-full px-1 ${isCompleted ? 'text-muted-foreground' : isNext ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                              {lesson.title}
+                            </p>
+                            <p className="text-[9px] font-black text-orange-500/60 mt-1 uppercase">+10 XP</p>
+                          </div>
+                        </motion.a>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex-1 text-center py-20 opacity-30 text-xs uppercase font-black tracking-widest min-w-[400px]">
+                     Neural Map Offline — Awaiting Teacher Deployment
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-border">
+              <div className="flex flex-wrap items-center gap-8 justify-center sm:justify-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.4)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Synchronized</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 border-2 border-orange-600 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Neural Active</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-muted/40" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Inaccessible</span>
+                </div>
+              </div>
+              <Link
+                href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
+                className="px-10 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(234,88,12,0.3)] hover:-translate-y-1 active:translate-y-0"
+              >
+                {nextLesson ? 'Resume Mission' : 'Browse Modules'}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Programs Catalog - SECOND PRIORITY */}
+        <section className="space-y-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black uppercase italic">{isKids ? '🎒 My Learning Path' : 'Program Tracks'}</h2>
+            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{programs.length} active tracks</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-12">
+            {programs.length === 0 ? (
+              <div className="py-24 bg-muted/10 border-2 border-dashed border-border text-center flex flex-col items-center">
+                <AcademicCapIcon className="w-16 h-16 text-muted-foreground/30 mb-6" />
+                <p className="text-muted-foreground text-sm font-black uppercase tracking-widest">
+                  {isKids ? 'Empty Backpack! Ask a teacher for books ✨' : 'No active tracks detected'}
+                </p>
+                <Link href="/dashboard/library" className="mt-6 inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-black uppercase tracking-widest transition-all">
+                  Browse Archives <ArrowRightIcon className="w-4 h-4" />
+                </Link>
+              </div>
+            ) : (
+              programs.map((prog, pi) => {
+                const courses = coursesByProgram[prog.id] ?? [];
+                const accent = [
+                  { border: 'border-orange-500', text: 'text-orange-500', bg: 'bg-orange-500/10', bar: 'bg-orange-600' },
+                  { border: 'border-blue-500', text: 'text-blue-500', bg: 'bg-blue-500/10', bar: 'bg-blue-600' },
+                  { border: 'border-emerald-500', text: 'text-emerald-500', bg: 'bg-emerald-500/10', bar: 'bg-emerald-600' },
+                ][pi % 3];
+
+                return (
+                  <div key={prog.id} className="bg-card border border-border group overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-4">
+                      {/* Program Info */}
+                      <div className="p-8 lg:p-10 lg:border-r border-border bg-muted/[0.03] space-y-6">
+                        <div className={`w-14 h-14 ${accent.bg} border ${accent.border}/30 flex items-center justify-center`}>
+                          <AcademicCapIcon className={`w-8 h-8 ${accent.text}`} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black uppercase tracking-tight italic">{prog.name}</h3>
+                          <p className="text-xs text-muted-foreground font-bold mt-1 uppercase tracking-widest">
+                            {prog.difficulty_level || 'Level 1'} Track · {prog.duration_weeks || 12} Weeks
+                          </p>
+                        </div>
+                        <Link
+                          href={`/dashboard/curriculum?program=${prog.id}`}
+                          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-400"
+                        >
+                          View Syllabus <ArrowRightIcon className="w-3 h-3" />
+                        </Link>
+                      </div>
+
+                      {/* Course Grid */}
+                      <div className="lg:col-span-3 p-8 lg:p-10 bg-card">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Active Modules in this Track</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                          {courses.map((c) => {
+                            const total = c.lessons?.length || 0;
+                            const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
+                            const pct = total > 0 ? Math.round((done/total)*100) : 0;
+                            
+                            return (
+                              <Link key={c.id} href={`/dashboard/courses/${c.id}`} className="p-5 bg-background border border-border hover:border-orange-500/30 transition-all flex flex-col gap-4">
+                                <div className="flex justify-between items-start">
+                                   <p className="text-sm font-black italic uppercase leading-none tracking-tight">{c.title}</p>
+                                   <div className={`px-2 py-1 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'} text-[8px] font-black uppercase`}>
+                                      {pct === 100 ? 'CLEARED' : `${pct}%`}
+                                   </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="h-1 w-full bg-muted/30">
+                                    <div className={`h-full transition-all duration-1000 ${pct === 100 ? 'bg-emerald-500' : accent.bar}`} style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <div className="flex justify-between text-[8px] font-black text-muted-foreground uppercase">
+                                    <span>{done}/{total} Modules</span>
+                                    <span>{c.duration_hours || 0} Hours</span>
+                                  </div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        {/* Unified Hero Section - STATS RELEGATED DOWN */}
         <section className={`relative overflow-hidden border p-6 sm:p-10 lg:p-14 group ${isKids ? 'bg-gradient-to-br from-violet-600/10 via-card to-orange-500/10 border-violet-500/30' : 'bg-card border-border'}`}>
           <div className={`absolute top-0 right-0 w-[600px] h-[600px] blur-[150px] -mr-64 -mt-64 pointer-events-none transition-all duration-1000 ${isKids ? 'bg-violet-600/15 group-hover:bg-violet-600/20' : 'bg-orange-600/5 group-hover:bg-orange-600/8'}`} />
           <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] -ml-48 -mb-48 pointer-events-none" />
@@ -440,6 +624,7 @@ export default function StudentLearningPage() {
             </div>
           </div>
         </section>
+
 
         {/* Missions Section */}
         <section className="space-y-6">
@@ -535,190 +720,6 @@ export default function StudentLearningPage() {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-        </section>
-
-        {/* Journey Map Section */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">
-              {isKids ? '🗺️ My Adventure Path' : 'Mission Critical: Lessons'}
-            </h2>
-            {nextLesson && (
-               <Link href={`/dashboard/lessons/${nextLesson.id}`} className="text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-[0.2em] transition-colors border-b-2 border-orange-500/20 pb-1">
-                 Next Up: {nextLesson.title} →
-               </Link>
-            )}
-          </div>
-
-          <div className="relative bg-card border border-border p-8 lg:p-16 overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-500/[0.03] via-transparent to-transparent pointer-events-none" />
-            
-            <div className="relative overflow-x-auto pb-12 custom-scrollbar scroll-smooth">
-              <div className="flex items-center gap-8 sm:gap-14 min-w-max px-10">
-                {lessons.length > 0 ? (
-                  lessons.map((lesson, idx) => {
-                    const isCompleted = completedLessonIds.has(lesson.id);
-                    const isNext = nextLesson?.id === lesson.id;
-                    const isLocked = !isCompleted && !isNext;
-                    
-                    return (
-                      <div key={lesson.id} className="flex items-center">
-                        {idx > 0 && (
-                          <div className={`h-1 w-16 sm:w-28 transition-all duration-1000 mr-8 sm:mr-14 ${completedLessonIds.has(lessons[idx - 1]?.id) ? 'bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.4)]' : 'bg-muted/30'}`} />
-                        )}
-                        <motion.a
-                          href={`/dashboard/lessons/${lesson.id}`}
-                          whileHover={{ scale: 1.1, y: -5 }}
-                          className={`relative flex flex-col items-center gap-4 group cursor-pointer ${isLocked ? 'pointer-events-none' : ''}`}
-                        >
-                          <div className={`w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center border-4 transition-all duration-500 relative ${
-                            isCompleted
-                              ? 'bg-orange-600 border-orange-400 text-white shadow-[0_0_20px_rgba(234,88,12,0.4)]'
-                              : isNext
-                              ? 'bg-orange-600/10 border-orange-600 text-orange-500 animate-[pulse_2s_infinite] shadow-[0_0_25px_rgba(234,88,12,0.2)]'
-                              : 'bg-muted/40 border-border text-muted-foreground/30 saturate-0'
-                          }`}>
-                            {isCompleted ? <CheckBadgeIcon className="w-10 h-10" /> : isNext ? <RocketLaunchIcon className="w-10 h-10" /> : <LockClosedIcon className="w-6 h-6" />}
-                            
-                            {isNext && (
-                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] font-black uppercase px-3 py-2 whitespace-nowrap tracking-widest shadow-2xl skew-x-[-10deg]">
-                                ACTIVE SECTOR
-                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-orange-600 rotate-45" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-center max-w-[120px]">
-                            <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1.5 ${isNext ? 'text-orange-500' : 'text-muted-foreground/60'}`}>
-                              {lesson?.courses?.programs?.name?.split(' ')[0] || 'Core'} · {lesson.lesson_type || 'Module'}
-                            </p>
-                            <p className={`text-xs font-black leading-tight truncate w-full px-1 ${isCompleted ? 'text-muted-foreground' : isNext ? 'text-foreground' : 'text-muted-foreground/40'}`}>
-                              {lesson.title}
-                            </p>
-                            <p className="text-[9px] font-black text-orange-500/60 mt-1 uppercase">+10 XP</p>
-                          </div>
-                        </motion.a>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex-1 text-center py-20 opacity-30 text-xs uppercase font-black tracking-widest min-w-[400px]">
-                     Neural Map Offline — Awaiting Teacher Deployment
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-border">
-              <div className="flex flex-wrap items-center gap-8 justify-center sm:justify-start">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.4)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Synchronized</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 border-2 border-orange-600 animate-pulse" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Neural Active</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-muted/40" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Inaccessible</span>
-                </div>
-              </div>
-              <Link
-                href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
-                className="px-10 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(234,88,12,0.3)] hover:-translate-y-1 active:translate-y-0"
-              >
-                {nextLesson ? 'Resume Mission' : 'Browse Modules'}
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Programs Catalog */}
-        <section className="space-y-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black uppercase italic">{isKids ? '🎒 My Grimoires' : 'Neural Tracks: Programs'}</h2>
-            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{programs.length} active tracks</span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-12">
-            {programs.length === 0 ? (
-              <div className="py-24 bg-muted/10 border-2 border-dashed border-border text-center flex flex-col items-center">
-                <AcademicCapIcon className="w-16 h-16 text-muted-foreground/30 mb-6" />
-                <p className="text-muted-foreground text-sm font-black uppercase tracking-widest">
-                  {isKids ? 'Empty Backpack! Ask a teacher for books ✨' : 'No active neural tracks detected'}
-                </p>
-                <Link href="/dashboard/library" className="mt-6 inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-black uppercase tracking-widest transition-all">
-                  Browse Archives <ArrowRightIcon className="w-4 h-4" />
-                </Link>
-              </div>
-            ) : (
-              programs.map((prog, pi) => {
-                const courses = coursesByProgram[prog.id] ?? [];
-                const accent = [
-                  { border: 'border-orange-500', text: 'text-orange-500', bg: 'bg-orange-500/10', bar: 'bg-orange-600' },
-                  { border: 'border-blue-500', text: 'text-blue-500', bg: 'bg-blue-500/10', bar: 'bg-blue-600' },
-                  { border: 'border-emerald-500', text: 'text-emerald-500', bg: 'bg-emerald-500/10', bar: 'bg-emerald-600' },
-                ][pi % 3];
-
-                return (
-                  <div key={prog.id} className="bg-card border border-border group overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-4">
-                      {/* Program Info */}
-                      <div className="p-8 lg:p-10 lg:border-r border-border bg-muted/[0.03] space-y-6">
-                        <div className={`w-14 h-14 ${accent.bg} border ${accent.border}/30 flex items-center justify-center`}>
-                          <AcademicCapIcon className={`w-8 h-8 ${accent.text}`} />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-black uppercase tracking-tight italic">{prog.name}</h3>
-                          <p className="text-xs text-muted-foreground font-bold mt-1 uppercase tracking-widest">
-                            {prog.difficulty_level || 'Level 1'} Track · {prog.duration_weeks || 12} Weeks
-                          </p>
-                        </div>
-                        <Link
-                          href={`/dashboard/curriculum?program=${prog.id}`}
-                          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-400"
-                        >
-                          View Syllabus <ArrowRightIcon className="w-3 h-3" />
-                        </Link>
-                      </div>
-
-                      {/* Course Grid */}
-                      <div className="lg:col-span-3 p-8 lg:p-10 bg-card">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Active Modules in this Track</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                          {courses.map((c) => {
-                            const total = c.lessons?.length || 0;
-                            const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
-                            const pct = total > 0 ? Math.round((done/total)*100) : 0;
-                            
-                            return (
-                              <Link key={c.id} href={`/dashboard/courses/${c.id}`} className="p-5 bg-background border border-border hover:border-orange-500/30 transition-all flex flex-col gap-4">
-                                <div className="flex justify-between items-start">
-                                   <p className="text-sm font-black italic uppercase leading-none tracking-tight">{c.title}</p>
-                                   <div className={`px-2 py-1 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'} text-[8px] font-black uppercase`}>
-                                      {pct === 100 ? 'CLEARED' : `${pct}%`}
-                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <div className="h-1 w-full bg-muted/30">
-                                    <div className={`h-full transition-all duration-1000 ${pct === 100 ? 'bg-emerald-500' : accent.bar}`} style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <div className="flex justify-between text-[8px] font-black text-muted-foreground uppercase">
-                                    <span>{done}/{total} Modules</span>
-                                    <span>{c.duration_hours || 0} Hours</span>
-                                  </div>
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
             )}
           </div>
         </section>
