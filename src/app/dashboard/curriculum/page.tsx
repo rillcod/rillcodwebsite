@@ -1741,7 +1741,7 @@ export default function CurriculumPage() {
 
         {/* Syllabus Tab (or no course selected) */}
         {(activeTab === 'syllabus' || !selectedCourse) && (
-        <div className="flex-1">
+          <div className="flex-1">
         {!selectedCourse ? (
           /* Empty state */
           <div className="h-full min-h-[60vh] px-4 py-8">
@@ -2139,6 +2139,7 @@ export default function CurriculumPage() {
                       ))}
                     </ul>
                   </div>
+                )}
 
             {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
             {canGenerate && (
@@ -2479,10 +2480,6 @@ export default function CurriculumPage() {
               </div>
             )}
 
-                </div>
-              </div>
-            )}
-
             {/* Term tabs */}
             {termCount > 0 && (
               <div className="flex gap-1 bg-card border border-border p-1 w-fit">
@@ -2609,10 +2606,10 @@ export default function CurriculumPage() {
               </div>
             )}
           </div>
-        )}
         </div>
         )}
       </main>
+      </div>
 
       {/* ── Week Detail Panel ── */}
       {activeWeek && (

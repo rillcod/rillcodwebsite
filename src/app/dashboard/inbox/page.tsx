@@ -376,11 +376,6 @@ export default function UnifiedInbox() {
     }
   };
 
-    } finally {
-      setConfirmingDetails(false);
-    }
-  };
-
   const startSupportConversation = async () => {
     try {
       setIsLoading(true);
@@ -2084,6 +2079,8 @@ export default function UnifiedInbox() {
                   </div>
                 </button>
             </div>
+            {isParentOrStudent && (
+              <div className="w-full max-w-3xl mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
                 <button
                   onClick={() => {
                     setSidebarView('contacts');
