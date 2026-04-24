@@ -1,3 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from './authz';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
@@ -8,7 +10,7 @@ import {
 } from '@/lib/lesson-plans/syllabusImport';
 
 async function getUser() {
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
