@@ -1,5 +1,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,7 +142,7 @@ export async function POST(request: NextRequest) {
     const requestedSchoolId: string | null = typeof examFields.school_id === 'string' ? examFields.school_id : null;
     if (caller.role === 'teacher') {
       if (requestedSchoolId) {
-        const scopedIds = await teacherSchoolIds(caller);
+        const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
         if (!scopedIds.includes(requestedSchoolId)) {
           return NextResponse.json(
             { error: 'You are not assigned to the school you selected for this exam.' },
