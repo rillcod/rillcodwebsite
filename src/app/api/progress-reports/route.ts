@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
   };
   for (const field of ALLOWED_FIELDS) {
     if (field in body) {
-      (updatePayload as Record<string, unknown>)[field as string] = body[field as string];
-      (insertPayload as Record<string, unknown>)[field as string] = body[field as string];
+      (updatePayload as Record<string, unknown>)[field] = body[field];
+      (insertPayload as Record<string, unknown>)[field] = body[field];
     }
   }
 
