@@ -376,6 +376,30 @@ export default function UnifiedInbox() {
     }
   };
 
+    } finally {
+      setConfirmingDetails(false);
+    }
+  };
+
+  const startSupportConversation = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/inbox', { method: 'POST' });
+      const json = await res.json();
+      if (json.data) {
+        await fetchConversations(activeTab);
+        const newConv = json.data;
+        // Find the conv in the updated list to ensure it has all fields
+        setActiveConv(newConv);
+        setSidebarView('chats');
+      }
+    } catch (err: any) {
+      setSendError(err.message || 'Failed to start support conversation');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleRealtime = (type: InboxCategory, msg: any) => {
     if (type === activeTab) fetchConversations(type, false);
     const convId = msg.conversation_id || msg.thread_id;
@@ -406,7 +430,7 @@ export default function UnifiedInbox() {
     if (setLoad) setIsLoading(true);
     try {
       if (cat === 'students') {
-        if (isParentOrStudent) {
+        if (isParentOrStudent || isTeacher) {
           const res = await fetch('/api/inbox');
           const json = await res.json();
           const rows = json.data ?? [];
@@ -418,61 +442,56 @@ export default function UnifiedInbox() {
             last_message_at: c.last_message_at || '',
             last_message_preview: c.last_message_preview || '',
             unread_count: c.unread_count || 0,
-            school_name: c.school_name || null,
-            role: c.portal_users?.role || (profile?.role ?? 'student'),
+            school_name: c.school_name || c.portal_users?.school_name || null,
+            role: c.portal_users?.role || (c.portal_user_id ? 'student' : 'external'),
             portal_user_id: c.portal_user_id ?? undefined,
             assigned_staff_id: c.assigned_staff_id,
           })));
           return;
         }
 
-        if (isStaff && queueFilter !== 'all') {
-          const res = await fetch(`/api/inbox/queue?filter=${queueFilter}`);
-          const json = await res.json().catch(() => ({}));
-          const rows = Array.isArray(json?.data) ? json.data : [];
-          setConversations(rows.map((c: any) => ({
-            id: c.id,
-            type: 'students' as const,
-            phone_number: c.phone_number,
-            contact_name: c.contact_name || c.phone_number || 'Unknown',
-            last_message_at: c.last_message_at || '',
-            last_message_preview: '',
-            unread_count: c.unread_count || 0,
-            school_name: null,
-            role: 'student',
-            portal_user_id: undefined,
-            assigned_staff_id: c.assigned_staff_id ?? undefined,
+        if (isAdmin || isSchool) {
+          if (queueFilter !== 'all') {
+            const res = await fetch(`/api/inbox/queue?filter=${queueFilter}`);
+            const json = await res.json().catch(() => ({}));
+            const rows = Array.isArray(json?.data) ? json.data : [];
+            setConversations(rows.map((c: any) => ({
+              id: c.id,
+              type: 'students' as const,
+              phone_number: c.phone_number,
+              contact_name: c.contact_name || c.phone_number || 'Unknown',
+              last_message_at: c.last_message_at || '',
+              last_message_preview: '',
+              unread_count: c.unread_count || 0,
+              school_name: null,
+              role: 'student',
+              portal_user_id: undefined,
+              assigned_staff_id: c.assigned_staff_id ?? undefined,
+            })));
+            setQueueSummary(json?.summary ?? null);
+            return;
+          }
+
+          const query = supabase
+            .from('whatsapp_conversations')
+            .select('*, portal_user:portal_users!portal_user_id(full_name, phone, school_name, role)')
+            .order('last_message_at', { ascending: false });
+
+          const { data } = await query;
+          if (data) setConversations(data.map(c => ({
+            id:                   c.id,
+            type:                 'students' as const,
+            phone_number:         c.phone_number,
+            contact_name:         c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
+            last_message_at:      c.last_message_at || '',
+            last_message_preview: c.last_message_preview || '',
+            unread_count:         c.unread_count || 0,
+            school_name:          (c.portal_user as any)?.school_name || c.school_name,
+            role:                 (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
+            portal_user_id:       c.portal_user_id ?? undefined,
+            assigned_staff_id:    c.assigned_staff_id,
           })));
-          setQueueSummary(json?.summary ?? null);
-          return;
         }
-
-        const query = supabase
-          .from('whatsapp_conversations')
-          .select('*, portal_user:portal_users!portal_user_id(full_name, phone, school_name, role)')
-          .order('last_message_at', { ascending: false });
-
-        if (isTeacher) {
-          // Teachers see their assigned + mapped students
-          query.or(`assigned_staff_id.eq.${profile.id},portal_user_id.is.null`); // Allow seeing externals to "claim" them? 
-          // User said "teacher can add external chat of parent t thier own but they dont see meesges or conversion from the admin end"
-          // So they see externals but NOT admin-assigned chats.
-        }
-
-        const { data } = await query;
-        if (data) setConversations(data.map(c => ({
-          id:                   c.id,
-          type:                 'students' as const,
-          phone_number:         c.phone_number,
-          contact_name:         c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
-          last_message_at:      c.last_message_at || '',
-          last_message_preview: c.last_message_preview || '',
-          unread_count:         c.unread_count || 0,
-          school_name:          (c.portal_user as any)?.school_name || c.school_name,
-          role:                 (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
-          portal_user_id:       c.portal_user_id ?? undefined,
-          assigned_staff_id:    c.assigned_staff_id,
-        })));
       } else if (cat === 'parents') {
         let q = supabase.from('parent_teacher_threads').select(`
           *, parent:portal_users!parent_id(id, full_name, avatar_url, phone, school_name),
@@ -817,19 +836,21 @@ export default function UnifiedInbox() {
         let data: any[] = [];
         if (activeTab === 'students') {
           if (isParentOrStudent) {
-            const res = await fetch('/api/messages?channels=1');
-            const json = await res.json().catch(() => ({}));
-            const scoped = Array.isArray(json?.recipients) ? json.recipients : [];
-            data = scoped
-              .filter((u: any) => Boolean(u?.phone))
-              .map((u: any) => ({
-                id: u.id,
-                full_name: u.full_name || 'Staff',
-                phone: u.phone,
-                school_name: u.school_name || null,
-                role: u.role || 'staff',
-                isExternalWA: false,
-              }));
+            // Students/Parents only see Admin/Support staff
+            const { data: staffData } = await supabase
+              .from('portal_users')
+              .select('id, full_name, phone, school_name, role')
+              .in('role', ['admin', 'teacher', 'school'])
+              .eq('is_active', true);
+            
+            data = (staffData ?? []).map((u: any) => ({
+              id: u.id,
+              full_name: u.full_name || 'Staff',
+              phone: u.phone,
+              school_name: u.school_name || null,
+              role: u.role || 'staff',
+              isExternalWA: false,
+            }));
             setDirectoryResults(data);
             return;
           }
@@ -1329,19 +1350,20 @@ export default function UnifiedInbox() {
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
                 </button>
-                <button onClick={() => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
+                <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
                   <Plus className="w-5 h-5" />
                 </button>
               </>
             ) : null}
-            {/* Toggle chats ↔ contacts */}
-            <button
-              onClick={() => { setSidebarView(v => v === 'chats' ? 'contacts' : 'chats'); setActiveContact(null); }}
-              title={sidebarView === 'chats' ? 'View contacts' : 'Back to chats'}
-              className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-orange-500/20 text-orange-400' : 'text-white/50 hover:bg-white/10'}`}
-            >
-              <BookUser className="w-5 h-5" />
-            </button>
+            {!isParentOrStudent && (
+              <button
+                onClick={() => { setSidebarView(v => v === 'chats' ? 'contacts' : 'chats'); setActiveContact(null); }}
+                title={sidebarView === 'chats' ? 'View contacts' : 'Back to chats'}
+                className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-orange-500/20 text-orange-400' : 'text-white/50 hover:bg-white/10'}`}
+              >
+                <BookUser className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1397,9 +1419,25 @@ export default function UnifiedInbox() {
               </div>
             )}
 
-            {filterUnread && (
-              <div className="px-4 pb-1 shrink-0">
-                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Showing unread only</span>
+            {isParentOrStudent && (
+              <div className="px-3 pb-3 shrink-0">
+                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-lg">
+                  <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-2">Support Channels</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={startSupportConversation} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-orange-500/40 rounded-lg transition-all group">
+                      <MessageSquare className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[8px] font-bold text-white/50 uppercase">In-App</span>
+                    </button>
+                    <a href="https://wa.me/2348123456789" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-emerald-500/40 rounded-lg transition-all group">
+                      <Phone className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[8px] font-bold text-white/50 uppercase">WhatsApp</span>
+                    </a>
+                    <button onClick={openSupportEmailCompose} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-violet-500/40 rounded-lg transition-all group">
+                      <Mail className="w-4 h-4 text-violet-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-[8px] font-bold text-white/50 uppercase">Email</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1410,9 +1448,11 @@ export default function UnifiedInbox() {
               ) : filteredConvs.length === 0 ? (
                 <div className="text-center p-12">
                   <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/30 text-sm">{convSearch || filterUnread ? 'No matching conversations.' : 'No conversations yet.'}</p>
+                  <p className="text-white/30 text-sm">{convSearch || filterUnread ? 'No matching conversations.' : isParentOrStudent ? 'Start a support chat with our team.' : 'No conversations yet.'}</p>
                   {!convSearch && !filterUnread && (
-                    <button onClick={() => setShowNewChat(true)} className="mt-3 text-orange-400 text-sm font-bold hover:underline">Start one →</button>
+                    <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="mt-3 text-orange-400 text-sm font-bold hover:underline">
+                      {isParentOrStudent ? 'Start Chat →' : 'Start one →'}
+                    </button>
                   )}
                 </div>
               ) : (
@@ -2004,18 +2044,46 @@ export default function UnifiedInbox() {
                 <BookUser className="w-4 h-4" /> Contacts
               </button>
             </div>
-            {isParentOrStudent && (
-              <div className="w-full max-w-4xl mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-left">
-                <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 hover:border-cyan-400/40 transition-colors">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
-                  <h3 className="text-sm font-black text-white mt-2">Open Support Ticket</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
-                </Link>
-                <button onClick={openSupportEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 hover:border-violet-400/40 transition-colors text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
-                  <h3 className="text-sm font-black text-white mt-2">Contact Support Team</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+            <div className="w-full max-w-5xl mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 text-left">
+                <button 
+                  onClick={startSupportConversation}
+                  className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 hover:border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
+                    <MessageSquare className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Fast Response</p>
+                  <h3 className="text-base font-black text-white mt-2">Start WhatsApp Chat</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Direct line to rillcod support. Chat in real-time for quick answers.</p>
+                  <div className="mt-4 flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                    Open Channel <ChevronRight className="w-3 h-3" />
+                  </div>
                 </button>
+
+                <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:border-cyan-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group">
+                  <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mb-3 group-hover:bg-cyan-500/30 transition-colors">
+                    <FileText className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
+                  <h3 className="text-base font-black text-white mt-2">Open Support Ticket</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
+                  <div className="mt-4 flex items-center gap-1.5 text-cyan-400 text-[10px] font-black uppercase tracking-widest">
+                    Create Ticket <ChevronRight className="w-3 h-3" />
+                  </div>
+                </Link>
+
+                <button onClick={openSupportEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5 hover:border-violet-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left">
+                  <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center mb-3 group-hover:bg-violet-500/30 transition-colors">
+                    <Mail className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
+                  <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+                  <div className="mt-4 flex items-center gap-1.5 text-violet-400 text-[10px] font-black uppercase tracking-widest">
+                    Send Email <ChevronRight className="w-3 h-3" />
+                  </div>
+                </button>
+            </div>
                 <button
                   onClick={() => {
                     setSidebarView('contacts');

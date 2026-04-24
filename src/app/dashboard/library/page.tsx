@@ -291,9 +291,12 @@ export default function ContentLibraryPage() {
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [viewerItem, setViewerItem] = useState<ContentItem | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; subject?: string } | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const isStaff = profile?.role === "admin" || profile?.role === "teacher" || profile?.role === "school";
+  const isStaff  = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
+  const isLearner = ['student', 'parent'].includes(profile?.role ?? '');
+  const canAccess = isStaff || isLearner;
   const canMutateLibrary = profile?.role === "admin" || profile?.role === "teacher";
   const canApprove = profile?.role === "admin";
   const canUpload = canMutateLibrary;
@@ -316,11 +319,29 @@ export default function ContentLibraryPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     loadItems();
+    
+    const courseId = searchParams.get('course_id');
+    if (courseId) {
+      createClient().from("courses").select("id, title, subject").eq("id", courseId).single()
+        .then(({ data }) => {
+          if (data) {
+            setSelectedCourse(data as any);
+            // Auto-filter by subject if the course has one
+            if (data.subject) {
+              setSubjectFilter(data.subject);
+            } else {
+              // Otherwise try searching by course title
+              setSearch(data.title);
+            }
+          }
+        });
+    }
+
     if (canMutateLibrary) {
       createClient().from("courses").select("id, title").order("title")
         .then(({ data }) => setCourses((data ?? []) as any));
     }
-  }, [profile?.id, authLoading, canMutateLibrary]);
+  }, [profile?.id, authLoading, canMutateLibrary, searchParams]);
 
   // Unique subjects derived from loaded data
   const subjects = useMemo(() => {
@@ -404,41 +425,106 @@ export default function ContentLibraryPage() {
       {/* ── Content Pipeline Stepper (staff only) ── */}
       {(profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <PipelineStepper 
-            current="library" 
-            courseId={searchParams.get('course_id')}
-            curriculumId={searchParams.get('curriculum_id')}
-            programId={searchParams.get('program_id')}
-          />
+          {isStaff && (
+            <PipelineStepper 
+              current="library" 
+              courseId={searchParams.get('course_id')}
+              curriculumId={searchParams.get('curriculum_id')}
+              programId={searchParams.get('program_id')}
+            />
+          )}
         </div>
       )}
 
       {/* Enhanced Header */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-card border-b border-border relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500/5 blur-3xl pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <BookOpenIcon className="w-5 h-5 text-orange-400" />
-                <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Digital Resources</span>
+                <span className="text-xs font-black text-orange-400 uppercase tracking-widest">
+                  {selectedCourse ? `Resources for ${selectedCourse.title}` : 'Digital Resources'}
+                </span>
               </div>
-              <h1 className="text-3xl lg:text-4xl font-black text-foreground">Content Library</h1>
-              <p className="text-muted-foreground mt-2">Discover, preview, and access educational resources with our enhanced in-app viewer</p>
+              <h1 className="text-3xl lg:text-4xl font-black text-foreground tracking-tight">
+                {selectedCourse ? 'Course Library' : 'Content Library'}
+              </h1>
+              <p className="text-muted-foreground mt-2 max-w-2xl">
+                {selectedCourse 
+                  ? `Showing relevant materials for ${selectedCourse.title}. Explore videos, guides, and projects to enhance your curriculum.`
+                  : 'Discover, preview, and access educational resources with our enhanced in-app viewer.'}
+              </p>
             </div>
             
-            {canUpload && (
-              <button 
-                onClick={() => setShowUpload(true)} 
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors shadow-lg"
-              >
-                <PlusIcon className="w-4 h-4" /> Upload Resource
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {selectedCourse && (
+                <button 
+                  onClick={() => {
+                    setSelectedCourse(null);
+                    setSearch('');
+                    setSubjectFilter('All');
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors"
+                >
+                  Clear Context
+                </button>
+              )}
+              {canUpload && (
+                <button 
+                  onClick={() => setShowUpload(true)} 
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:shadow-[0_0_25px_rgba(234,88,12,0.4)]"
+                >
+                  <PlusIcon className="w-4 h-4" /> Upload Resource
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        
+        {/* Smart Recommendations - CONTEXT AWARE */}
+        {selectedCourse && (
+          <div className="mb-8 p-6 bg-gradient-to-r from-orange-600/10 via-card to-violet-600/5 border border-orange-500/30 rounded-none relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-2xl group-hover:bg-orange-500/10 transition-all" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-orange-600/20 flex items-center justify-center">
+                  <SparklesIcon className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight italic">Smart Recommendations</h3>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Neural Match for {selectedCourse.title}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                 {items.filter(i => i.subject === selectedCourse.subject || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).slice(0, 3).map(rec => (
+                   <div key={rec.id} onClick={() => setViewerItem(rec)} className="p-4 bg-background border border-border hover:border-orange-500/30 transition-all cursor-pointer flex gap-3">
+                      <div className={`w-12 h-12 shrink-0 bg-gradient-to-br ${getTypeColor(rec.content_type)} flex items-center justify-center`}>
+                        {getTypeIcon(rec.content_type)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-orange-500 mb-1">{rec.content_type}</p>
+                        <p className="text-sm font-black truncate">{rec.title}</p>
+                        <p className="text-[10px] text-muted-foreground italic truncate">Matching Subject: {rec.subject}</p>
+                      </div>
+                   </div>
+                 ))}
+                 {items.filter(i => i.subject === selectedCourse.subject || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).length === 0 && (
+                   <div className="col-span-3 py-6 text-center text-xs font-black text-muted-foreground uppercase tracking-widest border border-dashed border-border">
+                      Seeking neural matches for this module...
+                   </div>
+                 )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Scope tabs (All / My School / Global) — only meaningful for
             school & teacher roles; admins see everything via All. */}
         {(isStaff) && (
@@ -484,7 +570,7 @@ export default function ContentLibraryPage() {
                 }`}
               >
                 <span>{cat}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${active ? 'bg-orange-500/20' : 'bg-muted'}`}>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-tighter ${active ? 'bg-orange-500/20 text-orange-300' : 'bg-muted text-muted-foreground'}`}>
                   {count}
                 </span>
               </button>

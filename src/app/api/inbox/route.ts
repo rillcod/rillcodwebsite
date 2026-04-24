@@ -140,3 +140,74 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status });
   }
 }
+
+// POST /api/inbox — Start or retrieve a conversation for parent/student
+export async function POST(req: NextRequest) {
+  try {
+    const caller = await requireInboxUser(req);
+    const admin = adminClient();
+
+    if (caller.role !== 'parent' && caller.role !== 'student') {
+      return NextResponse.json({ error: 'Only parents and students can use this endpoint' }, { status: 403 });
+    }
+
+    // Check if conversation already exists
+    const { data: existing } = await admin
+      .from('whatsapp_conversations')
+      .select('*')
+      .eq('portal_user_id', caller.id)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ data: existing });
+    }
+
+    // Fetch full profile to get contact name
+    const { data: fullProfile } = await admin
+      .from('portal_users')
+      .select('full_name, phone')
+      .eq('id', caller.id)
+      .single();
+
+    // Create new conversation
+    const { data: created, error } = await admin
+      .from('whatsapp_conversations')
+      .insert({
+        portal_user_id: caller.id,
+        contact_name: fullProfile?.full_name || 'User',
+        phone_number: fullProfile?.phone || null,
+        last_message_at: new Date().toISOString(),
+        last_message_preview: 'Conversation started',
+        unread_count: 0
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    const newConv = created;
+
+    // Add initial welcome message
+    await admin
+      .from('whatsapp_messages')
+      .insert({
+        conversation_id: newConv.id,
+        direction: 'outbound',
+        body: `Hello ${fullProfile?.full_name || 'there'}! 👋 Welcome to Rillcod Support. How can we help you with your learning journey today?`,
+        status: 'delivered',
+      });
+
+    // Update last message preview
+    await admin
+      .from('whatsapp_conversations')
+      .update({ 
+        last_message_preview: 'Welcome to Rillcod Support!',
+        last_message_at: new Date().toISOString()
+      })
+      .eq('id', newConv.id);
+
+    return NextResponse.json({ data: newConv });
+  } catch (err: any) {
+    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Inbox access denied' ? 403 : 500;
+    return NextResponse.json({ error: err.message }, { status });
+  }
+}

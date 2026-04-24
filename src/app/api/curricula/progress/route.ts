@@ -24,6 +24,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+  const schoolIds: string[] = [];
+  if (profile.school_id) schoolIds.push(profile.school_id);
+  if (profile.role === 'teacher') {
+    const sids = await getTeacherSchoolIds(profile.id, profile.school_id);
+    sids.forEach(id => { if (!schoolIds.includes(id)) schoolIds.push(id); });
+  }
+
   const admin = createAdminClient() as any;
   const url = new URL(req.url);
   const filterSchoolId = url.searchParams.get('school_id');
@@ -34,9 +42,13 @@ export async function GET(req: NextRequest) {
     .select('id, course_id, school_id, version, content, is_visible_to_school, created_at, updated_at, courses(id, title, programs(id, name))')
     .order('created_at', { ascending: false });
 
-  // School role: only see curricula the teacher has made visible
+  // Access control
   if (profile.role === 'school') {
-    currQuery = currQuery.eq('is_visible_to_school', true);
+    currQuery = currQuery.eq('is_visible_to_school', true).eq('school_id', profile.school_id);
+  } else if (profile.role === 'teacher') {
+    if (schoolIds.length > 0) {
+      currQuery = currQuery.or(`school_id.in.(${schoolIds.join(',')}),school_id.is.null`);
+    }
   }
 
   const { data: curricula, error: currErr } = await currQuery;
@@ -47,6 +59,10 @@ export async function GET(req: NextRequest) {
   let trackQuery = admin.from('curriculum_week_tracking').select('*');
   if (profile.role === 'school' && profile.school_id) {
     trackQuery = trackQuery.eq('school_id', profile.school_id);
+  } else if (profile.role === 'teacher') {
+    if (schoolIds.length > 0) {
+      trackQuery = trackQuery.in('school_id', schoolIds);
+    }
   } else if (filterSchoolId) {
     trackQuery = trackQuery.eq('school_id', filterSchoolId);
   }

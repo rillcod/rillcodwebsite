@@ -223,9 +223,10 @@ export default function CurriculumPage() {
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [creatingCbt, setCreatingCbt]     = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'generate'>(
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'generate' | 'delivery' | 'tools'>(
     searchParams.get('tab') === 'generate' ? 'generate' : 'syllabus'
   );
+  const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(null);
@@ -1514,7 +1515,7 @@ export default function CurriculumPage() {
               }`}
             >
               <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
-              <span className="whitespace-nowrap">Syllabus</span>
+              <span className="whitespace-nowrap">1. Syllabus</span>
             </button>
             {canTrack && (
               <button
@@ -1529,8 +1530,40 @@ export default function CurriculumPage() {
                 }`}
               >
                 <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap">Generate</span>
+                <span className="whitespace-nowrap">2. Generate</span>
               </button>
+            )}
+            {curriculum && (
+              <>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'delivery'}
+                  onClick={() => setActiveTab('delivery')}
+                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
+                    activeTab === 'delivery'
+                      ? 'border-violet-500 text-violet-400'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                  }`}
+                >
+                  <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">3. Delivery</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === 'tools'}
+                  onClick={() => setActiveTab('tools')}
+                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
+                    activeTab === 'tools'
+                      ? 'border-cyan-500 text-cyan-400'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                  }`}
+                >
+                  <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">4. Tools</span>
+                </button>
+              </>
             )}
           </div>
         )}
@@ -2004,26 +2037,108 @@ export default function CurriculumPage() {
               </div>
             </div>
 
-            {/* Progress bar */}
-            {allWeeks.length > 0 && (
-              <div className="bg-card border border-border p-4 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-muted-foreground uppercase tracking-wider">Delivery Progress</span>
-                  <span className="text-foreground">{completedCount} / {allWeeks.length} weeks completed</span>
+            {/* ── Delivery Tab ── */}
+            {activeTab === 'delivery' && curriculum && (
+              <div className="mx-4 sm:mx-6 mb-6 space-y-6">
+                <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                        <ChartBarIcon className="w-5 h-5 text-violet-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
+                        <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const terms = curriculum.content?.terms ?? [];
+                      const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
+                      const totalWeeks = allWeeks.length;
+                      const completed = tracking.filter(t => t.status === 'completed').length;
+                      const inProgress = tracking.filter(t => t.status === 'in_progress').length;
+                      const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
+
+                      return (
+                        <div className="flex-1 max-w-md space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                            <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
+                            <span className="text-violet-400">{pct}%</span>
+                          </div>
+                          <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
+                            <div
+                              className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-                <div className="flex gap-4 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-500 rounded-full inline-block" />Completed: {tracking.filter(t=>t.status==='completed').length}</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500 rounded-full inline-block" />In Progress: {tracking.filter(t=>t.status==='in_progress').length}</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 bg-zinc-500 rounded-full inline-block" />Skipped: {tracking.filter(t=>t.status==='skipped').length}</span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {(curriculum.content.terms ?? []).map((term: any) => {
+                    const termWeeks = term.weeks ?? [];
+                    const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
+                    const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
+                    return (
+                      <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
+                          <span className="text-xs font-black text-violet-400">{termPct}%</span>
+                        </div>
+                        <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
+                        </div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
+
+            {/* ── Tools Tab ── */}
+            {activeTab === 'tools' && curriculum && (
+              <div className="mx-4 sm:mx-6 space-y-6 pb-10">
+                {/* Course Overview */}
+                {curriculum.content.overview && (
+                  <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                      <InformationCircleIcon className="w-3 h-3" />
+                      Course Overview
+                    </h3>
+                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
+                  </div>
+                )}
+
+                {/* Learning outcomes */}
+                {curriculum.content.learning_outcomes?.length > 0 && (
+                  <div className="bg-card border border-border p-6 rounded-xl">
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-4">Learning Outcomes</h3>
+                    <ul className="space-y-2">
+                      {curriculum.content.learning_outcomes.map((o, i) => (
+                        <li key={i} className="flex gap-3 text-sm text-foreground/80">
+                          <span className="text-orange-500 font-black shrink-0 text-xs mt-0.5">{i+1}.</span>
+                          <span>{o}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
             {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
             {canGenerate && (
@@ -2364,30 +2479,7 @@ export default function CurriculumPage() {
               </div>
             )}
 
-            {/* Overview */}
-            {curriculum.content.overview && (
-              <div className="bg-card border border-border p-6 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
-                  <InformationCircleIcon className="w-3 h-3" />
-                  Course Overview
-                </h3>
-                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
-              </div>
-            )}
-
-            {/* Learning outcomes */}
-            {curriculum.content.learning_outcomes?.length > 0 && (
-              <div className="bg-card border border-border p-5">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Learning Outcomes</h3>
-                <ul className="space-y-1.5">
-                  {curriculum.content.learning_outcomes.map((o, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm text-foreground/80">
-                      <span className="text-orange-500 font-black shrink-0 text-xs mt-0.5">{i+1}.</span>
-                      <span>{o}</span>
-                    </li>
-                  ))}
-                </ul>
+                </div>
               </div>
             )}
 

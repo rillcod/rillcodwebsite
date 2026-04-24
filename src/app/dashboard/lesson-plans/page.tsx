@@ -140,6 +140,7 @@ function LessonPlansPageInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterProgramId, setFilterProgramId] = useState(qpProgramId ?? '');
+  const [filterCourseId, setFilterCourseId] = useState(qpCourseId ?? '');
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [filterTerm, setFilterTerm] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -400,7 +401,7 @@ function LessonPlansPageInner() {
         if (!course || getCourseProgramId(course) !== filterProgramId) return false;
       }
       if (filterClassId && p.class_id !== filterClassId) return false;
-      if (filterTerm && !(p.term ?? '').toLowerCase().startsWith(filterTerm.toLowerCase())) return false;
+      if (filterCourseId && p.course_id !== filterCourseId && p.lessons?.course_id !== filterCourseId) return false;
       if (filterStatus && (p.status ?? 'draft') !== filterStatus) return false;
       if (!search) return true;
       const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? '';
@@ -624,29 +625,53 @@ function LessonPlansPageInner() {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-            <DocumentTextIcon className="w-7 h-7 text-violet-400" />
-            Term Lesson Plans
-          </h1>
-          <p className="text-card-foreground/50 text-sm mt-0.5">
-            {filtered.length} / {plans.length} plan{plans.length === 1 ? '' : 's'}
-            {filterProgramId && programs.length > 0 && (
-              <> · <span className="text-violet-400">{programs.find(p => p.id === filterProgramId)?.name}</span></>
+      <div className="bg-card border border-white/[0.08] rounded-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/5 blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <DocumentTextIcon className="w-5 h-5 text-violet-400" />
+              <span className="text-xs font-black text-violet-400 uppercase tracking-widest">
+                {filterCourseId ? `Plans for ${courses.find(c => c.id === filterCourseId)?.title}` : 'Term Lesson Plans'}
+              </span>
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-black text-foreground tracking-tight">
+              {filterCourseId ? 'Course Plans' : 'Lesson Plans'}
+            </h1>
+            <p className="text-muted-foreground mt-2 max-w-2xl">
+              {filterCourseId 
+                ? `Manage and schedule term-based lesson progression for ${courses.find(c => c.id === filterCourseId)?.title}.`
+                : 'Group your lessons by term, class, and course for organized delivery.'}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {filterCourseId && (
+              <button 
+                onClick={() => {
+                  setFilterCourseId('');
+                  setFilterProgramId('');
+                  setSearch('');
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors rounded-xl"
+              >
+                Clear Context
+              </button>
             )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={load} aria-label="Refresh" className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
-            <ArrowPathIcon className={`w-4 h-4 text-card-foreground/50 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => { setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-500/20 min-h-[44px]"
-          >
-            <PlusIcon className="w-4 h-4" /> New Plan
-          </button>
+            <div className="flex items-center gap-2">
+              <button onClick={load} aria-label="Refresh" className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
+                <ArrowPathIcon className={`w-4 h-4 text-card-foreground/50 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => { setShowForm(true); }}
+                className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20"
+              >
+                <PlusIcon className="w-4 h-4" /> New Plan
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -667,13 +692,14 @@ function LessonPlansPageInner() {
             <option value="">All programmes</option>
             {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          {(filterClassId || filterTerm || filterStatus || filterProgramId || search) && (
+          {(filterClassId || filterTerm || filterStatus || filterProgramId || filterCourseId || search) && (
             <button
               onClick={() => {
                 setFilterClassId('');
                 setFilterTerm('');
                 setFilterStatus('');
                 setFilterProgramId('');
+                setFilterCourseId('');
                 setSearch('');
               }}
               className="px-3 py-2.5 text-xs font-black uppercase tracking-widest text-card-foreground/60 hover:text-card-foreground border border-white/10 rounded-xl hover:bg-white/5 transition min-h-[44px]"
