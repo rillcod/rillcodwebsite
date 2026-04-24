@@ -1,3 +1,4 @@
+import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
