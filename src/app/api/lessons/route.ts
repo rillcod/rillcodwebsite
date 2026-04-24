@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const lessonPlanId = url.searchParams.get('lesson_plan_id');
-    const courseId     = url.searchParams.get('course_id');
+    const courseId = url.searchParams.get('course_id');
 
     const admin = adminClient();
     let query = admin

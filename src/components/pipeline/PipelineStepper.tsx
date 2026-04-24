@@ -41,7 +41,7 @@ const META: Record<PipelineStep, {
   syllabus:   { num: 1, short: 'Syllabus',   label: 'Course & Syllabus', href: '/dashboard/curriculum',    icon: BookOpenIcon,              color: 'text-orange-400',  ring: 'ring-orange-500/40 bg-orange-500/10 border-orange-500/40'  },
   plans:      { num: 2, short: 'Plans',      label: 'Lesson Plans',      href: '/dashboard/lesson-plans',  icon: ClipboardDocumentListIcon, color: 'text-violet-400',  ring: 'ring-violet-500/40 bg-violet-500/10 border-violet-500/40'  },
   lessons:    { num: 3, short: 'Lessons',    label: 'Lessons',           href: '/dashboard/lessons',       icon: SparklesIcon,              color: 'text-emerald-400', ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40' },
-  flashcards: { num: 4, short: 'Flashcards', label: 'Flashcard Studio',  href: '/dashboard/flashcards',    icon: BoltIcon,                  color: 'text-yellow-400',  ring: 'ring-yellow-500/40 bg-yellow-500/10 border-yellow-500/40'  },
+  flashcards: { num: 4, short: 'Cards',      label: 'Flashcards & CBT',  href: '/dashboard/flashcards',    icon: BoltIcon,                  color: 'text-amber-400',   ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40'    },
   library:    { num: 5, short: 'Library',    label: 'Content Library',   href: '/dashboard/library',       icon: ArchiveBoxIcon,            color: 'text-cyan-400',    ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40'        },
 };
 

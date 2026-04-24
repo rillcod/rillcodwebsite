@@ -397,12 +397,18 @@ export default function ContentLibraryPage() {
     </div>
   );
 
+  const searchParams = useSearchParams();
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Content Pipeline Stepper (staff only) ── */}
       {(profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <PipelineStepper current="library" />
+          <PipelineStepper 
+            current="library" 
+            courseId={searchParams.get('course_id')}
+            curriculumId={searchParams.get('curriculum_id')}
+            programId={searchParams.get('program_id')}
+          />
         </div>
       )}
 

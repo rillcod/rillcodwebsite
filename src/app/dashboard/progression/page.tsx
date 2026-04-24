@@ -168,70 +168,103 @@ export default function ProgressionPage() {
         </div>
       )}
 
-      {/* LMS settings tools (separate from term-end student promotion above) */}
+      {/* LMS settings tools control center */}
       {(profile.role === 'admin' || profile.role === 'teacher' || profile.role === 'school') && (
-        <div className="p-4 rounded-xl border border-violet-500/25 bg-violet-500/5">
-          <p className="text-xs font-black uppercase tracking-widest text-violet-300/90 mb-2">
-            LMS settings and controls
-          </p>
-          <p className="text-sm text-muted-foreground mb-3">
-            These are your system settings for progression delivery: policy defaults, project seeds, audit trail, and marker integrity checks.
-            Open a published lesson plan to run generation. This is separate from student promote/repeat below.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/progression/settings"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-500/25 border border-violet-400/40 text-violet-100 hover:bg-violet-500/35 transition-colors"
-            >
-              LMS settings home
-            </Link>
-            <Link
-              href="/dashboard/progression/policies"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Progression policies
-            </Link>
-            <Link
-              href="/dashboard/progression/operations"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Operations control center
-            </Link>
-            <Link
-              href="/dashboard/progression/analytics"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Progression analytics
-            </Link>
-            <Link
-              href="/dashboard/progression/project-registry"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Project seed registry
-            </Link>
-            <Link
-              href="/dashboard/progression/audit"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Audit log
-            </Link>
-            <Link
-              href="/dashboard/progression/marker-integrity"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              Integrity check
-            </Link>
-            <Link
-              href="/dashboard/progression/qa-spine-catalog"
-              className="px-3 py-2 text-xs font-bold rounded-lg bg-violet-600/20 border border-violet-500/40 text-violet-200 hover:bg-violet-600/30 transition-colors"
-            >
-              QA spine catalog
-            </Link>
+        <div className="p-5 sm:p-6 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.03] to-fuchsia-500/[0.03]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+              <RocketLaunchIcon className="w-5 h-5 text-violet-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/90">
+                Academic Operations
+              </p>
+              <h2 className="text-lg font-black text-foreground">LMS Controls & Delivery</h2>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { 
+                label: 'Global Settings', 
+                desc: 'Base system defaults', 
+                href: '/dashboard/progression/settings', 
+                icon: RocketLaunchIcon, 
+                color: 'violet' 
+              },
+              { 
+                label: 'Policies', 
+                desc: 'Rules for promotion', 
+                href: '/dashboard/progression/policies', 
+                icon: CheckCircleIcon, 
+                color: 'emerald' 
+              },
+              { 
+                label: 'Ops Center', 
+                desc: 'Session & week control', 
+                href: '/dashboard/progression/operations', 
+                icon: UserGroupIcon, 
+                color: 'blue' 
+              },
+              { 
+                label: 'Analytics', 
+                desc: 'Delivery tracking', 
+                href: '/dashboard/progression/analytics', 
+                icon: EyeIcon, 
+                color: 'fuchsia' 
+              },
+              { 
+                label: 'Project Seeds', 
+                desc: 'Curriculum source work', 
+                href: '/dashboard/progression/project-registry', 
+                icon: BookOpenIcon, 
+                color: 'orange' 
+              },
+              { 
+                label: 'QA Spines', 
+                desc: 'Compliance catalog', 
+                href: '/dashboard/progression/qa-spine-catalog', 
+                icon: SparklesIcon, 
+                color: 'amber' 
+              },
+              { 
+                label: 'Audit Log', 
+                desc: 'Activity trail', 
+                href: '/dashboard/progression/audit', 
+                icon: ExclamationTriangleIcon, 
+                color: 'rose',
+                roles: ['admin', 'school'] 
+              },
+              { 
+                label: 'Integrity', 
+                desc: 'Marker validation', 
+                href: '/dashboard/progression/marker-integrity', 
+                icon: TrophyIcon, 
+                color: 'cyan',
+                roles: ['admin', 'school'] 
+              },
+            ].filter(item => !item.roles || item.roles.includes(profile.role)).map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all duration-300"
+              >
+                <div className={`w-8 h-8 rounded-lg bg-${item.color}-500/10 flex items-center justify-center border border-${item.color}-500/20 mb-3 group-hover:scale-110 transition-transform`}>
+                  <item.icon className={`w-4 h-4 text-${item.color}-400`} />
+                </div>
+                <h4 className="text-sm font-black text-foreground group-hover:text-violet-300 transition-colors">{item.label}</h4>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">{item.desc}</p>
+              </Link>
+            ))}
+            
             <Link
               href="/dashboard/lesson-plans"
-              className="px-3 py-2 text-xs font-bold rounded-lg border border-border text-foreground hover:bg-muted/40 transition-colors"
+              className="lg:col-span-4 p-3 rounded-xl border border-dashed border-border hover:border-violet-500/50 hover:bg-violet-500/[0.02] transition-all flex items-center justify-center gap-3 group"
             >
-              Lesson plans (generate route)
+              <div className="w-6 h-6 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                <PlusIcon className="w-3 h-3 text-violet-400" />
+              </div>
+              <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground">Open Lesson Plan Generation Pipeline</span>
             </Link>
           </div>
         </div>

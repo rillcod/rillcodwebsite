@@ -434,7 +434,7 @@ export default function LessonPlanDetailPage() {
   }, [authLoading, profile, load]);
 
   useEffect(() => {
-    if ((!guidePanelOpen && activeTab !== 'content') || !canGenerateProgression || !id) return;
+    if (!guidePanelOpen || !canGenerateProgression || !id) return;
     let cancelled = false;
     setGuideLoading(true);
     setGuideError(null);
@@ -456,7 +456,8 @@ export default function LessonPlanDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [guidePanelOpen, canGenerateProgression, id, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guidePanelOpen, canGenerateProgression, id]);
 
   useEffect(() => {
     setProgressionPreview(null);
@@ -485,7 +486,8 @@ export default function LessonPlanDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canGenerateProgression, id, weeks.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, canGenerateProgression, id]);
 
   useEffect(() => {
     if (activeTab !== 'content' || !canGenerateProgression || !id) return;
@@ -510,7 +512,8 @@ export default function LessonPlanDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canGenerateProgression, id, weeks.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, canGenerateProgression, id]);
 
   const syllabusTermContent = useMemo((): SyllabusContent | null => {
     if (!plan?.curriculum?.content || typeof plan.curriculum.content !== 'object') return null;
@@ -683,12 +686,26 @@ export default function LessonPlanDetailPage() {
     saveWeeks(updated);
   }
 
-  async function bulkGenerate(type: 'lessons' | 'assignments' | 'projects') {
+  async function bulkGenerate(type: 'lessons' | 'assignments' | 'projects' | 'cbt' | 'flashcards') {
     if (!plan || plan.status !== 'published') {
       toast.error('Only published plans can generate content');
       return;
     }
-    const labels: Record<typeof type, string> = {
+
+    if (type === 'cbt' || type === 'flashcards') {
+      const q = new URLSearchParams({
+        course_id: plan.course_id || '',
+        lesson_plan_id: id,
+        program_id: plan.courses?.program_id || '',
+        curriculum_id: plan.curriculum_version_id || '',
+        source: 'lesson-plan-bulk'
+      });
+      const target = type === 'cbt' ? '/dashboard/cbt/new' : '/dashboard/flashcards';
+      router.push(`${target}?${q.toString()}`);
+      return;
+    }
+
+    const labels: Record<'lessons' | 'assignments' | 'projects', string> = {
       lessons: 'lessons',
       assignments: 'assignments',
       projects: 'projects',
@@ -1408,32 +1425,50 @@ export default function LessonPlanDetailPage() {
               </div>
             </div>
             <div className="p-5 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                {linearOpsFlow.map((item) => (
-                  <div
-                    key={item.step}
-                    className={`rounded-2xl border p-4 ${
-                      item.state === 'risk'
-                        ? 'border-rose-400/25 bg-rose-500/[0.08]'
-                        : item.state === 'watch'
-                          ? 'border-amber-400/25 bg-amber-500/[0.08]'
-                          : 'border-emerald-400/20 bg-emerald-500/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-[0.24em] text-card-foreground/45">Step {item.step}</span>
-                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                        item.state === 'risk'
-                          ? 'text-rose-200'
-                          : item.state === 'watch'
-                            ? 'text-amber-200'
-                            : 'text-emerald-200'
-                      }`}>
-                        {item.state}
+              <div className="grid grid-cols-1 gap-6">
+                {/* Phases Mapping */}
+                {[
+                  { name: 'Academic Design', steps: ['01', '02'], icon: 'DesignIcon', color: 'blue' },
+                  { name: 'Instructional Building', steps: ['03', '04'], icon: 'BuildIcon', color: 'indigo' },
+                  { name: 'Classroom Delivery', steps: ['05', '06'], icon: 'DeliverIcon', color: 'violet' },
+                  { name: 'Operational Audit', steps: ['07', '08'], icon: 'AuditIcon', color: 'fuchsia' }
+                ].map((phase, pIdx) => (
+                  <div key={phase.name} className="space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-1.5 h-1.5 rounded-full bg-${phase.color}-400/60 shadow-[0_0_8px_rgba(129,140,248,0.4)]`} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-${phase.color}-300/80`}>
+                        Phase {pIdx + 1}: {phase.name}
                       </span>
                     </div>
-                    <h4 className="text-base font-black text-card-foreground mt-2">{item.title}</h4>
-                    <p className="text-xs text-card-foreground/65 mt-2 leading-relaxed">{item.detail}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {linearOpsFlow.filter(item => phase.steps.includes(item.step)).map((item) => (
+                        <div
+                          key={item.step}
+                          className={`rounded-2xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
+                            item.state === 'risk'
+                              ? 'border-rose-400/25 bg-rose-500/[0.08]'
+                              : item.state === 'watch'
+                                ? 'border-amber-400/25 bg-amber-500/[0.08]'
+                                : 'border-emerald-400/20 bg-emerald-500/[0.06]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-[0.24em] text-card-foreground/45">Step {item.step}</span>
+                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                              item.state === 'risk'
+                                ? 'text-rose-200'
+                                : item.state === 'watch'
+                                  ? 'text-amber-200'
+                                  : 'text-emerald-200'
+                            }`}>
+                              {item.state}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-black text-card-foreground mt-2">{item.title}</h4>
+                          <p className="text-xs text-card-foreground/65 mt-2 leading-relaxed">{item.detail}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2223,6 +2258,20 @@ export default function LessonPlanDetailPage() {
                               className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate Projects
+                            </button>
+                            <button
+                              onClick={() => bulkGenerate('cbt')}
+                              disabled={generating !== null}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate CBTs
+                            </button>
+                            <button
+                              onClick={() => bulkGenerate('flashcards')}
+                              disabled={generating !== null}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                            >
+                              <SparklesIcon className="w-4 h-4" /> Generate Flashcards
                             </button>
                           </div>
                         </div>

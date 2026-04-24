@@ -36,6 +36,10 @@ export default function NewExamPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
+  const preTopic = searchParams?.get('topic');
+  const preWeek = searchParams?.get('week');
+  const preCurrId = searchParams?.get('curriculum_id');
+  const preExamType = searchParams?.get('exam_type') as 'examination' | 'evaluation' | null;
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
@@ -52,19 +56,19 @@ export default function NewExamPage() {
     start_date: '',
     end_date: '',
     is_active: true,
-    exam_type: 'examination' as 'examination' | 'evaluation',
+    exam_type: preExamType === 'evaluation' ? 'evaluation' : 'examination',
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
   const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
   const [useWeights, setUseWeights] = useState(false);
 
   // AI Generation State
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(!!preTopic);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiTopic, setAiTopic] = useState('');
-  const [aiMcqCount, setAiMcqCount] = useState('10');
-  const [aiTheoryCount, setAiTheoryCount] = useState('0');
+  const [aiTopic, setAiTopic] = useState(preTopic || '');
+  const [aiMcqCount, setAiMcqCount] = useState(preExamType === 'evaluation' ? '0' : '10');
+  const [aiTheoryCount, setAiTheoryCount] = useState(preExamType === 'evaluation' ? '10' : '0');
   // Track which questions are selected (all selected by default)
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
@@ -181,10 +185,12 @@ export default function NewExamPage() {
         duration_minutes: parseInt(form.duration_minutes) || 60,
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
-        is_active: form.is_active,
+        exam_type: form.exam_type,
         metadata: {
             ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
-            exam_type: form.exam_type,
+            ...(preWeek ? { week: parseInt(preWeek, 10) } : {}),
+            ...(preCurrId ? { curriculum_id: preCurrId } : {}),
+            source: preCurrId ? 'curriculum' : 'standalone',
         },
         questions: validQuestions.map((q, i) => ({
           question_text: q.question_text.trim(),
