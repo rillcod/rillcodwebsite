@@ -1163,7 +1163,7 @@ function SchoolSelfView() {
     const sname = profile?.school_name;
 
     const [studentsRes, teachersRes, recentRes] = await Promise.allSettled([
-      supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', sid),
+      supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('role', 'student').eq('is_active', true),
       supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', sid),
       supabase.from('students')
         .select('id, full_name, status, grade_level, created_at')
@@ -1216,9 +1216,9 @@ function SchoolSelfView() {
 
   const quickActions = [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Import Students', href: '/dashboard/students/import', icon: PlusIcon, desc: 'Bulk import new students' },
     { name: 'Grades & Reports', href: '/dashboard/grades', icon: ChartBarIcon, desc: 'View student grades' },
     { name: 'Student Reports', href: '/dashboard/results', icon: DocumentTextIcon, desc: 'Progress report cards' },
+    { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon, desc: 'View class schedule' },
   ];
 
   return (
@@ -1335,10 +1335,6 @@ function SchoolSelfView() {
                 School Partner
               </span>
               <div className="mt-4 pt-4 border-t border-border space-y-2">
-                <Link href="/dashboard/students/import"
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <PlusIcon className="w-4 h-4" /> Import Students
-                </Link>
                 <Link href="/dashboard/settings"
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <ShieldCheckIcon className="w-4 h-4" /> Account Settings
