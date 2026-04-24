@@ -145,8 +145,7 @@ export default function DashboardNavigation() {
           { name: 'Grading Guide',     href: '/dashboard/grades/waec',     icon: DocumentTextIcon },
           { name: 'Progress Reports',  href: '/dashboard/results',         icon: DocumentChartBarIcon },
           { name: 'Certificates',      href: '/dashboard/certificates/management', icon: TrophyIcon },
-          { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
+          { name: 'Term Review',       href: '/dashboard/progression',     icon: RocketLaunchIcon },
 
           { divider: true, label: 'Engagement' },
           { name: 'Class Engagement',  href: '/dashboard/engagement',      icon: BoltIcon },
@@ -168,6 +167,7 @@ export default function DashboardNavigation() {
           { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
 
           { divider: true, label: 'System' },
+          { name: 'LMS Settings',      href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'Moderation',        href: '/dashboard/moderation',      icon: ShieldCheckIcon },
           { name: 'School Directory',  href: '/dashboard/directory',       icon: BuildingOfficeIcon },
           { name: 'Customer Retention',href: '/dashboard/crm',             icon: UserPlusIcon },
@@ -225,13 +225,13 @@ export default function DashboardNavigation() {
           { name: 'Progress Reports',  href: '/dashboard/results',         icon: DocumentChartBarIcon },
           { name: 'Report Builder',    href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Certificates',      href: '/dashboard/certificates/management', icon: TrophyIcon },
-          { name: 'Course Progress',   href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
-          { name: 'Term Progression',  href: '/dashboard/progression',     icon: RocketLaunchIcon },
+          { name: 'Term Review',       href: '/dashboard/progression',     icon: RocketLaunchIcon },
 
           { divider: true, label: 'Finance' },
           { name: 'Money Hub',         href: '/dashboard/money',           icon: CreditCardIcon },
 
           { divider: true, label: 'More' },
+          { name: 'LMS Settings',      href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox',    href: '/dashboard/inbox',           icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups',   href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications',     href: '/dashboard/notifications',   icon: BellIcon },

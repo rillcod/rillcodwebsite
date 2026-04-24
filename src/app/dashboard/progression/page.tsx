@@ -134,9 +134,9 @@ export default function ProgressionPage() {
             <ArrowRightIcon className="w-5 h-5 text-violet-400" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-foreground">Term-End Progression</h1>
+            <h1 className="text-xl font-black text-foreground">Term Review</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Review each student and decide: Promote to next level, Repeat this level, or Complete the track.
+              End-of-term decisions: Promote, Repeat, Complete, or Withdraw each student.
             </p>
           </div>
         </div>
