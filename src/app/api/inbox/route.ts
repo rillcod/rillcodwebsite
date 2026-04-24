@@ -31,6 +31,20 @@ async function requireInboxUser(req: NextRequest) {
   return profile;
 }
 
+async function teacherSchoolIds(callerId: string, primarySchoolId: string | null): Promise<string[]> {
+  const ids: string[] = [];
+  if (primarySchoolId) ids.push(primarySchoolId);
+  const admin = adminClient();
+  const { data: ts } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', callerId);
+  (ts ?? []).forEach((r: any) => {
+    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
+  });
+  return ids;
+}
+
 // GET /api/inbox — list WhatsApp conversations for role-scoped users
 export async function GET(req: NextRequest) {
   try {
@@ -53,15 +67,15 @@ export async function GET(req: NextRequest) {
       if (caller.role === 'parent' || caller.role === 'student') {
         convScope = convScope.eq('portal_user_id', caller.id);
       } else if (caller.role === 'teacher') {
-        // Teacher must belong to the same school as the student in the conversation
-        if (!caller.school_id) return NextResponse.json({ error: 'Teacher school not assigned' }, { status: 403 });
+        const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
+        if (schoolIds.length === 0) return NextResponse.json({ error: 'Teacher school not assigned' }, { status: 403 });
 
-        // Use a subquery to verify the student's school
+        // Use a subquery to verify the student's school is in the teacher's schools
         const { data: validStudent } = await admin
           .from('whatsapp_conversations')
           .select('id, portal_users!inner(school_id)')
           .eq('id', conversationId)
-          .eq('portal_users.school_id', caller.school_id)
+          .in('portal_users.school_id', schoolIds)
           .maybeSingle();
 
         if (!validStudent) {
@@ -109,8 +123,9 @@ export async function GET(req: NextRequest) {
     if (caller.role === 'parent' || caller.role === 'student') {
       convQuery = convQuery.eq('portal_user_id', caller.id);
     } else if (caller.role === 'teacher') {
-      if (!caller.school_id) return NextResponse.json({ data: [] });
-      convQuery = convQuery.eq('portal_users.school_id', caller.school_id);
+      const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
+      if (schoolIds.length === 0) return NextResponse.json({ data: [] });
+      convQuery = convQuery.in('portal_users.school_id', schoolIds);
     }
 
     const { data: conversations, error } = await convQuery;

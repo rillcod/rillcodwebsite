@@ -10,7 +10,7 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function requireStaff(allowSchool = false) {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -19,18 +19,43 @@ async function requireStaff() {
     .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
+  const allowedRoles = allowSchool ? ['admin', 'teacher', 'school'] : ['admin', 'teacher'];
+  if (!profile || !allowedRoles.includes(profile.role)) return null;
   return profile;
+}
+
+async function teacherSchoolIds(callerId: string, primarySchoolId: string | null): Promise<string[]> {
+  const ids: string[] = [];
+  if (primarySchoolId) ids.push(primarySchoolId);
+  const admin = adminClient();
+  const { data: ts } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', callerId);
+  (ts ?? []).forEach((r: any) => {
+    if (r.school_id && !ids.includes(r.school_id)) ids.push(r.school_id);
+  });
+  return ids;
 }
 
 // GET /api/whatsapp-groups — list groups for caller's school (or all for admin)
 export async function GET() {
-  const caller = await requireStaff();
+  const caller = await requireStaff(true); // Allow school role to READ
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const admin = adminClient();
   let q = admin.from('whatsapp_groups').select('*').order('name');
-  if (caller.role !== 'admin') q = q.eq('school_id', caller.school_id);
+  
+  if (caller.role === 'teacher') {
+    const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
+    if (schoolIds.length > 0) {
+      q = q.in('school_id', schoolIds);
+    } else {
+      q = q.eq('school_id', 'unassigned'); // Return empty if no school
+    }
+  } else if (caller.role === 'school') {
+    q = q.eq('school_id', caller.school_id);
+  }
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
