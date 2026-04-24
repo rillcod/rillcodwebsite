@@ -18,6 +18,7 @@ const TYPE_BADGE: Record<string, string> = {
   project: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   homework: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   exam: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  cbt: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   presentation: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   essay: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
@@ -32,6 +33,7 @@ const TYPE_ACCENT: Record<string, string> = {
   project: 'bg-orange-500',
   homework: 'bg-cyan-500',
   exam: 'bg-rose-500',
+  cbt: 'bg-rose-500',
   presentation: 'bg-amber-500',
   coding: 'bg-emerald-500',
   essay: 'bg-violet-500',
@@ -463,6 +465,7 @@ export default function AssignmentsPage() {
             <option value="homework">Homework</option>
             <option value="project">Project</option>
             <option value="quiz">Quiz</option>
+            <option value="cbt">CBT Test</option>
             <option value="exam">Exam</option>
             <option value="presentation">Presentation</option>
             <option value="coding">Coding</option>
@@ -705,6 +708,14 @@ export default function AssignmentsPage() {
 
                       {/* Right: action buttons */}
                       <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        {sub.status !== 'graded' && a.assignment_type === 'cbt' && (
+                          <Link
+                            href={`/dashboard/cbt/${sub.assignment_id ?? a.id}/take`}
+                            className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                          >
+                            <CommandLineIcon className="w-3.5 h-3.5" /> Take Test
+                          </Link>
+                        )}
                         {sub.status !== 'graded' && a.assignment_type === 'coding' && (
                           <Link
                             href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
@@ -713,7 +724,7 @@ export default function AssignmentsPage() {
                             <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
                           </Link>
                         )}
-                        {sub.status !== 'graded' && a.assignment_type !== 'coding' && (
+                        {sub.status !== 'graded' && a.assignment_type !== 'coding' && a.assignment_type !== 'cbt' && (
                           <Link
                             href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
                             className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
@@ -721,12 +732,22 @@ export default function AssignmentsPage() {
                             <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Submit
                           </Link>
                         )}
-                        <Link
-                          href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                          className="flex items-center gap-2 bg-card hover:bg-muted border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
-                        >
-                          <EyeIcon className="w-3.5 h-3.5" /> View
-                        </Link>
+                        {a.assignment_type !== 'cbt' && (
+                          <Link
+                            href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
+                            className="flex items-center gap-2 bg-card hover:bg-muted border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" /> View
+                          </Link>
+                        )}
+                        {a.assignment_type === 'cbt' && (
+                          <Link
+                            href={`/dashboard/cbt/${sub.assignment_id ?? a.id}`}
+                            className="flex items-center gap-2 bg-card hover:bg-muted border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" /> View Results
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
