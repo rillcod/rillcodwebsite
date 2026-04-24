@@ -246,6 +246,7 @@ export default function DashboardNavigation() {
           ...base,
           { divider: true, label: 'Learning' },
           { name: 'Learning Center',   href: '/dashboard/learning',        icon: RocketLaunchIcon },
+          { name: 'Course Syllabus',   href: '/dashboard/curriculum',      icon: BookOpenIcon },
           { name: 'My Lessons',       href: '/dashboard/lessons',         icon: BookOpenIcon },
           { name: 'Flashcards',        href: '/dashboard/flashcards',      icon: BoltIcon },
           { name: 'Library',           href: '/dashboard/library',         icon: ArchiveBoxIcon },
@@ -338,6 +339,7 @@ export default function DashboardNavigation() {
           { name: 'My Children',       href: '/dashboard/my-children',     icon: UserGroupIcon },
 
           { divider: true, label: 'Academic Progress' },
+          { name: 'Course Syllabus',   href: '/dashboard/curriculum',      icon: BookOpenIcon },
           { name: 'Report Cards',      href: '/dashboard/parent-results',  icon: DocumentChartBarIcon },
           { name: 'Grades',            href: '/dashboard/parent-grades',   icon: ChartBarIcon },
           { name: 'Attendance',        href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
