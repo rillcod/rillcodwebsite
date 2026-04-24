@@ -309,6 +309,13 @@ export default function CurriculumPage() {
   const canTrack = isAdmin || isTeacher;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
+
+  // Reset to syllabus tab if role can't access delivery/tools/generate
+  useEffect(() => {
+    if (!canTrack && (activeTab === 'delivery' || activeTab === 'tools' || activeTab === 'generate')) {
+      setActiveTab('syllabus');
+    }
+  }, [canTrack, activeTab]);
   const currentScopeKey = generateScope === 'platform' ? 'platform' : generateScope;
 
   const filteredPrograms = useMemo(() => {
@@ -1603,7 +1610,7 @@ export default function CurriculumPage() {
                   <span className="whitespace-nowrap">2. Generate</span>
                 </button>
               )}
-              {curriculum && (
+              {curriculum && canTrack && (
                 <>
                   <button
                     type="button"
