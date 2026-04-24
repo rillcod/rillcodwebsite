@@ -163,16 +163,16 @@ interface Program { id: string; name: string; courses: Course[] }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> = {
-  lesson:      { label: 'Lesson',      color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', icon: BookOpenIcon },
-  assessment:  { label: 'Assessment',  color: 'text-amber-400  bg-amber-500/10  border-amber-500/30',  icon: ClipboardDocumentListIcon },
-  examination: { label: 'Examination', color: 'text-rose-400   bg-rose-500/10   border-rose-500/30',   icon: DocumentTextIcon },
+  lesson: { label: 'Lesson', color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', icon: BookOpenIcon },
+  assessment: { label: 'Assessment', color: 'text-amber-400  bg-amber-500/10  border-amber-500/30', icon: ClipboardDocumentListIcon },
+  examination: { label: 'Examination', color: 'text-rose-400   bg-rose-500/10   border-rose-500/30', icon: DocumentTextIcon },
 };
 
 const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any }> = {
-  pending:     { label: 'Pending',     color: 'text-muted-foreground', icon: ClockIcon },
-  in_progress: { label: 'In Progress', color: 'text-blue-400',         icon: ArrowPathIcon },
-  completed:   { label: 'Completed',   color: 'text-emerald-400',      icon: CheckCircleIcon },
-  skipped:     { label: 'Skipped',     color: 'text-zinc-500',         icon: ExclamationTriangleIcon },
+  pending: { label: 'Pending', color: 'text-muted-foreground', icon: ClockIcon },
+  in_progress: { label: 'In Progress', color: 'text-blue-400', icon: ArrowPathIcon },
+  completed: { label: 'Completed', color: 'text-emerald-400', icon: CheckCircleIcon },
+  skipped: { label: 'Skipped', color: 'text-zinc-500', icon: ExclamationTriangleIcon },
 };
 
 const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
@@ -185,22 +185,22 @@ export default function CurriculumPage() {
   const { profile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [programs, setPrograms]       = useState<Program[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-  const [selectedCourse, setSelectedCourse]   = useState<Course | null>(null);
-  const [curriculum, setCurriculum]   = useState<CurriculumDoc | null>(null);
-  const [tracking, setTracking]       = useState<WeekTracking[]>([]);
-  const [activeTerm, setActiveTerm]   = useState(1);
-  const [activeWeek, setActiveWeek]   = useState<CurriculumWeek | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [curriculum, setCurriculum] = useState<CurriculumDoc | null>(null);
+  const [tracking, setTracking] = useState<WeekTracking[]>([]);
+  const [activeTerm, setActiveTerm] = useState(1);
+  const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
   const [loadingCurr, setLoadingCurr] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
-  const [generating, setGenerating]   = useState(false);
-  const [genError, setGenError]       = useState('');
-  const [savingTrack, setSavingTrack]   = useState(false);
-  const [notesDraft, setNotesDraft]     = useState('');
-  const [assigning, setAssigning]         = useState(false);
-  const [assignResult, setAssignResult]   = useState<{ assignment?: boolean; project?: boolean } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+  const [savingTrack, setSavingTrack] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignResult, setAssignResult] = useState<{ assignment?: boolean; project?: boolean } | null>(null);
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function CurriculumPage() {
     }
   }
   const [creatingLesson, setCreatingLesson] = useState(false);
-  const [creatingCbt, setCreatingCbt]     = useState(false);
+  const [creatingCbt, setCreatingCbt] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'syllabus' | 'generate' | 'delivery' | 'tools'>(
     searchParams.get('tab') === 'generate' ? 'generate' : 'syllabus'
@@ -300,13 +300,13 @@ export default function CurriculumPage() {
   const [qaApplyLoading, setQaApplyLoading] = useState(false);
   const [qaApplyErr, setQaApplyErr] = useState('');
 
-  const isAdmin   = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const isStudent = profile?.role === 'student';
-  const isParent  = profile?.role === 'parent';
-  const isSchool  = profile?.role === 'school';
+  const isParent = profile?.role === 'parent';
+  const isSchool = profile?.role === 'school';
   const canGenerate = isAdmin || isTeacher;
-  const canTrack    = isAdmin || isTeacher;
+  const canTrack = isAdmin || isTeacher;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
   const currentScopeKey = generateScope === 'platform' ? 'platform' : generateScope;
@@ -921,7 +921,7 @@ export default function CurriculumPage() {
         body: JSON.stringify({
           title: proj.title,
           description: proj.description,
-          instructions: `${proj.description}\n\nDeliverables:\n${(proj.deliverables ?? []).map((d, i) => `${i+1}. ${d}`).join('\n')}`,
+          instructions: `${proj.description}\n\nDeliverables:\n${(proj.deliverables ?? []).map((d, i) => `${i + 1}. ${d}`).join('\n')}`,
           assignment_type: 'project',
           due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           max_points: 100,
@@ -966,15 +966,15 @@ export default function CurriculumPage() {
       durationMinutes: plan?.duration_minutes ?? 60,
       plan: plan
         ? {
-            objectives: plan.objectives,
-            teacher_activities: plan.teacher_activities,
-            student_activities: plan.student_activities,
-            classwork: plan.classwork,
-            resources: plan.resources,
-            engagement_tips: plan.engagement_tips,
-            assignment: plan.assignment,
-            project: plan.project,
-          }
+          objectives: plan.objectives,
+          teacher_activities: plan.teacher_activities,
+          student_activities: plan.student_activities,
+          classwork: plan.classwork,
+          resources: plan.resources,
+          engagement_tips: plan.engagement_tips,
+          assignment: plan.assignment,
+          project: plan.project,
+        }
         : null,
     });
     router.push(`/dashboard/lessons/add?${params.toString()}`);
@@ -1036,9 +1036,9 @@ export default function CurriculumPage() {
     setGenGenerating(true);
     setGenTabError('');
     try {
-      const plan    = genWeek.lesson_plan;
+      const plan = genWeek.lesson_plan;
       const weekTag = `Week ${genWeek.week}: ${genWeek.topic}`;
-      const dueDate = new Date(Date.now() + 7  * 864e5).toISOString().split('T')[0];
+      const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
       const projDue = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
 
       if (genContentType === 'cbt') {
@@ -1069,15 +1069,15 @@ export default function CurriculumPage() {
           durationMinutes: plan?.duration_minutes ?? 60,
           plan: plan
             ? {
-                objectives: plan.objectives,
-                teacher_activities: plan.teacher_activities,
-                student_activities: plan.student_activities,
-                classwork: plan.classwork,
-                resources: plan.resources,
-                engagement_tips: plan.engagement_tips,
-                assignment: plan.assignment,
-                project: plan.project,
-              }
+              objectives: plan.objectives,
+              teacher_activities: plan.teacher_activities,
+              student_activities: plan.student_activities,
+              classwork: plan.classwork,
+              resources: plan.resources,
+              engagement_tips: plan.engagement_tips,
+              assignment: plan.assignment,
+              project: plan.project,
+            }
             : null,
         });
         params.set('flow_origin', 'generate-tab');
@@ -1088,16 +1088,16 @@ export default function CurriculumPage() {
         const currId = curriculum?.id ?? curriculumList[0]?.id;
         const res = await fetch('/api/assignments', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            title: plan?.assignment?.title || `${weekTag} — Assignment`, 
-            description: weekTag, 
-            instructions: plan?.assignment?.instructions || (genWeek.subtopics ?? []).join('\n'), 
-            assignment_type: 'homework', 
-            due_date: dueDate, 
-            max_points: 100, 
-            is_active: true, 
-            course_id: selectedCourse.id, 
-            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week } 
+          body: JSON.stringify({
+            title: plan?.assignment?.title || `${weekTag} — Assignment`,
+            description: weekTag,
+            instructions: plan?.assignment?.instructions || (genWeek.subtopics ?? []).join('\n'),
+            assignment_type: 'homework',
+            due_date: dueDate,
+            max_points: 100,
+            is_active: true,
+            course_id: selectedCourse.id,
+            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week }
           }),
         });
         const json = await res.json();
@@ -1149,7 +1149,7 @@ export default function CurriculumPage() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to create flashcard deck');
-        
+
         const q = new URLSearchParams({
           deckId: json.data.id,
           topic: genWeek.topic,
@@ -1334,1281 +1334,1273 @@ export default function CurriculumPage() {
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full min-h-screen">
 
-      {/* ── Mobile scope bar — sticky, shows current Program › Course and
+        {/* ── Mobile scope bar — sticky, shows current Program › Course and
              gives one-tap access to Browse, Preview-as-role, Publish toggle.
              The intent is that the teacher never loses context of what they
              are editing even as the syllabus scrolls past the viewport on
              a small screen. ── */}
-      <div className="md:hidden sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
-          <div className="min-w-0 flex-1">
-            {selectedProgram ? (
-              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
-                {selectedProgram.name}
-                {selectedCourse && (
-                  <>
-                    <span className="text-muted-foreground/40 mx-1">›</span>
-                    <span className="text-orange-400">{selectedCourse.title}</span>
-                  </>
-                )}
+        <div className="md:hidden sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+            <div className="min-w-0 flex-1">
+              {selectedProgram ? (
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                  {selectedProgram.name}
+                  {selectedCourse && (
+                    <>
+                      <span className="text-muted-foreground/40 mx-1">›</span>
+                      <span className="text-orange-400">{selectedCourse.title}</span>
+                    </>
+                  )}
+                </p>
+              ) : (
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                  Course & Syllabus
+                </p>
+              )}
+              <p className="text-sm font-black truncate">
+                {curriculum?.content?.course_title ?? selectedCourse?.title ?? 'Select a course'}
               </p>
-            ) : (
-              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                Course & Syllabus
-              </p>
-            )}
-            <p className="text-sm font-black truncate">
-              {curriculum?.content?.course_title ?? selectedCourse?.title ?? 'Select a course'}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {curriculum && canGenerate && (
-              <button
-                onClick={() => setPreviewRole('student')}
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-sky-300 border border-sky-500/30 px-2 py-1.5 hover:bg-sky-500/10"
-                aria-label="Preview as student"
-              >
-                <EyeIcon className="w-3.5 h-3.5" />
-                Preview
-              </button>
-            )}
-            <button
-              onClick={() => setMobileSidebarOpen(v => !v)}
-              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1.5"
-            >
-              <BookOpenIcon className="w-3.5 h-3.5" />
-              {mobileSidebarOpen ? 'Close' : 'Browse'}
-            </button>
-          </div>
-        </div>
-        {/* Quick term jump on mobile — only when a syllabus is loaded */}
-        {curriculum && curriculum.content.terms && curriculum.content.terms.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 snap-x -mx-px">
-            {curriculum.content.terms.map((t) => {
-              const active = t.term === activeTerm;
-              return (
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {curriculum && canGenerate && (
                 <button
-                  key={t.term}
-                  onClick={() => setActiveTerm(t.term)}
-                  className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
-                    active
-                      ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
-                      : 'bg-muted/20 border-border text-muted-foreground'
-                  }`}
+                  onClick={() => setPreviewRole('student')}
+                  className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-sky-300 border border-sky-500/30 px-2 py-1.5 hover:bg-sky-500/10"
+                  aria-label="Preview as student"
                 >
-                  T{t.term} {TERM_LABEL[t.term] ? `· ${TERM_LABEL[t.term].split(' ')[0]}` : ''}
+                  <EyeIcon className="w-3.5 h-3.5" />
+                  Preview
                 </button>
-              );
-            })}
+              )}
+              <button
+                onClick={() => setMobileSidebarOpen(v => !v)}
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1.5"
+              >
+                <BookOpenIcon className="w-3.5 h-3.5" />
+                {mobileSidebarOpen ? 'Close' : 'Browse'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+          {/* Quick term jump on mobile — only when a syllabus is loaded */}
+          {curriculum && curriculum.content.terms && curriculum.content.terms.length > 1 && (
+            <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 snap-x -mx-px">
+              {curriculum.content.terms.map((t) => {
+                const active = t.term === activeTerm;
+                return (
+                  <button
+                    key={t.term}
+                    onClick={() => setActiveTerm(t.term)}
+                    className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${active
+                        ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                        : 'bg-muted/20 border-border text-muted-foreground'
+                      }`}
+                  >
+                    T{t.term} {TERM_LABEL[t.term] ? `· ${TERM_LABEL[t.term].split(' ')[0]}` : ''}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-      {/* ── Left Sidebar — Programs & Courses ── */}
-      <aside className={`
+        {/* ── Left Sidebar — Programs & Courses ── */}
+        <aside className={`
         ${mobileSidebarOpen ? 'flex' : 'hidden'} md:flex
         flex-col w-full md:w-64 lg:w-72 shrink-0
         border-b md:border-b-0 md:border-r border-border
         bg-card overflow-y-auto md:h-screen
       `}>
-        <div className="px-4 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <SparklesIcon className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Catalog</h2>
+          <div className="px-4 py-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <SparklesIcon className="w-4 h-4 text-orange-400" />
+              <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Catalog</h2>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Use the search bar above to filter. Click another course anytime — your work is per course.
+            </p>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Use the search bar above to filter. Click another course anytime — your work is per course.
-          </p>
-        </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
-          {programs.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <div className="w-8 h-8 border-2 border-dashed border-border flex items-center justify-center mx-auto mb-4">
-                 <AcademicCapIcon className="w-4 h-4 text-muted-foreground/30" />
+          <div className="flex-1 overflow-y-auto py-2">
+            {programs.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <div className="w-8 h-8 border-2 border-dashed border-border flex items-center justify-center mx-auto mb-4">
+                  <AcademicCapIcon className="w-4 h-4 text-muted-foreground/30" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No tracks found</p>
               </div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No tracks found</p>
-            </div>
-          ) : filteredPrograms.length === 0 ? (
-            <div className="px-4 py-8 text-center space-y-2">
-              <p className="text-xs text-muted-foreground">No programmes or courses match &ldquo;{catalogQuery.trim()}&rdquo;.</p>
-              <button
-                type="button"
-                onClick={() => setCatalogQuery('')}
-                className="text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1"
-              >
-                Clear search
-              </button>
-            </div>
-          ) : filteredPrograms.map(prog => {
-            const isExpanded = expandedPrograms.has(prog.id);
-            const activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
-            return (
-              <div key={prog.id} className="border-b border-border/50 last:border-0">
+            ) : filteredPrograms.length === 0 ? (
+              <div className="px-4 py-8 text-center space-y-2">
+                <p className="text-xs text-muted-foreground">No programmes or courses match &ldquo;{catalogQuery.trim()}&rdquo;.</p>
                 <button
-                  onClick={() => setExpandedPrograms(prev => {
-                    const next = new Set(prev);
-                    if (next.has(prog.id)) next.delete(prog.id); else next.add(prog.id);
-                    return next;
-                  })}
-                  className={`w-full flex items-center gap-2 px-4 py-4 text-left transition-all ${isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20'}`}
+                  type="button"
+                  onClick={() => setCatalogQuery('')}
+                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1"
                 >
-                  {isExpanded
-                    ? <ChevronDownIcon className="w-4 h-4 text-orange-500 shrink-0" />
-                    : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
-                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.name || (prog as any).title}</span>
-                  <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">{activeCourses.length}</span>
+                  Clear search
                 </button>
-
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden bg-muted/10"
-                    >
-                      {activeCourses.map(course => {
-                        const isSelected = selectedCourse?.id === course.id;
-                        return (
-                          <button
-                            key={course.id}
-                            onClick={() => selectCourse(prog, course)}
-                            className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${
-                              isSelected
-                                ? 'text-orange-500 bg-orange-500/5'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                            }`}
-                          >
-                            {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600" />}
-                            <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
-            );
-          })}
-        </div>
-      </aside>
+            ) : filteredPrograms.map(prog => {
+              const isExpanded = expandedPrograms.has(prog.id);
+              const activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
+              return (
+                <div key={prog.id} className="border-b border-border/50 last:border-0">
+                  <button
+                    onClick={() => setExpandedPrograms(prev => {
+                      const next = new Set(prev);
+                      if (next.has(prog.id)) next.delete(prog.id); else next.add(prog.id);
+                      return next;
+                    })}
+                    className={`w-full flex items-center gap-2 px-4 py-4 text-left transition-all ${isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20'}`}
+                  >
+                    {isExpanded
+                      ? <ChevronDownIcon className="w-4 h-4 text-orange-500 shrink-0" />
+                      : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.name || (prog as any).title}</span>
+                    <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">{activeCourses.length}</span>
+                  </button>
 
-      {/* ── Main Content ── */}
-      <main className="flex-1 overflow-y-auto flex flex-col">
-        {/* Tab bar — shown when course selected */}
-        {selectedCourse && (
-          <div
-            className="flex overflow-x-auto snap-x snap-mandatory border-b border-border bg-card px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
-            role="tablist"
-            aria-label="Curriculum views"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'syllabus'}
-              onClick={() => setActiveTab('syllabus')}
-              className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
-                activeTab === 'syllabus'
-                  ? 'border-orange-500 text-orange-400'
-                  : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
-              }`}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-muted/10"
+                      >
+                        {activeCourses.map(course => {
+                          const isSelected = selectedCourse?.id === course.id;
+                          return (
+                            <button
+                              key={course.id}
+                              onClick={() => selectCourse(prog, course)}
+                              className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${isSelected
+                                  ? 'text-orange-500 bg-orange-500/5'
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                                }`}
+                            >
+                              {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600" />}
+                              <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* ── Main Content ── */}
+        <main className="flex-1 overflow-y-auto flex flex-col">
+          {/* Tab bar — shown when course selected */}
+          {selectedCourse && (
+            <div
+              className="flex overflow-x-auto snap-x snap-mandatory border-b border-border bg-card px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
+              role="tablist"
+              aria-label="Curriculum views"
             >
-              <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
-              <span className="whitespace-nowrap">1. Syllabus</span>
-            </button>
-            {canTrack && (
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeTab === 'generate'}
-                onClick={() => setActiveTab('generate')}
-                className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
-                  activeTab === 'generate'
+                aria-selected={activeTab === 'syllabus'}
+                onClick={() => setActiveTab('syllabus')}
+                className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'syllabus'
                     ? 'border-orange-500 text-orange-400'
                     : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
-                }`}
+                  }`}
               >
-                <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap">2. Generate</span>
+                <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
+                <span className="whitespace-nowrap">1. Syllabus</span>
               </button>
-            )}
-            {curriculum && (
-              <>
+              {canTrack && (
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={activeTab === 'delivery'}
-                  onClick={() => setActiveTab('delivery')}
-                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
-                    activeTab === 'delivery'
-                      ? 'border-violet-500 text-violet-400'
+                  aria-selected={activeTab === 'generate'}
+                  onClick={() => setActiveTab('generate')}
+                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'generate'
+                      ? 'border-orange-500 text-orange-400'
                       : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
-                  }`}
+                    }`}
                 >
-                  <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">3. Delivery</span>
+                  <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">2. Generate</span>
                 </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'tools'}
-                  onClick={() => setActiveTab('tools')}
-                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${
-                    activeTab === 'tools'
-                      ? 'border-cyan-500 text-cyan-400'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
-                  }`}
-                >
-                  <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">4. Tools</span>
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Pipeline — shared 5-step stepper with course context preserved across steps */}
-        {selectedCourse && (
-          <div className="px-4 py-3 border-b border-border bg-card/50 shrink-0">
-            <PipelineStepper
-              current="syllabus"
-              courseId={selectedCourse.id}
-              programId={selectedCourse.program_id ?? selectedProgram?.id ?? null}
-              curriculumId={curriculum?.id ?? null}
-              courseTitle={selectedCourse.title}
-            />
-          {/* Always show Step-2 link when at least one syllabus exists for this course */}
-          {(curriculum?.id ?? curriculumList[0]?.id) && (
-            <div className="mt-3 pt-3 border-t border-border/60">
-              <Link
-                href={(() => {
-                  const currId = curriculum?.id ?? curriculumList[0]?.id;
-                  const q = new URLSearchParams({
-                    course_id: selectedCourse!.id,
-                    ...(currId ? { curriculum_id: currId } : {}),
-                  });
-                  const pid = selectedCourse!.program_id ?? selectedProgram?.id;
-                  if (pid) q.set('program_id', pid);
-                  return `/dashboard/lesson-plans?${q.toString()}`;
-                })()}
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
-              >
-                <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
-                Create term lesson plan from this syllabus (week-by-week)
-              </Link>
-              <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
-                Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
-              </p>
+              )}
+              {curriculum && (
+                <>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'delivery'}
+                    onClick={() => setActiveTab('delivery')}
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'delivery'
+                        ? 'border-violet-500 text-violet-400'
+                        : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                      }`}
+                  >
+                    <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
+                    <span className="whitespace-nowrap">3. Delivery</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'tools'}
+                    onClick={() => setActiveTab('tools')}
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'tools'
+                        ? 'border-cyan-500 text-cyan-400'
+                        : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                      }`}
+                  >
+                    <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
+                    <span className="whitespace-nowrap">4. Tools</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
-          </div>
-        )}
 
-        {/* Generate Content Tab */}
-        {activeTab === 'generate' && selectedCourse && (
-          <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-10">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0">
-                <SparklesIcon className="w-5 h-5 text-orange-400" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black text-foreground">Generate Content</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Pick a week from the syllabus, choose content type, then create it.
-                </p>
-              </div>
+          {/* Pipeline — shared 5-step stepper with course context preserved across steps */}
+          {selectedCourse && (
+            <div className="px-4 py-3 border-b border-border bg-card/50 shrink-0">
+              <PipelineStepper
+                current="syllabus"
+                courseId={selectedCourse.id}
+                programId={selectedCourse.program_id ?? selectedProgram?.id ?? null}
+                curriculumId={curriculum?.id ?? null}
+                courseTitle={selectedCourse.title}
+              />
+              {/* Always show Step-2 link when at least one syllabus exists for this course */}
+              {(curriculum?.id ?? curriculumList[0]?.id) && (
+                <div className="mt-3 pt-3 border-t border-border/60">
+                  <Link
+                    href={(() => {
+                      const currId = curriculum?.id ?? curriculumList[0]?.id;
+                      const q = new URLSearchParams({
+                        course_id: selectedCourse!.id,
+                        ...(currId ? { curriculum_id: currId } : {}),
+                      });
+                      const pid = selectedCourse!.program_id ?? selectedProgram?.id;
+                      if (pid) q.set('program_id', pid);
+                      return `/dashboard/lesson-plans?${q.toString()}`;
+                    })()}
+                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
+                  >
+                    <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
+                    Create term lesson plan from this syllabus (week-by-week)
+                  </Link>
+                  <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
+                    Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
+                  </p>
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Week selector */}
-            <div className="bg-card border border-border">
-              <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
-                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 1 — Choose a Week</p>
+          {/* Generate Content Tab */}
+          {activeTab === 'generate' && selectedCourse && (
+            <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-10">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-5 h-5 text-orange-400" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-black text-foreground">Generate Content</h1>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Pick a week from the syllabus, choose content type, then create it.
+                  </p>
+                </div>
               </div>
-              <div className="p-5 space-y-3">
-                {loadingCurr ? (
-                  <p className="text-xs text-muted-foreground animate-pulse">Loading syllabus…</p>
-                ) : !curriculum ? (
-                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs">
-                    <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>No syllabus yet for <strong>{selectedCourse.title}</strong>. Switch to the <button className="underline font-bold" onClick={() => setActiveTab('syllabus')}>Course Syllabus</button> tab and generate one first.</span>
-                  </div>
-                ) : (
-                  <>
-                    <select
-                      value={genWeek ? `${genWeek.termNumber ?? 1}-${genWeek.week}` : ''}
-                      onChange={e => {
-                        if (!e.target.value) { setGenWeek(null); setGenContentType(null); return; }
-                        const [tNum, wNum] = e.target.value.split('-').map(Number);
-                        const found = (curriculum.content.terms ?? []).flatMap(t =>
-                          t.weeks.map(w => ({ ...w, termNumber: t.term }))
-                        ).find(w => w.termNumber === tNum && w.week === wNum);
-                        setGenWeek(found ?? null);
-                        setGenContentType(null);
-                      }}
-                      className={SELECT_CLS}
-                    >
-                      <option value="">— Select Week —</option>
-                      {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => (
-                        <optgroup key={term.term} label={term.title}>
-                          {[...(term.weeks ?? [])].sort((a, b) => a.week - b.week).map(w => (
-                            <option key={`${term.term}-${w.week}`} value={`${term.term}-${w.week}`}>
-                              Week {w.week} — {w.topic}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    {genWeek && (
-                      <div className="px-4 py-3 bg-muted/20 border border-border space-y-1">
-                        <p className="text-sm font-black text-foreground">{genWeek.topic}</p>
-                        {(genWeek.subtopics ?? []).length > 0 && (
-                          <p className="text-xs text-muted-foreground">{genWeek.subtopics!.join(' · ')}</p>
-                        )}
-                        <p className={`text-[10px] font-bold mt-1 ${genWeek.lesson_plan ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                          {genWeek.lesson_plan ? '✓ Lesson plan available — content will be curriculum-aware' : 'No detailed lesson plan — content generated from topic & subtopics'}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
 
-            {/* Content type */}
-            {genWeek && curriculum && (
+              {/* Week selector */}
               <div className="bg-card border border-border">
                 <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 2 — What to Create</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 1 — Choose a Week</p>
                 </div>
-                <div className="p-5 space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-                    {CONTENT_TYPES.map(t => {
-                      const Icon   = t.icon;
-                      const active = genContentType === t.key;
-                      return (
-                        <button
-                          type="button"
-                          key={t.key}
-                          onClick={() => setGenContentType(t.key)}
-                          className={`flex flex-col items-center justify-center gap-2 min-h-[88px] sm:min-h-[96px] p-3 sm:p-4 border text-center transition-all touch-manipulation ${active ? t.active : t.idle}`}
-                        >
-                          <Icon className="w-5 h-5 shrink-0" aria-hidden />
-                          <span className="text-[11px] sm:text-xs font-black leading-tight">{t.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {genSelectedTypeDef && (
-                    <p className="text-xs text-muted-foreground">{genSelectedTypeDef.desc}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Error */}
-            {genTabError && (
-              <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-xs">
-                <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                {genTabError}
-              </div>
-            )}
-
-            {/* Generate button */}
-            {canGenerateContent && (
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={genGenerating}
-                className="w-full min-h-[52px] py-4 px-4 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
-              >
-                {genGenerating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-                    Creating…
-                  </>
-                ) : (
-                  <>
-                    <SparklesIcon className="w-4 h-4" />
-                    Create {genSelectedTypeDef?.label} for Week {genWeek?.week}
-                    <ArrowRightIcon className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Syllabus Tab (or no course selected) */}
-        {(activeTab === 'syllabus' || !selectedCourse) && (
-          <div className="flex-1">
-        {!selectedCourse ? (
-          /* Empty state */
-          <div className="h-full min-h-[60vh] px-4 py-8">
-            <div className="max-w-5xl mx-auto space-y-5">
-              <div className="text-center">
-                <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <h2 className="text-xl font-black mb-1">Choose a Course</h2>
-                <p className="text-muted-foreground text-sm">
-                  Pick a course below to open its syllabus. You can still use the left sidebar anytime.
-                </p>
-              </div>
-              <div className="bg-card border border-border p-4 sm:p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3">
-                  Quick course grid
-                </p>
-                {(isTeacher || isSchool) && (
-                  <p className="text-[11px] text-muted-foreground mb-3">
-                    School-based list: showing courses linked to classes in your school scope.
-                  </p>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {quickChooserCourses.map(({ prog, course }) => (
-                    <button
-                      key={course.id}
-                      type="button"
-                      onClick={() => selectCourse(prog, course)}
-                      className="text-left border border-border bg-background hover:border-orange-500/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
-                    >
-                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
-                        {prog.name}
-                      </p>
-                      <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">
-                        Open syllabus
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                {quickChooserCourses.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground mt-3">
-                    No courses found for current school scope yet. Add/assign classes first, or use the full sidebar catalog.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : loadingCurr ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : loadError ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
-            <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
-            <p className="text-sm text-rose-400 font-bold">{loadError}</p>
-            <button
-              onClick={() => selectedCourse && loadCurriculum(selectedCourse.id)}
-              className="px-4 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : !curriculum ? (
-          /* No curriculum (or not yet published for learners) */
-          <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4 space-y-4">
-            {canGenerate && curriculumList.length > 0 && (
-              <div className="w-full max-w-5xl text-left bg-card border border-border p-4 sm:p-5 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Syllabus Flow</p>
-                    <h3 className="text-base font-black mt-1">1) Generate Syllabus  2) Pick Existing Syllabus Copy</h3>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Choose by school + category (scope), then open the exact copy you want to edit.
-                    </p>
-                  </div>
-                  <button
-                    onClick={openGenerateModal}
-                    className="px-4 py-2 text-xs font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
-                  >
-                    Generate Syllabus
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {curriculumList.map((c) => {
-                    const scopeCategory = c.school_id ? 'School syllabus' : 'Platform syllabus';
-                    const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
-                    const terms = c.content?.terms?.length ?? 0;
-                    const weeks = (c.content?.terms ?? []).reduce((sum, t) => sum + ((t?.weeks ?? []).length), 0);
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => { void selectCurriculumVersion(c.id); }}
-                        className="text-left bg-background border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
+                <div className="p-5 space-y-3">
+                  {loadingCurr ? (
+                    <p className="text-xs text-muted-foreground animate-pulse">Loading syllabus…</p>
+                  ) : !curriculum ? (
+                    <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs">
+                      <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>No syllabus yet for <strong>{selectedCourse.title}</strong>. Switch to the <button className="underline font-bold" onClick={() => setActiveTab('syllabus')}>Course Syllabus</button> tab and generate one first.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={genWeek ? `${genWeek.termNumber ?? 1}-${genWeek.week}` : ''}
+                        onChange={e => {
+                          if (!e.target.value) { setGenWeek(null); setGenContentType(null); return; }
+                          const [tNum, wNum] = e.target.value.split('-').map(Number);
+                          const found = (curriculum.content.terms ?? []).flatMap(t =>
+                            t.weeks.map(w => ({ ...w, termNumber: t.term }))
+                          ).find(w => w.termNumber === tNum && w.week === wNum);
+                          setGenWeek(found ?? null);
+                          setGenContentType(null);
+                        }}
+                        className={SELECT_CLS}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
+                        <option value="">— Select Week —</option>
+                        {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => (
+                          <optgroup key={term.term} label={term.title}>
+                            {[...(term.weeks ?? [])].sort((a, b) => a.week - b.week).map(w => (
+                              <option key={`${term.term}-${w.week}`} value={`${term.term}-${w.week}`}>
+                                Week {w.week} — {w.topic}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      {genWeek && (
+                        <div className="px-4 py-3 bg-muted/20 border border-border space-y-1">
+                          <p className="text-sm font-black text-foreground">{genWeek.topic}</p>
+                          {(genWeek.subtopics ?? []).length > 0 && (
+                            <p className="text-xs text-muted-foreground">{genWeek.subtopics!.join(' · ')}</p>
+                          )}
+                          <p className={`text-[10px] font-bold mt-1 ${genWeek.lesson_plan ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                            {genWeek.lesson_plan ? '✓ Lesson plan available — content will be curriculum-aware' : 'No detailed lesson plan — content generated from topic & subtopics'}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Category: <span className="text-foreground font-bold">{scopeCategory}</span>
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
-                        </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {renderSyllabusScopeCard(
-              'Syllabus setup first',
-              'Set school and class first, then generate. If you switch school, this view auto-picks that school syllabus copy when it exists.',
-            )}
-            <SparklesIcon className="w-14 h-14 text-orange-400 mb-2" />
-            <h2 className="text-xl font-black">{selectedCourse.title}</h2>
-            {learnerMode || isSchool ? (
-              <p className="text-muted-foreground text-sm max-w-sm">
-                Your teacher is still preparing the syllabus for this course. It will
-                appear here as soon as it&rsquo;s published.
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-sm max-w-sm">
-                No curriculum exists for this course yet. Generate a complete AI
-                curriculum with lesson plans, assessments, and examinations.
-              </p>
-            )}
-            {canGenerate ? (
-              <button
-                onClick={openGenerateModal}
-                className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors"
-              >
-                <SparklesIcon className="w-4 h-4" /> Generate Syllabus
-              </button>
-            ) : !learnerMode && !isSchool ? (
-              <p className="text-xs text-muted-foreground">Contact your administrator to generate a course syllabus.</p>
-            ) : null}
-          </div>
-        ) : learnerMode ? (
-          /* Learner (student / parent) — clean read-only syllabus */
-          <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                {selectedProgram?.name}
-              </span>
-              <span className="text-muted-foreground/40">›</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                {selectedCourse.title}
-              </span>
-            </div>
-            <SyllabusPreview
-              content={curriculum.content as unknown as SyllabusContent}
-              courseTitle={selectedCourse.title}
-              audienceIsLearner
-            />
-          </div>
-        ) : (
-          /* Curriculum content */
-          <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
-            {renderSyllabusScopeCard(
-              'Active syllabus context',
-              `You are viewing: ${scopeLabel}. Changing school here also switches the visible syllabus copy if that school already has one.`,
-              true,
-            )}
-
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{selectedProgram?.name}</span>
-                  <span className="text-muted-foreground/40">›</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{selectedCourse.title}</span>
-                </div>
-                <h1 className="text-2xl font-black leading-tight">{curriculum.content.course_title}</h1>
-                <p className="text-xs text-muted-foreground mt-1">
-                  v{curriculum.version} · {termCount} term{termCount !== 1 ? 's' : ''} · {allWeeks.length} weeks total
-                  {allWeeks.length > 0 && (
-                    <span className="ml-2 text-emerald-400 font-bold">{progressPct}% delivered</span>
+                      )}
+                    </>
                   )}
-                </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Version switcher — Bug 1 Fix A */}
-                {canGenerate && curriculumList.length > 1 && (
-                  <div className="inline-flex items-center rounded-md border border-border bg-card px-2 h-[34px]">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2 border-r border-border pr-2 h-full flex items-center">Copy</span>
-                    <select
-                      value={curriculum.id}
-                      onChange={(e) => selectCurriculumVersion(e.target.value)}
-                      className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-orange-400 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
-                    >
-                      {curriculumList.map((c) => (
-                        <option key={c.id} value={c.id} className="bg-background text-foreground">
-                          v{c.version} — {c.school_id ? 'School' : 'Platform'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {/* Preview as role — lets the teacher see the exact student/parent/school view */}
-                {canGenerate && (
-                  <div className="inline-flex rounded-md border border-border overflow-hidden bg-card">
-                    <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-muted-foreground self-center px-2.5">
-                      Preview as
-                    </span>
-                    {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => setPreviewRole(r)}
-                        className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l border-border first:border-l-0"
-                        title={`See this syllabus as a ${r}`}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                )}
 
-                {/* Teacher publish toggle */}
-                {canGenerate && (
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    <span
-                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border ${
-                        curriculum.is_visible_to_school
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                          : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
-                      }`}
-                      title={
-                        curriculum.is_visible_to_school
-                          ? 'Published and visible to school, students, and parents.'
-                          : 'Draft mode. Only teacher/admin sees this working copy.'
-                      }
-                    >
-                      {curriculum.is_visible_to_school ? 'Stage: Published' : 'Stage: Draft'}
-                    </span>
-
-                    {curriculum.is_visible_to_school ? (
-                      <button
-                        onClick={() => togglePublish(false)}
-                        disabled={publishing}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all disabled:opacity-60"
-                        title="Move this syllabus back to draft so you can edit safely before publishing again."
-                      >
-                        {publishing ? (
-                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <PencilIcon className="w-4 h-4" />
-                        )}
-                        Reopen &amp; Edit
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => togglePublish(true)}
-                        disabled={publishing}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all disabled:opacity-60"
-                        title="Publish this syllabus to school, students, and parents."
-                      >
-                        {publishing ? (
-                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircleIcon className="w-4 h-4" />
-                        )}
-                        Publish to School
-                      </button>
+              {/* Content type */}
+              {genWeek && curriculum && (
+                <div className="bg-card border border-border">
+                  <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 2 — What to Create</p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                      {CONTENT_TYPES.map(t => {
+                        const Icon = t.icon;
+                        const active = genContentType === t.key;
+                        return (
+                          <button
+                            type="button"
+                            key={t.key}
+                            onClick={() => setGenContentType(t.key)}
+                            className={`flex flex-col items-center justify-center gap-2 min-h-[88px] sm:min-h-[96px] p-3 sm:p-4 border text-center transition-all touch-manipulation ${active ? t.active : t.idle}`}
+                          >
+                            <Icon className="w-5 h-5 shrink-0" aria-hidden />
+                            <span className="text-[11px] sm:text-xs font-black leading-tight">{t.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {genSelectedTypeDef && (
+                      <p className="text-xs text-muted-foreground">{genSelectedTypeDef.desc}</p>
                     )}
                   </div>
-                )}
-
-                <Link
-                  href="/dashboard/curriculum/progress"
-                  className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-orange-500/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
-                >
-                  <ChartBarIcon className="w-3.5 h-3.5 text-orange-400" /> Progress Dashboard
-                </Link>
-                {canGenerate && (
-                  <>
-                    <Link
-                      href="/dashboard/curriculum/learning-system"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-cyan-500/40 text-xs font-bold transition-all text-muted-foreground hover:text-cyan-200"
-                      title="How spine, syllabus, and lessons connect"
-                    >
-                      <Squares2X2Icon className="w-3.5 h-3.5 text-cyan-400" /> System map
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={openGenerateModal}
-                      className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
-                    >
-                      <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* ── Delivery Tab ── */}
-            {activeTab === 'delivery' && curriculum && (
-              <div className="mx-4 sm:mx-6 mb-6 space-y-6">
-                <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                        <ChartBarIcon className="w-5 h-5 text-violet-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
-                        <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const terms = curriculum.content?.terms ?? [];
-                      const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
-                      const totalWeeks = allWeeks.length;
-                      const completed = tracking.filter(t => t.status === 'completed').length;
-                      const inProgress = tracking.filter(t => t.status === 'in_progress').length;
-                      const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
-
-                      return (
-                        <div className="flex-1 max-w-md space-y-2">
-                          <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                            <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
-                            <span className="text-violet-400">{pct}%</span>
-                          </div>
-                          <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
-                            <div
-                              className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                            <span className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {(curriculum.content.terms ?? []).map((term: any) => {
-                    const termWeeks = term.weeks ?? [];
-                    const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
-                    const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
-                    return (
-                      <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
-                          <span className="text-xs font-black text-violet-400">{termPct}%</span>
-                        </div>
-                        <div className="h-1 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
-                        </div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
-                      </div>
-                    );
-                  })}
+              {/* Error */}
+              {genTabError && (
+                <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-xs">
+                  <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                  {genTabError}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── Tools Tab ── */}
-            {activeTab === 'tools' && curriculum && (
-              <div className="mx-4 sm:mx-6 space-y-6 pb-10">
-                {/* Course Overview */}
-                {curriculum.content.overview && (
-                  <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
-                      <InformationCircleIcon className="w-3 h-3" />
-                      Course Overview
-                    </h3>
-                    <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
-                  </div>
-                )}
-
-                {/* Learning outcomes */}
-                {curriculum.content.learning_outcomes?.length > 0 && (
-                  <div className="bg-card border border-border p-6 rounded-xl">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-4">Learning Outcomes</h3>
-                    <ul className="space-y-2">
-                      {curriculum.content.learning_outcomes.map((o, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                          <span className="text-orange-500 font-black shrink-0 text-xs mt-0.5">{i+1}.</span>
-                          <span>{o}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-            {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
-            {canGenerate && (
-              <div className="bg-card border border-dashed border-border/80 space-y-3 p-3 sm:p-4">
-                <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Simple flow</p>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    1) Open/create syllabus. 2) Use <span className="text-foreground font-bold">Teaching path tool (optional)</span> to preview before apply.
-                    3) Generate term progression. 4) Run weekly tracking, lessons, and assignments.
-                  </p>
-                </div>
+              {/* Generate button */}
+              {canGenerateContent && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setQaSpineOpen((o) => !o);
-                    setQaApplyErr('');
-                    setQaPreviewErr('');
-                  }}
-                  className="w-full flex items-center justify-between gap-3 px-2 sm:px-1 py-1 text-left hover:bg-muted/20 transition-colors"
+                  onClick={handleGenerate}
+                  disabled={genGenerating}
+                  className="w-full min-h-[52px] py-4 px-4 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-                        Optional — Teaching Path Tool
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        Show what&rsquo;s in the platform template DB, preview path for a class, then align this syllabus
-                      </p>
-                    </div>
-                  </div>
-                  {qaSpineOpen ? (
-                    <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  {genGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                      Creating…
+                    </>
                   ) : (
-                    <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <>
+                      <SparklesIcon className="w-4 h-4" />
+                      Create {genSelectedTypeDef?.label} for Week {genWeek?.week}
+                      <ArrowRightIcon className="w-4 h-4" />
+                    </>
                   )}
                 </button>
-                <AnimatePresence>
-                  {qaSpineOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden border-t border-border/60"
-                    >
-                      <div className="p-4 space-y-4 text-xs">
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Use this tool when you want a ready teaching path from the platform template. Preview first, then apply only if it fits this class and year for this syllabus copy (v{curriculum.version}).
+              )}
+            </div>
+          )}
+
+          {/* Syllabus Tab (or no course selected) */}
+          {(activeTab === 'syllabus' || !selectedCourse) && (
+            <div className="flex-1">
+              {!selectedCourse ? (
+                /* Empty state */
+                <div className="h-full min-h-[60vh] px-4 py-8">
+                  <div className="max-w-5xl mx-auto space-y-5">
+                    <div className="text-center">
+                      <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                      <h2 className="text-xl font-black mb-1">Choose a Course</h2>
+                      <p className="text-muted-foreground text-sm">
+                        Pick a course below to open its syllabus. You can still use the left sidebar anytime.
+                      </p>
+                    </div>
+                    <div className="bg-card border border-border p-4 sm:p-5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3">
+                        Quick course grid
+                      </p>
+                      {(isTeacher || isSchool) && (
+                        <p className="text-[11px] text-muted-foreground mb-3">
+                          School-based list: showing courses linked to classes in your school scope.
                         </p>
-                        <div className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-3 space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
-                            Recommended flow (low-risk, not imposed)
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {quickChooserCourses.map(({ prog, course }) => (
+                          <button
+                            key={course.id}
+                            type="button"
+                            onClick={() => selectCourse(prog, course)}
+                            className="text-left border border-border bg-background hover:border-orange-500/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
+                          >
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
+                              {prog.name}
+                            </p>
+                            <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">
+                              Open syllabus
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                      {quickChooserCourses.length === 0 && (
+                        <p className="text-[11px] text-muted-foreground mt-3">
+                          No courses found for current school scope yet. Add/assign classes first, or use the full sidebar catalog.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : loadingCurr ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : loadError ? (
+                <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
+                  <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
+                  <p className="text-sm text-rose-400 font-bold">{loadError}</p>
+                  <button
+                    onClick={() => selectedCourse && loadCurriculum(selectedCourse.id)}
+                    className="px-4 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : !curriculum ? (
+                /* No curriculum (or not yet published for learners) */
+                <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center px-4 space-y-4">
+                  {canGenerate && curriculumList.length > 0 && (
+                    <div className="w-full max-w-5xl text-left bg-card border border-border p-4 sm:p-5 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Syllabus Flow</p>
+                          <h3 className="text-base font-black mt-1">1) Generate Syllabus  2) Pick Existing Syllabus Copy</h3>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Choose by school + category (scope), then open the exact copy you want to edit.
                           </p>
-                          <ul className="space-y-1 text-[11px] text-muted-foreground">
-                            {qaInlineSuggestions.map((tip, idx) => (
-                              <li key={`${tip}-${idx}`} className="flex gap-1.5">
-                                <span className="text-cyan-300 font-black shrink-0">•</span>
-                                <span>{tip}</span>
+                        </div>
+                        <button
+                          onClick={openGenerateModal}
+                          className="px-4 py-2 text-xs font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+                        >
+                          Generate Syllabus
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {curriculumList.map((c) => {
+                          const scopeCategory = c.school_id ? 'School syllabus' : 'Platform syllabus';
+                          const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
+                          const terms = c.content?.terms?.length ?? 0;
+                          const weeks = (c.content?.terms ?? []).reduce((sum, t) => sum + ((t?.weeks ?? []).length), 0);
+                          return (
+                            <button
+                              key={c.id}
+                              onClick={() => { void selectCurriculumVersion(c.id); }}
+                              className="text-left bg-background border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                Category: <span className="text-foreground font-bold">{scopeCategory}</span>
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
+                              </p>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {renderSyllabusScopeCard(
+                    'Syllabus setup first',
+                    'Set school and class first, then generate. If you switch school, this view auto-picks that school syllabus copy when it exists.',
+                  )}
+                  <SparklesIcon className="w-14 h-14 text-orange-400 mb-2" />
+                  <h2 className="text-xl font-black">{selectedCourse.title}</h2>
+                  {learnerMode || isSchool ? (
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                      Your teacher is still preparing the syllabus for this course. It will
+                      appear here as soon as it&rsquo;s published.
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                      No curriculum exists for this course yet. Generate a complete AI
+                      curriculum with lesson plans, assessments, and examinations.
+                    </p>
+                  )}
+                  {canGenerate ? (
+                    <button
+                      onClick={openGenerateModal}
+                      className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors"
+                    >
+                      <SparklesIcon className="w-4 h-4" /> Generate Syllabus
+                    </button>
+                  ) : !learnerMode && !isSchool ? (
+                    <p className="text-xs text-muted-foreground">Contact your administrator to generate a course syllabus.</p>
+                  ) : null}
+                </div>
+              ) : learnerMode ? (
+                /* Learner (student / parent) — clean read-only syllabus */
+                <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      {selectedProgram?.name}
+                    </span>
+                    <span className="text-muted-foreground/40">›</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                      {selectedCourse.title}
+                    </span>
+                  </div>
+                  <SyllabusPreview
+                    content={curriculum.content as unknown as SyllabusContent}
+                    courseTitle={selectedCourse.title}
+                    audienceIsLearner
+                  />
+                </div>
+              ) : (
+                /* Curriculum content */
+                <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
+                  {renderSyllabusScopeCard(
+                    'Active syllabus context',
+                    `You are viewing: ${scopeLabel}. Changing school here also switches the visible syllabus copy if that school already has one.`,
+                    true,
+                  )}
+
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{selectedProgram?.name}</span>
+                        <span className="text-muted-foreground/40">›</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{selectedCourse.title}</span>
+                      </div>
+                      <h1 className="text-2xl font-black leading-tight">{curriculum.content.course_title}</h1>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        v{curriculum.version} · {termCount} term{termCount !== 1 ? 's' : ''} · {allWeeks.length} weeks total
+                        {allWeeks.length > 0 && (
+                          <span className="ml-2 text-emerald-400 font-bold">{progressPct}% delivered</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Version switcher — Bug 1 Fix A */}
+                      {canGenerate && curriculumList.length > 1 && (
+                        <div className="inline-flex items-center rounded-md border border-border bg-card px-2 h-[34px]">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2 border-r border-border pr-2 h-full flex items-center">Copy</span>
+                          <select
+                            value={curriculum.id}
+                            onChange={(e) => selectCurriculumVersion(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-orange-400 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
+                          >
+                            {curriculumList.map((c) => (
+                              <option key={c.id} value={c.id} className="bg-background text-foreground">
+                                v{c.version} — {c.school_id ? 'School' : 'Platform'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {/* Preview as role — lets the teacher see the exact student/parent/school view */}
+                      {canGenerate && (
+                        <div className="inline-flex rounded-md border border-border overflow-hidden bg-card">
+                          <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-muted-foreground self-center px-2.5">
+                            Preview as
+                          </span>
+                          {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
+                            <button
+                              key={r}
+                              onClick={() => setPreviewRole(r)}
+                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l border-border first:border-l-0"
+                              title={`See this syllabus as a ${r}`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Teacher publish toggle */}
+                      {canGenerate && (
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <span
+                            className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border ${curriculum.is_visible_to_school
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                              }`}
+                            title={
+                              curriculum.is_visible_to_school
+                                ? 'Published and visible to school, students, and parents.'
+                                : 'Draft mode. Only teacher/admin sees this working copy.'
+                            }
+                          >
+                            {curriculum.is_visible_to_school ? 'Stage: Published' : 'Stage: Draft'}
+                          </span>
+
+                          {curriculum.is_visible_to_school ? (
+                            <button
+                              onClick={() => togglePublish(false)}
+                              disabled={publishing}
+                              className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all disabled:opacity-60"
+                              title="Move this syllabus back to draft so you can edit safely before publishing again."
+                            >
+                              {publishing ? (
+                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <PencilIcon className="w-4 h-4" />
+                              )}
+                              Reopen &amp; Edit
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => togglePublish(true)}
+                              disabled={publishing}
+                              className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all disabled:opacity-60"
+                              title="Publish this syllabus to school, students, and parents."
+                            >
+                              {publishing ? (
+                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircleIcon className="w-4 h-4" />
+                              )}
+                              Publish to School
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <Link
+                        href="/dashboard/curriculum/progress"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-orange-500/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
+                      >
+                        <ChartBarIcon className="w-3.5 h-3.5 text-orange-400" /> Progress Dashboard
+                      </Link>
+                      {canGenerate && (
+                        <>
+                          <Link
+                            href="/dashboard/curriculum/learning-system"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-cyan-500/40 text-xs font-bold transition-all text-muted-foreground hover:text-cyan-200"
+                            title="How spine, syllabus, and lessons connect"
+                          >
+                            <Squares2X2Icon className="w-3.5 h-3.5 text-cyan-400" /> System map
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={openGenerateModal}
+                            className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
+                          >
+                            <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                      {/* Term tabs */}
+                      {termCount > 0 && (
+                        <div className="flex gap-1 bg-card border border-border p-1 w-fit">
+                          {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => {
+                            const termTracking = tracking.filter(t => t.term_number === term.term);
+                            const termWeeks = term.weeks?.length ?? 0;
+                            const termDone = termTracking.filter(t => t.status === 'completed').length;
+                            return (
+                              <button
+                                key={term.term}
+                                onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
+                                className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${activeTerm === term.term
+                                    ? 'bg-orange-600 text-white'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                  }`}
+                              >
+                                <span>Term {term.term}</span>
+                                <span className={`text-[9px] font-black ${activeTerm === term.term ? 'text-white/70' : 'text-muted-foreground'}`}>
+                                  {termDone}/{termWeeks} done
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Term title & objectives */}
+                      {currentTermData && (
+                        <div className="space-y-1">
+                          <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
+                          {currentTermData.objectives?.length > 0 && (
+                            <ul className="flex flex-wrap gap-2 mt-2">
+                              {currentTermData.objectives.map((o, i) => (
+                                <li key={i} className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold">
+                                  {o}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Week grid */}
+                      {currentTermData?.weeks && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {[...currentTermData.weeks].sort((a, b) => a.week - b.week).map(week => {
+                            const meta = WEEK_META[week.type] ?? WEEK_META.lesson;
+                            const trackRec = getTracking(activeTerm, week.week);
+                            const trackMeta = TRACK_META[trackRec?.status ?? 'pending'];
+                            const TrackIcon = trackMeta.icon;
+                            const WeekIcon = meta.icon;
+                            const isActive = activeWeek?.week === week.week;
+
+                            return (
+                              <button
+                                key={week.week}
+                                onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
+                                className={`text-left p-4 border transition-all space-y-2 ${isActive
+                                    ? 'border-orange-500 bg-orange-500/5'
+                                    : 'border-border bg-card hover:border-orange-500/40'
+                                  }`}
+                              >
+                                {/* Week number + type badge */}
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                    Week {week.week}
+                                  </span>
+                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
+                                    {meta.label}
+                                  </span>
+                                </div>
+
+                                {/* Topic */}
+                                <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
+                                <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
+
+                                {/* Subtopics preview */}
+                                {(week.subtopics ?? []).length > 0 && (
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {(week.subtopics ?? []).slice(0, 2).join(' · ')}
+                                  </p>
+                                )}
+
+                                {/* Status */}
+                                <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
+                                  <TrackIcon className="w-3 h-3" />
+                                  <span>{trackMeta.label}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Materials + tools */}
+                      {(curriculum.content.materials_required?.length > 0 || curriculum.content.recommended_tools?.length > 0) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {curriculum.content.materials_required?.length > 0 && (
+                            <div className="bg-card border border-border p-4">
+                              <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Materials Required</h3>
+                              <ul className="space-y-1">
+                                {curriculum.content.materials_required.map((m, i) => (
+                                  <li key={i} className="flex gap-2 text-xs text-foreground/70">
+                                    <span className="text-orange-500">•</span>{m}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {curriculum.content.recommended_tools?.length > 0 && (
+                            <div className="bg-card border border-border p-4">
+                              <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Recommended Tools</h3>
+                              <ul className="space-y-1">
+                                {curriculum.content.recommended_tools.map((t, i) => (
+                                  <li key={i} className="flex gap-2 text-xs text-foreground/70">
+                                    <span className="text-orange-500">•</span>{t}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Delivery Tab ── */}
+          {activeTab === 'delivery' && curriculum && (
+                    <div className="mx-4 sm:mx-6 mb-6 space-y-6">
+                      <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                              <ChartBarIcon className="w-5 h-5 text-violet-400" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
+                              <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
+                            </div>
+                          </div>
+
+                          {(() => {
+                            const terms = curriculum.content?.terms ?? [];
+                            const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
+                            const totalWeeks = allWeeks.length;
+                            const completed = tracking.filter(t => t.status === 'completed').length;
+                            const inProgress = tracking.filter(t => t.status === 'in_progress').length;
+                            const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
+
+                            return (
+                              <div className="flex-1 max-w-md space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                                  <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
+                                  <span className="text-violet-400">{pct}%</span>
+                                </div>
+                                <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                  <span className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {(curriculum.content.terms ?? []).map((term: any) => {
+                          const termWeeks = term.weeks ?? [];
+                          const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
+                          const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
+                          return (
+                            <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
+                                <span className="text-xs font-black text-violet-400">{termPct}%</span>
+                              </div>
+                              <div className="h-1 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
+                              </div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Tools Tab ── */}
+                  {activeTab === 'tools' && curriculum && (
+                    <div className="mx-4 sm:mx-6 space-y-6 pb-10">
+                      {/* Course Overview */}
+                      {curriculum.content.overview && (
+                        <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                            <InformationCircleIcon className="w-3 h-3" />
+                            Course Overview
+                          </h3>
+                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
+                        </div>
+                      )}
+
+                      {/* Learning outcomes */}
+                      {curriculum.content.learning_outcomes?.length > 0 && (
+                        <div className="bg-card border border-border p-6 rounded-xl">
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-4">Learning Outcomes</h3>
+                          <ul className="space-y-2">
+                            {curriculum.content.learning_outcomes.map((o, i) => (
+                              <li key={i} className="flex gap-3 text-sm text-foreground/80">
+                                <span className="text-orange-500 font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
+                                <span>{o}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
-                        {programIdForQa ? (
-                          <p className="text-[10px] text-muted-foreground font-mono break-all">
-                            Programme: {programIdForQa}
-                          </p>
-                        ) : (
-                          <p className="text-amber-400 text-[11px]">No programme id on this course — fix catalog linkage first.</p>
-                        )}
-
-                        {qaTmplLoading && (
-                          <p className="text-muted-foreground animate-pulse">Loading template from API…</p>
-                        )}
-                        {qaTmplErr && (
-                          <p className="text-rose-400 text-[11px] font-bold">{qaTmplErr}</p>
-                        )}
-
-                        {qaTmplMeta && !qaTmplLoading && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              Database (catalog <span className="text-foreground">qa_spine_v1</span>)
-                            </p>
-                            <p className="text-foreground">
-                              <span className="font-black">{qaTmplMeta.total}</span> rows for this programme
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {Object.entries(qaTmplMeta.weeks_per_lane)
-                                .sort((a, b) => Number(a[0]) - Number(b[0]))
-                                .map(([ln, n]) => (
-                                  <span
-                                    key={ln}
-                                    className="text-[9px] font-black px-1.5 py-0.5 border border-border bg-muted/30"
-                                    title="Weeks stored for this lane"
-                                  >
-                                    L{ln}: {n}w
-                                  </span>
-                                ))}
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
-                              <div className="flex-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                  Inspect raw spine (lane)
-                                </label>
-                                <select
-                                  className={SELECT_CLS}
-                                  value={qaInspectLane}
-                                  onChange={(e) => setQaInspectLane(Number(e.target.value))}
-                                >
-                                  {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
-                                    <option key={n} value={n}>
-                                      Lane {n}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                            {qaSpineSampleRows.length > 0 && (
-                              <div className="border border-border overflow-x-auto max-h-48 overflow-y-auto">
-                                <table className="w-full text-left text-[10px]">
-                                  <thead className="bg-muted/40 sticky top-0">
-                                    <tr>
-                                      <th className="p-1.5 font-black">w_idx</th>
-                                      <th className="p-1.5 font-black">Y/T/W</th>
-                                      <th className="p-1.5 font-black">Topic</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {qaSpineSampleRows.map((r) => (
-                                      <tr key={r.week_index} className="border-t border-border/50">
-                                        <td className="p-1.5 font-mono text-muted-foreground">{r.week_index}</td>
-                                        <td className="p-1.5 text-muted-foreground whitespace-nowrap">
-                                          {r.year_number ?? '—'}/{r.term_number ?? '—'}/{r.week_number ?? '—'}
-                                        </td>
-                                        <td className="p-1.5 text-foreground">{r.topic}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t border-border/60 space-y-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Use this teaching path in syllabus
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Teaching year block (1–3)
-                              </label>
-                              <select
-                                className={SELECT_CLS}
-                                value={qaYear}
-                                onChange={(e) => {
-                                  setQaYear(Number(e.target.value));
-                                  setQaPreviewStamp('');
-                                }}
-                              >
-                                <option value={1}>Year 1</option>
-                                <option value={2}>Year 2</option>
-                                <option value={3}>Year 3</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Path option (0 = auto from class)
-                              </label>
-                              <select
-                                className={SELECT_CLS}
-                                value={qaLaneOverride}
-                                onChange={(e) => {
-                                  setQaLaneOverride(Number(e.target.value));
-                                  setQaPreviewStamp('');
-                                }}
-                              >
-                                <option value={0}>Auto — use class fields / default</option>
-                                {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
-                                  <option key={n} value={n}>
-                                    Force lane {n}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="sm:col-span-2">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
-                                Class (optional — turns on class-based preview)
-                              </label>
-                              <select
-                                className={SELECT_CLS}
-                                value={qaClassId}
-                                onChange={(e) => {
-                                  setQaClassId(e.target.value);
-                                  setQaPreviewData(null);
-                                  setQaPreviewStamp('');
-                                }}
-                              >
-                                <option value="">— None (offset 0, default lane) —</option>
-                                {[...qaClassOptions]
-                                  .sort((a, b) => {
-                                    const ap = a.program_id === programIdForQa ? 0 : 1;
-                                    const bp = b.program_id === programIdForQa ? 0 : 1;
-                                    if (ap !== bp) return ap - bp;
-                                    return (a.name || '').localeCompare(b.name || '');
-                                  })
-                                  .map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name || c.id}
-                                      {c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
-                                    </option>
-                                  ))}
-                              </select>
-                              {selectedQaClass?.program_id && programIdForQa && selectedQaClass.program_id !== programIdForQa && (
-                                <p className="mt-1 text-[10px] text-amber-400">
-                                  Suggestion: this class belongs to another programme. Preview can still run, but same-programme class is safer for final apply.
-                                </p>
-                              )}
-                              {qaClassId && (
-                                <div className="mt-2 rounded-md border border-border/70 bg-muted/20 p-2.5 space-y-2">
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                                    Class QA mode (impose only where needed)
-                                  </p>
-                                  <div className="flex flex-col sm:flex-row gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => void saveQaClassGradeMode('optional')}
-                                      disabled={qaClassModeSaving}
-                                      className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                                        qaClassGradeMode === 'optional'
-                                          ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200'
-                                          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                                      } disabled:opacity-60`}
-                                    >
-                                      Flexible (recommended)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void saveQaClassGradeMode('compulsory')}
-                                      disabled={qaClassModeSaving}
-                                      className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                                        qaClassGradeMode === 'compulsory'
-                                          ? 'border-orange-500/50 bg-orange-500/15 text-orange-200'
-                                          : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                                      } disabled:opacity-60`}
-                                    >
-                                      Make compulsory (this class)
-                                    </button>
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    Current: <span className="font-bold text-foreground">{qaClassGradeMode}</span>. This affects selected class only.
-                                  </p>
-                                  {qaClassModeErr && (
-                                    <p className="text-[10px] text-rose-400 font-bold">{qaClassModeErr}</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <label className="flex items-start gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="mt-0.5"
-                              checked={qaOverwrite}
-                              onChange={(e) => setQaOverwrite(e.target.checked)}
-                            />
-                            <span className="text-[11px] text-muted-foreground">
-                              Replace existing weeks in all terms (if unchecked, only empty terms are filled)
-                            </span>
-                          </label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void runQaSpinePreview()}
-                              disabled={!qaClassId || qaPreviewLoading}
-                              className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"
-                            >
-                              {qaPreviewLoading ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <EyeIcon className="w-3.5 h-3.5" />
-                              )}
-                              Preview for this class
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void applyQaSpine()}
-                              disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                              className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/50 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
-                            >
-                              {qaApplyLoading ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <BoltIcon className="w-3.5 h-3.5" />
-                              )}
-                              Use this path in syllabus
-                            </button>
-                          </div>
-                          {qaNeedsFreshPreview && (
-                            <p className="text-amber-400 text-[10px]">
-                              Preview required for current class/year/lane selection before apply.
-                            </p>
-                          )}
-                          {qaPreviewErr && (
-                            <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>
-                          )}
-                          {qaApplyErr && (
-                            <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>
-                          )}
-                          {qaPreviewData && (
-                            <div className="space-y-2 p-3 bg-muted/20 border border-border/80">
-                              <p className="text-[10px] font-black uppercase text-cyan-300">
-                                Preview — lane {qaPreviewData.lane_index} ({qaPreviewData.lane_source}) · offset{' '}
-                                {qaPreviewData.path_offset}
-                              </p>
-                              {qaPreviewData.terms.map((t) => (
-                                <div key={t.term}>
-                                  <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
-                                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
-                                    {t.weeks.map((w) => (
-                                      <li key={w.week} className="flex gap-1 truncate">
-                                        <span className="shrink-0 text-foreground/70">W{w.week}</span>
-                                        <span className="truncate" title={w.topic}>
-                                          {w.topic}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Term tabs */}
-            {termCount > 0 && (
-              <div className="flex gap-1 bg-card border border-border p-1 w-fit">
-                {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(term => {
-                  const termTracking = tracking.filter(t => t.term_number === term.term);
-                  const termWeeks = term.weeks?.length ?? 0;
-                  const termDone = termTracking.filter(t => t.status === 'completed').length;
-                  return (
-                    <button
-                      key={term.term}
-                      onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
-                      className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${
-                        activeTerm === term.term
-                          ? 'bg-orange-600 text-white'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                      }`}
-                    >
-                      <span>Term {term.term}</span>
-                      <span className={`text-[9px] font-black ${activeTerm === term.term ? 'text-white/70' : 'text-muted-foreground'}`}>
-                        {termDone}/{termWeeks} done
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Term title & objectives */}
-            {currentTermData && (
-              <div className="space-y-1">
-                <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
-                {currentTermData.objectives?.length > 0 && (
-                  <ul className="flex flex-wrap gap-2 mt-2">
-                    {currentTermData.objectives.map((o, i) => (
-                      <li key={i} className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold">
-                        {o}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {/* Week grid */}
-            {currentTermData?.weeks && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[...currentTermData.weeks].sort((a, b) => a.week - b.week).map(week => {
-                  const meta = WEEK_META[week.type] ?? WEEK_META.lesson;
-                  const trackRec = getTracking(activeTerm, week.week);
-                  const trackMeta = TRACK_META[trackRec?.status ?? 'pending'];
-                  const TrackIcon = trackMeta.icon;
-                  const WeekIcon = meta.icon;
-                  const isActive = activeWeek?.week === week.week;
-
-                  return (
-                    <button
-                      key={week.week}
-                      onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
-                      className={`text-left p-4 border transition-all space-y-2 ${
-                        isActive
-                          ? 'border-orange-500 bg-orange-500/5'
-                          : 'border-border bg-card hover:border-orange-500/40'
-                      }`}
-                    >
-                      {/* Week number + type badge */}
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                          Week {week.week}
-                        </span>
-                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
-                          {meta.label}
-                        </span>
-                      </div>
-
-                      {/* Topic */}
-                      <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
-                      <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
-
-                      {/* Subtopics preview */}
-                      {(week.subtopics ?? []).length > 0 && (
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {(week.subtopics ?? []).slice(0, 2).join(' · ')}
-                        </p>
                       )}
 
-                      {/* Status */}
-                      <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
-                        <TrackIcon className="w-3 h-3" />
-                        <span>{trackMeta.label}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                      {/* Optional QA week spine: read template from DB, preview class rotation, then apply */}
+                      {canGenerate && (
+                        <div className="bg-card border border-dashed border-border/80 space-y-3 p-3 sm:p-4">
+                          <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.06] p-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Simple flow</p>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                              1) Open/create syllabus. 2) Use <span className="text-foreground font-bold">Teaching path tool (optional)</span> to preview before apply.
+                              3) Generate term progression. 4) Run weekly tracking, lessons, and assignments.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQaSpineOpen((o) => !o);
+                              setQaApplyErr('');
+                              setQaPreviewErr('');
+                            }}
+                            className="w-full flex items-center justify-between gap-3 px-2 sm:px-1 py-1 text-left hover:bg-muted/20 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+                                  Optional — Teaching Path Tool
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                  Show what&rsquo;s in the platform template DB, preview path for a class, then align this syllabus
+                                </p>
+                              </div>
+                            </div>
+                            {qaSpineOpen ? (
+                              <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                            )}
+                          </button>
+                          <AnimatePresence>
+                            {qaSpineOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden border-t border-border/60"
+                              >
+                                <div className="p-4 space-y-4 text-xs">
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Use this tool when you want a ready teaching path from the platform template. Preview first, then apply only if it fits this class and year for this syllabus copy (v{curriculum.version}).
+                                  </p>
+                                  <div className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-3 space-y-2">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+                                      Recommended flow (low-risk, not imposed)
+                                    </p>
+                                    <ul className="space-y-1 text-[11px] text-muted-foreground">
+                                      {qaInlineSuggestions.map((tip, idx) => (
+                                        <li key={`${tip}-${idx}`} className="flex gap-1.5">
+                                          <span className="text-cyan-300 font-black shrink-0">•</span>
+                                          <span>{tip}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                  {programIdForQa ? (
+                                    <p className="text-[10px] text-muted-foreground font-mono break-all">
+                                      Programme: {programIdForQa}
+                                    </p>
+                                  ) : (
+                                    <p className="text-amber-400 text-[11px]">No programme id on this course — fix catalog linkage first.</p>
+                                  )}
 
-            {/* Materials + tools */}
-            {(curriculum.content.materials_required?.length > 0 || curriculum.content.recommended_tools?.length > 0) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {curriculum.content.materials_required?.length > 0 && (
-                  <div className="bg-card border border-border p-4">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Materials Required</h3>
-                    <ul className="space-y-1">
-                      {curriculum.content.materials_required.map((m, i) => (
-                        <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                          <span className="text-orange-500">•</span>{m}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {curriculum.content.recommended_tools?.length > 0 && (
-                  <div className="bg-card border border-border p-4">
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Recommended Tools</h3>
-                    <ul className="space-y-1">
-                      {curriculum.content.recommended_tools.map((t, i) => (
-                        <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                          <span className="text-orange-500">•</span>{t}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        )}
-      </main>
+                                  {qaTmplLoading && (
+                                    <p className="text-muted-foreground animate-pulse">Loading template from API…</p>
+                                  )}
+                                  {qaTmplErr && (
+                                    <p className="text-rose-400 text-[11px] font-bold">{qaTmplErr}</p>
+                                  )}
+
+                                  {qaTmplMeta && !qaTmplLoading && (
+                                    <div className="space-y-2">
+                                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        Database (catalog <span className="text-foreground">qa_spine_v1</span>)
+                                      </p>
+                                      <p className="text-foreground">
+                                        <span className="font-black">{qaTmplMeta.total}</span> rows for this programme
+                                      </p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {Object.entries(qaTmplMeta.weeks_per_lane)
+                                          .sort((a, b) => Number(a[0]) - Number(b[0]))
+                                          .map(([ln, n]) => (
+                                            <span
+                                              key={ln}
+                                              className="text-[9px] font-black px-1.5 py-0.5 border border-border bg-muted/30"
+                                              title="Weeks stored for this lane"
+                                            >
+                                              L{ln}: {n}w
+                                            </span>
+                                          ))}
+                                      </div>
+                                      <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                                        <div className="flex-1">
+                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                            Inspect raw spine (lane)
+                                          </label>
+                                          <select
+                                            className={SELECT_CLS}
+                                            value={qaInspectLane}
+                                            onChange={(e) => setQaInspectLane(Number(e.target.value))}
+                                          >
+                                            {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                                              <option key={n} value={n}>
+                                                Lane {n}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </div>
+                                      {qaSpineSampleRows.length > 0 && (
+                                        <div className="border border-border overflow-x-auto max-h-48 overflow-y-auto">
+                                          <table className="w-full text-left text-[10px]">
+                                            <thead className="bg-muted/40 sticky top-0">
+                                              <tr>
+                                                <th className="p-1.5 font-black">w_idx</th>
+                                                <th className="p-1.5 font-black">Y/T/W</th>
+                                                <th className="p-1.5 font-black">Topic</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {qaSpineSampleRows.map((r) => (
+                                                <tr key={r.week_index} className="border-t border-border/50">
+                                                  <td className="p-1.5 font-mono text-muted-foreground">{r.week_index}</td>
+                                                  <td className="p-1.5 text-muted-foreground whitespace-nowrap">
+                                                    {r.year_number ?? '—'}/{r.term_number ?? '—'}/{r.week_number ?? '—'}
+                                                  </td>
+                                                  <td className="p-1.5 text-foreground">{r.topic}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <div className="pt-2 border-t border-border/60 space-y-3">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                      Use this teaching path in syllabus
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                          Teaching year block (1–3)
+                                        </label>
+                                        <select
+                                          className={SELECT_CLS}
+                                          value={qaYear}
+                                          onChange={(e) => {
+                                            setQaYear(Number(e.target.value));
+                                            setQaPreviewStamp('');
+                                          }}
+                                        >
+                                          <option value={1}>Year 1</option>
+                                          <option value={2}>Year 2</option>
+                                          <option value={3}>Year 3</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                          Path option (0 = auto from class)
+                                        </label>
+                                        <select
+                                          className={SELECT_CLS}
+                                          value={qaLaneOverride}
+                                          onChange={(e) => {
+                                            setQaLaneOverride(Number(e.target.value));
+                                            setQaPreviewStamp('');
+                                          }}
+                                        >
+                                          <option value={0}>Auto — use class fields / default</option>
+                                          {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                                            <option key={n} value={n}>
+                                              Force lane {n}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="sm:col-span-2">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                                          Class (optional — turns on class-based preview)
+                                        </label>
+                                        <select
+                                          className={SELECT_CLS}
+                                          value={qaClassId}
+                                          onChange={(e) => {
+                                            setQaClassId(e.target.value);
+                                            setQaPreviewData(null);
+                                            setQaPreviewStamp('');
+                                          }}
+                                        >
+                                          <option value="">— None (offset 0, default lane) —</option>
+                                          {[...qaClassOptions]
+                                            .sort((a, b) => {
+                                              const ap = a.program_id === programIdForQa ? 0 : 1;
+                                              const bp = b.program_id === programIdForQa ? 0 : 1;
+                                              if (ap !== bp) return ap - bp;
+                                              return (a.name || '').localeCompare(b.name || '');
+                                            })
+                                            .map((c) => (
+                                              <option key={c.id} value={c.id}>
+                                                {c.name || c.id}
+                                                {c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
+                                              </option>
+                                            ))}
+                                        </select>
+                                        {selectedQaClass?.program_id && programIdForQa && selectedQaClass.program_id !== programIdForQa && (
+                                          <p className="mt-1 text-[10px] text-amber-400">
+                                            Suggestion: this class belongs to another programme. Preview can still run, but same-programme class is safer for final apply.
+                                          </p>
+                                        )}
+                                        {qaClassId && (
+                                          <div className="mt-2 rounded-md border border-border/70 bg-muted/20 p-2.5 space-y-2">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                                              Class QA mode (impose only where needed)
+                                            </p>
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => void saveQaClassGradeMode('optional')}
+                                                disabled={qaClassModeSaving}
+                                                className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional'
+                                                    ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200'
+                                                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                                                  } disabled:opacity-60`}
+                                              >
+                                                Flexible (recommended)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => void saveQaClassGradeMode('compulsory')}
+                                                disabled={qaClassModeSaving}
+                                                className={`w-full sm:w-auto min-h-[40px] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory'
+                                                    ? 'border-orange-500/50 bg-orange-500/15 text-orange-200'
+                                                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                                                  } disabled:opacity-60`}
+                                              >
+                                                Make compulsory (this class)
+                                              </button>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              Current: <span className="font-bold text-foreground">{qaClassGradeMode}</span>. This affects selected class only.
+                                            </p>
+                                            {qaClassModeErr && (
+                                              <p className="text-[10px] text-rose-400 font-bold">{qaClassModeErr}</p>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <label className="flex items-start gap-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="mt-0.5"
+                                        checked={qaOverwrite}
+                                        onChange={(e) => setQaOverwrite(e.target.checked)}
+                                      />
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Replace existing weeks in all terms (if unchecked, only empty terms are filled)
+                                      </span>
+                                    </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => void runQaSpinePreview()}
+                                        disabled={!qaClassId || qaPreviewLoading}
+                                        className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"
+                                      >
+                                        {qaPreviewLoading ? (
+                                          <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <EyeIcon className="w-3.5 h-3.5" />
+                                        )}
+                                        Preview for this class
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void applyQaSpine()}
+                                        disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
+                                        className="inline-flex items-center justify-center gap-1.5 min-h-[42px] px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/50 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
+                                      >
+                                        {qaApplyLoading ? (
+                                          <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <BoltIcon className="w-3.5 h-3.5" />
+                                        )}
+                                        Use this path in syllabus
+                                      </button>
+                                    </div>
+                                    {qaNeedsFreshPreview && (
+                                      <p className="text-amber-400 text-[10px]">
+                                        Preview required for current class/year/lane selection before apply.
+                                      </p>
+                                    )}
+                                    {qaPreviewErr && (
+                                      <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>
+                                    )}
+                                    {qaApplyErr && (
+                                      <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>
+                                    )}
+                                    {qaPreviewData && (
+                                      <div className="space-y-2 p-3 bg-muted/20 border border-border/80">
+                                        <p className="text-[10px] font-black uppercase text-cyan-300">
+                                          Preview — lane {qaPreviewData.lane_index} ({qaPreviewData.lane_source}) · offset{' '}
+                                          {qaPreviewData.path_offset}
+                                        </p>
+                                        {qaPreviewData.terms.map((t) => (
+                                          <div key={t.term}>
+                                            <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
+                                              {t.weeks.map((w) => (
+                                                <li key={w.week} className="flex gap-1 truncate">
+                                                  <span className="shrink-0 text-foreground/70">W{w.week}</span>
+                                                  <span className="truncate" title={w.topic}>
+                                                    {w.topic}
+                                                  </span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </div>
+                  )}
+        </main>
       </div>
 
       {/* ── Week Detail Panel ── */}
@@ -2771,11 +2763,10 @@ export default function CurriculumPage() {
                         key={s}
                         disabled={savingTrack}
                         onClick={() => trackWeek(activeWeek, s)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border transition-all ${
-                          isCurrent
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border transition-all ${isCurrent
                             ? `${m.color} border-current bg-current/10`
                             : 'text-muted-foreground border-border hover:border-foreground/30'
-                        } disabled:opacity-40`}
+                          } disabled:opacity-40`}
                       >
                         <Icon className="w-3.5 h-3.5" />
                         {m.label}
@@ -2864,13 +2855,13 @@ export default function CurriculumPage() {
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Terms</label>
                   <select value={form.term_count} onChange={e => setForm(p => ({ ...p, term_count: e.target.value }))} className={SELECT_CLS}>
-                    {['1','2','3'].map(t => <option key={t}>{t}</option>)}
+                    {['1', '2', '3'].map(t => <option key={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks/Term</label>
                   <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
-                    {['8','10','12'].map(w => <option key={w}>{w}</option>)}
+                    {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
                   </select>
                 </div>
               </div>
@@ -2965,11 +2956,10 @@ export default function CurriculumPage() {
                     <button
                       key={r}
                       onClick={() => setPreviewRole(r)}
-                      className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded border ${
-                        previewRole === r
+                      className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded border ${previewRole === r
                           ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
                           : 'border-border text-muted-foreground hover:text-foreground'
-                      }`}
+                        }`}
                     >
                       {r}
                     </button>
@@ -3009,25 +2999,24 @@ export default function CurriculumPage() {
                 <button
                   onClick={() => togglePublish(!curriculum.is_visible_to_school)}
                   disabled={publishing}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${
-                    curriculum.is_visible_to_school
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
                       ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
                       : 'border-orange-500/50 text-orange-300 hover:bg-orange-500/10'
-                  }`}
+                    }`}
                 >
                   {publishing
                     ? 'Saving…'
                     : curriculum.is_visible_to_school
-                    ? 'Unpublish'
-                    : 'Publish to school'}
+                      ? 'Unpublish'
+                      : 'Publish to school'}
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-      </div>
     </div>
+
   );
 }
 
@@ -3062,7 +3051,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
           <ol className="space-y-2">
             {plan.objectives.map((o, i) => (
               <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                <span className="text-violet-400 font-black shrink-0 w-5 flex items-center justify-center bg-violet-400/10 text-[10px] h-5 border border-violet-400/20">{i+1}</span>
+                <span className="text-violet-400 font-black shrink-0 w-5 flex items-center justify-center bg-violet-400/10 text-[10px] h-5 border border-violet-400/20">{i + 1}</span>
                 <span className="leading-snug">{o}</span>
               </li>
             ))}
@@ -3078,7 +3067,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
               <ol className="space-y-3">
                 {plan.teacher_activities.map((a, i) => (
                   <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                    <span className="text-orange-400 font-black shrink-0 w-4">{i+1}.</span>
+                    <span className="text-orange-400 font-black shrink-0 w-4">{i + 1}.</span>
                     <span>{a}</span>
                   </li>
                 ))}
@@ -3231,7 +3220,7 @@ function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekTy
           <ol className="space-y-3">
             {plan.teacher_prep.map((p, i) => (
               <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                <span className={`${color} font-black shrink-0 w-4`}>{i+1}.</span>
+                <span className={`${color} font-black shrink-0 w-4`}>{i + 1}.</span>
                 <span>{p}</span>
               </li>
             ))}
@@ -3244,9 +3233,9 @@ function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekTy
           <ul className="space-y-4">
             {(plan.sample_questions ?? []).map((q, i) => (
               <li key={i} className="text-xs text-foreground/80 p-5 bg-muted/30 border border-border/50 relative overflow-hidden group">
-                 <div className={`absolute top-0 left-0 w-1 h-full ${color.replace('text-', 'bg-')} opacity-20`} />
-                 <span className={`${color} font-black mr-3 text-[10px] uppercase tracking-tighter`}>Question {i+1}</span>
-                 <p className="mt-2 leading-relaxed">{q}</p>
+                <div className={`absolute top-0 left-0 w-1 h-full ${color.replace('text-', 'bg-')} opacity-20`} />
+                <span className={`${color} font-black mr-3 text-[10px] uppercase tracking-tighter`}>Question {i + 1}</span>
+                <p className="mt-2 leading-relaxed">{q}</p>
               </li>
             ))}
           </ul>
