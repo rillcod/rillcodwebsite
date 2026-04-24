@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { certificateService } from '@/services/certificate.service';

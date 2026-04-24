@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, createEngagementAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
