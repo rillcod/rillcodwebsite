@@ -1,6 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { MidTermPlacement, PromotionPayload } from '@/types/progression.types';
+import type { MidTermPlacement } from '@/types/progression.types';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
