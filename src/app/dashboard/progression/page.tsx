@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   ArrowRightIcon, ArrowPathIcon, CheckCircleIcon,
   UserGroupIcon, ExclamationTriangleIcon,
-  SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon,
+  SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon, RocketLaunchIcon,
+  EyeIcon, BookOpenIcon, TrophyIcon, PlusIcon,
 } from '@/lib/icons';
 import type {
   StudentLevelEnrollment, PromotionDecision,
