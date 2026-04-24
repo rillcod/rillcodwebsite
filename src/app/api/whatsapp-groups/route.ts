@@ -1,5 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { loadCommunicationPolicy } from '@/lib/communication/abusePolicy';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
