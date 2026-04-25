@@ -789,7 +789,26 @@ export default function LessonPlanDetailPage() {
         for (const line of lines) {
           const data = JSON.parse(line.slice(6));
           if (data.done) {
-            toast.success(`Generated ${data.generated} ${type}, skipped ${data.skipped}`);
+            if (data.skipped > 0 && data.failures?.length > 0) {
+              toast.error(`Bulk generation partial success`, {
+                description: (
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    <p className="text-xs">Generated: {data.generated} | Skipped: {data.skipped}</p>
+                    <details className="text-[10px] bg-rose-500/10 p-1.5 rounded border border-rose-500/20">
+                      <summary className="cursor-pointer font-bold uppercase tracking-wider">Failure Details</summary>
+                      <ul className="mt-1 list-disc pl-3 max-h-24 overflow-y-auto">
+                        {data.failures.map((f: any, i: number) => (
+                          <li key={i}>Week {f.week}: {f.reason}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  </div>
+                ),
+                duration: 8000,
+              });
+            } else {
+              toast.success(`Generated ${data.generated} ${type}, skipped ${data.skipped}`);
+            }
             setGenProgress(null);
             setGenerating(null);
             load();

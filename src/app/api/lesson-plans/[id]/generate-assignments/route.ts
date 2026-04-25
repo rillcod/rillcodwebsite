@@ -121,10 +121,17 @@ export async function POST(
         let skipped = 0;
         const total = weeks.length;
         const titlesThisRun: string[] = [];
+        const failures: { week: number; topic: string; reason: string }[] = [];
 
         for (const week of weeks) {
           try {
             emit({ generated, total, current: week.week, status: `Generating assignment for Week ${week.week}: ${week.topic}...` });
+
+            if (existingWeekSet.has(getWeekCompositeKey(week as unknown as Record<string, unknown>))) {
+              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (already exists)` });
+              skipped++;
+              continue;
+            }
 
             // Calculate due date for this week
             const dueDate = new Date(termStart);
@@ -160,8 +167,11 @@ export async function POST(
             });
 
             if (!aiRes.ok) {
-              console.warn(`Failed to generate assignment for week ${week.week}:`, await aiRes.text());
-              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (AI error)` });
+              const errText = await aiRes.text().catch(() => `HTTP ${aiRes.status}`);
+              console.warn(`Failed to generate assignment for week ${week.week}:`, errText);
+              const reason = aiRes.status === 429 ? 'AI quota exceeded' : `AI error (${aiRes.status})`;
+              failures.push({ week: week.week, topic: week.topic, reason });
+              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — ${reason}` });
               skipped++;
               continue;
             }
@@ -169,13 +179,8 @@ export async function POST(
             const aiData = await aiRes.json();
             if (!aiData.success || !aiData.data) {
               console.warn(`Invalid AI response for week ${week.week}`);
-              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (invalid response)` });
-              skipped++;
-              continue;
-            }
-
-            if (existingWeekSet.has(getWeekCompositeKey(week as unknown as Record<string, unknown>))) {
-              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (already exists)` });
+              failures.push({ week: week.week, topic: week.topic, reason: 'Invalid AI response' });
+              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — invalid AI response` });
               skipped++;
               continue;
             }
@@ -204,7 +209,8 @@ export async function POST(
 
             if (insertErr) {
               console.error(`Failed to save assignment for week ${week.week}:`, insertErr);
-              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (save error)` });
+              failures.push({ week: week.week, topic: week.topic, reason: 'Database save failed' });
+              emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — save error` });
               skipped++;
               continue;
             }
@@ -214,12 +220,20 @@ export async function POST(
             emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
           } catch (err: any) {
             console.error(`Error generating assignment for week ${week.week}:`, err);
-            emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} (error)` });
+            failures.push({ week: week.week, topic: week.topic, reason: 'Unexpected error' });
+            emit({ generated, total, current: week.week, status: `Skipped Week ${week.week} — unexpected error` });
             skipped++;
           }
         }
 
-        emit({ done: true, generated, skipped, total });
+        // Persist failure log to the plan so teachers can review it later
+        if (failures.length > 0) {
+          await supabase.from('lesson_plans').update({
+            metadata: { last_generation_errors: { assignments: failures, generated_at: new Date().toISOString() } },
+          } as any).eq('id', id);
+        }
+
+        emit({ done: true, generated, skipped, total, failures });
         controller.close();
       },
     });

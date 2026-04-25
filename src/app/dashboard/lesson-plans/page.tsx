@@ -151,6 +151,9 @@ function LessonPlansPageInner() {
   const [autoPickedClassId, setAutoPickedClassId] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<LessonPlan | null>(null);
+  const [deletionSummary, setDeletionSummary] = useState<{ lessons: number; assignments: number; audit: number } | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
   const [editForm, setEditForm] = useState({ term: '', term_start: '', term_end: '', sessions_per_week: '5', status: 'draft' });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -317,6 +320,11 @@ function LessonPlansPageInner() {
     if (!form.term) { toast.error('Please select a term'); return; }
     if (!form.course_id) { toast.error('Please select a course'); return; }
     if (!form.term_start || !form.term_end) { toast.error('Start and end dates are required'); return; }
+    const startDate = new Date(form.term_start);
+    const endDate = new Date(form.term_end);
+    if (endDate <= startDate) { toast.error('End date must be after start date'); return; }
+    const termWeeks = Math.round((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    if (termWeeks < 2) { toast.error('Term must be at least 2 weeks long'); return; }
     setSubmitting(true);
     try {
       const res = await fetch('/api/lesson-plans', {
@@ -605,12 +613,29 @@ function LessonPlansPageInner() {
       const res = await fetch(`/api/lesson-plans/${id}`, { method: 'DELETE' });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
       toast.success('Lesson plan deleted');
+      setPlanToDelete(null);
       setDeleteId(null);
       load();
     } catch (e: any) {
       toast.error(e.message || 'Failed to delete');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function openDeleteConfirm(plan: LessonPlan) {
+    setPlanToDelete(plan);
+    setLoadingSummary(true);
+    setDeletionSummary(null);
+    try {
+      const res = await fetch(`/api/lesson-plans/${plan.id}`);
+      if (!res.ok) throw new Error('Failed to load summary');
+      const j = await res.json();
+      setDeletionSummary(j.data.deletion_summary);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingSummary(false);
     }
   }
 
@@ -713,18 +738,18 @@ function LessonPlansPageInner() {
                   setFilterProgramId('');
                   setSearch('');
                 }}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors rounded-xl"
+                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors rounded-xl"
               >
                 Clear Context
               </button>
             )}
             <div className="flex items-center gap-2">
-              <button onClick={load} aria-label="Refresh" className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
+              <button onClick={load} aria-label="Refresh" className="p-3 min-h-[44px] min-w-[44px] bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
                 <ArrowPathIcon className={`w-4 h-4 text-card-foreground/50 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
                 onClick={() => { setShowForm(true); }}
-                className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20"
+                className="flex items-center gap-2 px-6 py-3 min-h-[44px] bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20"
               >
                 <PlusIcon className="w-4 h-4" /> New Plan
               </button>
@@ -813,7 +838,7 @@ function LessonPlansPageInner() {
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
           <ClipboardDocumentListIcon className="w-16 h-16 text-card-foreground/10" />
           <p className="text-card-foreground/40 font-semibold">
-            {plans.length === 0 ? 'No lesson plans yet' : 'No plans match these filters'}
+            {plans.length === 0 ? 'No lesson plans yet' : 'No plans match — clear filters or create one'}
           </p>
           <p className="text-xs text-card-foreground/40 max-w-md">
             {plans.length === 0 
@@ -830,24 +855,24 @@ function LessonPlansPageInner() {
                   setFilterStatus('');
                   setSearch('');
                 }}
-                className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg"
+                className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg min-h-[44px]"
               >
                 Clear all filters
               </button>
             )}
             <Link
               href="/dashboard/curriculum"
-              className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg"
+              className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg min-h-[44px] flex items-center"
             >
               ← Step 1 · Syllabus
             </Link>
-            <button onClick={() => setShowForm(true)} className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg">
+            <button onClick={() => setShowForm(true)} className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg min-h-[44px]">
               + Create the first plan
             </button>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map(plan => {
             const status = plan.status ?? 'draft';
             const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
@@ -901,40 +926,20 @@ function LessonPlansPageInner() {
                   </div>
                 </Link>
 
-                {/* Action bar */}
                 <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] bg-black/[0.06]">
                   <button
                     onClick={() => openEdit(plan)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-violet-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-violet-500/10 min-h-[36px]"
+                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-violet-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-violet-500/10 min-h-[44px]"
                   >
                     <PencilIcon className="w-3.5 h-3.5" /> Edit
                   </button>
                   <div className="flex-1" />
-                  {deleteId === plan.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-rose-400 font-bold">Delete?</span>
-                      <button
-                        onClick={() => deletePlan(plan.id)}
-                        disabled={deleting}
-                        className="text-xs font-black text-rose-400 hover:text-rose-300 px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[36px] transition-colors"
-                      >
-                        {deleting ? '…' : 'Yes'}
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(null)}
-                        className="text-xs font-bold text-card-foreground/40 hover:text-card-foreground px-2 py-1.5 rounded-lg hover:bg-white/5 min-h-[36px] transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteId(plan.id)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/30 hover:text-rose-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[36px]"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" /> Delete
-                    </button>
-                  )}
+                  <button
+                    onClick={() => openDeleteConfirm(plan)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/30 hover:text-rose-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[44px]"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" /> Delete
+                  </button>
                 </div>
               </div>
             );
@@ -966,7 +971,7 @@ function LessonPlansPageInner() {
 
               {/* ── Step 1: When ── */}
               <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">1 · When</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Academic Year <span className="text-rose-400">*</span></label>
                   <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value, term_start: '', term_end: '' }))}
@@ -987,7 +992,7 @@ function LessonPlansPageInner() {
               </div>
 
               {/* Date range — auto-filled, but editable */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
                     Start Date <span className="text-rose-400">*</span>
@@ -1176,11 +1181,14 @@ function LessonPlansPageInner() {
                   Lessons per week
                 </label>
                 <div className="flex items-center gap-3">
-                  <input type="range" min="1" max="7" value={form.sessions_per_week}
+                  <input type="range" min="1" max="5" value={form.sessions_per_week}
                     onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
                     className="flex-1 accent-violet-500" />
                   <span className="w-8 text-center font-black text-card-foreground text-sm">{form.sessions_per_week}</span>
                 </div>
+                <p className="text-[10px] text-violet-400/60 mt-1 font-medium">
+                  Standard: 5 sessions per week (Monday – Friday). Max allowed: 5.
+                </p>
                 <p className="text-xs text-card-foreground/30 mt-1">
                   {form.term_start && form.term_end && (() => {
                     const weeks = Math.round((new Date(form.term_end).getTime() - new Date(form.term_start).getTime()) / (7 * 864e5));
@@ -1204,54 +1212,119 @@ function LessonPlansPageInner() {
         </div>
       )}
 
-      {/* Edit Plan Modal */}
+      {/* Delete Confirmation Modal */}
+      {planToDelete && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl rounded-2xl flex flex-col overflow-hidden">
+            <div className="p-6 text-center space-y-4">
+              <div className="mx-auto w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-2">
+                <TrashIcon className="w-8 h-8 text-rose-500" />
+              </div>
+              <h3 className="text-xl font-black text-card-foreground">Delete Lesson Plan?</h3>
+              <p className="text-sm text-card-foreground/60">
+                Are you sure you want to delete <span className="text-card-foreground font-bold">{planToDelete.term}</span>? This action cannot be undone.
+              </p>
+
+              {loadingSummary ? (
+                <div className="flex justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : deletionSummary ? (
+                <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 text-left space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-1">Items to be removed:</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg">
+                      <span className="text-card-foreground/50">Lessons</span>
+                      <span className="font-bold text-rose-400">{deletionSummary.lessons}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg">
+                      <span className="text-card-foreground/50">Assignments</span>
+                      <span className="font-bold text-rose-400">{deletionSummary.assignments}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg col-span-2">
+                      <span className="text-card-foreground/50">Audit Entries</span>
+                      <span className="font-bold text-rose-400">{deletionSummary.audit}</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-rose-400/60 mt-2 italic font-medium">Note: All associated progression data will also be permanently deleted.</p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex gap-3 p-6 border-t border-white/[0.08] bg-white/5">
+              <button
+                onClick={() => setPlanToDelete(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deletePlan(planToDelete.id)}
+                disabled={deleting}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl transition-all min-h-[44px] shadow-lg shadow-rose-600/20"
+              >
+                {deleting ? 'Deleting…' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Form Modal */}
       {editingPlan && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl sm:rounded-2xl rounded-t-2xl flex flex-col">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl rounded-2xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
-              <h3 className="font-black text-card-foreground text-base">Edit Lesson Plan</h3>
-              <button onClick={() => setEditingPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center">
+              <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
+                <PencilIcon className="w-5 h-5 text-violet-400" /> Edit Lesson Plan
+              </h3>
+              <button onClick={() => setEditingPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px]">
                 <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
               </button>
             </div>
+
             <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
                   <input type="date" value={editForm.term_start} onChange={e => setEditForm(f => ({ ...f, term_start: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
                   <input type="date" value={editForm.term_end} onChange={e => setEditForm(f => ({ ...f, term_end: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Sessions/Week</label>
-                  <select value={editForm.sessions_per_week} onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    {['1','2','3','4','5'].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Status</label>
-                  <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                  </select>
+
+              <div>
+                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Lessons per week</label>
+                <div className="flex items-center gap-3">
+                  <input type="range" min="1" max="5" value={editForm.sessions_per_week}
+                    onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                    className="flex-1 accent-violet-500" />
+                  <span className="w-8 text-center font-black text-card-foreground text-sm">{editForm.sessions_per_week}</span>
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 p-5 border-t border-white/[0.08]">
-              <button onClick={() => setEditingPlan(null)} className="flex-1 py-3 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/50 hover:bg-white/5 min-h-[44px]">
+
+            <div className="flex gap-3 p-5 border-t border-white/[0.08] bg-white/5">
+              <button onClick={() => setEditingPlan(null)}
+                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]">
                 Cancel
               </button>
               <button onClick={saveEdit} disabled={savingEdit}
-                className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl min-h-[44px] transition-colors disabled:opacity-50">
+                className="flex-1 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
                 {savingEdit ? 'Saving…' : 'Save Changes'}
               </button>
             </div>

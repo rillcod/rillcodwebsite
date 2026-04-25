@@ -416,14 +416,14 @@ export default function ProjectsPage() {
                 <div className="px-4 sm:px-6 md:px-10 pt-6">
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
                         <Link href="/dashboard/assignments"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                         </Link>
-                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+                        <span className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg bg-primary text-white text-sm font-black">
                             <RocketLaunchIcon className="w-4 h-4" /> Projects
                         </span>
                         <Link href="/dashboard/cbt"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <CommandLineIcon className="w-4 h-4" /> CBT Exams
                         </Link>
                     </div>
@@ -701,13 +701,13 @@ export default function ProjectsPage() {
                         {/* Quick links to other activity sections */}
                         <div className="bg-card border-b border-border px-6 md:px-10 py-3 flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0">Also see:</span>
-                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
+                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
                                 <AcademicCapIcon className="w-3 h-3" /> Written Exams
                             </Link>
-                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
+                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <ChartBarIcon className="w-3 h-3" /> CBT / Evaluation
                             </Link>
-                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
+                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
                                 <ClipboardDocumentListIcon className="w-3 h-3" /> Assignments
                             </Link>
                         </div>
@@ -752,7 +752,7 @@ export default function ProjectsPage() {
                                             { key: 'graded',    label: 'Graded' },
                                         ] as const).map(f => (
                                             <button key={f.key} onClick={() => setStudentActFilter(f.key)}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                                className={`px-4 py-2.5 min-h-[44px] text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                                 {f.label}
                                             </button>
                                         ))}
@@ -941,14 +941,14 @@ export default function ProjectsPage() {
             <div className="px-4 sm:px-6 md:px-10 pt-6">
                 <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
                     <Link href="/dashboard/assignments"
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                     </Link>
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+                    <span className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg bg-primary text-white text-sm font-black">
                         <RocketLaunchIcon className="w-4 h-4" /> Projects
                     </span>
                     <Link href="/dashboard/cbt"
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <CommandLineIcon className="w-4 h-4" /> CBT Exams
                     </Link>
                 </div>

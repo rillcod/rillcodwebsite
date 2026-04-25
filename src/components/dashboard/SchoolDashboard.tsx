@@ -37,7 +37,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             Refresh
           </button>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {dataLoading
             ? Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
