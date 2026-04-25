@@ -185,7 +185,7 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-orange-400" />
-            <h3 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">Ready for Archive</h3>
+            <h3 className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em]">Ready for Archive</h3>
           </div>
           <p className="text-muted-foreground text-[11px]">Deploy your achievements to your public showcase.</p>
         </div>

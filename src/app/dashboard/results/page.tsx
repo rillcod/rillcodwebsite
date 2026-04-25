@@ -1080,7 +1080,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 {isEditor && selectedStudent && (
                                                     <Link
                                                         href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-600/10 hover:bg-orange-600/20 rounded-none border border-orange-500/20 transition-all"
+                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-orange-600/10 hover:bg-orange-600/20 rounded-none border border-orange-500/20 transition-all"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                                                     </Link>

@@ -264,7 +264,7 @@ export default function EngagementPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BoltIcon className="w-4 h-4 text-orange-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">Class Engagement</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Class Engagement</span>
           </div>
           <h1 className="text-2xl font-black">Student Activity Tracker</h1>
           <p className="text-xs text-muted-foreground mt-1">

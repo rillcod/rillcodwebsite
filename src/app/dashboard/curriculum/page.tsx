@@ -1323,7 +1323,7 @@ export default function CurriculumPage() {
     return (
       <div className="w-full max-w-3xl text-left bg-card border border-border p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">{title}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">{title}</p>
           {showGenerateAction && (
             <button
               onClick={openGenerateModal}
@@ -1375,7 +1375,7 @@ export default function CurriculumPage() {
     return (
       <div className="flex flex-col min-h-screen bg-background text-foreground">
         <div className="shrink-0 border-b border-border bg-card px-4 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Course Syllabus</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">Course Syllabus</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {selectedCourse ? selectedCourse.title : 'Select a course to view its syllabus'}
           </p>
@@ -1404,7 +1404,7 @@ export default function CurriculumPage() {
                       >
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">{prog.name}</p>
                         <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">View syllabus →</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">View syllabus →</p>
                       </button>
                     ))}
                   </div>
@@ -1455,7 +1455,7 @@ export default function CurriculumPage() {
       <div className="shrink-0 border-b border-border bg-card z-20">
         <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">
               {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Course Syllabus Builder'}
             </p>
           </div>
@@ -1543,7 +1543,7 @@ export default function CurriculumPage() {
       {showHelp && (
         <div className="shrink-0 border-b border-orange-500/20 bg-orange-500/5 px-4 py-4">
           <div className="max-w-[1800px] mx-auto space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">How to build a syllabus — step by step</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">How to build a syllabus — step by step</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div className="bg-card border border-border p-3 space-y-1">
                 <p className="font-black text-orange-400">Step 1 — Pick a course</p>
@@ -1622,7 +1622,7 @@ export default function CurriculumPage() {
               )}
               <button
                 onClick={() => setMobileSidebarOpen(v => !v)}
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1.5"
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-orange-500/30 px-2 py-1.5"
               >
                 <BookOpenIcon className="w-3.5 h-3.5" />
                 {mobileSidebarOpen ? 'Close' : 'Browse'}
@@ -1682,7 +1682,7 @@ export default function CurriculumPage() {
                 <button
                   type="button"
                   onClick={() => setCatalogQuery('')}
-                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 border border-orange-500/30 px-2 py-1"
+                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-orange-500/30 px-2 py-1"
                 >
                   Clear search
                 </button>
@@ -1865,7 +1865,7 @@ export default function CurriculumPage() {
               {/* Week selector */}
               <div className="bg-card border border-border">
                 <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 1 — Choose a Week</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 1 — Choose a Week</p>
                 </div>
                 <div className="p-5 space-y-3">
                   {loadingCurr ? (
@@ -1921,7 +1921,7 @@ export default function CurriculumPage() {
               {genWeek && curriculum && (
                 <div className="bg-card border border-border">
                   <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Step 2 — What to Create</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 2 — What to Create</p>
                   </div>
                   <div className="p-5 space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
@@ -1992,7 +1992,7 @@ export default function CurriculumPage() {
                     {lastVisited && (
                       <div className="bg-orange-500/5 border border-orange-500/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-0.5">Continue where you left off</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-0.5">Continue where you left off</p>
                           <p className="text-sm font-bold text-foreground truncate">{lastVisited.courseTitle}</p>
                           <p className="text-[11px] text-muted-foreground truncate">{lastVisited.progName}</p>
                         </div>
@@ -2026,7 +2026,7 @@ export default function CurriculumPage() {
                       <PipelineStepper current="syllabus" courseId={null} programId={null} curriculumId={null} courseTitle={null} />
                     </div>
                     <div className="bg-card border border-border p-4 sm:p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">
                         {lastVisited ? 'Or pick a different course' : 'Quick course grid'}
                       </p>
                       {(isTeacher || isSchool) && (
@@ -2141,7 +2141,7 @@ export default function CurriculumPage() {
                           <select
                             value={curriculum.id}
                             onChange={(e) => selectCurriculumVersion(e.target.value)}
-                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-orange-400 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
                           >
                             {curriculumList.map((c) => (
                               <option key={c.id} value={c.id} className="bg-background text-foreground">
@@ -2306,7 +2306,7 @@ export default function CurriculumPage() {
                               >
                                 {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
                                   <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Week {week.week} · Edit</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Week {week.week} · Edit</p>
                                     <input
                                       autoFocus
                                       value={editWeekTopic}
@@ -2504,7 +2504,7 @@ export default function CurriculumPage() {
                       {curriculum.content.overview && (
                         <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
                           <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
-                          <h3 className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-4 flex items-center gap-2">
                             <InformationCircleIcon className="w-3 h-3" />
                             Course Overview
                           </h3>

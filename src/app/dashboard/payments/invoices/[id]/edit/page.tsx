@@ -319,7 +319,7 @@ export default function EditInvoicePage() {
                 </div>
               ))}
               <button type="button" onClick={addItem}
-                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors pt-1">
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 transition-colors pt-1">
                 <PlusIcon className="w-3.5 h-3.5" /> Add Line Item
               </button>
               <div className="pt-3 border-t border-border flex justify-end">

@@ -770,7 +770,7 @@ function AddLessonPageContent() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Title *</label>
-              <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 flex items-center gap-1 transition-colors">
+              <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 flex items-center gap-1 transition-colors">
                 <Sparkles className="w-3 h-3" /> Magic Suggest
               </button>
             </div>

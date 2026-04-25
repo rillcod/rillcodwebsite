@@ -201,7 +201,7 @@ function PayModal({
                 <div className="border border-orange-500/30 rounded-none overflow-hidden">
                   <div className="bg-orange-500/10 px-4 py-2.5 flex items-center gap-2">
                     <BanknotesIcon className="w-4 h-4 text-orange-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Pay Online with Paystack</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Pay Online with Paystack</span>
                   </div>
                   <div className="p-4">
                     <p className="text-xs text-muted-foreground mb-3">
@@ -238,7 +238,7 @@ function PayModal({
                     </p>
                     {bankAccounts.map(acc => (
                       <div key={acc.id} className="bg-muted border border-border rounded-none p-4 space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">{acc.label}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">{acc.label}</p>
                         <div className="space-y-1.5">
                           {[
                             { label: 'Bank', value: acc.bank_name },

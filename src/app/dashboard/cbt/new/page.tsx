@@ -567,7 +567,7 @@ ${questionRows}
               <div className="space-y-4 pt-4 relative animate-in slide-in-from-top-4 duration-500">
                   {/* Row 1: Topic */}
                   <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assessment Domain / Topic</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Assessment Domain / Topic</label>
                       <input
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
@@ -579,7 +579,7 @@ ${questionRows}
                   {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                       <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
                             Obj / MCQ Count
                           </label>
                           <input
@@ -590,7 +590,7 @@ ${questionRows}
                           />
                       </div>
                       <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
                             Theory Count
                           </label>
                           <input

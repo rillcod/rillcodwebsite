@@ -349,7 +349,7 @@ function InvoiceProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUp
 
   return (
     <div className="mt-2 border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-2">
-      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Upload Payment Evidence</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Upload Payment Evidence</p>
       <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
         placeholder="Optional: bank reference, transfer narration, or note for admin…"
         className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-orange-500/50 resize-none" />

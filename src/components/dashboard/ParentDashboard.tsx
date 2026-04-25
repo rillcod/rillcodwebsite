@@ -139,7 +139,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
         <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-orange-600 to-orange-400 opacity-[0.04] blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-1">Parent Portal</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-1">Parent Portal</p>
             <h1 className="text-2xl font-black text-foreground tracking-tight">Welcome back, {firstName}</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {children.length > 0
@@ -267,7 +267,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     {child.status}
                   </span>
                   <Link href={`/dashboard/parent-results?student=${child.id}`}
-                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-400 transition-colors">
+                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-400 transition-colors">
                     Progress <ArrowRightIcon className="w-3 h-3" />
                   </Link>
                 </div>
