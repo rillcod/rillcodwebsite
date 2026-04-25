@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isPlatformStaffRole, isPartnerSchoolRole, PARTNER_SCHOOL_AI_GENERATE_TYPES } from '@/lib/dashboard/route-access';
+import { geminiGenerateText } from '@/lib/gemini/client';
 
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
 const client = new OpenAI({
@@ -15,7 +16,8 @@ const client = new OpenAI({
 
 const MODELS = [
   // ── Tier 1: Premium (best quality) ─────────────────────────────
-  "google/gemini-2.0-flash-001",              // Primary Stable (Fast)
+  "google/gemini-2.5-flash",                  // Gemini 2.5 Flash (stable, OpenRouter)
+  "google/gemini-2.0-flash-001",              // Gemini 2.0 Flash Stable (fallback)
   "x-ai/grok-2-1212",                         // Grok-2 (Wit & Logic)
   "moonshotai/kimi-k2.5",                     // High Intelligence (Kimi)
   // ── Tier 2: DeepSeek family ────────────────────────────────────
@@ -1018,7 +1020,7 @@ export async function POST(req: NextRequest) {
       case 'lesson':
         // Best models for rich, structured, creative educational content
         modelQueue = [
-          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, 1M ctx, excellent JSON
+          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
           "qwen/qwen3-235b-a22b:free",             // 235B params, massive reasoning, free
           "deepseek/deepseek-r1:free",             // Reasoning model — rich structured content
           "moonshotai/kimi-k2.5",                  // High intelligence, great for detailed content
@@ -1031,7 +1033,7 @@ export async function POST(req: NextRequest) {
 
       case 'lesson-notes':
         modelQueue = [
-          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, long-form text
+          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
           "qwen/qwen3-235b-a22b:free",             // 235B free — excellent at structured writing
           "moonshotai/kimi-k2.5",                  // Deep synthesis
           "deepseek/deepseek-chat-v3-5",           // Strong writer
@@ -1134,7 +1136,7 @@ export async function POST(req: NextRequest) {
 
       case 'newsletter':
         modelQueue = [
-          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, great prose
+          "google/gemini-2.5-flash",               // Gemini 2.5 Flash via OpenRouter fallback
           "deepseek/deepseek-chat-v3-5",           // Strong at professional writing
           "x-ai/grok-2-1212",                      // Witty, visionary tone
           "qwen/qwen3-235b-a22b:free",             // Large context, free fallback
@@ -1259,6 +1261,35 @@ export async function POST(req: NextRequest) {
           'Connection': 'keep-alive',
         },
       });
+    }
+
+    // ── Gemini Direct API fast path ────────────────────────────────────────────
+    // Try free direct Gemini API before spending OpenRouter credits.
+    // Skipped for SSE streaming (handled above) and cbt-grading (needs precision).
+    if (process.env.GEMINI_API_KEY && !wantsStream && type !== 'cbt-grading') {
+      const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, useJsonFormat).catch(() => null);
+      if (geminiResult?.text) {
+        if (type === 'lesson-notes') {
+          const clean = geminiResult.text.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          if (clean.length > 100) {
+            try {
+              const parsed = safeParseJSON(clean);
+              if (parsed.lesson_notes) return NextResponse.json({ success: true, model: geminiResult.model, data: parsed });
+            } catch {}
+            return NextResponse.json({ success: true, model: geminiResult.model, data: { lesson_notes: clean } });
+          }
+        } else {
+          try {
+            const parsed = safeParseJSON(geminiResult.text);
+            if (type === 'custom') {
+              return NextResponse.json({ success: true, content: parsed.content || parsed.text || parsed.answer || geminiResult.text, ...parsed });
+            }
+            return NextResponse.json({ success: true, model: geminiResult.model, data: parsed });
+          } catch {
+            // Malformed JSON from Gemini — fall through to OpenRouter queue
+          }
+        }
+      }
     }
 
     // Iterate through models until one succeeds

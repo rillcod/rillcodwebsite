@@ -92,9 +92,10 @@ export async function geminiGenerateImage(prompt: string): Promise<GeneratedImag
  * Falls back through model list on rate limit.
  */
 export const TEXT_MODELS = [
-    'gemini-2.5-flash-preview-05-20',   // Gemini 2.5 Flash — best free quality
-    'gemini-2.0-flash-001',             // Gemini 2.0 Flash — fast, reliable
-    'gemini-1.5-flash-latest',          // 1.5 Flash — stable fallback
+    'gemini-2.5-flash',      // Gemini 2.5 Flash (stable) — best free quality, 1M ctx
+    'gemini-2.5-pro',        // Gemini 2.5 Pro — most capable, lower free quota
+    'gemini-2.0-flash',      // Gemini 2.0 Flash — fast, reliable fallback
+    'gemini-2.5-flash-lite', // Flash-Lite — lightweight last resort
 ] as const;
 
 export async function geminiGenerateText(
