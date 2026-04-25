@@ -334,6 +334,7 @@ export default function CurriculumProgressPage() {
         {!isSchool && (
           <div className="flex flex-wrap gap-3">
             <select
+              title="Filter by school"
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
               className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
@@ -342,6 +343,7 @@ export default function CurriculumProgressPage() {
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <select
+              title="Filter by term"
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
               className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
