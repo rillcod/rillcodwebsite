@@ -212,7 +212,11 @@ export async function GET(req: NextRequest) {
     // No linked children or no enrollments → fall through to school-scoped query below
   }
 
-  let query = supabase
+  // Use admin client to bypass RLS for course_curricula reads.
+  // The school role has no RLS policy on this table, so cookie-auth returns 0 rows
+  // even for is_visible_to_school=true rows. Role-based WHERE filters below enforce scope.
+  const admin = adminClient();
+  let query = admin
     .from('course_curricula')
     .select('*, courses!course_id(title), portal_users!created_by(full_name), schools(id, name)')
     .order('created_at', { ascending: false });
