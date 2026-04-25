@@ -49,7 +49,7 @@ const About: React.FC = () => {
             </h2>
             
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-12 font-medium italic border-l-2 border-orange-500 pl-6">
-              At Rillcod, we don't just teach kids how to use technology — we teach them how to build it. Our mission is to transform Nigerian schools into world-class tech hubs.
+              At Rillcod, we don't just teach kids how to use technology — we teach them how to build it. Our mission is to transform Nigerian schools into excellent tech hubs.
             </p>
 
             <div className="grid sm:grid-cols-3 gap-6">

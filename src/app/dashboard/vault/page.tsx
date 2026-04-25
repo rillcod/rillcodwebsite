@@ -448,7 +448,7 @@ export default function VaultPage() {
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => (
-              <div key={item.id} className="bg-card border border-border">
+              <div key={item.id} className="bg-card border border-border border-l-2 border-l-brand-red-600">
                 {/* Card header */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">

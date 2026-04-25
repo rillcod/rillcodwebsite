@@ -150,7 +150,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
 
   return (
     <div className={`bg-card border transition-all space-y-3 overflow-hidden ${
-      item.is_pinned ? 'border-amber-500/40' : 'border-border hover:border-orange-500/30'
+      item.is_pinned ? 'border-amber-500/40 ring-1 ring-brand-red-600/30' : 'border-border hover:border-orange-500/30'
     }`}>
       {/* Pinned banner */}
       {item.is_pinned && (

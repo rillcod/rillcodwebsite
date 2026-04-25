@@ -79,6 +79,9 @@
   --brand-blue: #1A3A8F;
   --brand-red: #C41E3A;
   --whatsapp-green: #25D366;
+
+  /* Red accent for focus rings and active outlines */
+  --ring-accent: #C41E3A;
   --whatsapp-green-hover: #128C7E;
   --linkedin-blue: #0A66C2;
   --github-dark: #24292e;
@@ -526,6 +529,13 @@ select {
 @layer utilities {
   .glass-card {
     @apply bg-white/[0.02] backdrop-blur-2xl border border-border shadow-3xl;
+  }
+
+  .ring-accent {
+    --tw-ring-color: var(--ring-accent);
+  }
+  .border-accent-red {
+    border-color: var(--ring-accent);
   }
 
   .text-glow-orange {
