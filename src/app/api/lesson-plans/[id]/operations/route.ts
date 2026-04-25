@@ -95,16 +95,26 @@ export async function GET(
       .select('id,lesson_plan_id,is_active,current_week,term_start,cadence_days,updated_at')
       .eq('lesson_plan_id', id)
       .maybeSingle(),
-    (supabase as any)
-      .from('lessons')
-      .select('id,status,updated_at,metadata')
-      .eq('course_id', plan.course_id ?? '')
-      .eq('school_id', plan.school_id ?? ''),
-    (supabase as any)
-      .from('assignments')
-      .select('id,assignment_type,is_active,updated_at,metadata')
-      .eq('course_id', plan.course_id ?? '')
-      .eq('school_id', plan.school_id ?? ''),
+    plan.course_id
+      ? (() => {
+          let q = (supabase as any)
+            .from('lessons')
+            .select('id,status,updated_at,metadata')
+            .eq('course_id', plan.course_id);
+          q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
+          return q;
+        })()
+      : Promise.resolve({ data: [], error: null }),
+    plan.course_id
+      ? (() => {
+          let q = (supabase as any)
+            .from('assignments')
+            .select('id,assignment_type,is_active,updated_at,metadata')
+            .eq('course_id', plan.course_id);
+          q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
+          return q;
+        })()
+      : Promise.resolve({ data: [], error: null }),
     (supabase as any)
       .from('curriculum_week_performance')
       .select('year_number,term_number,week_number,practical_score,retry_count,completed')
