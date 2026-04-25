@@ -388,7 +388,7 @@ export default function IdentityCardsPage() {
           <article
             key={r.id}
             className={`rounded-none overflow-hidden transition-all flex flex-col ${
-              isSelected ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'ring-1 ring-border hover:ring-orange-500/40'
+              isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border hover:ring-primary/40'
             }`}
           >
             {/* ── Mini card preview (matches print output) ── */}
@@ -463,7 +463,7 @@ export default function IdentityCardsPage() {
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggleSelected(r.id)}
-                  className="accent-orange-600 w-3 h-3"
+                  className="accent-primary w-3 h-3"
                 />
                 Sel
               </label>
@@ -488,16 +488,16 @@ export default function IdentityCardsPage() {
         {/* ── Header ── */}
         <div className="relative overflow-hidden border border-border bg-card rounded-none">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -right-24 -top-20 w-56 h-56 rounded-full bg-orange-500/8 blur-[80px]" />
+            <div className="absolute -right-24 -top-20 w-56 h-56 rounded-full bg-primary/8 blur-[80px]" />
             <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-primary/6 blur-[70px]" />
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
           </div>
           <div className="relative p-5 sm:p-7">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1 h-5 bg-orange-500 flex-shrink-0" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Identity Management</p>
+                  <div className="w-1 h-5 bg-primary flex-shrink-0" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Identity Management</p>
                 </div>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Card Studio</h1>
@@ -507,19 +507,19 @@ export default function IdentityCardsPage() {
                 </div>
                 <div className="flex flex-wrap gap-3 pt-1">
                   <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    <UserGroupIcon className="w-3.5 h-3.5 text-orange-400" />
+                    <UserGroupIcon className="w-3.5 h-3.5 text-primary" />
                     Students
                   </span>
                   <span className="text-border">·</span>
                   <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    <UserPlusIcon className="w-3.5 h-3.5 text-orange-400" />
+                    <UserPlusIcon className="w-3.5 h-3.5 text-primary" />
                     Parents
                   </span>
                   {canViewTeacherCards && (
                     <>
                       <span className="text-border">·</span>
                       <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        <AcademicCapIcon className="w-3.5 h-3.5 text-orange-400" />
+                        <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
                         Teachers
                       </span>
                     </>
@@ -533,7 +533,7 @@ export default function IdentityCardsPage() {
                       onClick={() => setMode('design')}
                       className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
                         mode === 'design'
-                          ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+                          ? 'bg-primary text-white shadow-lg shadow-primary/20'
                           : 'bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -566,7 +566,7 @@ export default function IdentityCardsPage() {
         {mode === 'design' && canDesign && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 px-1">
-              <SparklesIcon className="w-4 h-4 text-orange-400" />
+              <SparklesIcon className="w-4 h-4 text-primary" />
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Card Design Templates — customise accent colour, header style, and organisation details</p>
             </div>
             <div className="grid sm:grid-cols-3 gap-4">
@@ -589,10 +589,10 @@ export default function IdentityCardsPage() {
               ] as Array<{ type: CardType; label: string; desc: string; icon: any }>).map((item) => {
                 const Icon = item.icon;
                 return (
-                  <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-4 group hover:border-orange-500/30 transition-all">
+                  <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-4 group hover:border-primary/30 transition-all">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-4 h-4 text-orange-400" />
+                      <div className="w-9 h-9 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-4 h-4 text-primary" />
                       </div>
                       <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 border border-border">
                         {item.type}
@@ -604,7 +604,7 @@ export default function IdentityCardsPage() {
                     </div>
                     <Link
                       href={`/dashboard/students/card-builder?type=${item.type}`}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all w-full justify-center"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-none transition-all w-full justify-center"
                     >
                       <SparklesIcon className="w-3.5 h-3.5" /> Open Builder
                     </Link>
@@ -631,7 +631,7 @@ export default function IdentityCardsPage() {
                     onClick={() => setActiveType(tab.key)}
                     className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none border transition-all inline-flex items-center gap-2 ${
                       activeType === tab.key
-                        ? 'bg-orange-500/15 border-orange-500/30 text-orange-400'
+                        ? 'bg-primary/15 border-primary/30 text-primary'
                         : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
@@ -645,7 +645,7 @@ export default function IdentityCardsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search name, email, school, class..."
-                  className="w-full pl-9 pr-3 py-2.5 bg-card border border-border rounded-none text-sm focus:outline-none focus:border-orange-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-card border border-border rounded-none text-sm focus:outline-none focus:border-primary"
                 />
               </div>
             </div>
@@ -666,7 +666,7 @@ export default function IdentityCardsPage() {
                     <select
                       value={selectedSchool}
                       onChange={(e) => setSelectedSchool(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-orange-500 cursor-pointer max-w-[220px]"
+                      className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer max-w-[220px]"
                     >
                       <option value="all">All Schools ({records.length})</option>
                       {allSchools.map((sch) => {
@@ -688,7 +688,7 @@ export default function IdentityCardsPage() {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-orange-500 cursor-pointer"
+                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="all">All Classes ({records.length})</option>
                   {allClasses.map((cls) => {
@@ -711,7 +711,7 @@ export default function IdentityCardsPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'name' | 'class')}
-                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-orange-500 cursor-pointer"
+                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="name">By Name</option>
                   <option value="class">By Class → Name</option>
@@ -724,14 +724,14 @@ export default function IdentityCardsPage() {
                   <button
                     onClick={() => setGroupMode('none')}
                     title="Flat view"
-                    className={`p-2 rounded-none border transition-all ${groupMode === 'none' ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : 'border-border text-muted-foreground hover:bg-muted'}`}
+                    className={`p-2 rounded-none border transition-all ${groupMode === 'none' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
                   >
                     <Squares2X2Icon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setGroupMode('class')}
                     title="Group by class"
-                    className={`p-2 rounded-none border transition-all ${groupMode === 'class' ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : 'border-border text-muted-foreground hover:bg-muted'}`}
+                    className={`p-2 rounded-none border transition-all ${groupMode === 'class' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
                   >
                     <ListBulletIcon className="w-4 h-4" />
                   </button>
@@ -744,10 +744,10 @@ export default function IdentityCardsPage() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
                 {filtered.length} card holder{filtered.length === 1 ? '' : 's'}
                 {selectedSchool !== 'all' && !schoolLock && (
-                  <span className="ml-2 text-orange-400">· {selectedSchool}</span>
+                  <span className="ml-2 text-primary">· {selectedSchool}</span>
                 )}
                 {selectedClass !== 'all' && selectedClass !== '' && (
-                  <span className="ml-2 text-orange-400">in {selectedClass}</span>
+                  <span className="ml-2 text-primary">in {selectedClass}</span>
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -766,7 +766,7 @@ export default function IdentityCardsPage() {
                         const selected = filtered.filter((r) => selectedIds.has(r.id));
                         printCards(selected, `${activeType} access cards — selected`);
                       }}
-                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-none transition-all inline-flex items-center gap-2"
                     >
                       <PrinterIcon className="w-4 h-4" />
                       Print Selected ({selectedIds.size})
@@ -818,7 +818,7 @@ export default function IdentityCardsPage() {
                   </p>
                 </div>
                 {query && (
-                  <button onClick={() => setQuery('')} className="text-xs font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors">
+                  <button onClick={() => setQuery('')} className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary transition-colors">
                     Clear Search
                   </button>
                 )}

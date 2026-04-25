@@ -150,7 +150,7 @@ export default function ParentCardPage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -318,8 +318,8 @@ export default function ParentCardPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-            <CreditCardIcon className="w-5 h-5 text-orange-400" />
+          <div className="w-10 h-10 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0">
+            <CreditCardIcon className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-card-foreground">Children's Access Cards</h1>
@@ -330,16 +330,16 @@ export default function ParentCardPage() {
         </div>
         {children.length > 1 && (
           <button onClick={printAllCards}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 text-white font-bold text-sm rounded-xl transition-all">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-sm rounded-xl transition-all">
             <PrinterIcon className="w-4 h-4" /> Print All Cards
           </button>
         )}
       </div>
 
       {/* Info */}
-      <div className="flex items-start gap-3 bg-orange-500/[0.07] border border-orange-500/20 rounded-xl p-4 text-sm">
-        <InformationCircleIcon className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
-        <p className="text-orange-300/80">
+      <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4 text-sm">
+        <InformationCircleIcon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+        <p className="text-primary/60">
           These access cards are for your children's use at school. Print and laminate each card so they can present it to school staff for identity verification.
         </p>
       </div>
@@ -391,7 +391,7 @@ export default function ParentCardPage() {
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
                   <button onClick={() => printCard(child)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${printingId === child.id ? 'bg-emerald-500 text-white' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${printingId === child.id ? 'bg-emerald-500 text-white' : 'bg-primary hover:bg-primary/90 text-white'}`}>
                     {printingId === child.id ? <CheckCircleIcon className="w-4 h-4" /> : <PrinterIcon className="w-4 h-4" />}
                     {printingId === child.id ? 'Opened!' : 'Print Card'}
                   </button>
