@@ -387,7 +387,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
           <div className="bg-card border border-border p-4 flex flex-col justify-between">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</p>
             <div className="flex items-end justify-between mt-2">

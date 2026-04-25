@@ -80,7 +80,24 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     );
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  return NextResponse.json({ data });
+
+  // Fetch deletion summary counts
+  const [lessonsRes, assignmentsRes, auditRes] = await Promise.all([
+    db.from('lessons').select('id', { count: 'exact', head: true }).filter('metadata->>lesson_plan_id', 'eq', id),
+    db.from('assignments').select('id', { count: 'exact', head: true }).filter('metadata->>lesson_plan_id', 'eq', id),
+    db.from('progression_override_audit').select('id', { count: 'exact', head: true }).eq('lesson_plan_id', id),
+  ]);
+
+  return NextResponse.json({ 
+    data: {
+      ...data,
+      deletion_summary: {
+        lessons: lessonsRes.count ?? 0,
+        assignments: assignmentsRes.count ?? 0,
+        audit: auditRes.count ?? 0,
+      }
+    }
+  });
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -253,6 +270,16 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     );
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  // Cascade: remove generated lessons and assignments linked to this plan via metadata.
+  // These are orphaned if the plan is deleted without cleaning them first.
+  await db.from('lessons')
+    .delete()
+    .filter('metadata->>lesson_plan_id', 'eq', id);
+
+  await db.from('assignments')
+    .delete()
+    .filter('metadata->>lesson_plan_id', 'eq', id);
 
   const { error } = await db.from('lesson_plans').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

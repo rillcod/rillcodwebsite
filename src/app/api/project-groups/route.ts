@@ -175,7 +175,22 @@ export async function PATCH(req: Request) {
     if (gErr) throw gErr;
 
     // Apply per-member scores (individual evaluation type)
-    if (Array.isArray(individual_scores)) {
+    if (Array.isArray(individual_scores) && individual_scores.length > 0) {
+      // Validate all submitted student_ids belong to this group before writing any score
+      const { data: members } = await admin
+        .from('project_group_members')
+        .select('student_id')
+        .eq('group_id', id);
+      const memberSet = new Set((members ?? []).map((m: { student_id: string }) => m.student_id));
+      const unknownIds = (individual_scores as { student_id: string }[])
+        .map(s => s.student_id)
+        .filter(sid => !memberSet.has(sid));
+      if (unknownIds.length > 0) {
+        return NextResponse.json(
+          { error: `Students not in this group: ${unknownIds.join(', ')}` },
+          { status: 422 },
+        );
+      }
       for (const s of individual_scores as { student_id: string; score: number; feedback?: string | null }[]) {
         await admin.from('project_group_members')
           .update({ individual_score: s.score, individual_feedback: s.feedback ?? null })
@@ -215,6 +230,22 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
+
+    // B3 · Project group delete — active submission guard
+    // Check if there are any submissions for this group before allowing delete
+    const { count, error: countErr } = await admin
+      .from('project_submissions')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', id);
+
+    if (countErr) {
+      console.error('[project-group-delete] submission check failed:', countErr);
+    } else if (count && count > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete group with active submissions' 
+      }, { status: 409 });
+    }
+
     const { error } = await admin.from('project_groups').delete().eq('id', id);
     if (error) throw error;
 

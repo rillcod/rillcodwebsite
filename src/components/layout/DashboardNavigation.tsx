@@ -391,20 +391,20 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_30px_rgba(0,0,0,0.3)]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] border-b border-sidebar-foreground/[0.08] shadow-[0_1px_30px_rgba(0,0,0,0.3)]">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center">
-            <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
+          <div className="w-8 h-8 bg-primary/10 border border-primary/30 flex items-center justify-center">
+            <Image src="/images/logo.png" alt="Rillcod" width={18} height={18} className="object-contain" priority />
           </div>
-          <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
+          <span className="font-black uppercase tracking-widest text-[14px] text-sidebar-foreground italic">
             Rillcod<span className="text-brand-red-600 not-italic">.</span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
           {unreadCount > 0 && (
-            <Link href="/dashboard/inbox" className="relative p-2">
-              <BellIcon className="w-5 h-5 text-sidebar-foreground/40" />
-              <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+            <Link href="/dashboard/inbox" className="relative p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <BellIcon className="w-5.5 h-5.5 text-sidebar-foreground/40" />
+              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-sidebar">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             </Link>
@@ -413,7 +413,7 @@ export default function DashboardNavigation() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="p-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all"
+            className="p-2.5 min-w-[44px] min-h-[44px] text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all flex items-center justify-center"
           >
             {mobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
@@ -550,7 +550,7 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           const shortName =
@@ -574,21 +574,21 @@ export default function DashboardNavigation() {
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
+              className="flex flex-col items-center gap-1.5 py-1.5 flex-1 min-w-0 transition-all duration-200 min-h-[56px]"
             >
-              <div className={`relative flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${
+              <div className={`relative flex items-center justify-center w-12 h-8 rounded-xl transition-all duration-200 ${
                 active
                   ? 'bg-primary/15 shadow-[0_0_12px_rgba(26,58,143,0.25)]'
                   : ''
               }`}>
-                <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
+                <Icon className={`w-5.5 h-5.5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
                 {name === 'WhatsApp Inbox' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
+              <span className={`text-[9px] font-black uppercase tracking-[0.1em] leading-none truncate max-w-full px-0.5 transition-colors ${
                 active ? 'text-primary' : 'text-sidebar-foreground/25'
               }`}>
                 {shortName}
@@ -598,15 +598,15 @@ export default function DashboardNavigation() {
         })}
         <button
           onClick={() => setMobileOpen(v => !v)}
-          className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all group"
+          className="flex flex-col items-center gap-1.5 py-1.5 flex-1 min-w-0 transition-all group min-h-[56px]"
         >
-          <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-primary/15' : ''}`}>
+          <div className={`flex items-center justify-center w-12 h-8 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-primary/15' : ''}`}>
             {mobileOpen
-              ? <XMarkIcon className="w-5 h-5 text-primary" />
-              : <Bars3Icon className="w-5 h-5 text-sidebar-foreground/35" />
+              ? <XMarkIcon className="w-5.5 h-5.5 text-primary" />
+              : <Bars3Icon className="w-5.5 h-5.5 text-sidebar-foreground/35" />
             }
           </div>
-          <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${mobileOpen ? 'text-primary' : 'text-sidebar-foreground/25'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-[0.1em] leading-none transition-colors ${mobileOpen ? 'text-primary' : 'text-sidebar-foreground/25'}`}>
             Menu
           </span>
         </button>

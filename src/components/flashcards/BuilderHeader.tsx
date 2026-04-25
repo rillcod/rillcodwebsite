@@ -41,7 +41,7 @@ export default function BuilderHeader({
   };
 
   return (
-    <div className="absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between z-10 gap-2">
+    <div className="absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between z-10 gap-2">
       <div className="flex items-center gap-2 min-w-0">
         {onToggleSidebar && (
           <button

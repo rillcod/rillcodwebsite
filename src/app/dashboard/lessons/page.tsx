@@ -298,7 +298,7 @@ export default function LessonsPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Lessons',    value: lessons.length,                                                              icon: BookOpenIcon,    bg: 'bg-primary/10', color: 'text-primary' },
           { label: 'Active',           value: active,                                                                      icon: BoltIcon,        bg: 'bg-blue-500/10',   color: 'text-blue-400'   },

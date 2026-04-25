@@ -2128,7 +2128,7 @@ export default function UnifiedInbox() {
                   </div>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2.5">
+              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
                 <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
                   placeholder="Type a message…" rows={1}

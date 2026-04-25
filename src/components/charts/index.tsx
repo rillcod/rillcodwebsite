@@ -103,10 +103,10 @@ export function VerticalBarChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barGap={3}>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }} barGap={3}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />}
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         {bars.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />}
         {bars.map(b => (
@@ -132,10 +132,10 @@ export function AreaLineChart({
   const Chart = type === 'area' ? AreaChart : LineChart;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <Chart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+      <Chart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />}
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} />
         {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }} />}
         {series.map(s =>
@@ -224,10 +224,10 @@ export function StackedBarChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barGap={0}>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }} barGap={0}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />
         {bars.map((b, i) => (
