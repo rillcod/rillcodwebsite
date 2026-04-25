@@ -241,6 +241,8 @@ export default function CurriculumPage() {
   const [catalogQuery, setCatalogQuery] = useState('');
   /** All syllabus rows for the selected course (global vs school-scoped, versions). */
   const [curriculumList, setCurriculumList] = useState<CurriculumDoc[]>([]);
+  /** Last visited course — restored from localStorage so teachers don't lose their place. */
+  const [lastVisited, setLastVisited] = useState<{ progId: string; progName: string; courseId: string; courseTitle: string } | null>(null);
   /** Schools the teacher (or admin) can scope a new syllabus to — from GET /api/schools */
   const [assignedSchools, setAssignedSchools] = useState<{ id: string; name: string }[]>([]);
   const [schoolScopedProgramIds, setSchoolScopedProgramIds] = useState<string[]>([]);
@@ -358,6 +360,14 @@ export default function CurriculumPage() {
       .slice(0, 24);
   }, [programs, schoolScopedProgramIds]);
 
+  // ── Restore last visited course from localStorage ─────────────────────
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('curriculum.lastCourse.v1');
+      if (saved) setLastVisited(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+
   // ── Load programs ────────────────────────────────────────────────────────
   // Honors `?program=<id>` and `?course=<id>` for deep-linking from the
   // student learning hub or the syllabus link in any other view.
@@ -400,6 +410,23 @@ export default function CurriculumPage() {
             }
           }
         }
+        // No URL params — auto-restore last visited course from localStorage
+        try {
+          const saved = window.localStorage.getItem('curriculum.lastCourse.v1');
+          if (saved) {
+            const recent = JSON.parse(saved) as { progId: string; courseId: string };
+            for (const p of progs) {
+              const c = (p.courses ?? []).find((x) => x.id === recent.courseId);
+              if (c) {
+                setExpandedPrograms(new Set([p.id]));
+                setSelectedProgram(p);
+                setSelectedCourse(c);
+                loadCurriculumRef.current?.(c.id);
+                return;
+              }
+            }
+          }
+        } catch { /* ignore */ }
         if (progs.length === 1) {
           setExpandedPrograms(new Set([progs[0].id]));
         }
@@ -719,12 +746,17 @@ export default function CurriculumPage() {
       scope = assignedSchools[0].id;
     }
     setGenerateScope(scope);
-    const remembered = gradeByScope[scope];
-    if (remembered) {
-      setForm((prev) => (prev.grade_level === remembered ? prev : { ...prev, grade_level: remembered }));
-    }
+    setForm((prev) => {
+      const remembered = gradeByScope[scope];
+      return {
+        ...prev,
+        grade_level: remembered ?? prev.grade_level,
+        // Auto-fill subject area from the course title when the field is blank
+        subject_area: prev.subject_area || selectedCourse?.title || '',
+      };
+    });
     setShowGenerate(true);
-  }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope]);
+  }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope, selectedCourse?.title]);
 
   // When filtering, expand every programme that still has a visible course
   useEffect(() => {
@@ -861,6 +893,9 @@ export default function CurriculumPage() {
   }, [curriculum, editingWeekKey, editWeekTopic, editWeekSubtopics]);
 
   function selectCourse(prog: Program, course: Course) {
+    const visited = { progId: prog.id, progName: prog.name, courseId: course.id, courseTitle: course.title };
+    try { window.localStorage.setItem('curriculum.lastCourse.v1', JSON.stringify(visited)); } catch { /* ignore */ }
+    setLastVisited(visited);
     setSelectedProgram(prog);
     setSelectedCourse(course);
     setActiveTerm(1);
@@ -1947,16 +1982,46 @@ export default function CurriculumPage() {
                 /* Empty state */
                 <div className="h-full min-h-[60vh] px-4 py-8">
                   <div className="max-w-5xl mx-auto space-y-5">
-                    <div className="text-center">
-                      <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                      <h2 className="text-xl font-black mb-1">Choose a Course</h2>
-                      <p className="text-muted-foreground text-sm">
-                        Pick a course below to open its syllabus. You can still use the left sidebar anytime.
-                      </p>
+                    {/* Continue editing — shown while auto-restore is in flight or as manual fallback */}
+                    {lastVisited && (
+                      <div className="bg-orange-500/5 border border-orange-500/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-0.5">Continue where you left off</p>
+                          <p className="text-sm font-bold text-foreground truncate">{lastVisited.courseTitle}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{lastVisited.progName}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const prog = programs.find(p => p.id === lastVisited.progId);
+                            const course = prog?.courses?.find(c => c.id === lastVisited.courseId);
+                            if (prog && course) { selectCourse(prog, course); return; }
+                            // Fallback: load by courseId even if program isn't found in memory
+                            setSelectedCourse({ id: lastVisited.courseId, title: lastVisited.courseTitle, is_active: true });
+                            loadCurriculum(lastVisited.courseId);
+                          }}
+                          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          <ArrowRightIcon className="w-3.5 h-3.5" /> Open syllabus
+                        </button>
+                      </div>
+                    )}
+                    {!lastVisited && (
+                      <div className="text-center">
+                        <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                        <h2 className="text-xl font-black mb-1">Choose a Course</h2>
+                        <p className="text-muted-foreground text-sm">
+                          Pick a course below to open its syllabus. On mobile, tap <strong>Browse</strong> in the top bar to open the full catalog.
+                        </p>
+                      </div>
+                    )}
+                    {/* Pipeline stepper — always visible so teachers know where they are */}
+                    <div className="hidden sm:block">
+                      <PipelineStepper current="syllabus" courseId={null} programId={null} curriculumId={null} courseTitle={null} />
                     </div>
                     <div className="bg-card border border-border p-4 sm:p-5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3">
-                        Quick course grid
+                        {lastVisited ? 'Or pick a different course' : 'Quick course grid'}
                       </p>
                       {(isTeacher || isSchool) && (
                         <p className="text-[11px] text-muted-foreground mb-3">
@@ -2625,16 +2690,23 @@ export default function CurriculumPage() {
 
       {/* ── Week Detail Panel ── */}
       {activeWeek && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        /* Mobile: bottom sheet (slide up, max 92vh)
+           Desktop md+: right side panel (max-w-2xl) */
+        <div className="fixed inset-0 z-50 flex flex-col justify-end md:flex-row md:justify-end">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setActiveWeek(null)}
           />
-          <div className="relative w-full max-w-2xl bg-background border-l border-border flex flex-col h-full overflow-hidden shadow-2xl">
+          <div className="relative w-full md:max-w-2xl bg-background md:border-l border-t md:border-t-0 border-border flex flex-col max-h-[92vh] md:h-full overflow-hidden shadow-2xl rounded-t-2xl md:rounded-none">
+            {/* Drag handle on mobile */}
+            <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-border" />
+            </div>
+
             {/* Panel header */}
-            <div className="flex items-start justify-between p-5 border-b border-border bg-card shrink-0">
-              <div className="flex-1 min-w-0 mr-4">
-                <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-start justify-between px-5 py-4 border-b border-border bg-card shrink-0">
+              <div className="flex-1 min-w-0 mr-3">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border ${WEEK_META[activeWeek.type]?.color}`}>
                     Week {activeWeek.week} · {WEEK_META[activeWeek.type]?.label}
                   </span>
@@ -2644,18 +2716,18 @@ export default function CurriculumPage() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-lg font-black leading-tight">{activeWeek.topic}</h2>
+                <h2 className="text-base font-black leading-tight">{activeWeek.topic}</h2>
                 {(activeWeek.subtopics ?? []).length > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">{(activeWeek.subtopics ?? []).join(' · ')}</p>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(activeWeek.subtopics ?? []).join(' · ')}</p>
                 )}
               </div>
-              <button onClick={() => setActiveWeek(null)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <button onClick={() => setActiveWeek(null)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Panel body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* Panel body — overflow-x-hidden prevents horizontal panning */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-6">
 
               {/* LESSON WEEK */}
               {activeWeek.type === 'lesson' && activeWeek.lesson_plan && (
@@ -2718,7 +2790,7 @@ export default function CurriculumPage() {
                       onClick={() => createLessonFromWeek(activeWeek)}
                       disabled={creatingLesson}
                       title="Opens Step 3 · Lessons with this week's plan prefilled"
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
                     >
                       <PencilIcon className="w-3.5 h-3.5" />
                       {creatingLesson ? 'Creating…' : 'Create Lesson'}
@@ -2726,21 +2798,21 @@ export default function CurriculumPage() {
                     <button
                       onClick={() => createCbtFromWeek(activeWeek)}
                       disabled={creatingCbt}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
                     >
                       <BoltIcon className="w-3.5 h-3.5" />
                       Create CBT Quiz
                     </button>
                     <button
                       onClick={() => createFlashcardsFromWeek(activeWeek)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[40px]"
                     >
                       <StarIcon className="w-3.5 h-3.5" />
                       Create Flashcards
                     </button>
                     <button
                       onClick={printWeek}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[40px]"
                     >
                       <PrinterIcon className="w-3.5 h-3.5" />
                       Print Plan
@@ -2751,14 +2823,14 @@ export default function CurriculumPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => createCbtFromWeek(activeWeek)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[40px]"
                     >
                       <BoltIcon className="w-3.5 h-3.5" />
                       {activeWeek.type === 'examination' ? 'Create Exam CBT' : 'Create Assessment CBT'}
                     </button>
                     <button
                       onClick={printWeek}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors min-h-[40px]"
                     >
                       <PrinterIcon className="w-3.5 h-3.5" />
                       Print
@@ -2814,11 +2886,11 @@ export default function CurriculumPage() {
         </div>
       )}
 
-      {/* ── Generate Modal ── */}
+      {/* ── Generate Modal — bottom-sheet on mobile, centered on sm+ ── */}
       {showGenerate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-card border border-border w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+          <div className="bg-card border border-border w-full sm:max-w-lg sm:rounded-xl rounded-t-2xl flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
               <div>
                 <h2 className="font-black flex items-center gap-2">
                   <SparklesIcon className="w-4 h-4 text-orange-400" />
@@ -2826,114 +2898,117 @@ export default function CurriculumPage() {
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{selectedCourse?.title}</p>
               </div>
-              <button onClick={() => setShowGenerate(false)} disabled={generating}>
+              <button onClick={() => setShowGenerate(false)} disabled={generating} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center">
                 <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
-
-            {curriculum && (
-              <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400 flex gap-2">
-                <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>This will create a new version (v{(curriculum.version ?? 0) + 1}). Existing tracking progress will be preserved.</span>
-              </div>
-            )}
-
-            {canTrack && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Syllabus scope (unique per school)
-                </label>
-                <select
-                  value={generateScope}
-                  onChange={(e) => {
-                    const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
-                    void syncScopeToCurriculum(scope);
-                  }}
-                  className={SELECT_CLS}
-                >
-                  <option value="platform">Platform — shared Rillcod template (optional; use per-school rows for partners)</option>
-                  {assignedSchools.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} — custom syllabus &amp; flow only for this school
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span>. Current target: <span className="text-foreground font-bold">{scopeLabel}</span>.
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Grade Level</label>
-                  <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
-                    {GRADE_LEVEL_OPTIONS.map(g => <option key={g}>{g}</option>)}
-                  </select>
+            {/* Scrollable body */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              {curriculum && (
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-400 flex gap-2">
+                  <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>This will create a new version (v{(curriculum.version ?? 0) + 1}). Existing tracking progress will be preserved.</span>
                 </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Terms</label>
-                  <select value={form.term_count} onChange={e => setForm(p => ({ ...p, term_count: e.target.value }))} className={SELECT_CLS}>
-                    {['1', '2', '3'].map(t => <option key={t}>{t}</option>)}
+              )}
+
+              {canTrack && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Syllabus scope (unique per school)
+                  </label>
+                  <select
+                    value={generateScope}
+                    onChange={(e) => {
+                      const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
+                      void syncScopeToCurriculum(scope);
+                    }}
+                    className={SELECT_CLS}
+                  >
+                    <option value="platform">Platform — shared Rillcod template (optional; use per-school rows for partners)</option>
+                    {assignedSchools.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} — custom syllabus &amp; flow only for this school
+                      </option>
+                    ))}
                   </select>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span>. Current target: <span className="text-foreground font-bold">{scopeLabel}</span>.
+                  </p>
                 </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Grade Level</label>
+                    <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
+                      {GRADE_LEVEL_OPTIONS.map(g => <option key={g}>{g}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Terms</label>
+                    <select value={form.term_count} onChange={e => setForm(p => ({ ...p, term_count: e.target.value }))} className={SELECT_CLS}>
+                      {['1', '2', '3'].map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks/Term</label>
+                    <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
+                      {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks/Term</label>
-                  <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
-                    {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
-                  </select>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Subject Area</label>
+                  <input
+                    value={form.subject_area}
+                    onChange={e => setForm(p => ({ ...p, subject_area: e.target.value }))}
+                    placeholder="e.g. Computer Science, Robotics, AI & Machine Learning"
+                    className={INPUT_CLS}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Special Notes</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="Any specific topics, teaching constraints, available equipment, school context…"
+                    rows={3}
+                    className={INPUT_CLS + ' resize-none'}
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Subject Area</label>
-                <input
-                  value={form.subject_area}
-                  onChange={e => setForm(p => ({ ...p, subject_area: e.target.value }))}
-                  placeholder="e.g. Computer Science, Robotics, AI & Machine Learning"
-                  className={INPUT_CLS}
-                />
+              <div className="bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
+                <p className="font-bold text-foreground/80">Standard Assessment Schedule (applied automatically):</p>
+                <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week {form.weeks_per_term} → Examination</p>
+                <p>Each lesson week includes a full teacher-ready lesson plan with activities, classwork, and assignments.</p>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Special Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                  placeholder="Any specific topics, teaching constraints, available equipment, school context…"
-                  rows={3}
-                  className={INPUT_CLS + ' resize-none'}
-                />
-              </div>
+              {genError && <p className="text-rose-400 text-xs">{genError}</p>}
+              {generating && (
+                <div className="flex items-center gap-2 text-amber-400 text-xs">
+                  <SparklesIcon className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating complete curriculum with all lesson plans… this takes 60–90 seconds</span>
+                </div>
+              )}
             </div>
 
-            <div className="bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
-              <p className="font-bold text-foreground/80">Standard Assessment Schedule (applied automatically):</p>
-              <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week {form.weeks_per_term} → Examination</p>
-              <p>Each lesson week includes a full teacher-ready lesson plan with activities, classwork, and assignments.</p>
-            </div>
-
-            {genError && <p className="text-rose-400 text-xs">{genError}</p>}
-            {generating && (
-              <div className="flex items-center gap-2 text-amber-400 text-xs">
-                <SparklesIcon className="w-3.5 h-3.5 animate-spin" />
-                <span>Generating complete curriculum with all lesson plans… this takes 60–90 seconds</span>
-              </div>
-            )}
-
-            <div className="flex gap-3">
+            {/* Sticky footer */}
+            <div className="flex gap-3 p-4 sm:p-5 border-t border-border shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={() => setShowGenerate(false)}
                 disabled={generating}
-                className="flex-1 py-2.5 bg-background border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 bg-background border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-colors disabled:opacity-40 min-h-[44px]"
               >
                 Cancel
               </button>
               <button
                 onClick={generate}
                 disabled={generating}
-                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
+                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold text-sm transition-colors min-h-[44px]"
               >
                 {generating ? 'Generating…' : curriculum ? 'Regenerate' : 'Generate Syllabus'}
               </button>
@@ -3058,11 +3133,11 @@ function Section({ label, color, children, icon: Icon }: { label: string; color:
 // ── Lesson Plan View Component ───────────────────────────────────────────────
 function LessonPlanView({ plan }: { plan: LessonPlan }) {
   return (
-    <div className="space-y-6 text-sm">
+    <div className="space-y-6 text-sm min-w-0">
       {/* Duration badge */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 border border-border w-fit">
-        <ClockIcon className="w-4 h-4 text-orange-400" />
-        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{plan.duration_minutes} Minute Session</span>
+      <div className="inline-flex items-center gap-3 px-4 py-2 bg-muted/30 border border-border max-w-full">
+        <ClockIcon className="w-4 h-4 text-orange-400 shrink-0" />
+        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest truncate">{plan.duration_minutes} Minute Session</span>
       </div>
 
       {/* Objectives */}
@@ -3134,9 +3209,9 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
           <div className="space-y-2">
             <p className="font-black uppercase tracking-tight text-foreground/90 italic">{plan.assignment.title}</p>
             <p className="text-xs text-foreground/70 leading-relaxed">{plan.assignment.instructions}</p>
-            <div className="flex items-center gap-2 text-[10px] text-amber-400 font-black uppercase tracking-widest bg-amber-400/5 w-fit px-2 py-1 border border-amber-400/10">
-              <ClockIcon className="w-3 h-3" />
-              Deadline: {plan.assignment.due}
+            <div className="inline-flex items-center gap-2 text-[10px] text-amber-400 font-black uppercase tracking-widest bg-amber-400/5 max-w-full px-2 py-1 border border-amber-400/10 overflow-hidden">
+              <ClockIcon className="w-3 h-3 shrink-0" />
+              <span className="truncate">Deadline: {plan.assignment.due}</span>
             </div>
           </div>
         </Section>
@@ -3200,10 +3275,10 @@ function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekTy
   const MainIcon = isExam ? DocumentTextIcon : ClipboardDocumentListIcon;
 
   return (
-    <div className="space-y-6 text-sm">
-      <div className={`flex items-center gap-3 px-4 py-2 ${isExam ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'} border w-fit`}>
-        <MainIcon className={`w-4 h-4 ${color}`} />
-        <span className={`text-[10px] ${color} font-black uppercase tracking-widest`}>
+    <div className="space-y-6 text-sm min-w-0">
+      <div className={`inline-flex items-center gap-3 px-4 py-2 ${isExam ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'} border max-w-full overflow-hidden`}>
+        <MainIcon className={`w-4 h-4 ${color} shrink-0`} />
+        <span className={`text-[10px] ${color} font-black uppercase tracking-widest truncate`}>
           {isExam ? 'Final Examination' : 'Term Assessment'} · {plan.duration_minutes} Minutes
         </span>
       </div>
