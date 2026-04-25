@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
     const caller = await requireAuth();
     if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const url = new URL(request.url);
+    const lessonPlanIdFilter = url.searchParams.get('lesson_plan_id');
+
     const admin = adminClient();
     let query = admin
       .from('assignments')
@@ -62,6 +65,10 @@ export async function GET(request: NextRequest) {
         assignment_submissions ( id, status, grade, portal_user_id )
       `)
       .order('due_date', { ascending: true });
+
+    if (lessonPlanIdFilter) {
+      query = query.filter('metadata->>lesson_plan_id', 'eq', lessonPlanIdFilter) as any;
+    }
 
     if (caller.role === 'admin') {
       // No filter — see all
