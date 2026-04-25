@@ -41,7 +41,6 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/parents',
   '/dashboard/students',
   '/dashboard/approvals',
-  '/dashboard/curriculum',
   '/dashboard/lesson-plans',
   '/dashboard/lessons/add',
   '/dashboard/analytics',
@@ -57,7 +56,6 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/bulk',
   '/dashboard/payments/bulk',
   '/dashboard/admin',
-  '/dashboard/inbox',
   '/dashboard/whatsapp',
   '/dashboard/progression',
   '/dashboard/cbt/new',
@@ -183,6 +181,8 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/notifications',
   '/dashboard/newsletters',
   '/dashboard/consent-forms',
+  '/dashboard/inbox',
+  '/dashboard/curriculum',
 ];
 
 const PARENT_ALLOWED_EXACT = new Set(['/dashboard']);
