@@ -130,7 +130,7 @@ function LoginContent() {
           <div className="lg:col-span-5 flex flex-col justify-center py-2 sm:py-4 lg:py-12 text-center lg:text-left">
             <Link href="/" className="flex items-center gap-3 sm:gap-4 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
               {/* Logo with white background — works in both light and dark */}
-              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center border border-border/40 shadow-lg dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] group-hover:shadow-xl transition-all">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
                 <Image src="/images/logo.png" alt="Rillcod" width={44} height={44} className="object-contain w-[75%] h-[75%]" />
               </div>
               <div className="leading-tight">
