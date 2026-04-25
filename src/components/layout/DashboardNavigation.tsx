@@ -86,8 +86,8 @@ export default function DashboardNavigation() {
   if (isMinimal) return null;
 
   if (!profile) return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-[#121212] border-b border-white/5 h-14 flex items-center justify-between px-4 sm:px-6">
-      <span className="text-white/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
+    <div className="fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-foreground/10 h-14 flex items-center justify-between px-4 sm:px-6">
+      <span className="text-sidebar-foreground/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
       <div className="flex items-center gap-3">
         <a href="/login"
           className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
@@ -397,7 +397,7 @@ export default function DashboardNavigation() {
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
           <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
-            Rillcod <span className="text-primary">Technologies</span>
+            Rillcod<span className="text-brand-red-600 not-italic">.</span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">

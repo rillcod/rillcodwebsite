@@ -120,7 +120,7 @@ export default function PortalAccess({
   ]
 
   return (
-    <div className="min-h-screen bg-background dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
@@ -149,13 +149,13 @@ export default function PortalAccess({
                   onClick={() => setRole(option.value)}
                   className={`relative p-4 border rounded-lg transition-all duration-200 ${role === option.value
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 ring-opacity-50'
-                      : 'border-border dark:border-gray-600 hover:border-border/80 dark:hover:border-gray-500'
+                      : 'border-border border-border hover:border-border/80 hover:border-primary/50'
                     }`}
                 >
                   <div className="flex items-start">
                     <div className={`p-2 rounded-lg mr-3 ${role === option.value
                         ? 'bg-blue-600 text-white'
-                        : 'bg-muted dark:bg-gray-700 text-muted-foreground dark:text-muted-foreground/70'
+                        : 'bg-muted text-muted-foreground'
                       }`}>
                       <Icon className="h-5 w-5" />
                     </div>
@@ -192,7 +192,7 @@ export default function PortalAccess({
                   required={isSignUp}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full px-3 py-2 border border-border border-border rounded-md shadow-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-primary focus:border-primary "
                   placeholder="Enter your full name"
                 />
               </div>
@@ -210,7 +210,7 @@ export default function PortalAccess({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full px-3 py-2 border border-border border-border rounded-md shadow-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-primary focus:border-primary "
                 placeholder="Enter your email"
               />
             </div>
@@ -228,7 +228,7 @@ export default function PortalAccess({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-3 py-2 pr-10 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="block w-full px-3 py-2 pr-10 border border-border border-border rounded-md shadow-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-primary focus:border-primary "
                   placeholder="Enter your password"
                 />
                 <button

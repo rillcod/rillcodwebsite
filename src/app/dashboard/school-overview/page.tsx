@@ -37,7 +37,7 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: any; label: string; value: string | number; sub?: string; color: string;
 }) {
   return (
-    <div className="bg-[#0d1526] border border-border rounded-none p-5 flex items-center gap-4">
+    <div className="bg-card border border-border rounded-none p-5 flex items-center gap-4">
       <div className={`w-12 h-12 rounded-none flex items-center justify-center flex-shrink-0 ${color}`}>
         <Icon className="w-6 h-6" />
       </div>
@@ -292,7 +292,7 @@ export default function SchoolOverviewPage() {
           </Link>
           <button
             onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-sm font-bold rounded-none transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-destructive hover:opacity-90 text-foreground text-sm font-bold rounded-none transition-colors"
           >
             <DocumentArrowDownIcon className="w-4 h-4" /> Export PDF
           </button>
@@ -310,7 +310,7 @@ export default function SchoolOverviewPage() {
       {/* Analytics row — recharts charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Score Distribution Donut */}
-        <div className="bg-[#0d1526] border border-border p-5 space-y-4">
+        <div className="bg-card border border-border p-5 space-y-4">
           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Score Distribution</p>
           <RechartDonut
             data={[
@@ -328,7 +328,7 @@ export default function SchoolOverviewPage() {
         </div>
 
         {/* Attendance Distribution Donut */}
-        <div className="bg-[#0d1526] border border-border p-5 space-y-4">
+        <div className="bg-card border border-border p-5 space-y-4">
           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Attendance Distribution</p>
           <RechartDonut
             data={[
@@ -346,7 +346,7 @@ export default function SchoolOverviewPage() {
         </div>
 
         {/* Top Performers */}
-        <div className="bg-[#0d1526] border border-border p-5">
+        <div className="bg-card border border-border p-5">
           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4">Top Performers</p>
           {students.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-4">No data</p>
@@ -357,7 +357,7 @@ export default function SchoolOverviewPage() {
                   <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
                     i === 0 ? 'text-yellow-400' : i === 1 ? 'text-muted-foreground/50' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
                   }`}>{i + 1}</span>
-                  <div className="w-7 h-7 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -376,7 +376,7 @@ export default function SchoolOverviewPage() {
 
       {/* Class Performance — horizontal bar chart */}
       {filtered.length > 0 && (
-        <div className="bg-[#0d1526] border border-border p-5 mb-6">
+        <div className="bg-card border border-border p-5 mb-6">
           <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest mb-4">Class Performance Overview</h2>
           <HorizontalBarChart
             data={filtered.slice(0, 15).map(s => ({
@@ -390,7 +390,7 @@ export default function SchoolOverviewPage() {
       )}
 
       {/* Student Table */}
-      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+      <div className="bg-card border border-border rounded-none overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-border flex-wrap gap-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Students</h2>
           <div className="flex gap-2 flex-wrap">
@@ -429,7 +429,7 @@ export default function SchoolOverviewPage() {
                 <tr key={s.id} className="border-b border-border hover:bg-white/3 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-destructive flex items-center justify-center flex-shrink-0">
                         <span className="text-foreground text-xs font-black">{s.full_name?.charAt(0) ?? '?'}</span>
                       </div>
                       <div>

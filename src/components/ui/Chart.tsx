@@ -488,7 +488,7 @@ export default function Chart({
       {data.map((point, index) => (
         <div key={index} className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground dark:text-white">
+            <span className="text-sm font-medium text-foreground text-foreground">
               {point.label}
             </span>
             <div className="flex items-center space-x-2">
@@ -507,7 +507,7 @@ export default function Chart({
               )}
             </div>
           </div>
-          <div className="w-full bg-muted dark:bg-gray-700 rounded-full h-2">
+          <div className="w-full bg-muted rounded-full h-2">
             <div
               className={`${getBarColor(index, point.color)} h-2 rounded-full transition-all duration-300`}
               style={{ width: `${point.value}%` }}
@@ -559,7 +559,7 @@ export default function Chart({
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-2xl font-bold text-foreground dark:text-white">
+            <div className="text-2xl font-bold text-foreground text-foreground">
               {total}
             </div>
             <div className="text-sm text-muted-foreground dark:text-muted-foreground/70">
@@ -587,9 +587,9 @@ export default function Chart({
   };
 
   return (
-    <div className={`bg-card dark:bg-gray-800 rounded-xl shadow-sm border border-border dark:border-gray-700 p-6 ${className}`}>
+    <div className={`bg-card rounded-xl shadow-sm border border-border p-6 ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground dark:text-white">{title}</h3>
+        <h3 className="text-lg font-semibold text-foreground text-foreground">{title}</h3>
         <div className="flex items-center space-x-2">
           {type === 'bar' && <ChartBarIcon className="h-5 w-5 text-muted-foreground/70" />}
           {type === 'line' && <ArrowTrendingUpIcon className="h-5 w-5 text-muted-foreground/70" />}
@@ -606,7 +606,7 @@ export default function Chart({
             <div key={index} className="text-center">
               <div className="flex items-center justify-center space-x-1">
                 <div className={`w-3 h-3 rounded-full ${getBarColor(index, point.color)}`} />
-                <span className="font-medium text-foreground dark:text-white">
+                <span className="font-medium text-foreground text-foreground">
                   {point.label}
                 </span>
               </div>

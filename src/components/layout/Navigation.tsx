@@ -89,15 +89,15 @@ const Navigation = () => {
 
             {/* ── Brand ── */}
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl group-hover:scale-105 transition-all dark:bg-white dark:shadow-md dark:border dark:border-white/20">
-                <Image src="/images/logo.png" alt="Rillcod Technologies" width={36} height={36} className="object-contain" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-xl overflow-hidden group-hover:scale-105 transition-all dark:bg-white shrink-0">
+                <Image src="/images/logo.png" alt="Rillcod Technologies" width={36} height={36} className="w-[85%] h-[85%] object-contain" />
               </div>
               <div className="text-foreground leading-none">
                 <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic">
                    RILLCOD<span className="text-brand-red-600 not-italic">.</span>
                 </span>
-                <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic text-brand-red-600">
-                  TECHNOLOGIES
+                <span className="text-xs sm:text-sm font-black uppercase tracking-[0.15em] block text-muted-foreground">
+                  Technologies
                 </span>
               </div>
             </Link>

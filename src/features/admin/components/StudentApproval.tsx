@@ -40,7 +40,7 @@ interface StudentCardProps {
 function StudentCard({ student, onApprove, onReject, isProcessing }: StudentCardProps) {
     const isPending = !student.is_active && !student.is_deleted;
     return (
-        <div className="p-6 bg-white border-b-2 border-black last:border-b-0 hover:bg-gray-50 transition-colors">
+        <div className="p-6 bg-white border-b-2 border-black last:border-b-0 hover:bg-muted transition-colors">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                     {/* Header */}
@@ -61,7 +61,7 @@ function StudentCard({ student, onApprove, onReject, isProcessing }: StudentCard
                             { icon: PhoneIcon, text: student.parent_phone },
                             { icon: EnvelopeIcon, text: student.parent_email },
                         ].map(({ icon: Icon, text }, i) => (
-                            <div key={i} className="flex items-center gap-2 border-2 border-black/10 bg-gray-50 px-3 py-2">
+                            <div key={i} className="flex items-center gap-2 border-2 border-black/10 bg-muted px-3 py-2">
                                 <Icon className="w-4 h-4 flex-shrink-0 text-gray-400" />
                                 <span className="font-bold text-black truncate">{text}</span>
                             </div>
@@ -69,7 +69,7 @@ function StudentCard({ student, onApprove, onReject, isProcessing }: StudentCard
                     </div>
 
                     {/* Extras */}
-                    <div className="mt-4 border-l-4 border-[#FF914D] pl-4 py-2 bg-gray-50 text-sm space-y-1">
+                    <div className="mt-4 border-l-4 border-primary pl-4 py-2 bg-muted text-sm space-y-1">
                         <p><span className="font-black uppercase tracking-tight">Course:</span>{' '}<span className="text-gray-700">{student.course_interest}</span></p>
                         <p><span className="font-black uppercase tracking-tight">Schedule:</span>{' '}<span className="text-gray-700">{student.preferred_schedule}</span></p>
                         <p><span className="font-black uppercase tracking-tight">Heard via:</span>{' '}<span className="text-gray-700">{student.hear_about_us}</span></p>
@@ -109,7 +109,7 @@ export function StudentApproval() {
     if (loadingState === 'loading' || loadingState === 'idle') {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="w-14 h-14 border-4 border-black border-t-[#FF914D] animate-spin" />
+                <div className="w-14 h-14 border-4 border-black border-t-primary animate-spin" />
             </div>
         );
     }
@@ -119,7 +119,7 @@ export function StudentApproval() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] bg-white p-6">
                 <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-[#FF914D] mb-1">Admin</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-primary mb-1">Admin</p>
                     <h2 className="text-2xl font-extrabold text-black uppercase tracking-tight">Student Approvals</h2>
                     <p className="text-gray-500 text-sm mt-1">Review and approve pending student registrations</p>
                 </div>
@@ -142,13 +142,13 @@ export function StudentApproval() {
             <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
                 {/* Table header */}
                 <div className="px-6 py-4 bg-black border-b-2 border-black">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-[#FF914D]">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-primary">
                         Prospective Students ({students.length})
                     </h3>
                 </div>
 
                 {students.length === 0 ? (
-                    <div className="p-16 text-center bg-gray-50">
+                    <div className="p-16 text-center bg-muted">
                         <UserIcon className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                         <h3 className="text-lg font-extrabold text-black uppercase">No pending students</h3>
                         <p className="text-gray-500 text-sm mt-2">New registrations will appear here for review.</p>

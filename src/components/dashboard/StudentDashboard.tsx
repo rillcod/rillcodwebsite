@@ -234,7 +234,7 @@ export default function StudentDashboard() {
         className="group flex items-center gap-5 p-5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
         <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">🚀</div>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
+          <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
           <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
@@ -279,7 +279,7 @@ export default function StudentDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
-                 <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-orange-950/20">
+                 <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
                     Resume Now
                  </div>
                  <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
@@ -415,7 +415,7 @@ export default function StudentDashboard() {
               <SparklesIcon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1">What You&apos;ll Learn Next</p>
+              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em] mb-1">What You&apos;ll Learn Next</p>
               {aiHook ? (
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-foreground uppercase tracking-tight">{aiHook.hook_title}</h4>
@@ -471,7 +471,7 @@ export default function StudentDashboard() {
           🚀
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
+          <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-widest mb-0.5">Student Hub</p>
           <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
@@ -483,7 +483,7 @@ export default function StudentDashboard() {
       <div className="bg-card border border-border p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
           <div>
-            <p className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.35em]">Your Learning Tools</p>
+            <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.35em]">Your Learning Tools</p>
             <h3 className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">Everything in one place</h3>
           </div>
           <p className="text-xs text-muted-foreground font-medium max-w-xl">

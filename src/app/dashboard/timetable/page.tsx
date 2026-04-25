@@ -77,7 +77,7 @@ function SlotMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-7 z-50 w-44 bg-[#1a1a2e] border border-border rounded-none shadow-2xl overflow-hidden">
+        <div className="absolute right-0 top-7 z-50 w-44 bg-card border border-border rounded-none shadow-2xl overflow-hidden">
           {sub === null && (
             <>
               <button

@@ -186,7 +186,7 @@ const ProgramExplorer: React.FC = () => {
                     </div>
                   </div>
 
-                  <p className="text-lg md:text-xl text-muted-foreground font-medium leading-relaxed mb-12 max-w-2xl border-l border-border pl-8">
+                  <p className="text-lg md:text-xl text-muted-foreground font-medium leading-relaxed mb-12 max-w-2xl border-l-2 border-brand-red-600 pl-8">
                     {activeProgram.description}
                   </p>
 
@@ -202,7 +202,7 @@ const ProgramExplorer: React.FC = () => {
                   <div className="mt-auto flex flex-col sm:flex-row items-center gap-6">
                     <a
                       href="/student-registration"
-                      className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-primary transition-all shadow-xl shadow-orange-950/20"
+                      className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-primary transition-all shadow-xl shadow-primary/20"
                     >
                       Enroll Child
                       <ArrowRight className="w-5 h-5" />

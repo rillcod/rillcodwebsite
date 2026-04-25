@@ -346,7 +346,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         )}
 
         {/* ── Premium AI Assignment Engine ── */}
-        <div className="relative bg-[#0d0d1a] border border-white/10 overflow-hidden group">
+        <div className="relative bg-card border border-white/10 overflow-hidden group">
           {/* Ambient glow */}
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000 pointer-events-none" />
 

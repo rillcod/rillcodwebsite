@@ -19,18 +19,18 @@ import {
 } from 'lucide-react'
 
 const achievements = [
-  { id: 1, title: 'National Coding Competition', description: 'Students from Lagos State Model College won first place in the 2024 National Youth Coding Challenge.', icon: Code, badge: '1st Place', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-  { id: 2, title: 'Robotics Innovation Award', description: 'Young inventors from Abuja created a solar-powered irrigation system for local farmers.', icon: Cpu, badge: 'Innovation', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  { id: 3, title: 'Science Fair Excellence', description: 'Port Harcourt Academy students presented groundbreaking environmental research.', icon: Beaker, badge: 'Excellence', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  { id: 4, title: 'Mobile App Development', description: 'Kids created apps solving local community problems like waste management and navigation.', icon: Monitor, badge: 'Community', color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-  { id: 5, title: '3D Printing Workshop', description: 'Students designed and printed prototypes for local businesses — hands-on engineering.', icon: Rocket, badge: 'Skills Dev', color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-  { id: 6, title: 'AI & Smart Systems', description: 'Introduction to artificial intelligence with practical, real-world applications.', icon: Lightbulb, badge: 'Future Ready', color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
+  { id: 1, title: 'National Coding Competition', description: 'Rillcod students took first place in the 2024 National Youth Coding Challenge — representing the best of Nigerian tech talent.', icon: Code, badge: '1st Place', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+  { id: 2, title: 'Robotics Innovation Award', description: 'Our young engineers built a solar-powered irrigation control system, winning the regional hardware innovation prize.', icon: Cpu, badge: 'Innovation', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  { id: 3, title: 'Science Fair Excellence', description: 'Rillcod students presented groundbreaking environmental monitoring research at the inter-school science exhibition.', icon: Beaker, badge: 'Excellence', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { id: 4, title: 'Mobile App Development', description: 'Students shipped real mobile apps solving local community problems — from school alerts to waste management tracking.', icon: Monitor, badge: 'Community', color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+  { id: 5, title: '3D Printing Workshop', description: 'Students designed and printed functional prototypes for local small businesses — end-to-end hardware engineering.', icon: Rocket, badge: 'Skills Dev', color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+  { id: 6, title: 'AI & Smart Systems', description: 'Hands-on introduction to artificial intelligence — students trained their own models and built smart, real-world applications.', icon: Lightbulb, badge: 'Future Ready', color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
 ]
 
 const testimonials = [
-  { id: 1, name: 'Amina Hassan', age: 14, school: 'Lagos Model College', quote: 'Coding has opened up a whole new world for me. I can now create apps that help my community!', achievement: 'National Winner' },
-  { id: 2, name: 'Chukwu Okoro', age: 13, school: 'Abuja International', quote: 'Building robots taught me that anything is possible with determination and creativity.', achievement: 'Robotics Lead' },
-  { id: 3, name: 'Fatima Adebayo', age: 15, school: 'PH Academy', quote: 'STEM education has given me the confidence to pursue my dreams in technology.', achievement: 'Science Fellow' },
+  { id: 1, name: 'Amina Hassan', age: 14, school: 'Rillcod STEM Academy', quote: 'Coding has opened up a whole new world for me. I can now create apps that help my community!', achievement: 'National Winner' },
+  { id: 2, name: 'Chukwu Okoro', age: 13, school: 'Rillcod Partner School', quote: 'Building robots taught me that anything is possible with determination and creativity.', achievement: 'Robotics Lead' },
+  { id: 3, name: 'Fatima Adebayo', age: 15, school: 'Rillcod Partner School', quote: 'STEM education has given me the confidence to pursue my dreams in technology.', achievement: 'Science Fellow' },
 ]
 
 export default function NigerianSTEMShowcase() {
@@ -55,7 +55,7 @@ export default function NigerianSTEMShowcase() {
               <span className="text-foreground/40 italic">GLOBAL WAVES.</span>
             </h3>
           </div>
-          <p className="text-muted-foreground text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-primary pl-6">
+          <p className="text-muted-foreground text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-brand-red-600 pl-6">
              Our approach isn't just about code — it's about producing excellent talent right here in Nigeria.
           </p>
         </div>

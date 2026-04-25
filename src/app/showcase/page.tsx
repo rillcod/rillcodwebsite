@@ -46,7 +46,7 @@ export default function ShowcasePage() {
               </div>
               <div className="p-6 flex flex-col flex-grow">
                 <h2 className="text-lg font-bold text-gray-800 mb-1">{project.title}</h2>
-                <div className="text-sm text-[#FF914D] font-semibold mb-2">By {project.student}</div>
+                <div className="text-sm text-primary font-semibold mb-2">By {project.student}</div>
                 <p className="text-gray-600 mb-4 flex-grow">{project.description}</p>
               </div>
             </div>

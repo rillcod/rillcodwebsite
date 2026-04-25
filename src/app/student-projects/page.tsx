@@ -197,7 +197,7 @@ export default function StudentProjectsPage() {
                 key={index}
                 className="flex items-center space-x-2 bg-white px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-shadow"
               >
-                <category.icon className="w-5 h-5 text-[#FF914D]" />
+                <category.icon className="w-5 h-5 text-primary" />
                 <span className="font-medium text-gray-700">{category.name}</span>
                 <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">
                   {category.count}
@@ -223,7 +223,7 @@ export default function StudentProjectsPage() {
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover"
                   />
-                  <div className="absolute top-4 left-4 bg-[#FF914D] text-white px-3 py-1 rounded-full text-sm font-medium">
+                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
                     {project.type}
                   </div>
                   <div className="absolute top-4 right-4 bg-white text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
@@ -294,13 +294,13 @@ export default function StudentProjectsPage() {
                   <div className="flex space-x-2">
                     <a
                       href={project.demoUrl}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-[#FF914D] text-white rounded-lg hover:bg-[#e67e3d] transition-colors text-sm font-medium"
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm font-medium"
                     >
                       View Demo
                     </a>
                     <a
                       href={project.codeUrl}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-[#FF914D] text-[#FF914D] rounded-lg hover:bg-[#FF914D] hover:text-white transition-colors text-sm font-medium"
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors text-sm font-medium"
                     >
                       View Code
                     </a>

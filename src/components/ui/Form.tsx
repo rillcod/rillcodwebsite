@@ -34,13 +34,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={`
-              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-              dark:bg-gray-700 dark:text-white transition-all duration-200
+              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary 
+              bg-background text-foreground transition-all duration-200
               ${leftIcon ? 'pl-10' : ''}
               ${rightIcon ? 'pr-10' : ''}
               ${error 
                 ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-                : 'border-border dark:border-gray-600'
+                : 'border-border border-border'
               }
               ${className}
             `}
@@ -91,11 +91,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={`
-            w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-            dark:bg-gray-700 dark:text-white transition-all duration-200 resize-vertical
+            w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary 
+            bg-background text-foreground transition-all duration-200 resize-vertical
             ${error 
               ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-              : 'border-border dark:border-gray-600'
+              : 'border-border border-border'
             }
             ${className}
           `}
@@ -139,11 +139,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={`
-            w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
-            dark:bg-gray-700 dark:text-white transition-all duration-200
+            w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary 
+            bg-background text-foreground transition-all duration-200
             ${error 
               ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-              : 'border-border dark:border-gray-600'
+              : 'border-border border-border'
             }
             ${className}
           `}
@@ -193,7 +193,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             ref={ref}
             type="checkbox"
             className={`
-              h-4 w-4 text-blue-600 focus:ring-blue-500 border-border dark:border-gray-600 
+              h-4 w-4 text-primary focus:ring-primary border-border border-border 
               rounded transition-all duration-200
               ${error ? 'border-red-300 dark:border-red-600' : ''}
               ${className}
@@ -240,7 +240,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
             ref={ref}
             type="radio"
             className={`
-              h-4 w-4 text-blue-600 focus:ring-blue-500 border-border dark:border-gray-600 
+              h-4 w-4 text-primary focus:ring-primary border-border border-border 
               transition-all duration-200
               ${error ? 'border-red-300 dark:border-red-600' : ''}
               ${className}
