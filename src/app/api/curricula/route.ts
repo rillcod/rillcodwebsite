@@ -178,39 +178,38 @@ export async function GET(req: NextRequest) {
 
   // ─── Learner scope: build an allow-list of course_ids ───
   // Student → their enrolments. Parent → their children's enrolments.
-  // School  → kept on the original broad scope (all courses in their school
-  //           + global courses with is_visible_to_school=true), matching
-  //           the SCHOOL_CURRICULUM_SYSTEM.md role matrix.
+  // If no enrolment records exist, fall back to school-scoped visible
+  // curricula (is_visible_to_school=true + profile.school_id) so learners
+  // can browse published syllabi even without a formal enrolment row.
   let learnerCourseIds: string[] | null = null;
   if (role === 'student') {
     const { data: progs } = await supabase
       .from('student_level_enrollments')
       .select('course_id')
       .eq('student_id', user.id);
-    learnerCourseIds = Array.from(
+    const ids = Array.from(
       new Set(((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])),
     );
-    if (learnerCourseIds.length === 0) {
-      return NextResponse.json({ data: [] });
-    }
+    if (ids.length > 0) learnerCourseIds = ids;
+    // No enrollments → fall through to school-scoped query below
   } else if (role === 'parent') {
-    // Parents see curricula for any course their linked children are enrolled in.
+    // Parents see curricula for courses their linked children are enrolled in.
     const { data: children } = await supabase
       .from('students')
       .select('user_id')
       .eq('parent_email', user.email ?? '');
     const childIds = (children ?? []).map((c) => c.user_id).filter(Boolean) as string[];
-    if (childIds.length === 0) return NextResponse.json({ data: [] });
-    const { data: progs } = await supabase
-      .from('student_level_enrollments')
-      .select('course_id')
-      .in('student_id', childIds);
-    learnerCourseIds = Array.from(
-      new Set(((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])),
-    );
-    if (learnerCourseIds.length === 0) {
-      return NextResponse.json({ data: [] });
+    if (childIds.length > 0) {
+      const { data: progs } = await supabase
+        .from('student_level_enrollments')
+        .select('course_id')
+        .in('student_id', childIds);
+      const ids = Array.from(
+        new Set(((progs ?? []).map((r) => r.course_id).filter(Boolean) as string[])),
+      );
+      if (ids.length > 0) learnerCourseIds = ids;
     }
+    // No linked children or no enrollments → fall through to school-scoped query below
   }
 
   let query = supabase
@@ -245,6 +244,9 @@ export async function GET(req: NextRequest) {
   if (role === 'student' || role === 'parent') {
     if (learnerCourseIds && learnerCourseIds.length > 0) {
       query = query.in('course_id', learnerCourseIds);
+    } else if (profile?.school_id) {
+      // No enrollments: scope to their school's published curricula
+      query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
     }
   }
 

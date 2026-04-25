@@ -228,10 +228,31 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
 export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
-  if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!user || !['admin', 'teacher'].includes(user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const db = createAdminClient();
+
+  const { data: existingPlan, error: existingErr } = await db
+    .from('lesson_plans')
+    .select('id, school_id, created_by, lessons(school_id, created_by)')
+    .eq('id', id)
+    .maybeSingle();
+  if (existingErr || !existingPlan) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (user.role !== 'admin') {
+    const planSchoolId = (existingPlan as any)?.lessons?.school_id ?? (existingPlan as any)?.school_id ?? null;
+    const planCreatedBy = (existingPlan as any)?.lessons?.created_by ?? (existingPlan as any)?.created_by ?? null;
+    const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
+    const allowed = canAccessLessonScope(
+      { id: user.id, role: user.role, school_id: user.school_id },
+      { school_id: planSchoolId, created_by: planCreatedBy },
+      teacherSchoolIds,
+    );
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { error } = await db.from('lesson_plans').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
