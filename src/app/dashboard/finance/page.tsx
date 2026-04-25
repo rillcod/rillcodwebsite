@@ -10,11 +10,11 @@ import { toast } from 'sonner';
 import {
   BanknotesIcon, CreditCardIcon, ArrowPathIcon, PlusIcon, PencilIcon,
   TrashIcon, XMarkIcon, CheckCircleIcon, ClockIcon, BuildingOfficeIcon,
-  ShieldCheckIcon, MagnifyingGlassIcon, ArrowDownTrayIcon,
+  ShieldCheckIcon, MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowUpTrayIcon,
   BoltIcon, BellIcon, EnvelopeIcon, InformationCircleIcon, CheckBadgeIcon,
   ExclamationTriangleIcon, CalendarDaysIcon, ChevronDownIcon, ChevronUpIcon,
   EyeIcon, ArrowTrendingUpIcon, ArrowRightIcon, ReceiptPercentIcon,
-  DocumentArrowDownIcon,
+  DocumentArrowDownIcon, PaperClipIcon,
 } from '@/lib/icons';
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
@@ -311,6 +311,61 @@ function pickTab(urlTab: string | null, role: PortalRole, isAdmin: boolean): Tab
 // ══════════════════════════════════════════════════════════════════════════════
 // OverviewTab
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Invoice Proof Upload (school role) ───────────────────────────────────────
+function InvoiceProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUploaded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    if (note.trim()) fd.append('note', note.trim());
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? 'Upload failed');
+      toast.success('Proof uploaded — admin will verify within 24 hours.');
+      setOpen(false);
+      setNote('');
+      onUploaded();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg transition-all">
+      <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Upload Proof
+    </button>
+  );
+
+  return (
+    <div className="mt-2 border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-2">
+      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Upload Payment Evidence</p>
+      <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
+        placeholder="Optional: bank reference, transfer narration, or note for admin…"
+        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-orange-500/50 resize-none" />
+      <div className="flex items-center gap-2">
+        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+          <PaperClipIcon className="w-3.5 h-3.5" />
+          {uploading ? 'Uploading…' : 'Choose File'}
+          <input type="file" accept="image/*,.pdf" onChange={handleFile} disabled={uploading} className="hidden" />
+        </label>
+        <button type="button" onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">Accepted: JPG, PNG, PDF — max 10 MB</p>
+    </div>
+  );
+}
+
 function OverviewTab({ profile }: { profile: any }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -477,22 +532,43 @@ function OverviewTab({ profile }: { profile: any }) {
                     : baseStatus;
                   const canMarkPaid = canRecordManual && !isSchoolView && ['sent', 'overdue'].includes(inv.status);
                   return (
-                    <div key={inv.id} className="flex items-center justify-between px-5 py-3 gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
-                        <p className="text-[11px] text-muted-foreground">Due {relDate(inv.due_date)}</p>
+                    <div key={inv.id} className="px-5 py-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {(inv as any).invoice_number && <span className="font-mono mr-2">{(inv as any).invoice_number}</span>}
+                            Due {relDate(inv.due_date)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge cls={displayStatus.cls} label={displayStatus.label} />
+                          {canMarkPaid && (
+                            <button
+                              onClick={() => markInvoicePaid(inv.id)}
+                              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
+                            >
+                              <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge cls={displayStatus.cls} label={displayStatus.label} />
-                        {canMarkPaid && (
-                          <button
-                            onClick={() => markInvoicePaid(inv.id)}
-                            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wide rounded-lg border border-emerald-500/20 transition-colors"
-                          >
-                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
-                          </button>
-                        )}
-                      </div>
+                      {/* School: Pay + Proof Upload on every outstanding invoice */}
+                      {isSchoolView && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            <a
+                              href={`/api/invoices/${inv.id}/pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-lg transition-all"
+                            >
+                              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download PDF
+                            </a>
+                          </div>
+                          <InvoiceProofUpload invoiceId={inv.id} onUploaded={load} />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
