@@ -70,7 +70,7 @@ const Navigation = () => {
 
   const navLinkCls = (href: string) =>
     `flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-none ${isActive(href)
-      ? 'text-orange-500 bg-muted shadow-sm'
+      ? 'text-orange-500 bg-muted shadow-sm border-l-2 border-l-brand-red-600'
       : 'text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm'
     }`;
 
@@ -89,14 +89,14 @@ const Navigation = () => {
 
             {/* ── Brand ── */}
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-card border border-border flex items-center justify-center rounded-none group-hover:scale-105 transition-all ring-1 ring-border ring-offset-2 ring-offset-background">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border border-border/40 flex items-center justify-center rounded-xl group-hover:scale-105 transition-all shadow-md">
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={36} height={36} className="object-contain" />
               </div>
               <div className="text-foreground leading-none">
                 <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic">
-                   RILLCOD<span className="text-orange-500 not-italic">.</span>
+                   RILLCOD<span className="text-brand-red-600 not-italic">.</span>
                 </span>
-                <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic text-orange-500">
+                <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic text-brand-red-600">
                   TECHNOLOGIES
                 </span>
               </div>
@@ -113,11 +113,11 @@ const Navigation = () => {
               {/* Secure Dropdown */}
               <div className="relative group ml-4">
                  <button className="flex items-center gap-3 px-6 py-2.5 bg-card shadow-sm border border-border text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted transition-all rounded-none">
-                    Protocol <ChevronDownIcon className="w-3 h-3 group-hover:rotate-180 transition-transform" />
+                    More <ChevronDownIcon className="w-3 h-3 group-hover:rotate-180 transition-transform" />
                  </button>
                  <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-none shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2">
                     {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
-                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-muted shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-orange-500">
+                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-muted shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-brand-red-600">
                          <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{label}</span>
                          <span className="text-[8px] text-muted-foreground font-bold uppercase mt-1">{sub}</span>
                       </Link>

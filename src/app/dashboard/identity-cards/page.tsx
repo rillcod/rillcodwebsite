@@ -377,54 +377,57 @@ export default function IdentityCardsPage() {
 
   const CardGrid = ({ list }: { list: CardRecord[] }) => (
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-      {list.map((r) => (
-        <article key={r.id} className="bg-card border border-border rounded-none overflow-hidden group hover:border-orange-500/30 transition-all">
-          <div className="h-1.5" style={{ backgroundColor: config.accentColor }} />
-          <div className="p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-black leading-tight line-clamp-2">{r.name}</h3>
-              <span className="text-[10px] px-2 py-1 border border-border bg-background uppercase tracking-widest font-black text-muted-foreground whitespace-nowrap">
-                {r.roleLabel}
-              </span>
-            </div>
-
-            <div className="text-xs text-muted-foreground space-y-1.5">
-              <p className="truncate"><span className="font-black text-foreground/70">Email:</span> {r.email}</p>
-              <p className="truncate"><span className="font-black text-foreground/70">School:</span> {r.school}</p>
-              {r.sectionClass && (
-                <p className="truncate">
-                  <span className="font-black text-foreground/70">Class:</span>{' '}
-                  <span
-                    className="inline-block px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest border"
-                    style={{ color: config.accentColor, borderColor: `${config.accentColor}40`, background: `${config.accentColor}12` }}
-                  >
-                    {r.sectionClass}
-                  </span>
-                </p>
-              )}
-              <p className="truncate"><span className="font-black text-foreground/70">Tag:</span> {r.badge}</p>
-            </div>
-
-            <div className="pt-1 flex items-center gap-2">
-              <label className="inline-flex items-center gap-2 px-2 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground cursor-pointer hover:bg-muted">
+      {list.map((r) => {
+        const isSelected = selectedIds.has(r.id);
+        return (
+          <article
+            key={r.id}
+            className={`bg-card border rounded-none overflow-hidden transition-all cursor-pointer ${
+              isSelected ? 'border-orange-500/60 ring-1 ring-orange-500/30' : 'border-border hover:border-orange-500/25'
+            }`}
+            onClick={() => toggleSelected(r.id)}
+          >
+            <div className="h-1" style={{ backgroundColor: config.accentColor }} />
+            <div className="p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-xs font-black text-white"
+                  style={{ backgroundColor: config.accentColor }}
+                >
+                  {r.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-black leading-tight line-clamp-1">{r.name}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest mt-0.5" style={{ color: config.accentColor }}>
+                    {r.roleLabel}
+                    {r.sectionClass ? ` · ${r.sectionClass}` : ''}
+                  </p>
+                </div>
                 <input
                   type="checkbox"
-                  checked={selectedIds.has(r.id)}
+                  checked={isSelected}
                   onChange={() => toggleSelected(r.id)}
-                  className="accent-orange-600"
+                  onClick={(e) => e.stopPropagation()}
+                  className="accent-orange-600 w-4 h-4 flex-shrink-0 mt-0.5"
                 />
-                Select
-              </label>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground space-y-1 border-t border-border pt-3">
+                <p className="truncate">{r.email}</p>
+                <p className="truncate font-medium text-foreground/70">{r.school}</p>
+              </div>
+
               <button
-                onClick={() => printCards([r], `${r.name} access card`)}
-                className="flex-1 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all inline-flex items-center justify-center gap-2"
+                onClick={(e) => { e.stopPropagation(); printCards([r], `${r.name} access card`); }}
+                className="w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white rounded-none transition-all inline-flex items-center justify-center gap-2 hover:opacity-90"
+                style={{ backgroundColor: config.accentColor }}
               >
-                <CreditCardIcon className="w-4 h-4" /> Print Card
+                <CreditCardIcon className="w-3.5 h-3.5" /> Print Card
               </button>
             </div>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 
@@ -433,65 +436,132 @@ export default function IdentityCardsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
 
         {/* ── Header ── */}
-        <div className="relative overflow-hidden border border-border bg-card rounded-none p-5 sm:p-7">
-          <div className="absolute -right-16 -top-16 w-40 h-40 bg-orange-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute -left-12 -bottom-12 w-36 h-36 bg-blue-500/10 blur-3xl pointer-events-none" />
-          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-400 mb-2">Card Studio</p>
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight">Card Studio</h1>
-              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-                Issue access cards for students and parents, and print in bulk from one place.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {canDesign && (
+        <div className="relative overflow-hidden border border-border bg-card rounded-none">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -right-24 -top-20 w-56 h-56 rounded-full bg-orange-500/8 blur-[80px]" />
+            <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-primary/6 blur-[70px]" />
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
+          </div>
+          <div className="relative p-5 sm:p-7">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1 h-5 bg-orange-500 flex-shrink-0" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Identity Management</p>
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Card Studio</h1>
+                  <p className="text-muted-foreground mt-1.5 text-sm max-w-2xl leading-relaxed">
+                    Design and issue official access cards for students, parents, and teachers. Search, filter by class or school, select individual records or entire classes, and bulk-print directly to PDF — all from one place.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <UserGroupIcon className="w-3.5 h-3.5 text-orange-400" />
+                    Students
+                  </span>
+                  <span className="text-border">·</span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <UserPlusIcon className="w-3.5 h-3.5 text-orange-400" />
+                    Parents
+                  </span>
+                  {canViewTeacherCards && (
+                    <>
+                      <span className="text-border">·</span>
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <AcademicCapIcon className="w-3.5 h-3.5 text-orange-400" />
+                        Teachers
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
+                <div className="flex gap-2">
+                  {canDesign && (
+                    <button
+                      onClick={() => setMode('design')}
+                      className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
+                        mode === 'design'
+                          ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+                          : 'bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <SparklesIcon className="w-4 h-4" /> Design
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setMode('issuance')}
+                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
+                      mode === 'issuance'
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                        : 'bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <CreditCardIcon className="w-4 h-4" /> Issuance
+                  </button>
+                </div>
                 <button
-                  onClick={() => setMode('design')}
-                  className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
-                    mode === 'design' ? 'bg-orange-600 text-white' : 'bg-card border border-border hover:bg-muted'
-                  }`}
+                  onClick={() => { loadConfig(activeType); loadRecords(activeType); }}
+                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
-                  <SparklesIcon className="w-4 h-4" /> Design
+                  <ArrowPathIcon className="w-4 h-4" /> Refresh
                 </button>
-              )}
-              <button
-                onClick={() => setMode('issuance')}
-                className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
-                  mode === 'issuance' ? 'bg-emerald-600 text-white' : 'bg-card border border-border hover:bg-muted'
-                }`}
-              >
-                <CreditCardIcon className="w-4 h-4" /> Issuance
-              </button>
-              <button
-                onClick={() => { loadConfig(activeType); loadRecords(activeType); }}
-                className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2"
-              >
-                <ArrowPathIcon className="w-4 h-4" /> Refresh
-              </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── Design mode ── */}
         {mode === 'design' && canDesign && (
-          <div className="grid sm:grid-cols-3 gap-4">
-            {([
-              { type: 'student', label: 'Student Builder', desc: 'Configure student access cards' },
-              { type: 'parent',  label: 'Parent Builder',  desc: 'Configure parent access cards' },
-              ...(canViewTeacherCards ? [{ type: 'teacher' as CardType, label: 'Teacher Builder', desc: 'Configure teacher access cards' }] : []),
-            ] as Array<{ type: CardType; label: string; desc: string }>).map((item) => (
-              <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-3">
-                <h3 className="text-lg font-black">{item.label}</h3>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
-                <Link
-                  href={`/dashboard/students/card-builder?type=${item.type}`}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all"
-                >
-                  <SparklesIcon className="w-4 h-4" /> Open Builder
-                </Link>
-              </article>
-            ))}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <SparklesIcon className="w-4 h-4 text-orange-400" />
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Card Design Templates — customise accent colour, header style, and organisation details</p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {([
+                {
+                  type: 'student',
+                  label: 'Student Cards',
+                  desc: 'Colour, header style, school name, and footer text for student access cards',
+                  icon: UserGroupIcon,
+                },
+                {
+                  type: 'parent',
+                  label: 'Parent Cards',
+                  desc: 'Separate card design for parents — different accent or header variant from student cards',
+                  icon: UserPlusIcon,
+                },
+                ...(canViewTeacherCards
+                  ? [{ type: 'teacher' as CardType, label: 'Teacher Cards', desc: 'Staff-only card design — customise teacher and administrator card layout', icon: AcademicCapIcon }]
+                  : []),
+              ] as Array<{ type: CardType; label: string; desc: string; icon: any }>).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-4 group hover:border-orange-500/30 transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-4 h-4 text-orange-400" />
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 border border-border">
+                        {item.type}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black">{item.label}</h3>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+                    </div>
+                    <Link
+                      href={`/dashboard/students/card-builder?type=${item.type}`}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all w-full justify-center"
+                    >
+                      <SparklesIcon className="w-3.5 h-3.5" /> Open Builder
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -646,7 +716,7 @@ export default function IdentityCardsPage() {
                         const selected = filtered.filter((r) => selectedIds.has(r.id));
                         printCards(selected, `${activeType} access cards — selected`);
                       }}
-                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white rounded-none transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white rounded-none transition-all inline-flex items-center gap-2"
                     >
                       <PrinterIcon className="w-4 h-4" />
                       Print Selected ({selectedIds.size})
@@ -687,6 +757,21 @@ export default function IdentityCardsPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="h-44 bg-card border border-border rounded-none animate-pulse" />
                 ))}
+              </div>
+            ) : !loading && filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-center border border-border border-dashed bg-card">
+                <CreditCardIcon className="w-10 h-10 text-muted-foreground/30" />
+                <div>
+                  <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">No card holders found</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    {query ? `No results for "${query}". Try a different search term.` : `No ${activeType}s available under your access scope.`}
+                  </p>
+                </div>
+                {query && (
+                  <button onClick={() => setQuery('')} className="text-xs font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors">
+                    Clear Search
+                  </button>
+                )}
               </div>
             ) : groupMode === 'class' ? (
               /* Grouped by class */
