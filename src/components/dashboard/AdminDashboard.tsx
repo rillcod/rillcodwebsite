@@ -74,7 +74,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
-              <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Finance</p>
+              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Finance</p>
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
             </div>
             <Link href="/dashboard/payments?view=billing"

@@ -449,8 +449,8 @@ export default function DashboardNavigation() {
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
           <div className="text-center leading-none relative z-10">
-            <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">RILLCOD<span className="text-orange-500">.</span></h1>
-            <p className="text-[12px] font-black uppercase tracking-[0.2em] text-orange-500/80 italic mt-0.5">TECHNOLOGIES</p>
+            <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">RILLCOD<span className="text-brand-red-500">.</span></h1>
+            <p className="text-[12px] font-black uppercase tracking-[0.2em] text-brand-red-500/80 italic mt-0.5">TECHNOLOGIES</p>
           </div>
         </div>
 
@@ -505,7 +505,7 @@ export default function DashboardNavigation() {
                 }`}
               >
                 {active && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-orange-500 shadow-[0_0_12px_rgba(26,58,143,0.6)]" />
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-brand-red-600 shadow-[0_0_12px_rgba(196,30,58,0.6)]" />
                 )}
                 <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
                   active
@@ -514,17 +514,17 @@ export default function DashboardNavigation() {
                 }`} />
                 <span className="truncate">{name}</span>
                 {name === 'WhatsApp Inbox' && unreadCount > 0 && (
-                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
+                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-brand-red-600 text-white text-[8px] font-black min-w-[1.1rem] text-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
                 {name === 'Notifications' && notifUnread > 0 && (
-                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
+                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-brand-red-600 text-white text-[8px] font-black min-w-[1.1rem] text-center">
                     {notifUnread > 9 ? '9+' : notifUnread}
                   </span>
                 )}
                 {active && (
-                  <div className="ml-auto w-1 h-1 rounded-full bg-orange-500/60 flex-shrink-0" />
+                  <div className="ml-auto w-1 h-1 rounded-full bg-brand-red-600/80 flex-shrink-0" />
                 )}
               </Link>
             );
@@ -581,7 +581,7 @@ export default function DashboardNavigation() {
               }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-orange-400' : 'text-sidebar-foreground/35'}`} />
                 {name === 'WhatsApp Inbox' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-orange-500 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}

@@ -72,7 +72,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Smart Command Center</p>
+                <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Smart Command Center</p>
                 <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
               </div>
               <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${
