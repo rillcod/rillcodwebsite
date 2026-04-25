@@ -352,6 +352,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {isAdmin && (
           <select
+            title="Filter by school"
             value={adminSchoolId}
             onChange={e => setAdminSchoolId(e.target.value)}
             className="w-full sm:w-56 px-3 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
@@ -363,6 +364,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           </select>
         )}
         <select
+          title="Filter by status"
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
           className="w-full sm:w-44 px-3 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
@@ -520,10 +522,33 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                       </div>
                     )}
                     {!isAdmin && row.invoices?.id && (
-                      <p><span className="text-muted-foreground">Invoice:</span>{' '}
-                        <span className="font-bold text-foreground">{row.invoices.invoice_number}</span>
-                        <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
-                      </p>
+                      <div className="space-y-2">
+                        <p><span className="text-muted-foreground">Invoice:</span>{' '}
+                          <span className="font-bold text-foreground">{row.invoices.invoice_number}</span>
+                          <span className="text-muted-foreground ml-2">({row.invoices.status})</span>
+                        </p>
+                        {/* Pay / Proof directly on the invoice if not yet paid */}
+                        {row.invoices.status !== 'paid' && row.invoices.status !== 'cancelled' && (
+                          <div className="border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Pay this invoice</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Amount: <span className="font-black text-foreground">{fmt(row.currency, Number(row.invoices.amount ?? row.amount_due ?? 0))}</span>
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={paystackLoading === row.id}
+                                onClick={() => void initiatePaystack(row.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-black rounded-lg transition-colors"
+                              >
+                                <CreditCardIcon className="w-3.5 h-3.5" />
+                                {paystackLoading === row.id ? 'Loading…' : 'Pay via Paystack'}
+                              </button>
+                            </div>
+                            <BillingCycleProofUpload cycleId={row.id} onUploaded={load} />
+                          </div>
+                        )}
+                      </div>
                     )}
                     {items.length > 0 && (
                       <div>
