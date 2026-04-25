@@ -828,6 +828,8 @@ export default function CurriculumPage() {
     setCurriculumList([]);
     setTracking([]);
     setActiveWeek(null);
+    const role = profile?.role;
+    const isLearnerRole = role === 'student' || role === 'parent';
     try {
       const res = await fetch(`/api/curricula?course_id=${courseId}`);
       if (!res.ok) throw new Error('Failed to load syllabus');
@@ -844,11 +846,15 @@ export default function CurriculumPage() {
           // has a curriculumId to pass to Step 2. The teacher can still
           // switch versions using the syllabus copy chooser dropdown above.
           setCurriculum(curr);
-          try {
-            const tRes = await fetch(`/api/curricula/${curr.id}/track`);
-            const tJson = await tRes.json();
-            setTracking(tJson.data ?? []);
-          } catch { /* keep empty tracking */ }
+          // Tracking is a staff-only feature — skip for learner roles to
+          // avoid a 401 that can interfere with session cookie handling.
+          if (!isLearnerRole) {
+            try {
+              const tRes = await fetch(`/api/curricula/${curr.id}/track`);
+              const tJson = await tRes.json();
+              setTracking(tJson.data ?? []);
+            } catch { /* keep empty tracking */ }
+          }
         }
       }
     } catch {
@@ -856,7 +862,7 @@ export default function CurriculumPage() {
     } finally {
       setLoadingCurr(false);
     }
-  }, [profile?.school_id, restoreGradeForScope]);
+  }, [profile?.school_id, profile?.role, restoreGradeForScope]);
   loadCurriculumRef.current = loadCurriculum;
 
   const saveWeekEdit = useCallback(async () => {
