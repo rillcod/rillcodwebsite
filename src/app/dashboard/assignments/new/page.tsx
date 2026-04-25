@@ -43,6 +43,8 @@ export default function NewAssignmentPage() {
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
   const preLessonId = searchParams?.get('lesson_id');
+  const preLessonPlanId = searchParams?.get('lesson_plan_id');
+  const preWeek = searchParams?.get('week');
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedProgramId, setSelectedProgramId] = useState('');
@@ -237,10 +239,16 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         is_active: true,
         created_by: profile?.id || '',
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
-        metadata: form.assignment_type === 'project' ? {
-          deliverables: projectMeta.deliverables.filter(d => d.trim()),
-          rubric: projectMeta.rubric.filter(r => r.criterion.trim()),
-        } : null,
+        metadata: (() => {
+          const base: Record<string, unknown> = {};
+          if (preLessonPlanId) base.lesson_plan_id = preLessonPlanId;
+          if (preWeek) base.week_number = parseInt(preWeek);
+          if (form.assignment_type === 'project') {
+            base.deliverables = projectMeta.deliverables.filter(d => d.trim());
+            base.rubric = projectMeta.rubric.filter(r => r.criterion.trim());
+          }
+          return Object.keys(base).length > 0 ? base : null;
+        })(),
       };
       if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
 
@@ -250,8 +258,9 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
-      // Return to the lesson if this assignment was created from a lesson
-      if (linkedLesson?.id) {
+      if (preLessonPlanId) {
+        router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
+      } else if (linkedLesson?.id) {
         router.push(`/dashboard/lessons/${linkedLesson.id}`);
       } else {
         router.push('/dashboard/assignments');
@@ -300,6 +309,21 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
+
+        {preLessonPlanId && (
+          <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-500/20 p-4">
+            <span className="text-violet-400 flex-shrink-0">📋</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Linked to Lesson Plan</p>
+              <p className="text-sm font-bold text-foreground">
+                {preWeek ? `Week ${preWeek} · ` : ''}This assignment will be tracked in the plan
+              </p>
+            </div>
+            <Link href={`/dashboard/lesson-plans/${preLessonPlanId}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
+              ← Back to Plan
+            </Link>
+          </div>
+        )}
 
         {linkedLesson && (
           <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4">

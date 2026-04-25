@@ -117,6 +117,9 @@ export default function NewProjectActivityPage() {
     const router = useRouter();
     const { profile, loading: authLoading } = useAuth();
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+    const searchParamsRaw = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const preLessonPlanId = searchParamsRaw?.get('lesson_plan_id');
+    const preWeek = searchParamsRaw?.get('week');
 
     const [step, setStep] = useState(1);
     const [students, setStudents] = useState<any[]>([]);
@@ -293,6 +296,8 @@ export default function NewProjectActivityPage() {
                     target_class_name:  visibilityType === 'class' ? (targetClassName || null) : null,
                     work_mode:          workMode,                 // 'individual' | 'specific' | 'group'
                     target_student_ids: workMode === 'specific'   ? targetStudentIds : [],
+                    ...(preLessonPlanId ? { lesson_plan_id: preLessonPlanId } : {}),
+                    ...(preWeek ? { week_number: parseInt(preWeek) } : {}),
                 },
             };
 
@@ -303,7 +308,11 @@ export default function NewProjectActivityPage() {
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to create activity');
-            router.push(isDraft ? '/dashboard/projects?tab=activities' : `/dashboard/projects/${j.data.id}`);
+            if (preLessonPlanId) {
+              router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
+            } else {
+              router.push(isDraft ? '/dashboard/projects?tab=activities' : `/dashboard/projects/${j.data.id}`);
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
