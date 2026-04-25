@@ -57,19 +57,19 @@ const Footer = () => {
   React.useEffect(() => { setCurrentYear(new Date().getFullYear()); }, []);
 
   const quickLinks = [
-    { href: '/', label: 'Home Protocol' },
-    { href: '/student-registration', label: 'Student Enrollment' },
-    { href: '/school-registration', label: 'School Partnership' },
-    { href: '/programs', label: 'Academic Sectors' },
-    { href: '/curriculum', label: 'Syllabus Archive' },
-    { href: '/contact', label: 'Secure Support' },
+    { href: '/', label: 'Home' },
+    { href: '/student-registration', label: 'Enrol a Student' },
+    { href: '/school-registration', label: 'Partner with Us' },
+    { href: '/programs', label: 'Our Programs' },
+    { href: '/curriculum', label: 'Curriculum' },
+    { href: '/contact', label: 'Contact Us' },
   ];
 
   const programs = [
     { href: '/programs', label: 'Python Programming' },
-    { href: '/programs', label: 'Web Architecture' },
-    { href: '/programs', label: 'Robotics & IoT' },
-    { href: '/programs', label: 'AI & Data Science' },
+    { href: '/programs', label: 'Web Development' },
+    { href: '/programs', label: 'Robotics & Smart Devices' },
+    { href: '/programs', label: 'AI & Data' },
   ];
 
   return (
@@ -83,19 +83,19 @@ const Footer = () => {
           {/* Brand Info */}
           <div className="space-y-8">
             <Link href="/" className="flex items-center gap-4 group">
-              <div className="w-14 h-14 bg-white/5 border border-border flex items-center justify-center rounded-none group-hover:scale-110 transition-transform duration-300 ring-1 ring-white/20 ring-offset-2 ring-offset-background">
+              <div className="w-14 h-14 bg-white border border-border/40 flex items-center justify-center rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-md">
                 <Image src="/images/logo.png" alt="Rillcod" width={44} height={44} className="object-contain" />
               </div>
               <div>
                 <h3 className="text-xl font-black text-foreground uppercase tracking-tight block leading-none italic">
-                    RILLCOD<span className="text-orange-500 not-italic">.</span>
+                    RILLCOD<span className="text-brand-red-600 not-italic">.</span>
                 </h3>
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em] leading-none mt-1.5 whitespace-nowrap">STEM Excellence</p>
               </div>
             </Link>
             
             <p className="text-sm text-muted-foreground font-bold italic leading-relaxed border-l-2 border-orange-500 pl-6">
-              Engineering the next generation of African tech leaders through standardized curriculum and AI-powered learning architectures.
+              Building the next generation of African tech leaders through hands-on coding, robotics, and STEM education.
             </p>
 
             <div className="space-y-4 pt-4">

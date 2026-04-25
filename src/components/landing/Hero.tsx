@@ -45,7 +45,7 @@ const Hero: React.FC = () => {
               Through Code.
             </h1>
 
-            <p className="text-base sm:text-lg text-muted-foreground max-w-lg mb-10 font-medium leading-relaxed italic border-l-2 border-orange-500 pl-6">
+            <p className="text-base sm:text-lg text-muted-foreground max-w-lg mb-10 font-medium leading-relaxed italic border-l-2 border-brand-red-600 pl-6">
               Empowering Nigerian students with hands-on coding, robotics, and future-forward STEM skills directly within your school.
             </p>
 
@@ -68,7 +68,7 @@ const Hero: React.FC = () => {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-card border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
+                <div key={s.label} className="bg-card border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-brand-red-600/40">
                   <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter">{s.value}</p>
                   <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
@@ -124,4 +124,4 @@ const Hero: React.FC = () => {
   );
 };
 
-export default Hero;
+export default Hero;

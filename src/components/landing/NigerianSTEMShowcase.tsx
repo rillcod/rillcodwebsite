@@ -65,7 +65,7 @@ export default function NigerianSTEMShowcase() {
           {achievements.map((item) => (
             <div
               key={item.id}
-              className="group relative bg-card border border-border rounded-none p-8 transition-all hover:bg-muted shadow-xl border-t-2 border-t-transparent hover:border-t-orange-500"
+              className="group relative bg-card border border-border rounded-none p-8 transition-all hover:bg-muted shadow-xl border-t-2 border-t-transparent hover:border-t-brand-red-600"
             >
               <div className="absolute top-6 right-8">
                  <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-background px-4 py-1.5 rounded-none border border-border shadow-sm`}>{item.badge}</span>
@@ -99,7 +99,7 @@ export default function NigerianSTEMShowcase() {
             {testimonials.map((t) => (
               <div
                 key={t.id}
-                className="bg-card border border-border rounded-none p-10 hover:bg-muted transition-all relative group shadow-2xl border-l border-l-orange-500/20 hover:border-l-orange-500"
+                className="bg-card border border-border rounded-none p-10 hover:bg-muted transition-all relative group shadow-2xl border-l-2 border-l-brand-red-600/20 hover:border-l-brand-red-600"
               >
                 <div className="flex items-center gap-5 mb-8">
                   <div className="w-14 h-14 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-xl font-black text-orange-500 shadow-inner">
@@ -125,14 +125,14 @@ export default function NigerianSTEMShowcase() {
         </div>
 
         {/* High-Contrast Unified CTA */}
-        <div className="relative bg-card border border-border rounded-none p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-orange-500">
+        <div className="relative bg-card border border-border rounded-none p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-brand-red-600">
            <div className="absolute top-0 right-0 w-[50%] h-[150%] bg-blue-600/5 rotate-12 -translate-y-1/2 pointer-events-none" />
            
            <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center text-center lg:text-left">
               <div>
                 <div className="inline-flex items-center gap-3 mb-6 px-5 py-2 bg-muted border border-border rounded-none shadow-sm">
                     <Command className="w-4 h-4 text-orange-500" />
-                    <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">System Uplink</span>
+                    <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">Join Us</span>
                 </div>
                 <h4 className="text-4xl sm:text-6xl font-black text-foreground leading-[1] tracking-tight uppercase">
                    Transform your school into a <br />

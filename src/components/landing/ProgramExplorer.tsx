@@ -103,7 +103,7 @@ const ProgramExplorer: React.FC = () => {
                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">Tech Journey.</span>
              </h2>
           </div>
-          <p className="text-muted-foreground text-lg italic border-l-2 border-orange-500 pl-6 max-w-sm">
+          <p className="text-muted-foreground text-lg italic border-l-2 border-brand-red-600 pl-6 max-w-sm">
             Tailored curriculum designed to evolve with your child from primary school through secondary graduation.
           </p>
         </div>
@@ -121,7 +121,7 @@ const ProgramExplorer: React.FC = () => {
                   onClick={() => setActiveTab(p.id)}
                   className={`group flex items-center gap-4 p-4 transition-all relative overflow-hidden ${
                     activeTab === p.id 
-                    ? 'bg-orange-500 text-white shadow-xl translate-x-1 lg:translate-x-2' 
+                    ? 'bg-orange-500 text-white shadow-xl translate-x-1 lg:translate-x-2 ring-2 ring-brand-red-600/40' 
                     : 'bg-card text-foreground hover:bg-muted border border-border'
                   }`}
                 >
@@ -144,10 +144,10 @@ const ProgramExplorer: React.FC = () => {
               ))}
             </div>
             
-            <div className="mt-12 p-6 bg-orange-500/5 border border-orange-500/10 hidden lg:block">
+            <div className="mt-12 p-6 bg-brand-red-600/5 border border-brand-red-600/10 hidden lg:block">
                <div className="flex items-center gap-2 mb-3">
                   <Zap className="w-4 h-4 text-orange-500" />
-                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Enrollment open</span>
+                  <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">Enrollment open</span>
                </div>
                <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Register today and secure a spot for the next session at one of our partner schools.
