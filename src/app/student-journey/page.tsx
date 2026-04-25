@@ -71,7 +71,7 @@ const journeyStages = [
     borderColor: "border-blue-200",
     skills: ["HTML/CSS/JavaScript", "AI Integration", "Web Development", "UI/UX Design"],
     projects: ["Interactive Websites", "AI-Powered Apps", "E-commerce Sites", "Portfolio Projects"],
-    outcomes: ["Full-Stack Skills", "AI Implementation", "Design Thinking", "Project Management"],
+    outcomes: ["Web & App Skills", "Using AI Tools", "Design Thinking", "Project Management"],
     description: "Mastering web technologies with AI integration. Students create intelligent applications and develop professional portfolios."
   },
   {
@@ -82,10 +82,10 @@ const journeyStages = [
     color: "from-purple-500 to-violet-500",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-200",
-    skills: ["Advanced AI/ML", "IoT Development", "Mobile Apps", "Cloud Computing"],
+    skills: ["AI & Machine Learning", "Smart Devices", "Mobile Apps", "Online Services"],
     projects: ["AI Applications", "Smart Home Systems", "Mobile Apps", "Cloud Solutions"],
-    outcomes: ["AI Expertise", "IoT Mastery", "Mobile Development", "Cloud Architecture"],
-    description: "Pushing the boundaries of technology. Students integrate AI, IoT, and cloud computing to create cutting-edge solutions."
+    outcomes: ["AI Skills", "Smart Device Skills", "Mobile Development", "Online Systems"],
+    description: "Pushing the boundaries of technology. Students integrate AI, Smart Devices, and cloud computing to create real-world solutions."
   },
   {
     stage: "Leadership",
@@ -109,15 +109,15 @@ const careerPaths = [
     color: "from-blue-600 to-cyan-600",
     salary: "$80,000 - $150,000",
     companies: ["Google", "Microsoft", "Apple", "Netflix"],
-    skills: ["Full-Stack Development", "AI/ML", "Cloud Architecture", "DevOps"]
+    skills: ["Web & App Development", "AI Tools", "Cloud Services", "Team Collaboration"]
   },
   {
-    title: "AI/ML Engineering",
+    title: "AI Engineering",
     icon: Brain,
     color: "from-purple-600 to-violet-600",
     salary: "$100,000 - $200,000",
     companies: ["OpenAI", "DeepMind", "Tesla", "NVIDIA"],
-    skills: ["Machine Learning", "Deep Learning", "Data Science", "AI Ethics"]
+    skills: ["Machine Learning", "Data Science", "AI Tools", "Responsible AI"]
   },
   {
     title: "Product Management",
@@ -149,7 +149,7 @@ const testimonials = [
     name: "David Chen",
     age: "16", 
     stage: "Innovation",
-    quote: "The AI and IoT projects here are incredible. I never thought I could build smart home systems at my age!",
+    quote: "The AI and Smart Devices projects here are incredible. I never thought I could build smart home systems at my age!",
     achievement: "Created smart home automation system for local businesses"
   },
   {
@@ -179,14 +179,14 @@ export default function StudentJourney() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full text-sm font-medium text-gray-700 dark:text-gray-300 mb-6">
             <Sparkles className="w-4 h-4 mr-2 text-blue-600" />
-            Transformative Learning Journey
+            Your Learning Journey
           </div>
           <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
             Student Journey
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto mb-8 leading-relaxed">
             See how students progress from <span className="font-semibold text-blue-600">creative beginners</span> to{" "}
-            <span className="font-semibold text-purple-600">AI-powered innovators</span> and{" "}
+            <span className="font-semibold text-purple-600">confident tech creators</span> and{" "}
             <span className="font-semibold text-green-600">career-ready graduates</span>
           </p>
           <div className="flex items-center justify-center space-x-8 text-sm text-gray-500 dark:text-gray-400">

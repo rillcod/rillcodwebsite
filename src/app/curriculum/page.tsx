@@ -62,7 +62,7 @@ const curriculumSessions = [
     color: "from-blue-500 to-cyan-500",
     nigerianContext: "Solving agricultural challenges with technology",
     successStory: "Students create smart farming solutions for their communities",
-    careerPath: "Agricultural Technologist, IoT Developer, Smart Farming Specialist"
+    careerPath: "Agricultural Technologist, Smart Devices Developer, Smart Farming Specialist"
   },
   {
     session: 4,
@@ -96,7 +96,7 @@ const curriculumSessions = [
       { term: 3, focus: "Intelligent programs with pattern recognition" }
     ],
     capstone: "Smart traffic light system for school compounds",
-    portfolio: "3 Python programs + 1 IoT traffic management solution",
+    portfolio: "3 Python programs + 1 smart traffic management solution",
     skills: ["Python Programming", "AI Libraries", "Data Analysis", "Machine Learning"],
     level: "primary",
     color: "from-blue-500 to-cyan-500",
@@ -129,30 +129,30 @@ const curriculumSessions = [
     grade: "JSS1",
     age: "12-13",
     title: "HTML/CSS + Smart Interfaces",
-    description: "Web structure with embedded AI chat widgets, responsive design for IoT device dashboards, and interactive websites.",
+    description: "Web structure with embedded AI chat widgets, responsive design for smart device dashboards, and interactive websites.",
     terms: [
       { term: 1, focus: "Web structure with embedded AI chat widgets" },
-      { term: 2, focus: "Responsive design for IoT device dashboards" },
+      { term: 2, focus: "Responsive design for smart device dashboards" },
       { term: 3, focus: "Interactive websites with voice and gesture controls" }
     ],
     capstone: "Smart home dashboard controlling lights, fans, and security",
-    portfolio: "3 professional websites + 1 IoT home control interface",
-    skills: ["HTML/CSS", "AI Chat Widgets", "IoT Dashboards", "Voice Controls"],
+    portfolio: "3 professional websites + 1 smart home control interface",
+    skills: ["HTML/CSS", "AI Chat Widgets", "Smart Device Dashboards", "Voice Controls"],
     level: "junior",
     color: "from-green-500 to-emerald-500",
     nigerianContext: "Building smart homes for Nigerian families",
     successStory: "Students create smart home solutions for their families",
-    careerPath: "Smart Home Developer, IoT Specialist, Web Developer"
+    careerPath: "Smart Home Developer, Smart Devices Specialist, Web Developer"
   },
   {
     session: 8,
     grade: "JSS2",
     age: "13-14",
     title: "Advanced Web + Data Visualization",
-    description: "CSS frameworks with real-time data displays, mobile-first design for IoT monitoring apps, and modern interfaces.",
+    description: "CSS frameworks with real-time data displays, mobile-first design for smart monitoring apps, and modern interfaces.",
     terms: [
       { term: 1, focus: "CSS frameworks with real-time data displays" },
-      { term: 2, focus: "Mobile-first design for IoT monitoring apps" },
+      { term: 2, focus: "Mobile-first design for smart monitoring apps" },
       { term: 3, focus: "Modern interfaces for AI-powered applications" }
     ],
     capstone: "Smart agriculture monitoring system with crop prediction",
@@ -168,16 +168,16 @@ const curriculumSessions = [
     session: 9,
     grade: "JSS3",
     age: "14-15",
-    title: "JavaScript + AI APIs",
-    description: "JavaScript with machine learning libraries, API integration with cloud AI services, and dynamic content with intelligent personalization.",
+    title: "JavaScript + AI connections",
+    description: "JavaScript with AI tools, API integration with cloud AI services, and dynamic content with intelligent personalization.",
     terms: [
-      { term: 1, focus: "JavaScript with machine learning libraries (e.g., ML5.js)" },
+      { term: 1, focus: "JavaScript with AI tools (e.g., AI tools)" },
       { term: 2, focus: "API integration with cloud AI services" },
       { term: 3, focus: "Dynamic content with intelligent personalization" }
     ],
     capstone: "AI-powered student performance prediction system",
     portfolio: "3 interactive web applications + 1 educational AI analytics platform",
-    skills: ["JavaScript", "ML5.js", "AI APIs", "Intelligent Personalization"],
+    skills: ["JavaScript", "AI tools", "AI connections", "Smart Personalisation"],
     level: "junior",
     color: "from-green-500 to-emerald-500",
     nigerianContext: "Improving educational outcomes with AI",
@@ -208,21 +208,21 @@ const curriculumSessions = [
     session: 11,
     grade: "SS2",
     age: "16-17",
-    title: "Integrated Development + IoT",
-    description: "Full-stack development with AI backend integration, IoT device programming with cloud connectivity, and Flutter introduction.",
+    title: "Integrated Development + Smart Devices",
+    description: "Web & app development with AI-powered back-end, smart device programming with cloud connectivity, and Flutter introduction.",
     terms: [
-      { term: 1, focus: "Full-stack development with AI backend integration" },
-      { term: 2, focus: "IoT device programming with cloud connectivity" },
+      { term: 1, focus: "Web & app development with AI-powered back-end" },
+      { term: 2, focus: "smart device programming with cloud connectivity" },
       { term: 3, focus: "Flutter introduction with hardware integration" }
     ],
     capstone: "Smart school management system with attendance tracking, grade prediction, and parent notifications",
     portfolio: "3 advanced applications + 1 complete school automation system",
-    skills: ["Full-Stack Development", "AI Backend", "IoT Programming", "Flutter"],
+    skills: ["Web & App Development", "AI-powered back-end", "Smart Device Programming", "Flutter"],
     level: "senior",
     color: "from-purple-500 to-violet-500",
     nigerianContext: "Transforming Nigerian education with smart systems",
     successStory: "Students develop school management solutions",
-    careerPath: "Full-Stack Developer, IoT Engineer, Educational Systems Architect"
+    careerPath: "Web & App Developer, Smart Devices Engineer, Educational Systems Architect"
   },
   {
     session: 12,
@@ -300,7 +300,7 @@ const learningLevels = [
     description: "Advanced years (SS1-3)",
     color: "from-purple-500 to-violet-500",
     icon: <Rocket className="w-8 h-8" />,
-    focus: "Full-stack development, entrepreneurship, AI mastery"
+    focus: "Web & app development, entrepreneurship, AI mastery"
   }
 ];
 
@@ -361,7 +361,7 @@ export default function Curriculum() {
 
         {/* Curriculum Overview */}
         <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl">
-          <h2 className="text-xl font-black text-foreground mb-12 text-center uppercase tracking-widest italic">Protocol Overview</h2>
+          <h2 className="text-xl font-black text-foreground mb-12 text-center uppercase tracking-widest italic">Curriculum Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center group">
               <div className="w-20 h-20 bg-background border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
@@ -393,7 +393,7 @@ export default function Curriculum() {
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 w-full lg:max-w-md">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Search the curriculum:</p>
               <div className="relative group">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
@@ -408,7 +408,7 @@ export default function Curriculum() {
 
             {/* Level Filter */}
             <div className="w-full lg:w-auto">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Filter by level:</p>
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setSelectedLevel("all")}
@@ -418,7 +418,7 @@ export default function Curriculum() {
                       : 'bg-background border-border text-muted-foreground hover:border-orange-500/40 hover:text-foreground shadow-sm'
                   }`}
                 >
-                  All Sectors
+                  All Levels
                 </button>
                 {learningLevels.map((level, index) => (
                   <button
@@ -443,7 +443,7 @@ export default function Curriculum() {
           <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 font-black"></div>
           <h2 className="text-xl font-black text-foreground text-left mb-12 uppercase tracking-widest italic flex items-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span> 
-            Continental Impact
+            Our Impact
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {nigerianStats.map((stat, index) => (
@@ -463,7 +463,7 @@ export default function Curriculum() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <h2 className="text-xl font-black text-foreground text-center mb-12 uppercase tracking-widest italic flex items-center justify-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span>
-            Learning Phase Roadmap
+            Learning Stages
             <span className="w-12 h-[1px] bg-orange-500"></span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -488,7 +488,7 @@ export default function Curriculum() {
         <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
           <h2 className="text-xl font-black text-foreground mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
              <span className="w-12 h-[1px] bg-blue-500"></span>
-             Success Protocols
+             Student Success Stories
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (

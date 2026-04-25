@@ -8,11 +8,11 @@ const services = [
     description: "Custom web applications, e-commerce solutions, and responsive websites that drive business growth.",
     features: [
       "Custom Web Applications",
-      "E-commerce Solutions", 
-      "Responsive Design",
-      "CMS Development",
-      "API Integration",
-      "Performance Optimization"
+      "Online Shops & E-commerce", 
+      "Mobile-Friendly Design",
+      "Content Management",
+      "Third-Party Connections",
+      "Speed & Performance"
     ],
     color: "from-blue-500 to-blue-700",
     price: "Starting from ₦500,000"
@@ -35,12 +35,12 @@ const services = [
   {
     icon: <Users className="w-12 h-12 text-purple-600" />,
     title: "IT Consulting",
-    description: "Strategic technology consulting to help businesses optimize their digital infrastructure.",
+    description: "Strategic technology consulting to help businesses optimize their technology setup.",
     features: [
       "Technology Strategy",
-      "Digital Transformation",
-      "System Architecture",
-      "Security Audits",
+      "Going Digital",
+      "System Planning",
+      "Security Reviews",
       "Performance Analysis",
       "Technology Training"
     ],
@@ -80,7 +80,7 @@ export default function Services() {
           Professional IT Services
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-          We deliver cutting-edge technology solutions that drive business growth and digital transformation.
+          We build technology solutions that help your business grow and move forward.
         </p>
         <div className="w-20 h-2 bg-blue-600 mx-auto rounded-full"></div>
       </div>
@@ -146,7 +146,7 @@ export default function Services() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose RILLCOD TECH?</h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            We combine technical expertise with business acumen to deliver solutions that drive real results.
+            We combine technical skill with business understanding to deliver results that matter.
           </p>
         </div>
         
@@ -156,7 +156,7 @@ export default function Services() {
               <Zap className="w-8 h-8 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast Delivery</h3>
-            <p className="text-gray-600">We deliver projects on time with rapid development cycles and efficient processes.</p>
+            <p className="text-gray-600">We deliver projects on time with a clear process and efficient teamwork.</p>
           </div>
           
           <div className="text-center">
