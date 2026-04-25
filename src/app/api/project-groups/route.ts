@@ -233,7 +233,7 @@ export async function DELETE(req: Request) {
 
     // B3 · Project group delete — active submission guard
     // Check if there are any submissions for this group before allowing delete
-    const { count, error: countErr } = await admin
+    const { count, error: countErr } = await (admin as any)
       .from('project_submissions')
       .select('*', { count: 'exact', head: true })
       .eq('group_id', id);
