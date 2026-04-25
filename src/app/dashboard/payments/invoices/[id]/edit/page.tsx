@@ -184,7 +184,7 @@ export default function EditInvoicePage() {
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => router.back()} className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all">
+        <button title="Go back" onClick={() => router.back()} className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all">
           <ArrowLeftIcon className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
@@ -250,12 +250,13 @@ export default function EditInvoicePage() {
               {invoice?.schools?.name && !invoice?.portal_user_id ? (
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">School</label>
-                  <input value={invoice.schools.name} disabled className="w-full px-4 py-2.5 bg-background border border-border text-sm text-muted-foreground opacity-60" readOnly />
+                  <input title="School name" value={invoice.schools.name} disabled className="w-full px-4 py-2.5 bg-background border border-border text-sm text-muted-foreground opacity-60" readOnly />
                 </div>
               ) : (
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student / Payer</label>
                   <select
+                    title="Select student or payer"
                     value={form.portal_user_id}
                     onChange={e => setForm(f => ({ ...f, portal_user_id: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
@@ -266,7 +267,7 @@ export default function EditInvoicePage() {
               )}
               <div>
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Due Date</label>
-                <input type="date" value={form.due_date}
+                <input type="date" title="Due date" value={form.due_date}
                   onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                   className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
               </div>
@@ -296,17 +297,17 @@ export default function EditInvoicePage() {
                     className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
                   />
                   <input
-                    type="number" min={1} value={item.quantity}
+                    type="number" min={1} title="Quantity" value={item.quantity}
                     onChange={e => updateItem(idx, 'quantity', e.target.value)}
                     className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-center focus:outline-none focus:border-orange-500 transition-colors"
                   />
                   <input
-                    type="number" min={0} step={100} value={item.unit_price || ''}
+                    type="number" min={0} step={100} title="Unit price" value={item.unit_price || ''}
                     onChange={e => updateItem(idx, 'unit_price', e.target.value)}
                     placeholder="0"
                     className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-right font-mono focus:outline-none focus:border-orange-500 transition-colors"
                   />
-                  <button type="button" onClick={() => removeItem(idx)} disabled={form.items.length === 1}
+                  <button type="button" title="Remove item" onClick={() => removeItem(idx)} disabled={form.items.length === 1}
                     className="flex items-center justify-center w-9 h-9 border border-border text-rose-400/50 hover:text-rose-400 hover:border-rose-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
                     <TrashIcon className="w-3.5 h-3.5" />
                   </button>

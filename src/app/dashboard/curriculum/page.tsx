@@ -300,6 +300,10 @@ export default function CurriculumPage() {
   } | null>(null);
   const [qaApplyLoading, setQaApplyLoading] = useState(false);
   const [qaApplyErr, setQaApplyErr] = useState('');
+  const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null); // "termN-weekN"
+  const [editWeekTopic, setEditWeekTopic] = useState('');
+  const [editWeekSubtopics, setEditWeekSubtopics] = useState('');
+  const [savingWeek, setSavingWeek] = useState(false);
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
   const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
 
@@ -413,8 +417,9 @@ export default function CurriculumPage() {
   }, [canTrack]);
 
   // Build school-based program scope for the quick chooser grid.
+  // Runs for all roles so learners (students/parents) also see only their
+  // school's courses rather than the full global catalogue.
   useEffect(() => {
-    if (!(isAdmin || isTeacher || isSchool)) return;
     fetch('/api/classes', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
@@ -429,7 +434,7 @@ export default function CurriculumPage() {
         setSchoolScopedProgramIds(ids);
       })
       .catch(() => setSchoolScopedProgramIds([]));
-  }, [isAdmin, isTeacher, isSchool]);
+  }, []);
 
   // Restore grade memory from localStorage on first load.
   useEffect(() => {
@@ -821,6 +826,39 @@ export default function CurriculumPage() {
     }
   }, [profile?.school_id, restoreGradeForScope]);
   loadCurriculumRef.current = loadCurriculum;
+
+  const saveWeekEdit = useCallback(async () => {
+    if (!curriculum || !editingWeekKey) return;
+    const [termPart, weekPart] = editingWeekKey.split('-');
+    const termNum = parseInt(termPart.replace('term', ''), 10);
+    const weekNum = parseInt(weekPart.replace('week', ''), 10);
+    setSavingWeek(true);
+    try {
+      const updatedContent = JSON.parse(JSON.stringify(curriculum.content));
+      const termObj = (updatedContent.terms ?? []).find((t: any) => t.term === termNum);
+      if (!termObj) return;
+      const weekObj = (termObj.weeks ?? []).find((w: any) => w.week === weekNum);
+      if (!weekObj) return;
+      weekObj.topic = editWeekTopic.trim() || weekObj.topic;
+      weekObj.subtopics = editWeekSubtopics
+        ? editWeekSubtopics.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : (weekObj.subtopics ?? []);
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: updatedContent }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Save failed');
+      setCurriculum(prev => prev ? { ...prev, content: updatedContent, version: json.data?.version ?? prev.version } : prev);
+      setEditingWeekKey(null);
+      toast.success('Week updated');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingWeek(false);
+    }
+  }, [curriculum, editingWeekKey, editWeekTopic, editWeekSubtopics]);
 
   function selectCourse(prog: Program, course: Course) {
     setSelectedProgram(prog);
@@ -2191,41 +2229,90 @@ export default function CurriculumPage() {
                             const isActive = activeWeek?.week === week.week;
 
                             return (
-                              <button
+                              <div
                                 key={week.week}
-                                onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
-                                className={`text-left p-4 border transition-all space-y-2 ${isActive
-                                    ? 'border-orange-500 bg-orange-500/5'
-                                    : 'border-border bg-card hover:border-orange-500/40'
-                                  }`}
+                                className={`border transition-all ${isActive ? 'border-orange-500 bg-orange-500/5' : 'border-border bg-card'}`}
                               >
-                                {/* Week number + type badge */}
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                    Week {week.week}
-                                  </span>
-                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
-                                    {meta.label}
-                                  </span>
-                                </div>
+                                {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
+                                  <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Week {week.week} · Edit</p>
+                                    <input
+                                      autoFocus
+                                      value={editWeekTopic}
+                                      onChange={e => setEditWeekTopic(e.target.value)}
+                                      placeholder="Week topic"
+                                      className="w-full px-2 py-1.5 text-sm bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-orange-500/50"
+                                    />
+                                    <input
+                                      value={editWeekSubtopics}
+                                      onChange={e => setEditWeekSubtopics(e.target.value)}
+                                      placeholder="Subtopics, comma-separated"
+                                      className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-orange-500/50"
+                                    />
+                                    <div className="flex gap-2 pt-1">
+                                      <button
+                                        onClick={saveWeekEdit}
+                                        disabled={savingWeek}
+                                        className="flex-1 py-1.5 text-xs font-black bg-orange-500 hover:bg-orange-400 text-white rounded transition-colors disabled:opacity-50"
+                                      >
+                                        {savingWeek ? '…' : 'Save'}
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingWeekKey(null)}
+                                        className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground border border-border rounded transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    className="text-left p-4 w-full space-y-2 hover:bg-muted/10"
+                                    onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
+                                  >
+                                    {/* Week number + type badge */}
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                        Week {week.week}
+                                      </span>
+                                      <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
+                                        {meta.label}
+                                      </span>
+                                    </div>
 
-                                {/* Topic */}
-                                <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
-                                <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
+                                    {/* Topic */}
+                                    <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
+                                    <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
 
-                                {/* Subtopics preview */}
-                                {(week.subtopics ?? []).length > 0 && (
-                                  <p className="text-[10px] text-muted-foreground truncate">
-                                    {(week.subtopics ?? []).slice(0, 2).join(' · ')}
-                                  </p>
+                                    {/* Subtopics preview */}
+                                    {(week.subtopics ?? []).length > 0 && (
+                                      <p className="text-[10px] text-muted-foreground truncate">
+                                        {(week.subtopics ?? []).slice(0, 2).join(' · ')}
+                                      </p>
+                                    )}
+
+                                    {/* Status */}
+                                    <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
+                                      <TrackIcon className="w-3 h-3" />
+                                      <span>{trackMeta.label}</span>
+                                    </div>
+                                  </button>
                                 )}
-
-                                {/* Status */}
-                                <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
-                                  <TrackIcon className="w-3 h-3" />
-                                  <span>{trackMeta.label}</span>
-                                </div>
-                              </button>
+                                {canGenerate && editingWeekKey !== `term${activeTerm}-week${week.week}` && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingWeekKey(`term${activeTerm}-week${week.week}`);
+                                      setEditWeekTopic(week.topic);
+                                      setEditWeekSubtopics((week.subtopics ?? []).join(', '));
+                                      setActiveWeek(null);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-muted-foreground/50 hover:text-orange-400 hover:bg-orange-500/5 transition-colors border-t border-border"
+                                    title="Edit week topic"
+                                  >
+                                    <PencilIcon className="w-3 h-3" /> Edit topic
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
                         </div>

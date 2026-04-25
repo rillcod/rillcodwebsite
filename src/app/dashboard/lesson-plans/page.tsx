@@ -9,7 +9,7 @@ import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
-  SparklesIcon, AcademicCapIcon,
+  SparklesIcon, AcademicCapIcon, TrashIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -149,6 +149,11 @@ function LessonPlansPageInner() {
   const [prefilledFromUrl, setPrefilledFromUrl] = useState(false);
   const [autoClassMatch, setAutoClassMatch] = useState(true);
   const [autoPickedClassId, setAutoPickedClassId] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
+  const [editForm, setEditForm] = useState({ term: '', term_start: '', term_end: '', sessions_per_week: '5', status: 'draft' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const scheduleStepRef = useRef<HTMLDivElement | null>(null);
   /** Courses for the selected programme (fetched directly so we are not limited to the first N global rows). */
   const [programScopedCourses, setProgramScopedCourses] = useState<Course[] | null>(null);
@@ -594,6 +599,58 @@ function LessonPlansPageInner() {
     isAdmin,
   ]);
 
+  async function deletePlan(id: string) {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      toast.success('Lesson plan deleted');
+      setDeleteId(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function openEdit(plan: LessonPlan) {
+    setEditingPlan(plan);
+    const termLabel = (plan.term ?? '').replace(/ \d{4}\/\d{4}$/, '').replace(/ \d{4}-\d{4}$/, '').trim();
+    setEditForm({
+      term: termLabel,
+      term_start: plan.term_start ?? '',
+      term_end: plan.term_end ?? '',
+      sessions_per_week: String(plan.sessions_per_week ?? '5'),
+      status: plan.status ?? 'draft',
+    });
+  }
+
+  async function saveEdit() {
+    if (!editingPlan) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/lesson-plans/${editingPlan.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          term_start: editForm.term_start || null,
+          term_end: editForm.term_end || null,
+          sessions_per_week: editForm.sessions_per_week ? Number(editForm.sessions_per_week) : null,
+          status: editForm.status,
+        }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      toast.success('Lesson plan updated');
+      setEditingPlan(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   if (authLoading || profileLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -800,50 +857,86 @@ function LessonPlansPageInner() {
               return !!badge && typeof badge === 'object' && !!(badge as Record<string, unknown>).id;
             });
             return (
-              <Link key={plan.id} href={`/dashboard/lesson-plans/${plan.id}`}
-                className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-violet-500/30 transition-all group block">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[160px]">{courseTitle}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
-                      {(plan.version ?? 1) > 1 && (
-                        <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
-                      )}
-                      {hasStrictRouteBadge && (
-                        <span className="text-xs text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                          Platform → School
-                        </span>
-                      )}
+              <div key={plan.id} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden group flex flex-col">
+                <Link href={`/dashboard/lesson-plans/${plan.id}`} className="block p-5 hover:border-violet-500/30 transition-all flex-1">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[160px]">{courseTitle}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
+                        {(plan.version ?? 1) > 1 && (
+                          <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
+                        )}
+                        {hasStrictRouteBadge && (
+                          <span className="text-xs text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                            Platform → School
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-black text-card-foreground text-base truncate">
+                        {plan.term ?? 'Term Plan'} {plan.classes?.name ? `— ${plan.classes.name}` : ''}
+                      </h3>
                     </div>
-                    <h3 className="font-black text-card-foreground text-base truncate">
-                      {plan.term ?? 'Term Plan'} {plan.classes?.name ? `— ${plan.classes.name}` : ''}
-                    </h3>
                   </div>
-                  <PencilIcon className="w-4 h-4 text-card-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
-                </div>
 
-                <div className="space-y-1.5 text-xs text-card-foreground/50">
-                  {plan.term_start && plan.term_end && (
-                    <p>
-                      {new Date(plan.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(plan.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </p>
+                  <div className="space-y-1.5 text-xs text-card-foreground/50">
+                    {plan.term_start && plan.term_end && (
+                      <p>
+                        {new Date(plan.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(plan.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
+                    {plan.sessions_per_week && <p>{plan.sessions_per_week} sessions/week</p>}
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
+                    <AcademicCapIcon className="w-3.5 h-3.5 text-violet-400" />
+                    <span className="text-xs text-card-foreground/30">
+                      {plan.plan_data && typeof plan.plan_data === 'object' && 'weeks' in plan.plan_data
+                        ? `${(plan.plan_data.weeks as unknown[]).length} weeks`
+                        : 'No weeks yet'}
+                    </span>
+                    <span className="ml-auto text-xs text-card-foreground/30">
+                      {new Date(plan.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    </span>
+                  </div>
+                </Link>
+
+                {/* Action bar */}
+                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] bg-black/[0.06]">
+                  <button
+                    onClick={() => openEdit(plan)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-violet-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-violet-500/10 min-h-[36px]"
+                  >
+                    <PencilIcon className="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <div className="flex-1" />
+                  {deleteId === plan.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-rose-400 font-bold">Delete?</span>
+                      <button
+                        onClick={() => deletePlan(plan.id)}
+                        disabled={deleting}
+                        className="text-xs font-black text-rose-400 hover:text-rose-300 px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[36px] transition-colors"
+                      >
+                        {deleting ? '…' : 'Yes'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(null)}
+                        className="text-xs font-bold text-card-foreground/40 hover:text-card-foreground px-2 py-1.5 rounded-lg hover:bg-white/5 min-h-[36px] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteId(plan.id)}
+                      className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/30 hover:text-rose-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[36px]"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" /> Delete
+                    </button>
                   )}
-                  {plan.sessions_per_week && <p>{plan.sessions_per_week} sessions/week</p>}
                 </div>
-
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
-                  <AcademicCapIcon className="w-3.5 h-3.5 text-violet-400" />
-                  <span className="text-xs text-card-foreground/30">
-                    {plan.plan_data && typeof plan.plan_data === 'object' && 'weeks' in plan.plan_data
-                      ? `${(plan.plan_data.weeks as unknown[]).length} weeks`
-                      : 'No weeks yet'}
-                  </span>
-                  <span className="ml-auto text-xs text-card-foreground/30">
-                    {new Date(plan.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                  </span>
-                </div>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -1105,6 +1198,61 @@ function LessonPlansPageInner() {
               <button onClick={save} disabled={submitting || !form.term || !form.course_id || !form.term_start || !form.term_end}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
                 <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Creating…' : 'Create Plan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Plan Modal */}
+      {editingPlan && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl sm:rounded-2xl rounded-t-2xl flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
+              <h3 className="font-black text-card-foreground text-base">Edit Lesson Plan</h3>
+              <button onClick={() => setEditingPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
+                  <input type="date" value={editForm.term_start} onChange={e => setEditForm(f => ({ ...f, term_start: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
+                  <input type="date" value={editForm.term_end} onChange={e => setEditForm(f => ({ ...f, term_end: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Sessions/Week</label>
+                  <select value={editForm.sessions_per_week} onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                    {['1','2','3','4','5'].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Status</label>
+                  <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 p-5 border-t border-white/[0.08]">
+              <button onClick={() => setEditingPlan(null)} className="flex-1 py-3 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/50 hover:bg-white/5 min-h-[44px]">
+                Cancel
+              </button>
+              <button onClick={saveEdit} disabled={savingEdit}
+                className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl min-h-[44px] transition-colors disabled:opacity-50">
+                {savingEdit ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
           </div>

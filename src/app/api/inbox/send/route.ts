@@ -105,17 +105,70 @@ async function sendWhatsAppMessage(to: string, message: string) {
   }
 }
 
-// POST /api/inbox/send — send a WhatsApp message
+// POST /api/inbox/send — send a message (staff → WhatsApp; learner → inbound portal message)
 export async function POST(req: NextRequest) {
   try {
-    const caller = await requireStaff(req);
     const admin = adminClient();
-
     const body = await req.json();
     const { conversation_id, message } = body;
 
     if (!conversation_id || !message?.trim()) {
       return NextResponse.json({ error: 'conversation_id and message required' }, { status: 400 });
+    }
+
+    // Auth: allow staff AND learners (student/parent send inbound portal messages)
+    const supabaseServer = await createServerClient();
+    const { data: { user }, error: authErr } = await supabaseServer.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: callerProfile } = await admin
+      .from('portal_users')
+      .select('id, role, school_id, full_name')
+      .eq('id', user.id)
+      .single();
+
+    const role = callerProfile?.role ?? '';
+    if (!['admin', 'teacher', 'school', 'student', 'parent'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const isLearner = role === 'student' || role === 'parent';
+
+    if (isLearner) {
+      // Learner path: save as inbound (from their side), no WhatsApp API call
+      const { data: conv } = await admin
+        .from('whatsapp_conversations')
+        .select('id, portal_user_id')
+        .eq('id', conversation_id)
+        .maybeSingle();
+      if (!conv || conv.portal_user_id !== callerProfile!.id) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      const { data: newMessage, error: msgErr } = await admin
+        .from('whatsapp_messages')
+        .insert({
+          conversation_id,
+          direction: 'inbound',
+          body: message.trim(),
+          status: 'received',
+          sender_id: callerProfile!.id,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (msgErr) return NextResponse.json({ error: msgErr.message }, { status: 500 });
+      await admin.from('whatsapp_conversations').update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: message.trim().slice(0, 100),
+        updated_at: new Date().toISOString(),
+      }).eq('id', conversation_id);
+      return NextResponse.json({ success: true, data: newMessage });
+    }
+
+    // ── Staff path (original behaviour) ─────────────────────────────────────
+    const caller = callerProfile as { id: string; role: string; school_id: string | null; full_name: string };
+    if (!['admin', 'teacher', 'school'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden: Staff access required' }, { status: 403 });
     }
 
     // Fetch conversation to get phone number and opt-out status
@@ -244,7 +297,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (err: any) {
-    const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden: Staff access required' ? 403 : 500;
+    const status = err.message === 'Unauthorized' ? 401 : err.message?.includes('Forbidden') ? 403 : 500;
     return NextResponse.json({ error: err.message }, { status });
   }
 }

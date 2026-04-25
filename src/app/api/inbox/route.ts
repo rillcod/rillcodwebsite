@@ -24,7 +24,7 @@ async function requireInboxUser(req: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin', 'teacher', 'parent', 'student'].includes(profile.role)) {
+  if (!profile || !['admin', 'teacher', 'school', 'parent', 'student'].includes(profile.role)) {
     throw new Error('Forbidden: Inbox access denied');
   }
 
@@ -110,12 +110,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: messages });
     }
 
-    // Otherwise, fetch role-scoped conversation list
+    // Otherwise, fetch role-scoped conversation list.
+    // Left join portal_users so external contacts (no portal_user_id) are included.
     let convQuery = admin
       .from('whatsapp_conversations')
       .select(`
         *,
-        portal_users!inner(id, full_name, email, phone, school_id)
+        portal_users(id, full_name, email, phone, school_id)
       `)
       .order('last_message_at', { ascending: false })
       .limit(100);
@@ -123,10 +124,11 @@ export async function GET(req: NextRequest) {
     if (caller.role === 'parent' || caller.role === 'student') {
       convQuery = convQuery.eq('portal_user_id', caller.id);
     } else if (caller.role === 'teacher') {
-      const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
-      if (schoolIds.length === 0) return NextResponse.json({ data: [] });
-      convQuery = convQuery.in('portal_users.school_id', schoolIds);
+      // Teachers see only conversations they own (their personal contact list).
+      // New contacts are added via POST /api/inbox/conversation which sets assigned_staff_id.
+      convQuery = convQuery.eq('assigned_staff_id', caller.id);
     }
+    // admin and school: no additional filter — they see all conversations
 
     const { data: conversations, error } = await convQuery;
 

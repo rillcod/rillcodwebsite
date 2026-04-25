@@ -55,7 +55,7 @@ export async function GET(
   return NextResponse.json({ data: row });
 }
 
-// PATCH /api/curricula/[id] — update is_visible_to_school
+// PATCH /api/curricula/[id] — update is_visible_to_school and/or content
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -66,14 +66,10 @@ export async function PATCH(
   const { id } = await context.params;
   const body = await req.json();
 
-  if (typeof body.is_visible_to_school !== 'boolean') {
-    return NextResponse.json({ error: 'is_visible_to_school (boolean) required' }, { status: 400 });
-  }
-
   const admin = createAdminClient() as any;
   const { data: row, error: rowErr } = await admin
     .from('course_curricula')
-    .select('id, school_id')
+    .select('id, school_id, version')
     .eq('id', id)
     .maybeSingle();
   if (rowErr) return NextResponse.json({ error: rowErr.message }, { status: 500 });
@@ -81,11 +77,25 @@ export async function PATCH(
   const ok = await callerCanManageCurriculumSchool(admin, caller, row.school_id ?? null);
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const updatePayload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (typeof body.is_visible_to_school === 'boolean') {
+    updatePayload.is_visible_to_school = body.is_visible_to_school;
+  }
+  if (body.content !== undefined) {
+    updatePayload.content = body.content;
+    updatePayload.version = (row.version ?? 1) + 1;
+  }
+
+  if (Object.keys(updatePayload).length === 1) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+  }
+
   const { data, error } = await admin
     .from('course_curricula')
-    .update({ is_visible_to_school: body.is_visible_to_school, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', id)
-    .select('id, is_visible_to_school')
+    .select('id, is_visible_to_school, version, content')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

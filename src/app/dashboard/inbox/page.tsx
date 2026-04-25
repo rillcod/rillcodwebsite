@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -145,7 +145,7 @@ const CHANNEL_COLORS: Record<InboxCategory, string> = {
 // ── Component ────────────────────────────────────────────────────────────────
 export default function UnifiedInbox() {
   const { profile, loading: authLoading } = useAuth();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Chat state
   const [sidebarView, setSidebarView]         = useState<SidebarView>('chats');
@@ -433,9 +433,19 @@ export default function UnifiedInbox() {
       const json = await res.json();
       if (json.data) {
         await fetchConversations(activeTab);
-        const newConv = json.data;
-        // Find the conv in the updated list to ensure it has all fields
-        setActiveConv(newConv);
+        const raw = json.data;
+        const conv: Conversation = {
+          id: raw.id,
+          type: 'students' as const,
+          contact_name: raw.contact_name || 'Support',
+          last_message_at: raw.last_message_at || new Date().toISOString(),
+          last_message_preview: raw.last_message_preview || '',
+          unread_count: 0,
+          role: profile?.role || 'student',
+          portal_user_id: raw.portal_user_id,
+          phone_number: raw.phone_number,
+        };
+        setActiveConv(conv);
         setSidebarView('chats');
       }
     } catch (err: any) {
@@ -756,20 +766,27 @@ export default function UnifiedInbox() {
     setMsgLoading(true);
     try {
       if (conv.type === 'students') {
-        const { data } = await supabase.from('whatsapp_messages').select('*')
-          .eq('conversation_id', conv.id).order('created_at', { ascending: true });
-        if (data) setMessages(data.map(normaliseMsg));
+        // Always use the server endpoint so RLS on whatsapp_messages never blocks any role.
+        // The endpoint handles access scoping per-role and marks the conversation as read.
+        const res = await fetch(`/api/inbox?conversation_id=${encodeURIComponent(conv.id)}`);
+        const json = await res.json();
+        if (json.data) setMessages((json.data as any[]).map(normaliseMsg));
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+        return;
       } else if (conv.type === 'parents') {
-        const { data } = await supabase.from('parent_teacher_messages').select('*')
-          .eq('thread_id', conv.id).order('sent_at', { ascending: true });
-        if (data) setMessages(data.map(m => ({ ...normaliseMsg(m), conversation_id: m.thread_id })));
+        // Use server endpoint — marks as read and bypasses any RLS gaps
+        const res = await fetch(`/api/parent-teacher/threads/${encodeURIComponent(conv.id)}/messages`);
+        const json = await res.json();
+        if (json.data) setMessages((json.data as any[]).map(normaliseMsg));
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+        return;
       } else {
-        const { data } = await supabase.from('school_teacher_messages').select('*')
-          .eq('conversation_id', conv.id).order('created_at', { ascending: true });
-        if (data) setMessages(data.map(normaliseMsg));
-      }
-      if (conv.unread_count > 0) {
-        await markAsRead(conv);
+        // school / teachers tab — use server endpoint
+        const res = await fetch(`/api/school-teacher/conversations/${encodeURIComponent(conv.id)}/messages`);
+        const json = await res.json();
+        if (json.data) setMessages((json.data as any[]).map(normaliseMsg));
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+        return;
       }
     } catch (err) { console.error('fetchMessages error:', err); }
     finally { setMsgLoading(false); }
@@ -828,14 +845,22 @@ export default function UnifiedInbox() {
           setSendError(`ℹ️ ${json.message || 'Message saved but not sent via WhatsApp'}`);
         }
       } else if (activeConv.type === 'parents') {
-        const { data, error } = await supabase.from('parent_teacher_messages').insert({ thread_id: activeConv.id, sender_id: profile.id, body }).select().single();
-        if (error) throw error;
-        if (data) setMessages(prev => [...prev, { ...normaliseMsg(data), conversation_id: data.thread_id }]);
+        const res = await fetch(`/api/parent-teacher/threads/${encodeURIComponent(activeConv.id)}/messages`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Send failed');
+        if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
       } else {
-        // handles both 'school' and 'teachers' tabs — both use school_teacher_messages
-        const { data, error } = await supabase.from('school_teacher_messages').insert({ conversation_id: activeConv.id, sender_id: profile.id, body }).select().single();
-        if (error) throw error;
-        if (data) setMessages(prev => [...prev, normaliseMsg(data)]);
+        // handles both 'school' and 'teachers' tabs
+        const res = await fetch(`/api/school-teacher/conversations/${encodeURIComponent(activeConv.id)}/messages`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Send failed');
+        if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
       }
       setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, last_message_preview: body, last_message_at: new Date().toISOString() } : c));
     } catch (err: any) {
@@ -1061,13 +1086,17 @@ export default function UnifiedInbox() {
       return;
     }
 
-    // Portal user — find or create whatsapp_conversations
-    const { data: existing } = await supabase.from('whatsapp_conversations').select('*').eq('phone_number', phone).maybeSingle();
-    const conv = existing || (await supabase.from('whatsapp_conversations').insert({
-      phone_number: phone, contact_name: item.full_name,
-      portal_user_id: item.id === item.phone ? null : item.id, // don't store external ids
-      last_message_at: new Date().toISOString(), last_message_preview: '',
-    }).select().single()).data;
+    // Portal user — find or create via server endpoint (sets assigned_staff_id for teachers)
+    const convRes = await fetch('/api/inbox/conversation', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone_number: phone,
+        contact_name: item.full_name,
+        portal_user_id: item.id === item.phone ? null : item.id,
+      }),
+    });
+    const convJson = await convRes.json();
+    const conv = convJson.data;
 
     if (conv) {
       const c: Conversation = {
@@ -1089,6 +1118,47 @@ export default function UnifiedInbox() {
     try {
       if (activeTab === 'students') {
         await openWhatsAppConversation(item);
+      } else if (activeTab === 'parents') {
+        // Find or create a parent-teacher thread for this parent.
+        // We need the linked student_id — find it via portal_users.
+        if (!profile?.id) return;
+        const { data: studentRow } = await supabase
+          .from('portal_users')
+          .select('id')
+          .eq('role', 'student')
+          .eq('school_id', item.school_id || profile.school_id || '')
+          .limit(1)
+          .maybeSingle();
+        const studentId = studentRow?.id ?? item.student_id ?? null;
+
+        const { data: existing } = await supabase
+          .from('parent_teacher_threads')
+          .select('*')
+          .eq('parent_id', item.id)
+          .eq('teacher_id', profile.id)
+          .maybeSingle();
+        const thread = existing || (
+          await (supabase.from('parent_teacher_threads') as any)
+            .insert({ parent_id: item.id, teacher_id: profile.id, student_id: studentId })
+            .select()
+            .single()
+        ).data;
+        if (thread) {
+          const c: Conversation = {
+            id:                   thread.id,
+            type:                 'parents' as const,
+            contact_name:         item.full_name || 'Parent',
+            last_message_at:      thread.created_at || new Date().toISOString(),
+            last_message_preview: 'No messages yet',
+            unread_count:         0,
+            role:                 'parent',
+          };
+          setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+          setActiveConv(c);
+          setShowSidebar(false);
+          setSidebarView('chats');
+          setActiveTab('parents');
+        }
       } else if (activeTab === 'teachers' || activeTab === 'school') {
         // Open subject dialog instead of window.prompt
         setSubjectDialog({ open: true, subject: '', pendingItem: item });
