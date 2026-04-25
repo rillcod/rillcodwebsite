@@ -376,53 +376,103 @@ export default function IdentityCardsPage() {
   }
 
   const CardGrid = ({ list }: { list: CardRecord[] }) => (
-    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
       {list.map((r) => {
         const isSelected = selectedIds.has(r.id);
+        const acc = config.accentColor;
+        const code = `RC-${r.id.slice(0, 8).toUpperCase()}`;
+        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(r.profileUrl)}`;
+        const hStyle = config.headerStyle;
+
         return (
           <article
             key={r.id}
-            className={`bg-card border rounded-none overflow-hidden transition-all cursor-pointer ${
-              isSelected ? 'border-orange-500/60 ring-1 ring-orange-500/30' : 'border-border hover:border-orange-500/25'
+            className={`rounded-none overflow-hidden transition-all flex flex-col ${
+              isSelected ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'ring-1 ring-border hover:ring-orange-500/40'
             }`}
-            onClick={() => toggleSelected(r.id)}
           >
-            <div className="h-1" style={{ backgroundColor: config.accentColor }} />
-            <div className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div
-                  className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-xs font-black text-white"
-                  style={{ backgroundColor: config.accentColor }}
-                >
-                  {r.name.charAt(0).toUpperCase()}
+            {/* ── Mini card preview (matches print output) ── */}
+            <div className="bg-white text-[#111] shadow-sm flex-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+              {/* Header */}
+              {hStyle === 'band' && (
+                <div style={{ background: acc, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 18, height: 18, background: 'rgba(255,255,255,0.25)', borderRadius: 2, flexShrink: 0 }} />
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: 8, fontWeight: 900, color: '#fff', textTransform: 'uppercase', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{config.orgName}</div>
+                    <div style={{ fontSize: 6, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginTop: 1 }}>{config.orgWebsite}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.22)', color: '#fff', padding: '2px 6px', fontSize: 6, fontWeight: 900, textTransform: 'uppercase', flexShrink: 0 }}>{config.cardLabel}</div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-black leading-tight line-clamp-1">{r.name}</h3>
-                  <p className="text-[10px] font-black uppercase tracking-widest mt-0.5" style={{ color: config.accentColor }}>
-                    {r.roleLabel}
-                    {r.sectionClass ? ` · ${r.sectionClass}` : ''}
-                  </p>
+              )}
+              {hStyle === 'border' && (
+                <div style={{ borderLeft: `3px solid ${acc}`, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid #f3f4f6' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 8, fontWeight: 900, color: '#111', textTransform: 'uppercase' }}>{config.orgName}</div>
+                    <div style={{ fontSize: 6, color: acc, fontWeight: 700, marginTop: 1 }}>{config.orgWebsite}</div>
+                  </div>
+                  <div style={{ background: acc, color: '#fff', padding: '2px 6px', fontSize: 6, fontWeight: 900, textTransform: 'uppercase', flexShrink: 0 }}>{config.cardLabel}</div>
                 </div>
+              )}
+              {hStyle === 'minimal' && (
+                <div style={{ borderBottom: `2px solid ${acc}`, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ flex: 1, fontSize: 8, fontWeight: 900, color: '#111', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{config.orgName}</div>
+                  <div style={{ fontSize: 7, fontWeight: 900, color: acc, textTransform: 'uppercase', flexShrink: 0 }}>{config.cardLabel}</div>
+                </div>
+              )}
+
+              {/* Body */}
+              <div style={{ display: 'flex', minHeight: 72 }}>
+                <div style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 3, borderRight: '1px solid #f3f4f6', overflow: 'hidden' }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: '#111', textTransform: 'uppercase', lineHeight: 1.2, wordBreak: 'break-word' }}>{r.name}</div>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: acc, textTransform: 'uppercase', letterSpacing: 0.5 }}>{r.roleLabel}</div>
+                  <div style={{ height: 1, background: '#f3f4f6', margin: '2px 0' }} />
+                  <div>
+                    <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>School</div>
+                    <div style={{ fontSize: 8, fontWeight: 800, fontFamily: 'monospace', color: acc, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.school}</div>
+                  </div>
+                  {r.sectionClass && (
+                    <div>
+                      <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>Class</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#111' }}>{r.sectionClass}</div>
+                    </div>
+                  )}
+                  <div style={{ marginTop: 2, display: 'inline-block', background: `${acc}18`, border: `1px solid ${acc}40`, color: acc, fontSize: 6, fontWeight: 800, padding: '1px 5px', textTransform: 'uppercase' }}>{r.badge}</div>
+                </div>
+                <div style={{ width: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '6px 4px', background: '#fafafa', flexShrink: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qr} alt="" style={{ width: 40, height: 40, border: '1px solid #e5e7eb' }} />
+                  <div style={{ fontSize: 5, color: '#9ca3af', textAlign: 'center', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3 }}>Scan</div>
+                  <div style={{ fontSize: 6, fontWeight: 900, fontFamily: 'monospace', color: acc, textAlign: 'center', wordBreak: 'break-all' }}>{code}</div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 10px', borderTop: '1px solid #f3f4f6', fontSize: 6, color: '#9ca3af', fontWeight: 600, background: '#fafafa' }}>
+                <span>{config.footerLeft}</span>
+                <span style={{ fontFamily: 'monospace', color: '#374151', fontWeight: 900 }}>{config.cardLabel}</span>
+              </div>
+            </div>
+
+            {/* ── Actions bar ── */}
+            <div className="bg-card border-t border-border flex items-center gap-2 p-2">
+              <label
+                className="inline-flex items-center gap-1.5 px-2 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground cursor-pointer hover:bg-muted transition-colors flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggleSelected(r.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="accent-orange-600 w-4 h-4 flex-shrink-0 mt-0.5"
+                  className="accent-orange-600 w-3 h-3"
                 />
-              </div>
-
-              <div className="text-[11px] text-muted-foreground space-y-1 border-t border-border pt-3">
-                <p className="truncate">{r.email}</p>
-                <p className="truncate font-medium text-foreground/70">{r.school}</p>
-              </div>
-
+                Sel
+              </label>
               <button
                 onClick={(e) => { e.stopPropagation(); printCards([r], `${r.name} access card`); }}
-                className="w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white rounded-none transition-all inline-flex items-center justify-center gap-2 hover:opacity-90"
-                style={{ backgroundColor: config.accentColor }}
+                className="flex-1 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all inline-flex items-center justify-center gap-1.5 hover:opacity-90"
+                style={{ backgroundColor: acc }}
               >
-                <CreditCardIcon className="w-3.5 h-3.5" /> Print Card
+                <PrinterIcon className="w-3 h-3" /> Print
               </button>
             </div>
           </article>
