@@ -104,7 +104,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
-                padding: '20mm',
+                padding: '14mm 16mm 12mm 16mm',
                 margin: '0 auto',
                 overflow: 'hidden',
                 width: '210mm',
@@ -151,24 +151,24 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             <div style={{
                 position: 'relative', zIndex: 10,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                borderBottom: `6px solid ${C.black}`, paddingBottom: '32px', marginBottom: '32px',
+                borderBottom: `4px solid ${C.black}`, paddingBottom: '16px', marginBottom: '16px',
             }}>
                 <div style={{ display: 'flex', gap: '32px' }}>
-                    <div style={{ padding: '20px', background: C.black, boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
+                    <div style={{ padding: '12px', background: C.black }}>
                         <img
                             src={orgSettings?.logo_url || '/logo.png'}
                             alt="Logo"
                             crossOrigin="anonymous"
-                            style={{ width: '64px', height: '64px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+                            style={{ width: '48px', height: '48px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
                             onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                        <h1 style={{ fontSize: '30px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.05em', fontStyle: 'italic', lineHeight: 1, marginBottom: '8px', color: C.black }}>
+                        <h1 style={{ fontSize: '22px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.04em', fontStyle: 'italic', lineHeight: 1, marginBottom: '4px', color: C.black }}>
                             {orgSettings?.org_name || 'Rillcod Technologies'}
                         </h1>
-                        <p style={{ fontSize: '10px', color: C.accent, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', marginBottom: '16px' }}>
-                            {orgSettings?.org_tagline || 'Technical Excellence Consortium'}
+                        <p style={{ fontSize: '10px', color: C.accent, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '8px' }}>
+                            {orgSettings?.org_tagline || 'Excellence in Educational Technology'}
                         </p>
                         <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.2em' }}>
                             <span>ID: {report.id?.slice(0, 8) || 'PREVIEW'}</span>
@@ -179,7 +179,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 </div>
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '16px' }}>
                     <div style={{ padding: '10px 32px', background: C.black, color: C.white, fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic' }}>
-                        Registry Copy
+                        Progress Report
                     </div>
                     {hasPayment && feeStyle && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '10px 20px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
@@ -191,21 +191,21 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Student Identity */}
-            <div style={{ position: 'relative', zIndex: 10, marginBottom: '24px' }}>
+            <div style={{ position: 'relative', zIndex: 10, marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                     <div style={{ width: '32px', height: '3px', background: C.accent }} />
-                    <p style={{ fontSize: '11px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic' }}>Official Recipient</p>
+                    <p style={{ fontSize: '11px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic' }}>Student</p>
                 </div>
-                <h2 style={{ fontSize: '52px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.04em', fontStyle: 'italic', borderBottom: `10px solid ${C.accent}`, paddingBottom: '16px', lineHeight: 1, color: C.black }}>
+                <h2 style={{ fontSize: '36px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', fontStyle: 'italic', borderBottom: `4px solid ${C.accent}`, paddingBottom: '10px', lineHeight: 1, color: C.black }}>
                     {report.student_name || 'Valued Learner'}
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', paddingTop: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', paddingTop: '12px' }}>
                     {[
                         { label: 'Programme',      value: report.course_name    || 'STEM Synthesis' },
-                        { label: 'Timeline',        value: report.report_term    || 'S1-2024'        },
-                        { label: 'Academic Level',  value: report.section_class  || 'N/A'            },
-                        { label: 'Institution',     value: report.school_name    || 'Rillcod'        },
+                        { label: 'Term',        value: report.report_term    || 'S1-2024'        },
+                        { label: 'Class',  value: report.section_class  || 'N/A'            },
+                        { label: 'School',     value: report.school_name    || 'Rillcod'        },
                     ].map(f => (
                         <div key={f.label}>
                             <p style={{ fontSize: '10px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '6px' }}>{f.label}</p>
@@ -216,11 +216,11 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Performance Hub */}
-            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '32px', marginBottom: '24px' }}>
+            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '20px', marginBottom: '14px' }}>
                 {/* Metric Bars */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.6em', color: C.black, fontStyle: 'italic', whiteSpace: 'nowrap' }}>WAEC Mastery Matrix</h3>
+                        <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.6em', color: C.black, fontStyle: 'italic', whiteSpace: 'nowrap' }}>Performance Breakdown</h3>
                         <div style={{ height: '2px', width: '100%', background: C.slate100 }} />
                     </div>
 
@@ -238,13 +238,13 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                         ))}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', paddingTop: '16px', borderTop: `3px solid ${C.slate100}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '10px', borderTop: `2px solid ${C.slate100}` }}>
                         <div style={{ padding: '16px', background: C.slate50, borderLeft: `6px solid ${C.black}` }}>
-                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Laboratory Performance</p>
+                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Project Work</p>
                             <p style={{ fontSize: '18px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.projects_grade || 'OPTIMAL'}</p>
                         </div>
                         <div style={{ padding: '16px', background: C.slate50, borderLeft: `6px solid ${C.accent}` }}>
-                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Assignment Analytics</p>
+                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Homework</p>
                             <p style={{ fontSize: '18px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.homework_grade || 'SUBMITTED'}</p>
                         </div>
                     </div>
@@ -267,37 +267,37 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Qualitative Insights */}
-            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div style={{ padding: '24px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                <div style={{ padding: '14px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                         <div style={{ padding: '8px', background: 'rgba(255,145,77,0.1)', border: `1px solid rgba(255,145,77,0.2)` }}>
                             <SparklesIcon style={{ width: '18px', height: '18px', color: C.accent }} />
                         </div>
                         <h4 style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.black, fontStyle: 'italic' }}>Identified Strengths</h4>
                     </div>
                     <p style={{ fontSize: '13px', lineHeight: 1.6, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
-                        {report.key_strengths || 'The student demonstrates exceptional aptitude in logical deduction and technical synthesis.'}
+                        {report.key_strengths || 'The student demonstrates exceptional aptitude in problem-solving and practical work.'}
                     </p>
                 </div>
-                <div style={{ padding: '24px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ padding: '14px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                         <div style={{ padding: '8px', background: 'rgba(18,18,18,0.05)', border: `1px solid rgba(18,18,18,0.1)` }}>
                             <BoltIcon style={{ width: '18px', height: '18px', color: C.black }} />
                         </div>
-                        <h4 style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.black, fontStyle: 'italic' }}>Growth Calibration</h4>
+                        <h4 style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.black, fontStyle: 'italic' }}>Areas for Improvement</h4>
                     </div>
                     <p style={{ fontSize: '13px', lineHeight: 1.6, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
-                        {report.areas_for_growth || 'Focus on architectural modularity and technical documentation will optimize deployment competence.'}
+                        {report.areas_for_growth || 'Focus on continued practice and revision will strengthen overall performance.'}
                     </p>
                 </div>
             </div>
 
             {/* Certification Decree */}
             {(overall >= 45 || report.has_certificate) && (
-                <div style={{ position: 'relative', zIndex: 10, marginBottom: '16px', padding: '20px 24px', background: C.white, borderTop: `4px solid ${C.black}`, borderBottom: `4px solid ${C.black}`, display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <div style={{ position: 'relative', zIndex: 10, marginBottom: '10px', padding: '12px 16px', background: C.white, borderTop: `4px solid ${C.black}`, borderBottom: `4px solid ${C.black}`, display: 'flex', alignItems: 'center', gap: '24px' }}>
                     <TrophyIcon style={{ width: '40px', height: '40px', color: C.accent, flexShrink: 0 }} />
                     <div>
-                        <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '1.2em', marginBottom: '6px', fontStyle: 'italic' }}>Official Decree</p>
+                        <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '1.2em', marginBottom: '6px', fontStyle: 'italic' }}>Certificate of Achievement</p>
                         <p style={{ fontSize: '14px', fontWeight: 900, color: C.black, lineHeight: 1.4, fontStyle: 'italic' }}>
                             {report.certificate_text || `This document officially recognizes the mastery demonstrated by ${report.student_name} in ${report.course_name}.`}
                         </p>
@@ -305,15 +305,15 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 </div>
             )}
 
-            {/* Board Verification & Signatures */}
-            <div style={{ position: 'relative', zIndex: 10, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '24px', borderTop: `3px solid ${C.slate100}` }}>
-                <div style={{ display: 'flex', gap: '60px' }}>
+            {/* Signatures & Signatures */}
+            <div style={{ position: 'relative', zIndex: 10, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '14px', borderTop: `2px solid ${C.slate100}` }}>
+                <div style={{ display: 'flex', gap: '40px' }}>
                     {[
-                        { title: 'Executive Director', sub: 'Rillcod Technologies' },
-                        { title: 'Lead Registrar',     sub: 'Board of Governors'  },
+                        { title: 'School Director', sub: 'Rillcod Technologies' },
+                        { title: 'Class Teacher',     sub: 'Rillcod Technologies'  },
                     ].map(sig => (
                         <div key={sig.title} style={{ textAlign: 'center' }}>
-                            <img src="/images/signature.png" alt={sig.title} crossOrigin="anonymous" style={{ height: '56px', margin: '0 auto 12px', opacity: 0.85, filter: 'contrast(1.25)' }} />
+                            <img src="/images/signature.png" alt={sig.title} crossOrigin="anonymous" style={{ height: '40px', margin: '0 auto 8px', opacity: 0.85, filter: 'contrast(1.25)' }} />
                             <div style={{ width: '160px', height: '2.5px', background: C.black, margin: '0 auto 6px' }} />
                             <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic' }}>{sig.title}</p>
                             <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{sig.sub}</p>
@@ -325,7 +325,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <div style={{ padding: '12px', background: C.white, border: `1px solid ${C.slate200}` }}>
                         <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={64} fgColor={C.black} />
                     </div>
-                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.4em' }}>ID SECURITY HASH</p>
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.4em' }}>Verify Online</p>
                 </div>
             </div>
 
