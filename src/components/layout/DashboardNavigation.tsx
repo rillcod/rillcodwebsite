@@ -445,7 +445,7 @@ export default function DashboardNavigation() {
         {/* Logo */}
         <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-sidebar-foreground/[0.08] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-orange-500/[0.04] to-transparent pointer-events-none" />
-          <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shadow-[0_0_24px_rgba(249,115,22,0.15)] mb-3 relative z-10">
+          <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shadow-[0_0_24px_rgba(26,58,143,0.15)] mb-3 relative z-10">
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
           <div className="text-center leading-none relative z-10">
@@ -456,7 +456,7 @@ export default function DashboardNavigation() {
 
         {/* User badge */}
         <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-foreground/[0.08] bg-sidebar-foreground/[0.03]">
-          <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(249,115,22,0.12)]">
+          <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(26,58,143,0.12)]">
             <span className="text-orange-400 text-sm font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
@@ -505,11 +505,11 @@ export default function DashboardNavigation() {
                 }`}
               >
                 {active && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.6)]" />
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-orange-500 shadow-[0_0_12px_rgba(26,58,143,0.6)]" />
                 )}
                 <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
                   active
-                    ? 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.7)]'
+                    ? 'text-orange-400 drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]'
                     : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
                 }`} />
                 <span className="truncate">{name}</span>
@@ -576,7 +576,7 @@ export default function DashboardNavigation() {
             >
               <div className={`relative flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${
                 active
-                  ? 'bg-orange-500/15 shadow-[0_0_12px_rgba(249,115,22,0.25)]'
+                  ? 'bg-orange-500/15 shadow-[0_0_12px_rgba(26,58,143,0.25)]'
                   : ''
               }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-orange-400' : 'text-sidebar-foreground/35'}`} />
