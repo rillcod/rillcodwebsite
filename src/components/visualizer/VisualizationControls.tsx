@@ -69,7 +69,7 @@ export default function VisualizationControls({
             variant="ghost" 
             size="icon" 
             onClick={onRestart}
-            className="w-9 h-9 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-none"
+            className="w-9 h-9 text-muted-foreground/70 hover:text-white hover:bg-white/5 transition-all rounded-none"
           >
             <RotateCcw className="w-4 h-4" />
           </Button>
@@ -81,7 +81,7 @@ export default function VisualizationControls({
             size="icon" 
             onClick={onPrev}
             disabled={currentStep === 0}
-            className="w-9 h-9 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-none disabled:opacity-20"
+            className="w-9 h-9 text-muted-foreground/70 hover:text-white hover:bg-white/5 transition-all rounded-none disabled:opacity-20"
           >
             <SkipBack className="w-4 h-4" />
           </Button>
@@ -109,7 +109,7 @@ export default function VisualizationControls({
             size="icon" 
             onClick={onNext}
             disabled={currentStep === totalSteps - 1}
-            className="w-9 h-9 text-zinc-400 hover:text-white hover:bg-white/5 transition-all rounded-none disabled:opacity-20"
+            className="w-9 h-9 text-muted-foreground/70 hover:text-white hover:bg-white/5 transition-all rounded-none disabled:opacity-20"
           >
             <SkipForward className="w-4 h-4" />
           </Button>
@@ -134,7 +134,7 @@ export default function VisualizationControls({
 
           <div className="flex flex-col items-center">
             <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Interpolation</span>
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Next.Step()</span>
+            <span className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest leading-none">Next.Step()</span>
           </div>
         </div>
 
@@ -142,11 +142,11 @@ export default function VisualizationControls({
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2 flex-1 sm:w-40">
             <div className="p-1.5 bg-black/40 border border-white/5">
-               <Clock className="w-3.5 h-3.5 text-zinc-500" />
+               <Clock className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
             
             <div className="flex flex-col gap-2 flex-1">
-              <div className="flex items-center justify-between text-[8px] font-black text-zinc-500 uppercase tracking-widest">
+              <div className="flex items-center justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
                 <span>Speed Control</span>
                 <span className="text-cyan-400">{speed.toFixed(1)}x</span>
               </div>
@@ -170,7 +170,7 @@ export default function VisualizationControls({
           
           <Button 
             variant="outline" 
-            className="rounded-none border-zinc-800 bg-black/40 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 hover:text-white text-zinc-400 h-10 px-4"
+            className="rounded-none border-zinc-800 bg-black/40 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 hover:text-white text-muted-foreground/70 h-10 px-4"
             disabled
           >
             <Zap className="mr-2 h-3.5 w-3.5 text-yellow-500 fill-yellow-500/20" />

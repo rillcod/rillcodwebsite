@@ -94,14 +94,14 @@ const Footer = () => {
               </div>
             </Link>
             
-            <p className="text-sm text-slate-500 font-bold italic leading-relaxed border-l-2 border-orange-500 pl-6">
+            <p className="text-sm text-muted-foreground font-bold italic leading-relaxed border-l-2 border-orange-500 pl-6">
               Engineering the next generation of African tech leaders through standardized curriculum and AI-powered learning architectures.
             </p>
 
             <div className="space-y-4 pt-4">
                <div className="flex items-start gap-4 group">
                   <MapPinIcon className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                  <p className="text-xs font-black text-muted-foreground/70 uppercase tracking-widest leading-relaxed">
                     No 26 Ogiesoba Aveune <br />
                     Off Airport Road, <br />
                     Benin City, Edo State.
@@ -120,11 +120,11 @@ const Footer = () => {
 
           {/* Navigation */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Quick Protocols</h4>
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Quick Protocols</h4>
             <ul className="space-y-4">
               {quickLinks.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-xs font-black text-slate-400 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                  <Link href={link.href} className="text-xs font-black text-muted-foreground/70 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
                     <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
                     {link.label}
                   </Link>
@@ -135,11 +135,11 @@ const Footer = () => {
 
           {/* Academic Paths */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Academic Sectors</h4>
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Academic Sectors</h4>
             <ul className="space-y-4">
               {programs.map((p) => (
                 <li key={p.label}>
-                  <Link href={p.href} className="text-xs font-black text-slate-400 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                  <Link href={p.href} className="text-xs font-black text-muted-foreground/70 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
                     <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
                     {p.label}
                   </Link>
@@ -150,8 +150,8 @@ const Footer = () => {
 
           {/* Newsletter / CTA */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Initialize Uplink</h4>
-            <p className="text-xs font-bold text-slate-500 italic mb-8">
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Initialize Uplink</h4>
+            <p className="text-xs font-bold text-muted-foreground italic mb-8">
               Stay synchronized with our latest technological deployment and curriculum updates.
             </p>
             <Link href="/student-registration" className="block w-full py-5 bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
@@ -164,11 +164,11 @@ const Footer = () => {
         {/* Legal & Social */}
         <div className="pt-12 border-t border-border flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex flex-wrap justify-center md:justify-start gap-8">
-            <Link href="/privacy" className="text-[9px] font-black text-slate-600 hover:text-foreground uppercase tracking-widest transition-colors">Privacy Protocol</Link>
-            <Link href="/terms" className="text-[9px] font-black text-slate-600 hover:text-foreground uppercase tracking-widest transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Privacy Protocol</Link>
+            <Link href="/terms" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Terms of Service</Link>
           </div>
 
-          <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]" suppressHydrationWarning>
+          <p className="text-[9px] font-black text-foreground/80 uppercase tracking-[0.3em]" suppressHydrationWarning>
             © {currentYear} RILLCOD TECHNOLOGIES. ALL SYSTEMS OPERATIONAL.
           </p>
 

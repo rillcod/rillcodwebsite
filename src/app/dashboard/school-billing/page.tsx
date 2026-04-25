@@ -26,7 +26,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   due:         { label: 'Due',       color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',    icon: ClockIcon },
   past_due:    { label: 'Past Due',  color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',       icon: ExclamationTriangleIcon },
   paid:        { label: 'Paid',      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: CheckCircleIcon },
-  cancelled:   { label: 'Cancelled', color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20',       icon: InformationCircleIcon },
+  cancelled:   { label: 'Cancelled', color: 'text-muted-foreground/70 bg-zinc-500/10 border-zinc-500/20',       icon: InformationCircleIcon },
   rolled_over: { label: 'Rolled Over', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: ArrowPathIcon },
 };
 

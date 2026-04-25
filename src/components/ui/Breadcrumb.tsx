@@ -15,24 +15,24 @@ interface BreadcrumbProps {
 
 const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' }) => {
   return (
-    <nav className={`flex items-center space-x-1 text-sm text-gray-500 ${className}`} aria-label="Breadcrumb">
+    <nav className={`flex items-center space-x-1 text-sm text-muted-foreground ${className}`} aria-label="Breadcrumb">
       <ol className="flex items-center space-x-1">
         {items.map((item, index) => (
           <li key={index} className="flex items-center">
             {index > 0 && (
-              <ChevronRight className="w-4 h-4 mx-1 text-gray-400" />
+              <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground/70" />
             )}
             
             {item.href ? (
               <Link
                 href={item.href}
-                className="flex items-center hover:text-gray-700 transition-colors"
+                className="flex items-center hover:text-foreground/80 transition-colors"
               >
                 {item.icon && <span className="mr-1">{item.icon}</span>}
                 {item.label}
               </Link>
             ) : (
-              <span className="flex items-center text-gray-900 font-medium">
+              <span className="flex items-center text-foreground font-medium">
                 {item.icon && <span className="mr-1">{item.icon}</span>}
                 {item.label}
               </span>

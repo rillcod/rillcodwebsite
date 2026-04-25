@@ -108,7 +108,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                 </Button>
             </CardHeader>
 
-            <CardContent className="flex-1 p-0 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
+            <CardContent className="flex-1 p-0 bg-background dark:bg-slate-950 relative overflow-hidden">
                 <ScrollArea className="h-full p-4">
                     <div className="space-y-4">
                         {messages.map((msg, i) => (
@@ -118,11 +118,11 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                             >
                                 <div className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${msg.recipient_id === recipientId
                                         ? 'bg-teal-600 text-white rounded-tr-none'
-                                        : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
+                                        : 'bg-card dark:bg-slate-800 text-foreground dark:text-slate-200 rounded-tl-none border border-slate-100 dark:border-slate-700 shadow-sm'
                                     }`}>
                                     {msg.content}
                                 </div>
-                                <span className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">
+                                <span className="text-[10px] text-muted-foreground/70 mt-1 uppercase font-bold tracking-tighter">
                                     {format(new Date(msg.created_at || Date.now()), 'p')}
                                 </span>
                             </div>
@@ -132,9 +132,9 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                 </ScrollArea>
             </CardContent>
 
-            <CardFooter className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex w-full items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-full border border-slate-200 dark:border-slate-700">
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
+            <CardFooter className="p-4 bg-card dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex w-full items-center gap-2 bg-background dark:bg-slate-800 p-1.5 rounded-full border border-border dark:border-slate-700">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
                         <Smile className="w-5 h-5" />
                     </Button>
                     <Input
@@ -146,9 +146,9 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                         }}
                         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                         placeholder="Type a message..."
-                        className="border-none bg-transparent focus-visible:ring-0 px-1 placeholder:text-slate-400"
+                        className="border-none bg-transparent focus-visible:ring-0 px-1 placeholder:text-muted-foreground/70"
                     />
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground/70 hover:text-teal-500 hover:bg-transparent rounded-full px-2">
                         <Paperclip className="w-5 h-5" />
                     </Button>
                     <Button

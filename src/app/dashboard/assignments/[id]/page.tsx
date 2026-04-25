@@ -322,7 +322,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                             </button>
                         </div>
                         {/* Panel body — iframe */}
-                        <div className="flex-1 min-h-0 bg-white">
+                        <div className="flex-1 min-h-0 bg-card">
                             <iframe
                                 src={sub.file_url}
                                 title="Submitted file"
@@ -544,7 +544,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                 </div>
                                 {/* Inline PDF embed for PDF files */}
                                 {sub.file_url.toLowerCase().match(/\.pdf(\?|$)/i) && (
-                                    <div className="h-64 bg-white">
+                                    <div className="h-64 bg-card">
                                         <iframe src={sub.file_url} title="PDF preview" className="w-full h-full border-0" />
                                     </div>
                                 )}

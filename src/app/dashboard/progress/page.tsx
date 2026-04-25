@@ -300,7 +300,7 @@ export default function ProgressPage() {
             font-family: 'Inter', sans-serif !important;
           }
           .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
-          .bg-white\/5, .bg-white\/8, .bg-white\/10 { 
+          .bg-card\/5, .bg-card\/8, .bg-card\/10 { 
             background: #ffffff !important; 
             border: 1px solid #e5e7eb !important; 
           }

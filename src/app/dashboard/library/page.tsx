@@ -761,7 +761,7 @@ export default function ContentLibraryPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : item.content_type === 'video' && item.files?.public_url ? (
-                    <div className="relative w-full h-full bg-black flex items-center justify-center">
+                    <div className="relative w-full h-full bg-background flex items-center justify-center">
                       <PlayIcon className="w-12 h-12 text-white/80" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     </div>

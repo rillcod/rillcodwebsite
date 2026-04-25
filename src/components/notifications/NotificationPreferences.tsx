@@ -339,7 +339,7 @@ export default function NotificationPreferences() {
                             ${isEnabled ? 'bg-orange-500' : 'bg-muted'}
                           `}>
                             <motion.div
-                              className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                              className="absolute top-1 w-4 h-4 bg-card rounded-full shadow-sm"
                               animate={{ x: isEnabled ? 20 : 2 }}
                               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                             />

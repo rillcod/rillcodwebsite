@@ -35,7 +35,7 @@ interface UserPoints {
 
 const LEVEL_CONFIG = {
   Bronze:   { color: 'text-amber-700 bg-amber-700/20 border-amber-700/30',   min: 0,    emoji: '🥉' },
-  Silver:   { color: 'text-zinc-400 bg-zinc-400/20 border-zinc-400/30',      min: 500,  emoji: '🥈' },
+  Silver:   { color: 'text-muted-foreground/70 bg-zinc-400/20 border-zinc-400/30',      min: 500,  emoji: '🥈' },
   Gold:     { color: 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30', min: 2000, emoji: '🥇' },
   Platinum: { color: 'text-cyan-400 bg-cyan-400/20 border-cyan-400/30',       min: 5000, emoji: '💎' },
 };
@@ -236,7 +236,7 @@ export default function GamificationPage() {
                 {badge.description && <p className="text-card-foreground/50 text-sm mt-1">{badge.description}</p>}
                 <div className="flex items-center gap-2 mt-3">
                   <span className="text-xs text-yellow-400 font-bold bg-yellow-500/10 px-2 py-0.5 rounded-full">+{badge.points_value} pts</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-500/10 text-zinc-400'}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-500/10 text-muted-foreground/70'}`}>
                     {badge.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>

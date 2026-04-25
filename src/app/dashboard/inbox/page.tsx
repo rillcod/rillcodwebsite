@@ -2152,7 +2152,7 @@ export default function UnifiedInbox() {
                 </div>
               </div>
               <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full" />
+                <div className="w-2 h-2 bg-card rounded-full" />
               </div>
             </div>
             <h1 className="text-[22px] font-black text-white/75 mb-2 tracking-tight">Unified Inbox</h1>

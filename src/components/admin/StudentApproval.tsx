@@ -233,7 +233,7 @@ export default function StudentApproval() {
         </div>
       )}
 
-      <div className="bg-white border-4 border-black shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
+      <div className="bg-card border-4 border-black shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
         <div className="px-6 py-4 border-b-4 border-black bg-[#b3e5fc]">
           <h3 className="text-xl font-black text-black uppercase tracking-wider">
             Prospective Students ({prospectiveStudents.length})
@@ -244,14 +244,14 @@ export default function StudentApproval() {
           <div className="p-12 text-center bg-[#fffde7]">
             <UserIcon className="mx-auto h-16 w-16 text-black" />
             <h3 className="mt-4 text-xl font-black text-black uppercase tracking-wider">No prospective students</h3>
-            <p className="mt-2 font-bold text-black border-2 border-black inline-block p-3 bg-white shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+            <p className="mt-2 font-bold text-black border-2 border-black inline-block p-3 bg-card shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
               Students who register will appear here for approval.
             </p>
           </div>
         ) : (
           <div className="divide-y-4 divide-black">
             {prospectiveStudents.map((student) => (
-              <div key={student.id} className="p-6 hover:bg-[#e1f5fe] transition-colors bg-white">
+              <div key={student.id} className="p-6 hover:bg-[#e1f5fe] transition-colors bg-card">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-4 mb-5">

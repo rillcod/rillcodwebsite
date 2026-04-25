@@ -118,7 +118,7 @@ export default function EditExamPage() {
             <label key={t.key} className="flex items-center gap-3 cursor-pointer">
               <div onClick={() => setForm(f => ({ ...f, [t.key]: !(f as any)[t.key] }))}
                 className={`w-10 h-5 rounded-full transition-all relative ${(form as any)[t.key] ? 'bg-blue-500' : 'bg-white/10'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${(form as any)[t.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-card shadow transition-transform ${(form as any)[t.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
               <span className="text-sm text-card-foreground/70">{t.label}</span>
             </label>

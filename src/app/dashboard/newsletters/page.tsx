@@ -537,7 +537,7 @@ export default function NewslettersPage() {
                <div className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] origin-top transform scale-[0.55] sm:scale-[0.75] lg:scale-100 my-16 sm:my-10 lg:my-0 flex-shrink-0">
                   <div 
                      ref={pdfRef} 
-                     className="bg-white text-[#111827] overflow-hidden shadow-2xl ring-1 ring-black/10 flex flex-col" 
+                     className="bg-card text-[#111827] overflow-hidden shadow-2xl ring-1 ring-black/10 flex flex-col" 
                      style={{ width: '210mm', minHeight: '297mm', padding: '25mm' }}
                   >
                        <div className="flex items-center gap-6 sm:gap-[30px] border-b-4 border-[#1a1a1a] pb-6 sm:pb-[25px] mb-10 sm:mb-[40px]">

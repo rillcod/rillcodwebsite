@@ -128,22 +128,22 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
     const progress = ((Object.keys(answers).length) / questions.length) * 100;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 animate-in fade-in duration-500">
+        <div className="min-h-screen bg-background dark:bg-slate-950 p-4 md:p-8 animate-in fade-in duration-500">
             <div className="max-w-5xl mx-auto space-y-6">
 
                 {/* Header Section */}
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 gap-4">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border dark:border-slate-800 gap-4">
                     <div>
                         <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
                             {exam.title}
                         </h1>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                        <p className="text-muted-foreground dark:text-muted-foreground/70 text-sm mt-1">
                             Portal Session ID: {attemptId.substring(0, 8)}
                         </p>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold ${timeLeft < 300 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono font-bold ${timeLeft < 300 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-muted text-foreground/80 dark:bg-slate-800 dark:text-slate-200'}`}>
                             <Timer className="w-5 h-5" />
                             {formatTime(timeLeft)}
                         </div>
@@ -160,16 +160,16 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                         <Progress value={progress} className="h-2" />
 
                         <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
-                            <CardHeader className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                            <CardHeader className="bg-card dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
                                 <div className="flex justify-between items-center">
                                     <Badge variant="outline" className="text-teal-600 border-teal-200 bg-teal-50">
                                         Question {currentQuestionIndex + 1} of {questions.length}
                                     </Badge>
-                                    <span className="text-sm font-medium text-slate-500">{currentQuestion.points} Points</span>
+                                    <span className="text-sm font-medium text-muted-foreground">{currentQuestion.points} Points</span>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-8 bg-white dark:bg-slate-900 min-h-[400px]">
-                                <h3 className="text-xl font-medium leading-relaxed text-slate-800 dark:text-slate-100 mb-8">
+                            <CardContent className="p-8 bg-card dark:bg-slate-900 min-h-[400px]">
+                                <h3 className="text-xl font-medium leading-relaxed text-foreground dark:text-slate-100 mb-8">
                                     {currentQuestion.question_text}
                                 </h3>
 
@@ -184,12 +184,12 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                                                     value={option}
                                                     checked={answers[currentQuestion.id] === option}
                                                     onChange={() => handleAnswer(currentQuestion.id, option)}
-                                                    className="w-5 h-5 text-teal-600 border-slate-300 focus:ring-teal-500"
+                                                    className="w-5 h-5 text-teal-600 border-border focus:ring-teal-500"
                                                 />
-                                                <span className="ml-4 font-medium text-slate-700 dark:text-slate-300 group-hover:text-teal-700 transition-colors uppercase mr-4 text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded w-8 text-center">
+                                                <span className="ml-4 font-medium text-foreground/80 dark:text-slate-300 group-hover:text-teal-700 transition-colors uppercase mr-4 text-xs bg-muted dark:bg-slate-800 px-2 py-1 rounded w-8 text-center">
                                                     {String.fromCharCode(65 + idx)}
                                                 </span>
-                                                <span className="text-slate-700 dark:text-slate-300">{option}</span>
+                                                <span className="text-foreground/80 dark:text-slate-300">{option}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -197,7 +197,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
 
                                 {(currentQuestion.question_type === 'essay' || currentQuestion.question_type === 'short_answer') && (
                                     <textarea
-                                        className="w-full h-64 p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/5 transition-all outline-none bg-slate-50/50 dark:bg-slate-950/50"
+                                        className="w-full h-64 p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/5 transition-all outline-none bg-background/50 dark:bg-slate-950/50"
                                         placeholder="Type your answer here..."
                                         value={answers[currentQuestion.id] || ''}
                                         onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
@@ -206,7 +206,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                             </CardContent>
                         </Card>
 
-                        <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div className="flex justify-between items-center bg-card dark:bg-slate-900 p-4 rounded-2xl border border-border dark:border-slate-800 shadow-sm">
                             <Button
                                 variant="ghost"
                                 onClick={() => setCurrentQuestionIndex((prev: number) => Math.max(0, prev - 1))}
@@ -223,7 +223,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                             <Button
                                 onClick={() => setCurrentQuestionIndex((prev: number) => Math.min(questions.length - 1, prev + 1))}
                                 disabled={currentQuestionIndex === questions.length - 1}
-                                className="bg-slate-900 dark:bg-white dark:text-slate-900 gap-2"
+                                className="bg-slate-900 dark:bg-card dark:text-foreground gap-2"
                             >
                                 Next Question <ChevronRight className="w-4 h-4" />
                             </Button>
@@ -232,9 +232,9 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
 
                     {/* Sidebar Navigation */}
                     <aside className="space-y-6">
-                        <Card className="border-none shadow-lg dark:shadow-none bg-white dark:bg-slate-900">
+                        <Card className="border-none shadow-lg dark:shadow-none bg-card dark:bg-slate-900">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-500">Navigation</CardTitle>
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Navigation</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 grid grid-cols-5 gap-2">
                                 {questions.map((q, idx) => (
@@ -245,7 +245,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                                             ? 'bg-teal-600 text-white'
                                             : answers[q.id]
                                                 ? 'bg-teal-100 text-teal-700 border-2 border-teal-200'
-                                                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 hover:bg-slate-200'
+                                                : 'bg-muted text-muted-foreground/70 dark:bg-slate-800 hover:bg-slate-200'
                                             }`}
                                     >
                                         {idx + 1}

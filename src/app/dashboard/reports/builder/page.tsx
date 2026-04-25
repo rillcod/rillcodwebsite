@@ -1419,7 +1419,7 @@ function ReportBuilderInner() {
                     <div className="flex items-center gap-4 px-1 pt-1">
                         <button type="button" onClick={() => setForceCertificate(v => !v)}
                             className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${forceCertificate ? 'bg-amber-500' : 'bg-muted'}`}>
-                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${forceCertificate ? 'translate-x-4' : 'translate-x-0'}`} />
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${forceCertificate ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                         <div>
                             <p className="text-sm text-muted-foreground font-semibold">Award Certificate of Achievement</p>
@@ -1434,7 +1434,7 @@ function ReportBuilderInner() {
                             onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
                             className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
                         >
-                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                         <div>
                             <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
@@ -1682,7 +1682,7 @@ function ReportBuilderInner() {
                                         onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
                                         className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
                                     >
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </button>
                                     <div>
                                         <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
@@ -2629,7 +2629,7 @@ function ReportBuilderInner() {
                                         <div className={cn("absolute inset-1 border-[0.5px]", t.border, "opacity-40")} />
                                         <span className={cn(
                                             "relative z-10 text-[8px] font-black uppercase tracking-tighter",
-                                            t.id === 'executive' ? "text-slate-900" : "text-white"
+                                            t.id === 'executive' ? "text-foreground" : "text-white"
                                         )}>{t.name}</span>
                                         {modernTemplateId === t.id && (
                                             <div className="absolute top-0 right-0 bg-orange-500 text-white p-0.5">
@@ -2680,7 +2680,7 @@ function ReportBuilderInner() {
                     <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
                         {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}
                         <div style={{ width: Math.round(794 * previewScale), minHeight: Math.round(1122 * previewScale), margin: '0 auto' }}>
-                            <div className="bg-white overflow-hidden shadow-2xl"
+                            <div className="bg-card overflow-hidden shadow-2xl"
                                 style={{ width: '210mm', minHeight: '297mm', transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
                                 {reportStyle === 'modern' ? (
                                     <ModernReportCard report={previewData} orgSettings={branding as any} />

@@ -252,7 +252,7 @@ export default function UsersPage() {
             school: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
             student: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
         };
-        return map[role] ?? 'from-gray-600 to-gray-400';
+        return map[role] ?? 'from-muted to-background';
     };
 
     if (authLoading || !profile) return (
@@ -510,7 +510,7 @@ export default function UsersPage() {
                                                         {u.role}
                                                     </span>
                                                     {!u.is_active && (
-                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-500/10 text-muted-foreground/70 border border-gray-500/20">
                                                             Inactive
                                                         </span>
                                                     )}
@@ -755,7 +755,7 @@ export default function UsersPage() {
                                     onClick={() => setEditForm(p => ({ ...p, is_active: !p.is_active }))}
                                     className={`w-11 h-6 rounded-full transition-all flex-shrink-0 relative ${editForm.is_active ? 'bg-emerald-500' : 'bg-muted'}`}
                                 >
-                                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${editForm.is_active ? 'left-[22px]' : 'left-0.5'}`} />
+                                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-card shadow-sm transition-all ${editForm.is_active ? 'left-[22px]' : 'left-0.5'}`} />
                                 </button>
                             </div>
 

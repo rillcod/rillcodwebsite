@@ -547,7 +547,7 @@ export default function SettingsPage() {
                       </div>
                       <button onClick={() => setNotifs(p => ({ ...p, [key]: !val }))}
                         className={`relative w-11 h-6 rounded-full transition-all ${val ? 'bg-orange-600' : 'bg-muted'}`}>
-                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${val ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
+                        <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${val ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
                       </button>
                     </div>
                   ))}
@@ -855,7 +855,7 @@ export default function SettingsPage() {
                         {[
                           { label: 'Pending', count: flaggedItems.filter(f => f.status === 'pending').length, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
                           { label: 'Reviewed', count: flaggedItems.filter(f => f.status === 'reviewed').length, color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-                          { label: 'Dismissed', count: flaggedItems.filter(f => f.status === 'dismissed').length, color: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' },
+                          { label: 'Dismissed', count: flaggedItems.filter(f => f.status === 'dismissed').length, color: 'text-muted-foreground/70 bg-zinc-500/10 border-zinc-500/20' },
                         ].map(s => (
                           <div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}>
                             <p className="text-xl font-black">{s.count}</p>
@@ -892,7 +892,7 @@ export default function SettingsPage() {
               <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <TableCellsIcon className="w-4 h-4 text-slate-400" />
+                    <TableCellsIcon className="w-4 h-4 text-muted-foreground/70" />
                     <div>
                       <h2 className="font-bold text-foreground">Activity & Audit Log</h2>
                       <p className="text-xs text-muted-foreground mt-0.5">Recent platform activity — last 5 events.</p>

@@ -264,7 +264,7 @@ export default function EditAssignmentPage() {
                             <div
                                 onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
                                 className={`w-10 h-6 rounded-full transition-colors ${form.is_active ? 'bg-amber-500' : 'bg-muted'} flex items-center px-1`}>
-                                <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${form.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
+                                <div className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${form.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
                             </div>
                             <span className="text-sm text-muted-foreground">Active (visible to students)</span>
                         </label>

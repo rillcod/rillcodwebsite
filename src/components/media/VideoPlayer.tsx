@@ -90,7 +90,7 @@ function YouTubePlayer({ url, title, cinemaMode, onCinemaModeChange }: VideoPlay
     };
 
     return (
-        <div className="relative w-full bg-black group">
+        <div className="relative w-full bg-background group">
             {/* Aspect-ratio shell */}
             <div className={`relative w-full ${cinema ? 'h-screen' : 'aspect-video'} transition-all duration-500`}>
                 {/* Loading skeleton */}
@@ -207,7 +207,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
     return (
         <div
             ref={containerRef}
-            className="relative w-full bg-black group select-none"
+            className="relative w-full bg-background group select-none"
             onMouseMove={revealControls}
             onMouseLeave={() => playing && setShowControls(false)}
             onClick={togglePlay}

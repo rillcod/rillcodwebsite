@@ -18,7 +18,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-card print:text-black">
       {/* Role-simulation banner — only renders when a staff user is previewing
           the app as a different role. Server RBAC is unaffected. */}
       <RoleSimBanner />

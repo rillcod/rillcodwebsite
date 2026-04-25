@@ -1227,7 +1227,7 @@ function SchoolSelfView() {
 
         {/* Header */}
         <div className="bg-background border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-5 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-orange-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
             <span className="inline-block px-3 py-1 bg-orange-600/80 text-foreground text-xs font-bold uppercase tracking-wider rounded-full mb-3">

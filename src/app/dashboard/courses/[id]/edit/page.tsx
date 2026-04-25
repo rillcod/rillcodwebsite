@@ -274,7 +274,7 @@ export default function EditCoursePage() {
                 <button type="button"
                   onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}
                   className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${form.is_published ? 'bg-emerald-500' : 'bg-muted'}`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${form.is_published ? 'left-[22px]' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-card shadow-sm transition-all ${form.is_published ? 'left-[22px]' : 'left-0.5'}`} />
                 </button>
                 <span className="text-sm text-muted-foreground">Published</span>
               </label>

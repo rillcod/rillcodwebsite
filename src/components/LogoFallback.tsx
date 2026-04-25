@@ -5,7 +5,7 @@ interface LogoFallbackProps {
   textColor?: string;
 }
 
-export default function LogoFallback({ size = 'md', showText = true, className = '', textColor = 'text-gray-900' }: LogoFallbackProps) {
+export default function LogoFallback({ size = 'md', showText = true, className = '', textColor = 'text-foreground' }: LogoFallbackProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',

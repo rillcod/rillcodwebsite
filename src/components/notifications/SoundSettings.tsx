@@ -86,7 +86,7 @@ export default function SoundSettings({ className = '' }: SoundSettingsProps) {
           `}
         >
           <motion.span
-            className="inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform"
+            className="inline-block h-4 w-4 transform rounded-full bg-card shadow-lg transition-transform"
             animate={{ x: isEnabled ? 24 : 4 }}
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
           />

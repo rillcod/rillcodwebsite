@@ -90,7 +90,7 @@ function StepBar({ step }: { step: 1 | 2 | 3 }) {
         return (
           <div key={i} className="flex items-stretch flex-1">
             <div className={`flex items-center gap-2 px-4 py-2.5 flex-1 text-xs font-black uppercase tracking-widest border transition-all ${isActive ? 'bg-primary text-white border-primary' : isDone ? 'bg-primary/10 text-primary border-primary/20' : 'bg-card text-muted-foreground border-border'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${isActive ? 'bg-white text-primary' : isDone ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${isActive ? 'bg-card text-primary' : isDone ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
                 {isDone ? '✓' : s}
               </span>
               <span className="hidden sm:block">{label}</span>

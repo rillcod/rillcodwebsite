@@ -149,7 +149,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                                 <XMarkIcon className="w-4 h-4" />
                             </button>
                         </div>
-                        <div className="flex-1 min-h-0 bg-white">
+                        <div className="flex-1 min-h-0 bg-card">
                             <iframe src={sub.file_url} title="Submitted file" className="w-full h-full border-0" allow="fullscreen" />
                         </div>
                     </div>
@@ -946,7 +946,7 @@ export default function ProjectBuilderPage() {
                                             srcDoc={editorCode}
                                             sandbox="allow-scripts allow-same-origin"
                                             title="Live Preview"
-                                            className="flex-1 w-full border-0 bg-white"
+                                            className="flex-1 w-full border-0 bg-card"
                                         />
                                     ) : (
                                         <div className="flex-1 flex flex-col">

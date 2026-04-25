@@ -415,13 +415,13 @@ export default function StudioUI(p: StudioUIProps) {
 
               {/* HTML live preview desktop */}
               {lang === 'html' && (
-                <div className="hidden md:flex w-[45%] flex-col border-l border-border bg-slate-50 dark:bg-slate-900">
-                  <div className="h-9 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center px-3 justify-between shrink-0">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Live Preview</span></div>
-                    <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all touch-manipulation ${liveUpdate ? 'border-orange-500/30 text-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-slate-300 text-slate-400'}`}>{liveUpdate ? 'Live: ON' : 'Live: OFF'}</button>
+                <div className="hidden md:flex w-[45%] flex-col border-l border-border bg-background dark:bg-slate-900">
+                  <div className="h-9 bg-card dark:bg-slate-800 border-b border-border dark:border-slate-700 flex items-center px-3 justify-between shrink-0">
+                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Live Preview</span></div>
+                    <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all touch-manipulation ${liveUpdate ? 'border-orange-500/30 text-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-border text-muted-foreground/70'}`}>{liveUpdate ? 'Live: ON' : 'Live: OFF'}</button>
                   </div>
                   <div className="flex-1 flex items-center justify-center p-3 overflow-hidden bg-slate-200 dark:bg-slate-800">
-                    <div className={`bg-white shadow-2xl overflow-hidden transition-all duration-500 ${device === 'mobile' ? 'w-[375px] h-[667px] rounded-[2.5rem] border-[10px] border-slate-900' : 'w-full h-full rounded-lg border border-slate-200'}`}>
+                    <div className={`bg-card shadow-2xl overflow-hidden transition-all duration-500 ${device === 'mobile' ? 'w-[375px] h-[667px] rounded-[2.5rem] border-[10px] border-slate-900' : 'w-full h-full rounded-lg border border-border'}`}>
                       <iframe srcDoc={liveUpdate ? code : undefined} className="w-full h-full border-0" title="Live Preview" sandbox="allow-scripts" />
                     </div>
                   </div>
@@ -477,7 +477,7 @@ export default function StudioUI(p: StudioUIProps) {
             </div>
             <div className="flex-1 overflow-y-auto p-3 font-mono text-xs" style={{ scrollbarWidth: 'thin' }}>
               {lang === 'html' ? (
-                <div className="w-full h-full min-h-[200px] bg-white rounded-xl overflow-hidden border border-border">
+                <div className="w-full h-full min-h-[200px] bg-card rounded-xl overflow-hidden border border-border">
                   <iframe srcDoc={code} className="w-full h-full border-0" title="Output Preview" sandbox="allow-scripts" />
                 </div>
               ) : (

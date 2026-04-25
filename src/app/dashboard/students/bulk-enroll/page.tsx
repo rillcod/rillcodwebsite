@@ -433,7 +433,7 @@ export default function BulkEnrollPage() {
                                   className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all ${classId === c.id ? 'bg-orange-600/15 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
                                 >
                                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${classId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
-                                    {classId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    {classId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-card" />}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>

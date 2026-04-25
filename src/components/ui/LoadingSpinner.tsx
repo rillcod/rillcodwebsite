@@ -18,7 +18,7 @@ const sizeMap = {
 const variantMap = {
   default: { ring: 'border-t-violet-500',  inner: 'border-t-indigo-400',  dot: 'bg-violet-400',  text: 'text-white/50' },
   primary: { ring: 'border-t-violet-500',  inner: 'border-t-indigo-400',  dot: 'bg-violet-400',  text: 'text-violet-300' },
-  white:   { ring: 'border-t-white',       inner: 'border-t-white/60',    dot: 'bg-white',       text: 'text-white/70' },
+  white:   { ring: 'border-t-white',       inner: 'border-t-white/60',    dot: 'bg-card',       text: 'text-white/70' },
 };
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({

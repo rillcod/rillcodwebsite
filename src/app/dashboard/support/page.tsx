@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
   in_progress: 'bg-amber-500/20 text-amber-400',
   resolved: 'bg-emerald-500/20 text-emerald-400',
   reopened: 'bg-orange-500/20 text-orange-400',
-  closed: 'bg-gray-500/20 text-gray-400',
+  closed: 'bg-gray-500/20 text-muted-foreground/70',
 };
 
 export default function SupportPage() {

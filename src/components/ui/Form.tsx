@@ -19,14 +19,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
         <div className="relative">
           {leftIcon && (
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <div className="h-5 w-5 text-gray-400 dark:text-gray-500">
+              <div className="h-5 w-5 text-muted-foreground/70 dark:text-muted-foreground">
                 {leftIcon}
               </div>
             </div>
@@ -40,7 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               ${rightIcon ? 'pr-10' : ''}
               ${error 
                 ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-                : 'border-gray-300 dark:border-gray-600'
+                : 'border-border dark:border-gray-600'
               }
               ${className}
             `}
@@ -48,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
           {rightIcon && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <div className="h-5 w-5 text-gray-400 dark:text-gray-500">
+              <div className="h-5 w-5 text-muted-foreground/70 dark:text-muted-foreground">
                 {rightIcon}
               </div>
             </div>
@@ -61,7 +61,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -84,7 +84,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
@@ -95,7 +95,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             dark:bg-gray-700 dark:text-white transition-all duration-200 resize-vertical
             ${error 
               ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-              : 'border-gray-300 dark:border-gray-600'
+              : 'border-border dark:border-gray-600'
             }
             ${className}
           `}
@@ -108,7 +108,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -132,7 +132,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
@@ -143,7 +143,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             dark:bg-gray-700 dark:text-white transition-all duration-200
             ${error 
               ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
-              : 'border-gray-300 dark:border-gray-600'
+              : 'border-border dark:border-gray-600'
             }
             ${className}
           `}
@@ -166,7 +166,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -193,7 +193,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             ref={ref}
             type="checkbox"
             className={`
-              h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 
+              h-4 w-4 text-blue-600 focus:ring-blue-500 border-border dark:border-gray-600 
               rounded transition-all duration-200
               ${error ? 'border-red-300 dark:border-red-600' : ''}
               ${className}
@@ -201,7 +201,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             {...props}
           />
           {label && (
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
               {label}
             </label>
           )}
@@ -213,7 +213,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -240,7 +240,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
             ref={ref}
             type="radio"
             className={`
-              h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 
+              h-4 w-4 text-blue-600 focus:ring-blue-500 border-border dark:border-gray-600 
               transition-all duration-200
               ${error ? 'border-red-300 dark:border-red-600' : ''}
               ${className}
@@ -248,7 +248,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
             {...props}
           />
           {label && (
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
               {label}
             </label>
           )}
@@ -260,7 +260,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -389,12 +389,12 @@ export const FormSection: React.FC<FormSectionProps> = ({
       {(title || description) && (
         <div className="space-y-1">
           {title && (
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-foreground dark:text-white">
               {title}
             </h3>
           )}
           {description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
               {description}
             </p>
           )}
@@ -441,8 +441,8 @@ export const FormField: React.FC<FormFieldProps> = ({
   const inputClasses = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
     error
       ? 'border-red-300 bg-red-50'
-      : 'border-gray-300 hover:border-gray-400'
-  } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'} ${className}`;
+      : 'border-border hover:border-border/80'
+  } ${disabled ? 'bg-muted cursor-not-allowed' : 'bg-card'} ${className}`;
 
   const renderInput = () => {
     switch (type) {
@@ -492,7 +492,7 @@ export const FormField: React.FC<FormFieldProps> = ({
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 hover:text-muted-foreground"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -516,7 +516,7 @@ export const FormField: React.FC<FormFieldProps> = ({
 
   return (
     <div className="space-y-1">
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700">
+      <label htmlFor={name} className="block text-sm font-medium text-foreground/80">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>

@@ -1114,7 +1114,7 @@ export default function CardBuilderPage() {
                     ].map(c => (
                       <button key={c.value} onClick={() => update({ bgColor: c.value })}
                         style={{ background: c.value }}
-                        className={`h-9 border text-[8px] font-bold text-gray-700 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-orange-500 ring-offset-1' : 'border-gray-200 hover:border-orange-400'}`}>
+                        className={`h-9 border text-[8px] font-bold text-foreground/80 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-orange-500 ring-offset-1' : 'border-border hover:border-orange-400'}`}>
                         {c.label}
                       </button>
                     ))}
@@ -1139,7 +1139,7 @@ export default function CardBuilderPage() {
                     <label key={opt.key} className="flex items-start gap-3 cursor-pointer">
                       <div onClick={() => update({ [opt.key]: !(cfg as any)[opt.key] })}
                         className={`w-10 h-5 rounded-full flex-shrink-0 transition-all relative mt-0.5 ${(cfg as any)[opt.key] ? 'bg-orange-600' : 'bg-muted'}`}>
-                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${(cfg as any)[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-card shadow transition-transform ${(cfg as any)[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </div>
                       <div>
                         <div className="text-[10px] font-black uppercase tracking-widest text-foreground">{opt.label}</div>

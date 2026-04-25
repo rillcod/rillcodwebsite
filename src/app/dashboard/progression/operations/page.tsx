@@ -171,7 +171,7 @@ export default function OperationsSettingsPage() {
                           onChange={e => updateValue(section, key, e.target.checked)}
                         />
                         <div className={`w-10 h-6 rounded-full transition-colors ${value ? 'bg-violet-600' : 'bg-muted'} ${(readonly || !canSave) ? 'opacity-50' : ''}`} />
-                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${value ? 'translate-x-4' : ''}`} />
+                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-card transition-transform ${value ? 'translate-x-4' : ''}`} />
                       </div>
                       <span className="text-sm text-foreground">{value ? 'On' : 'Off'}</span>
                     </label>

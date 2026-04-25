@@ -33,7 +33,7 @@ export function CertificateTemplates({
     const verifyUrl = `https://rillcod.com/verify/${certCode}`;
 
     return (
-        <div className="w-full h-full relative overflow-hidden bg-white select-none">
+        <div className="w-full h-full relative overflow-hidden bg-card select-none">
             {/* ════ PRESTIGE DARK ════════════════════════════════════════ */}
             {template === 'prestige' && (
                 <div className="absolute inset-0 flex" style={{ background: 'linear-gradient(135deg, #050300 0%, #150a00 50%, #050300 100%)' }}>
@@ -53,7 +53,7 @@ export function CertificateTemplates({
                         </div>
 
                         <div className="flex flex-col items-center gap-4">
-                            <div className="w-24 h-24 p-1.5 bg-white rounded-lg shadow-2xl">
+                            <div className="w-24 h-24 p-1.5 bg-card rounded-lg shadow-2xl">
                                 <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                             </div>
                             <div className="flex flex-col items-center">
@@ -155,7 +155,7 @@ export function CertificateTemplates({
 
                         <div className="flex w-full items-end justify-between px-12">
                             <div className="flex flex-col items-center">
-                                <div className="w-16 h-16 bg-white p-1 border border-orange-400 shadow-sm mb-3">
+                                <div className="w-16 h-16 bg-card p-1 border border-orange-400 shadow-sm mb-3">
                                     <QRCode value={verifyUrl} size={100} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
                                 <p className="text-[9px] text-orange-600 font-bold uppercase tracking-widest">{certCode}</p>
@@ -245,24 +245,24 @@ export function CertificateTemplates({
             {/* ════ ACADEMIC BLUE (SCHOLAR) ══════════════════════════════════ */}
             {template === 'scholar' && (
                 <div className="absolute inset-0 bg-[#FFFBF7] p-10">
-                    <div className="h-full border-[1px] border-orange-200/30 flex flex-col items-center justify-between py-12 px-16 bg-white shadow-inner relative overflow-hidden">
+                    <div className="h-full border-[1px] border-orange-200/30 flex flex-col items-center justify-between py-12 px-16 bg-card shadow-inner relative overflow-hidden">
                         {/* Seal Watermark */}
                         <GraduationCap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 text-orange-950/5 rotate-[-15deg] pointer-events-none" />
                         
                         <div className="w-full flex justify-between items-center relative z-10 border-b-2 border-orange-100 pb-8">
                             <div className="space-y-1">
                                 <h4 className="text-[20px] font-black text-orange-600 uppercase tracking-tighter leading-none">Rillcod Academy</h4>
-                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Global Institute of Digital Excellence</p>
+                                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">Global Institute of Digital Excellence</p>
                             </div>
                             <img src="/images/logo.png" alt="Rillcod" className="h-10 w-auto opacity-80" />
                         </div>
 
                         <div className="text-center space-y-6 relative z-10">
-                            <p className="text-[12px] text-slate-500 font-bold uppercase tracking-[0.3em]">This is to certify that the scholar</p>
+                            <p className="text-[12px] text-muted-foreground font-bold uppercase tracking-[0.3em]">This is to certify that the scholar</p>
                             <h1 className="text-[48px] font-black text-[#111827] tracking-tight leading-none px-12 border-b-[8px] border-orange-500 inline-block pb-1">
                                 {studentName}
                             </h1>
-                            <p className="text-[14px] text-slate-600 max-w-xl mx-auto leading-relaxed mt-6 font-medium">
+                            <p className="text-[14px] text-muted-foreground max-w-xl mx-auto leading-relaxed mt-6 font-medium">
                                 has completed the academic requirements for the professional course <br/>
                                 <span className="text-orange-600 font-black text-[22px] uppercase mt-2 block tracking-tight">{courseTitle}</span>
                                 <span className="text-orange-400 font-bold text-[12px] uppercase tracking-widest mt-1 block tracking-widest opacity-80">{programName}</span>
@@ -271,25 +271,25 @@ export function CertificateTemplates({
 
                         <div className="w-full flex items-end justify-between relative z-10">
                             <div className="space-y-4">
-                                <div className="text-left border-t border-slate-300 pt-3 w-56">
+                                <div className="text-left border-t border-border pt-3 w-56">
                                     <img src="/images/signature.png" alt="Sig" className="h-9 w-auto mb-2 opacity-80" />
                                     <p className="text-[12px] font-black text-[#111827] uppercase leading-none">Osahon J.</p>
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-wider italic">Director of Rillcod Academy</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase mt-1 tracking-wider italic">Director of Rillcod Academy</p>
                                 </div>
-                                <div className="inline-flex items-center gap-3 px-3 py-1 bg-slate-100 rounded text-slate-600">
+                                <div className="inline-flex items-center gap-3 px-3 py-1 bg-muted rounded text-muted-foreground">
                                     <p className="text-[9px] font-bold uppercase tracking-widest">Status: OFFICIAL_VERIFIED</p>
                                 </div>
                             </div>
 
                             <div className="flex flex-col items-center">
-                                <div className="w-20 h-20 bg-white p-[2px] border-2 border-blue-900/20 mb-2">
+                                <div className="w-20 h-20 bg-card p-[2px] border-2 border-blue-900/20 mb-2">
                                     <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
-                                <p className="text-[9px] font-mono text-slate-400">ID: {certCode}</p>
+                                <p className="text-[9px] font-mono text-muted-foreground/70">ID: {certCode}</p>
                             </div>
 
                             <div className="text-right space-y-1">
-                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Academic Year</p>
+                                <p className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Academic Year</p>
                                 <p className="text-[14px] font-black text-[#111827] uppercase tracking-tight leading-none">{issuedDate}</p>
                                 <p className="text-[8px] font-mono text-slate-300 mt-2">v{certNum}</p>
                             </div>
@@ -313,7 +313,7 @@ export function CertificateTemplates({
                                     OFFICIAL_ <span className="text-white/30">ELITE</span>
                                 </h1>
                             </div>
-                            <div className="w-16 h-16 bg-white flex items-center justify-center rounded-sm">
+                            <div className="w-16 h-16 bg-card flex items-center justify-center rounded-sm">
                                 <QRCode value={verifyUrl} size={100} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                             </div>
                         </div>
@@ -352,7 +352,7 @@ export function CertificateTemplates({
 
             {/* ════ CREATIVE SPARK (COLORFUL) ═════════════════════════════════ */}
             {template === 'spark' && (
-                <div className="absolute inset-0 bg-white" style={{ background: 'linear-gradient(135deg, #F97316 0%, #D97706 50%, #92400E 100%)' }}>
+                <div className="absolute inset-0 bg-card" style={{ background: 'linear-gradient(135deg, #F97316 0%, #D97706 50%, #92400E 100%)' }}>
                     <div className="absolute inset-4 sm:inset-6 bg-white/95 backdrop-blur-3xl rounded-3xl overflow-hidden flex flex-col items-center justify-between p-8 sm:p-12 shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white/50">
                         {/* Decorative dynamic shapes */}
                         <div className="absolute -top-24 -left-24 w-64 h-64 bg-orange-400 rounded-full blur-[80px] opacity-40 mix-blend-multiply" />
@@ -365,7 +365,7 @@ export function CertificateTemplates({
                             </div>
                             <div className="text-right">
                                 <h3 className="text-[20px] font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-800 italic leading-none mb-1">Creative Spark</h3>
-                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest pl-4 border-l-2 border-orange-200 inline-block">Igniting Ambition</p>
+                                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest pl-4 border-l-2 border-orange-200 inline-block">Igniting Ambition</p>
                             </div>
                         </div>
 
@@ -377,7 +377,7 @@ export function CertificateTemplates({
                             <h1 className="text-[64px] font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700 tracking-tighter leading-[0.9] drop-shadow-sm pb-2">
                                 {studentName}
                             </h1>
-                            <p className="text-[16px] text-slate-600 max-w-xl mx-auto leading-relaxed border-t border-b border-orange-100 py-4">
+                            <p className="text-[16px] text-muted-foreground max-w-xl mx-auto leading-relaxed border-t border-b border-orange-100 py-4">
                                 This momentous scroll verifies your extraordinary creativity and unstoppable drive in mastering the colorful realm of <br/>
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-700 font-black text-[26px] tracking-tight block mt-3 mb-1 italic leading-none">{courseTitle}</span>
                                 <span className="text-[12px] text-orange-600 font-bold uppercase tracking-widest">{programName}</span>
@@ -386,7 +386,7 @@ export function CertificateTemplates({
 
                         <div className="w-full flex items-end justify-between relative z-10 pt-4">
                             <div className="flex flex-col items-center">
-                                <div className="w-24 h-24 bg-white p-2 rounded-2xl border-4 border-dashed border-orange-200 shadow-lg transform rotate-3 hover:rotate-0 transition-all">
+                                <div className="w-24 h-24 bg-card p-2 rounded-2xl border-4 border-dashed border-orange-200 shadow-lg transform rotate-3 hover:rotate-0 transition-all">
                                     <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
                                 <p className="text-[9px] font-black text-orange-600 uppercase mt-3 tracking-[0.3em] bg-orange-50 px-3 py-1 rounded-full">{certCode}</p>
@@ -396,8 +396,8 @@ export function CertificateTemplates({
                                 <img src="/images/signature.png" alt="Sig" className="h-12 w-auto mx-auto opacity-80 mix-blend-multiply" />
                                 <div className="h-1.5 w-32 bg-gradient-to-r from-orange-400 via-amber-400 to-orange-700 rounded-full mx-auto" />
                                 <div className="space-y-0.5">
-                                    <p className="text-[12px] font-black text-slate-800 uppercase leading-none tracking-widest">Osahon J.</p>
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase italic tracking-widest">Visionary Director</p>
+                                    <p className="text-[12px] font-black text-foreground uppercase leading-none tracking-widest">Osahon J.</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase italic tracking-widest">Visionary Director</p>
                                 </div>
                             </div>
 
@@ -405,8 +405,8 @@ export function CertificateTemplates({
                                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-400 to-orange-700 flex items-center justify-center shadow-xl transform -rotate-12 mb-4 ml-auto">
                                     <Trophy className="w-8 h-8 text-white drop-shadow-md" />
                                 </div>
-                                <p className="text-[16px] font-black text-slate-900 leading-none">{issuedDate}</p>
-                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{certNum}</p>
+                                <p className="text-[16px] font-black text-foreground leading-none">{issuedDate}</p>
+                                <p className="text-[8px] font-black text-muted-foreground/70 uppercase tracking-[0.2em]">{certNum}</p>
                             </div>
                         </div>
                     </div>

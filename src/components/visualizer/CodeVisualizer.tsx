@@ -148,7 +148,7 @@ export default function CodeVisualizer({
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 leading-none mb-1">Drillcod Visual Engine</h3>
             <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none drop-shadow-sm flex items-center gap-2">
               {getVisualTitle(visualizationType)}
-              <Badge variant="outline" className="rounded-none h-4 text-[8px] border-zinc-700 text-zinc-500 bg-transparent uppercase tracking-widest font-black">
+              <Badge variant="outline" className="rounded-none h-4 text-[8px] border-zinc-700 text-muted-foreground bg-transparent uppercase tracking-widest font-black">
                 P5.v2
               </Badge>
             </h2>
@@ -160,7 +160,7 @@ export default function CodeVisualizer({
             variant="ghost" 
             size="icon" 
             onClick={() => setShowMetrics(!showMetrics)}
-            className="w-8 h-8 text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+            className="w-8 h-8 text-muted-foreground/70 hover:text-white hover:bg-white/5 transition-all"
           >
             <Settings2 className="w-4 h-4" />
           </Button>
@@ -168,7 +168,7 @@ export default function CodeVisualizer({
             variant="ghost" 
             size="icon" 
             onClick={handleExport}
-            className="w-8 h-8 text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+            className="w-8 h-8 text-muted-foreground/70 hover:text-white hover:bg-white/5 transition-all"
           >
             <Download className="w-4 h-4" />
           </Button>
@@ -176,7 +176,7 @@ export default function CodeVisualizer({
       </div>
 
       {/* Main Canvas Area */}
-      <div ref={containerRef} className="relative w-full aspect-video sm:h-[400px] md:h-[500px] bg-black overflow-hidden group/canvas">
+      <div ref={containerRef} className="relative w-full aspect-video sm:h-[400px] md:h-[500px] bg-background overflow-hidden group/canvas">
         <P5Wrapper 
           type={visualizationType} 
           data={codeData} 

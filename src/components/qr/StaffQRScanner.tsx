@@ -296,7 +296,7 @@ export default function StaffQRScanner() {
               {/* ── SCANNING: Camera view ── */}
               {state === 'scanning' && (
                 <div className="space-y-3">
-                  <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
+                  <div className="relative rounded-xl overflow-hidden bg-background aspect-square">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     {/* Viewfinder overlay */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

@@ -15,7 +15,7 @@ interface Announcement {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  draft:     'bg-zinc-500/20 text-zinc-400',
+  draft:     'bg-zinc-500/20 text-muted-foreground/70',
   published: 'bg-emerald-500/20 text-emerald-400',
   archived:  'bg-amber-500/20 text-amber-400',
 };

@@ -171,7 +171,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
             </h3>
             <button
               onClick={onClose}
-              className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="ml-4 flex-shrink-0 text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-muted-foreground/50 transition-colors"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
@@ -286,7 +286,7 @@ export const Toast: React.FC<{
               setIsVisible(false);
               setTimeout(() => onClose?.(), 300);
             }}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-muted-foreground/50 transition-colors"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
