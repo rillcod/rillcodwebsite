@@ -317,13 +317,15 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rillcod Technologies</p>
                 </div>
 
-                {/* Centre — bank account details */}
-                <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
-                    <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
-                    <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>RILLCOD LTD</p>
-                    <p style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Use student name as reference &nbsp;·&nbsp; Send proof to admin</p>
-                </div>
+                {/* Centre — bank account details (conditional) */}
+                {report.show_payment_notice && (
+                    <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
+                        <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
+                        <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>RILLCOD LTD</p>
+                        <p style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Use student name as reference &nbsp;·&nbsp; Send proof to admin</p>
+                    </div>
+                )}
 
                 {/* Right — QR */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
