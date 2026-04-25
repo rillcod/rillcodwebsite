@@ -11,11 +11,11 @@ interface LogoProps {
 }
 
 const SIZE_MAP = {
-  sm:  { container: 'w-8 h-8',   img: 28,  text: 'text-sm',  sub: 'text-[8px]'  },
-  md:  { container: 'w-10 h-10', img: 36,  text: 'text-base',sub: 'text-[9px]'  },
-  lg:  { container: 'w-12 h-12', img: 44,  text: 'text-lg',  sub: 'text-[10px]' },
-  xl:  { container: 'w-16 h-16', img: 56,  text: 'text-xl',  sub: 'text-[11px]' },
-  '2xl':{ container: 'w-20 h-20',img: 72,  text: 'text-2xl', sub: 'text-xs'     },
+  sm:  { container: 'w-8 h-8',   img: 28,  text: 'text-sm',  sub: 'text-[10px]' },
+  md:  { container: 'w-10 h-10', img: 36,  text: 'text-base',sub: 'text-xs'     },
+  lg:  { container: 'w-12 h-12', img: 44,  text: 'text-lg',  sub: 'text-xs'     },
+  xl:  { container: 'w-16 h-16', img: 56,  text: 'text-xl',  sub: 'text-sm'     },
+  '2xl':{ container: 'w-20 h-20',img: 72,  text: 'text-2xl', sub: 'text-sm'     },
 };
 
 export default function Logo({
@@ -54,7 +54,7 @@ export default function Logo({
           <span className={`${s.text} font-black uppercase tracking-tighter block italic text-foreground`}>
             RILLCOD<span className="not-italic text-brand-red-600">.</span>
           </span>
-          <span className={`${s.sub} font-bold uppercase tracking-[0.25em] text-muted-foreground block`}>
+          <span className={`${s.sub} font-black uppercase tracking-[0.15em] text-muted-foreground block`}>
             Technologies
           </span>
         </div>
