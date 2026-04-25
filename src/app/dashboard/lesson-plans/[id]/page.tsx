@@ -408,6 +408,8 @@ export default function LessonPlanDetailPage() {
   const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | 'progression' | null>(null);
   const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
   const [linkedLessons, setLinkedLessons] = useState<{ id: string; title: string; status: string; metadata?: { week?: number } | null }[]>([]);
+  const [linkedAssignments, setLinkedAssignments] = useState<{ id: string; title: string; assignment_type: string; metadata?: Record<string, unknown> | null }[]>([]);
+  const [linkedProjects, setLinkedProjects] = useState<{ id: string; title: string; metadata?: Record<string, unknown> | null }[]>([]);
   const [progressionScope, setProgressionScope] = useState<ProgressionScope>('term');
   const [progressionYear, setProgressionYear] = useState(1);
   const [progressionTerm, setProgressionTerm] = useState(1);
@@ -435,9 +437,10 @@ export default function LessonPlanDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [planRes, lessonsRes] = await Promise.all([
+      const [planRes, lessonsRes, assignmentsRes] = await Promise.all([
         fetch(`/api/lesson-plans/${id}`),
         fetch(`/api/lessons?lesson_plan_id=${id}`),
+        fetch(`/api/assignments?lesson_plan_id=${id}`),
       ]);
       if (!planRes.ok) { toast.error('Plan not found'); router.push('/dashboard/lesson-plans'); return; }
       const j = await planRes.json();
@@ -447,6 +450,12 @@ export default function LessonPlanDetailPage() {
       if (lessonsRes.ok) {
         const lj = await lessonsRes.json();
         setLinkedLessons(lj.data ?? []);
+      }
+      if (assignmentsRes.ok) {
+        const aj = await assignmentsRes.json();
+        const all: { id: string; title: string; assignment_type: string; metadata?: Record<string, unknown> | null }[] = aj.data ?? [];
+        setLinkedAssignments(all.filter((a) => a.assignment_type !== 'project'));
+        setLinkedProjects(all.filter((a) => a.assignment_type === 'project'));
       }
     } catch {
       toast.error('Failed to load plan');
@@ -715,6 +724,11 @@ export default function LessonPlanDetailPage() {
   async function bulkGenerate(type: 'lessons' | 'assignments' | 'projects' | 'cbt' | 'flashcards') {
     if (!plan || plan.status !== 'published') {
       toast.error('Only published plans can generate content');
+      return;
+    }
+
+    if (!plan.course_id || !plan.school_id) {
+      toast.error('This plan needs a course and school linked before generating content — click Edit Plan to add them.');
       return;
     }
 

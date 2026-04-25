@@ -278,7 +278,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
         </div>
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-orange-600/80 text-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
+            <span className="px-3 py-1 bg-brand-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
               {role} Portal
             </span>
             <div className="h-px w-8 bg-muted" />

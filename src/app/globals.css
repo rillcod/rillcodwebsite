@@ -524,7 +524,21 @@ select {
   }
 }
 
-/* ── Advanced Design System ── */
+/* ── Brand red accent utilities ── */
+@layer utilities {
+  /* Red left border for active/selected items */
+  .border-l-brand {
+    border-left: 2px solid #C41E3A;
+  }
+  /* Red top accent line on cards */
+  .card-accent-red {
+    border-top: 2px solid #C41E3A;
+  }
+  /* Red glow for urgent/important elements */
+  .glow-red {
+    box-shadow: 0 0 12px rgba(196, 30, 58, 0.3);
+  }
+}
 
 @layer utilities {
   .glass-card {
