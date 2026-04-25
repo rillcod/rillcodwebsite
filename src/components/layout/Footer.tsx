@@ -83,7 +83,7 @@ const Footer = () => {
           {/* Brand Info */}
           <div className="space-y-8">
             <Link href="/" className="flex items-center gap-4 group">
-              <div className="w-14 h-14 bg-white border border-border/40 flex items-center justify-center rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-md">
+              <div className="w-14 h-14 flex items-center justify-center rounded-xl group-hover:scale-110 transition-transform duration-300 dark:bg-white dark:shadow-md dark:border dark:border-white/20">
                 <Image src="/images/logo.png" alt="Rillcod" width={44} height={44} className="object-contain" />
               </div>
               <div>

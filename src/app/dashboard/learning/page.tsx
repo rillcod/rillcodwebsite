@@ -310,11 +310,9 @@ export default function StudentLearningPage() {
 
   if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center gap-6">
-        <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent animate-spin rounded-full shadow-[0_0_20px_rgba(234,88,12,0.2)]" />
-        <p className="text-muted-foreground text-[10px] font-black tracking-[0.4em] uppercase animate-pulse">
-           Synchronizing Neural Path...
-        </p>
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent animate-spin rounded-full" />
+        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest animate-pulse">Loading...</p>
       </div>
     </div>
   );
@@ -322,406 +320,318 @@ export default function StudentLearningPage() {
   if (!profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center space-y-4">
-        <p className="text-muted-foreground text-sm font-medium">Session expired. Please sign in again.</p>
-        <a href="/login" className="inline-block px-6 py-3 bg-orange-600 text-white text-sm font-bold hover:bg-orange-500 transition-colors rounded-lg">
-          Sign In
-        </a>
+        <p className="text-muted-foreground text-sm">Session expired. Please sign in again.</p>
+        <a href="/login" className="inline-block px-6 py-3 bg-orange-600 text-white text-sm font-bold hover:bg-orange-500 transition-colors">Sign In</a>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-orange-600/30">
-      {/* Activity Hub — quick nav to all 4 activity types */}
-      <div className="bg-card border-b border-border px-4 sm:px-8 py-3">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
-          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0 mr-1">Activity Hub:</span>
+    <div className="min-h-screen bg-background text-foreground">
+
+      {/* ── Top bar: quick links ── */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2 flex-wrap">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest shrink-0">Jump to:</span>
           {[
-            { label: 'Written Exams',    href: '/dashboard/exams',        color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20', icon: '📝' },
-            { label: 'CBT / Evaluation', href: '/dashboard/cbt',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20', icon: '🎯' },
-            { label: 'Flashcards',       href: '/dashboard/flashcards',   color: 'text-rose-400 bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20', icon: '🎴' },
-            { label: 'Certificates',     href: '/dashboard/certificates', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20', icon: '🎓' },
-            { label: 'Assignments',      href: '/dashboard/assignments',   color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', icon: '📋' },
-            { label: 'Projects',         href: '/dashboard/projects',      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20', icon: '🚀' },
-            { label: 'Lessons',          href: '/dashboard/lessons',       color: 'text-amber-400 bg-amber-500/15 border-amber-500/30', icon: '📖', active: true },
-          ].map(({ label, href, color, icon, active }) =>
-            active
-              ? <span key={label} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 ${color}`}>
-                  {icon} {label} <span className="text-[8px] opacity-60">(here)</span>
-                </span>
-              : <Link key={label} href={href} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 transition-all ${color}`}>
-                  {icon} {label}
-                </Link>
-          )}
+            { label: 'Lessons',     href: '/dashboard/lessons',     icon: '📖' },
+            { label: 'Assignments', href: '/dashboard/assignments',  icon: '📋' },
+            { label: 'CBT Exams',   href: '/dashboard/cbt',          icon: '🎯' },
+            { label: 'Flashcards',  href: '/dashboard/flashcards',   icon: '🎴' },
+            { label: 'Projects',    href: '/dashboard/projects',     icon: '🚀' },
+            { label: 'Certificates',href: '/dashboard/certificates', icon: '🎓' },
+          ].map(({ label, href, icon }) => (
+            <Link key={label} href={href}
+              className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border rounded-full transition-all">
+              {icon} {label}
+            </Link>
+          ))}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* Error banner */}
+        {/* ── Error banner ── */}
         {loadError && (
-          <div className="bg-destructive/10 border border-destructive/30 rounded-none p-4 flex items-center justify-between gap-4">
-            <p className="text-destructive text-xs font-bold">{loadError}</p>
+          <div className="bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-4">
+            <p className="text-destructive text-sm font-bold">{loadError}</p>
             <button onClick={() => { setLoadError(null); loadData(); }}
-              className="text-[10px] font-black text-destructive uppercase tracking-widest border border-destructive/40 px-3 py-1 hover:bg-destructive/10 transition-colors flex-shrink-0">
-              Retry Sync
+              className="text-xs font-bold text-destructive border border-destructive/40 px-3 py-1.5 hover:bg-destructive/10 transition-colors shrink-0">
+              Retry
             </button>
           </div>
         )}
 
-        {/* Journey Map Section - PRIORITIZED */}
-        <section className="space-y-6 pt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">
-              {isKids ? '🗺️ My Adventure Path' : 'Curriculum: Current Lessons'}
-            </h2>
-            {nextLesson && (
-               <Link href={`/dashboard/lessons/${nextLesson.id}`} className="text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-[0.2em] transition-colors border-b-2 border-orange-500/20 pb-1">
-                 Next Up: {nextLesson.title} →
-               </Link>
-            )}
+        {/* ── Hero: greeting + stats ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* Greeting */}
+          <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-red-600/5 blur-3xl pointer-events-none" />
+            <div className="relative z-10">
+              <span className="inline-block text-[10px] font-black text-brand-red-600 uppercase tracking-widest mb-3">
+                {profile.grade_level || (isKids ? 'Primary School' : isAdult ? 'Professional' : 'Secondary School')}
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight mb-2">
+                {greeting}, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
+                {isKids && ' 🚀'}
+              </h1>
+              <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
+                {isKids
+                  ? 'Your learning adventure is waiting! Complete lessons, earn points, and have fun! 🌟'
+                  : isAdult
+                  ? 'Keep building your skills. Your next lesson is ready.'
+                  : 'Your courses, lessons, and assignments — all in one place.'}
+              </p>
+
+              {nextLesson && (
+                <Link href={`/dashboard/lessons/${nextLesson.id}`}
+                  className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all border-2 border-transparent hover:border-brand-red-600">
+                  <RocketLaunchIcon className="w-4 h-4" />
+                  Continue: {nextLesson.title}
+                  <ArrowRightIcon className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
           </div>
 
-          <div className="relative bg-card border border-border p-8 lg:p-16 overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-500/[0.03] via-transparent to-transparent pointer-events-none" />
-            
-            <div className="relative overflow-x-auto pb-12 custom-scrollbar scroll-smooth">
-              <div className="flex items-center gap-8 sm:gap-14 min-w-max px-10">
-                {lessons.length > 0 ? (
-                  lessons.map((lesson, idx) => {
-                    const isCompleted = completedLessonIds.has(lesson.id);
-                    const isNext = nextLesson?.id === lesson.id;
-                    const isLocked = !isCompleted && !isNext;
-                    
-                    return (
-                      <div key={lesson.id} className="flex items-center">
-                        {idx > 0 && (
-                          <div className={`h-1 w-16 sm:w-28 transition-all duration-1000 mr-8 sm:mr-14 ${completedLessonIds.has(lessons[idx - 1]?.id) ? 'bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.4)]' : 'bg-muted/30'}`} />
-                        )}
-                        <motion.a
-                          href={`/dashboard/lessons/${lesson.id}`}
-                          whileHover={{ scale: 1.1, y: -5 }}
-                          className={`relative flex flex-col items-center gap-4 group cursor-pointer ${isLocked ? 'pointer-events-none' : ''}`}
-                        >
-                          <div className={`w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center border-4 transition-all duration-500 relative ${
-                            isCompleted
-                              ? 'bg-orange-600 border-orange-400 text-white shadow-[0_0_20px_rgba(234,88,12,0.4)]'
-                              : isNext
-                              ? 'bg-orange-600/10 border-orange-600 text-orange-500 animate-[pulse_2s_infinite] shadow-[0_0_25px_rgba(234,88,12,0.2)]'
-                              : 'bg-muted/40 border-border text-muted-foreground/30 saturate-0'
-                          }`}>
-                            {isCompleted ? <CheckBadgeIcon className="w-10 h-10" /> : isNext ? <RocketLaunchIcon className="w-10 h-10" /> : <LockClosedIcon className="w-6 h-6" />}
-                            
-                            {isNext && (
-                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-orange-600 text-white text-[9px] font-black uppercase px-3 py-2 whitespace-nowrap tracking-widest shadow-2xl skew-x-[-10deg]">
-                                ACTIVE SECTOR
-                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-orange-600 rotate-45" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-center max-w-[120px]">
-                            <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1.5 ${isNext ? 'text-orange-500' : 'text-muted-foreground/60'}`}>
-                              {lesson?.courses?.programs?.name?.split(' ')[0] || 'Core'} · {lesson.lesson_type || 'Module'}
-                            </p>
-                            <p className={`text-xs font-black leading-tight truncate w-full px-1 ${isCompleted ? 'text-muted-foreground' : isNext ? 'text-foreground' : 'text-muted-foreground/40'}`}>
-                              {lesson.title}
-                            </p>
-                            <p className="text-[9px] font-black text-orange-500/60 mt-1 uppercase">+10 XP</p>
-                          </div>
-                        </motion.a>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex-1 text-center py-20 opacity-30 text-xs uppercase font-black tracking-widest min-w-[400px]">
-                     Neural Map Offline — Awaiting Teacher Deployment
-                  </div>
-                )}
+          {/* Stats column */}
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+            {[
+              { label: 'Lessons Done', value: stats.lessonsDone, icon: CheckBadgeIcon, color: 'text-emerald-500', border: 'border-t-emerald-500' },
+              { label: 'Week Streak',  value: stats.streak,      icon: FireIcon,       color: 'text-orange-500', border: 'border-t-orange-500' },
+              { label: 'Total Points', value: stats.xp.toLocaleString(), icon: TrophyIcon, color: 'text-amber-500', border: 'border-t-amber-500' },
+              { label: 'Avg Score',    value: `${stats.avgScore}%`, icon: ChartBarIcon, color: 'text-blue-500', border: 'border-t-blue-500' },
+            ].slice(0, 2).map(({ label, value, icon: Icon, color, border }) => (
+              <div key={label} className={`bg-card border border-border border-t-2 ${border} p-5 flex items-center gap-4`}>
+                <Icon className={`w-7 h-7 ${color} shrink-0`} />
+                <div>
+                  <p className="text-2xl font-black tabular-nums">{value}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">{label}</p>
+                </div>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-border">
-              <div className="flex flex-wrap items-center gap-8 justify-center sm:justify-start">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.4)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Synchronized</span>
+        {/* ── XP Progress ── */}
+        <div className="bg-card border border-border p-5 flex flex-col sm:flex-row items-center gap-5">
+          <div className="flex items-center gap-4 shrink-0">
+            <div className={`w-14 h-14 border-2 ${currentLevelConfig.bar.replace('bg-', 'border-')} flex items-center justify-center text-2xl`}>
+              {currentLevelConfig.name === 'Bronze' ? '🥉' : currentLevelConfig.name === 'Silver' ? '🥈' : currentLevelConfig.name === 'Gold' ? '🥇' : '💎'}
+            </div>
+            <div>
+              <p className={`text-sm font-black uppercase ${currentLevelConfig.color}`}>{currentLevelConfig.name}</p>
+              <p className="text-xs text-muted-foreground font-bold">Level {stats.level} · {stats.xp.toLocaleString()} XP</p>
+            </div>
+          </div>
+          <div className="flex-1 w-full space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
+              <span>{stats.xp.toLocaleString()} XP earned</span>
+              {nextLevelConfig && <span>{nextLevelConfig.min.toLocaleString()} XP for {nextLevelConfig.name}</span>}
+            </div>
+            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+              <motion.div
+                className={`h-full ${currentLevelConfig.bar} rounded-full`}
+                initial={{ width: 0 }}
+                animate={{ width: `${xpProgress}%` }}
+                transition={{ duration: 1.2, ease: 'circOut' }}
+              />
+            </div>
+          </div>
+          {badges.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0 border-l border-border pl-5">
+              {badges.slice(0, 4).map((badge: any) => (
+                <div key={badge.id} title={badge.badge_label}
+                  className="w-10 h-10 bg-muted border border-border flex items-center justify-center text-xl hover:scale-110 transition-transform cursor-help">
+                  {badge.badge_icon || '🏅'}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 border-2 border-orange-600 animate-pulse" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Neural Active</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-muted/40" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Inaccessible</span>
-                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Today's Tasks ── */}
+        {dailyMissions.length > 0 && (
+          <section>
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-4">
+              {isKids ? "⭐ Today's Missions" : "Today's Tasks"}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {dailyMissions.map((mission) => (
+                <Link key={mission.id} href={mission.href}
+                  className={`flex items-center gap-4 p-4 bg-card border border-l-4 ${mission.color} border-border hover:bg-muted/30 transition-all ${mission.done ? 'opacity-50' : ''}`}>
+                  <span className="text-2xl shrink-0">{mission.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-foreground truncate">{mission.label}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{mission.desc}</p>
+                  </div>
+                  <span className="text-[10px] font-black text-orange-500 shrink-0">+{mission.xp} XP</span>
+                  {mission.done && <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Lesson Path ── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+              {isKids ? '🗺️ My Learning Path' : 'Your Lessons'}
+            </h2>
+            <Link href="/dashboard/lessons" className="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors">
+              View all →
+            </Link>
+          </div>
+
+          <div className="bg-card border border-border p-6 overflow-x-auto">
+            {lessons.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpenIcon className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground font-bold">No lessons yet — your teacher will add them soon.</p>
               </div>
-              <Link
-                href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
-                className="px-10 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all shadow-[0_0_30px_rgba(234,88,12,0.3)] hover:-translate-y-1 active:translate-y-0"
-              >
-                {nextLesson ? 'Resume Mission' : 'Browse Modules'}
+            ) : (
+              <div className="flex items-center gap-0 min-w-max">
+                {lessons.map((lesson, idx) => {
+                  const isCompleted = completedLessonIds.has(lesson.id);
+                  const isNext = nextLesson?.id === lesson.id;
+                  const isLocked = !isCompleted && !isNext;
+                  return (
+                    <div key={lesson.id} className="flex items-center">
+                      {idx > 0 && (
+                        <div className={`h-0.5 w-12 sm:w-16 ${completedLessonIds.has(lessons[idx-1]?.id) ? 'bg-orange-500' : 'bg-border'}`} />
+                      )}
+                      <div className="flex flex-col items-center gap-2 relative">
+                        {isNext && (
+                          <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-red-600 text-white text-[9px] font-black px-2 py-1 whitespace-nowrap uppercase tracking-wider">
+                            Up Next
+                          </span>
+                        )}
+                        <Link
+                          href={isLocked ? '#' : `/dashboard/lessons/${lesson.id}`}
+                          className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center border-2 transition-all ${
+                            isCompleted ? 'bg-orange-500 border-orange-400 text-white' :
+                            isNext ? 'bg-card border-orange-500 text-orange-500 ring-2 ring-brand-red-600/30 animate-pulse' :
+                            'bg-muted/30 border-border text-muted-foreground/30 cursor-not-allowed'
+                          }`}
+                        >
+                          {isCompleted ? <CheckBadgeIcon className="w-7 h-7" /> :
+                           isNext ? <RocketLaunchIcon className="w-7 h-7" /> :
+                           <LockClosedIcon className="w-5 h-5" />}
+                        </Link>
+                        <p className={`text-[9px] font-bold text-center max-w-[80px] leading-tight truncate ${isNext ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                          {lesson.title}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Legend */}
+            <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border">
+              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-orange-500" /><span className="text-[10px] text-muted-foreground font-bold">Completed</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-orange-500 animate-pulse" /><span className="text-[10px] text-muted-foreground font-bold">Up Next</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-muted border border-border" /><span className="text-[10px] text-muted-foreground font-bold">Locked</span></div>
+              <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
+                className="ml-auto px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+                {nextLesson ? 'Continue Learning' : 'Browse Lessons'}
               </Link>
             </div>
           </div>
         </section>
 
-        {/* Programs Catalog - SECOND PRIORITY */}
-        <section className="space-y-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black uppercase italic">{isKids ? '🎒 My Learning Path' : 'Program Tracks'}</h2>
-            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{programs.length} active tracks</span>
+        {/* ── My Programmes ── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+              {isKids ? '🎒 My Learning Path' : 'My Programmes'}
+            </h2>
+            <span className="text-xs text-muted-foreground font-bold">{programs.length} enrolled</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-12">
-            {programs.length === 0 ? (
-              <div className="py-24 bg-muted/10 border-2 border-dashed border-border text-center flex flex-col items-center">
-                <AcademicCapIcon className="w-16 h-16 text-muted-foreground/30 mb-6" />
-                <p className="text-muted-foreground text-sm font-black uppercase tracking-widest">
-                  {isKids ? 'Empty Backpack! Ask a teacher for books ✨' : 'No active tracks detected'}
-                </p>
-                <Link href="/dashboard/library" className="mt-6 inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-black uppercase tracking-widest transition-all">
-                  Browse Archives <ArrowRightIcon className="w-4 h-4" />
-                </Link>
-              </div>
-            ) : (
-              programs.map((prog, pi) => {
+          {programs.length === 0 ? (
+            <div className="bg-card border-2 border-dashed border-border p-12 text-center">
+              <AcademicCapIcon className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground font-bold mb-4">
+                {isKids ? 'No programmes yet — ask your teacher! ✨' : 'You are not enrolled in any programme yet.'}
+              </p>
+              <Link href="/dashboard/library" className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-black uppercase tracking-widest transition-all">
+                Browse Library <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {programs.map((prog, pi) => {
                 const courses = coursesByProgram[prog.id] ?? [];
-                const accent = [
-                  { border: 'border-orange-500', text: 'text-orange-500', bg: 'bg-orange-500/10', bar: 'bg-orange-600' },
-                  { border: 'border-blue-500', text: 'text-blue-500', bg: 'bg-blue-500/10', bar: 'bg-blue-600' },
-                  { border: 'border-emerald-500', text: 'text-emerald-500', bg: 'bg-emerald-500/10', bar: 'bg-emerald-600' },
+                const accentColors = [
+                  { border: 'border-t-orange-500', text: 'text-orange-500', bar: 'bg-orange-500' },
+                  { border: 'border-t-blue-500',   text: 'text-blue-500',   bar: 'bg-blue-500'   },
+                  { border: 'border-t-emerald-500', text: 'text-emerald-500',bar: 'bg-emerald-500'},
                 ][pi % 3];
 
                 return (
-                  <div key={prog.id} className="bg-card border border-border group overflow-hidden">
-                    <div className="grid grid-cols-1 lg:grid-cols-4">
-                      {/* Program Info */}
-                      <div className="p-8 lg:p-10 lg:border-r border-border bg-muted/[0.03] space-y-6">
-                        <div className={`w-14 h-14 ${accent.bg} border ${accent.border}/30 flex items-center justify-center`}>
-                          <AcademicCapIcon className={`w-8 h-8 ${accent.text}`} />
-                        </div>
+                  <div key={prog.id} className={`bg-card border border-border border-t-2 ${accentColors.border} overflow-hidden`}>
+                    {/* Programme header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <AcademicCapIcon className={`w-5 h-5 ${accentColors.text} shrink-0`} />
                         <div>
-                          <h3 className="text-xl font-black uppercase tracking-tight italic">{prog.name}</h3>
-                          <p className="text-xs text-muted-foreground font-bold mt-1 uppercase tracking-widest">
-                            {prog.difficulty_level || 'Level 1'} Track · {prog.duration_weeks || 12} Weeks
+                          <h3 className="text-sm font-black uppercase tracking-tight">{prog.name}</h3>
+                          <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
+                            {prog.difficulty_level || 'Level 1'} · {prog.duration_weeks || 12} weeks
                           </p>
                         </div>
-                        <Link
-                          href={`/dashboard/curriculum?program=${prog.id}`}
-                          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-400"
-                        >
-                          View Syllabus <ArrowRightIcon className="w-3 h-3" />
-                        </Link>
                       </div>
-
-                      {/* Course Grid */}
-                      <div className="lg:col-span-3 p-8 lg:p-10 bg-card">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Active Modules in this Track</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                          {courses.map((c) => {
-                            const total = c.lessons?.length || 0;
-                            const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
-                            const pct = total > 0 ? Math.round((done/total)*100) : 0;
-                            
-                            return (
-                              <Link key={c.id} href={`/dashboard/courses/${c.id}`} className="p-5 bg-background border border-border hover:border-orange-500/30 transition-all flex flex-col gap-4">
-                                <div className="flex justify-between items-start">
-                                   <p className="text-sm font-black italic uppercase leading-none tracking-tight">{c.title}</p>
-                                   <div className={`px-2 py-1 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'} text-[8px] font-black uppercase`}>
-                                      {pct === 100 ? 'CLEARED' : `${pct}%`}
-                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <div className="h-1 w-full bg-muted/30">
-                                    <div className={`h-full transition-all duration-1000 ${pct === 100 ? 'bg-emerald-500' : accent.bar}`} style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <div className="flex justify-between text-[8px] font-black text-muted-foreground uppercase">
-                                    <span>{done}/{total} Modules</span>
-                                    <span>{c.duration_hours || 0} Hours</span>
-                                  </div>
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <Link href={`/dashboard/curriculum?program=${prog.id}`}
+                        className="text-[10px] font-black text-brand-red-600 hover:text-orange-500 uppercase tracking-widest transition-colors">
+                        View Syllabus →
+                      </Link>
                     </div>
+
+                    {/* Courses grid */}
+                    {courses.length === 0 ? (
+                      <div className="px-6 py-8 text-center text-sm text-muted-foreground font-bold">
+                        No courses available yet.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-border">
+                        {courses.map((c) => {
+                          const total = c.lessons?.length || 0;
+                          const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
+                          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                          return (
+                            <Link key={c.id} href={`/dashboard/courses/${c.id}`}
+                              className="bg-card p-5 hover:bg-muted/30 transition-all flex flex-col gap-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm font-black leading-tight">{c.title}</p>
+                                <span className={`text-[9px] font-black px-2 py-0.5 shrink-0 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
+                                  {pct === 100 ? '✓ Done' : `${pct}%`}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : accentColors.bar}`}
+                                    style={{ width: `${pct}%` }} />
+                                </div>
+                                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
+                                  <span>{done}/{total} lessons</span>
+                                  <span>{c.duration_hours || 0}h</span>
+                                </div>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
-              })
-            )}
-          </div>
-        </section>
-
-        {/* Unified Hero Section - STATS RELEGATED DOWN */}
-        <section className={`relative overflow-hidden border p-6 sm:p-10 lg:p-14 group ${isKids ? 'bg-gradient-to-br from-violet-600/10 via-card to-orange-500/10 border-violet-500/30' : 'bg-card border-border'}`}>
-          <div className={`absolute top-0 right-0 w-[600px] h-[600px] blur-[150px] -mr-64 -mt-64 pointer-events-none transition-all duration-1000 ${isKids ? 'bg-violet-600/15 group-hover:bg-violet-600/20' : 'bg-orange-600/5 group-hover:bg-orange-600/8'}`} />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] -ml-48 -mb-48 pointer-events-none" />
-
-          {/* Learner tier badge */}
-          <div className={`relative z-10 inline-flex items-center gap-2 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest mb-4 border ${isKids ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : isAdult ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-blue-500/20 border-blue-500/40 text-blue-400'}`}>
-            {isKids ? '🎒' : isAdult ? '🎓' : '📚'}
-            {profile.grade_level || (isKids ? 'Primary School' : isAdult ? 'Professional Learner' : 'Secondary School')}
-          </div>
-
-          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-12">
-            <div className="space-y-4 sm:space-y-6 text-center lg:text-left flex-1">
-              <h1 className={`font-black tracking-tighter leading-[0.9] italic ${isKids ? 'text-4xl sm:text-6xl' : 'text-4xl sm:text-6xl lg:text-8xl'}`}>
-                {greeting},<br />
-                <span className={`text-transparent bg-clip-text ${isKids ? 'bg-gradient-to-r from-violet-500 via-pink-500 to-orange-500' : 'bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500'}`}>
-                  {profile?.full_name?.split(' ')[0]}!
-                </span>
-                {isKids && <span className="ml-2 not-italic">🚀</span>}
-              </h1>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-xl font-medium leading-relaxed">
-                {isKids
-                  ? 'Your learning adventure is waiting! Complete missions, earn XP, and have fun! 🌟'
-                  : isAdult
-                  ? 'Professional development at your pace. Tackle missions, assessments, and certifications.'
-                  : 'Everything you need for your courses, lessons, and assignments — synchronized and ready.'}
-              </p>
-              
-              <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-4 justify-center lg:justify-start w-full sm:w-auto">
-                <div 
-                  className="flex items-center gap-4 px-6 py-4 bg-muted/20 border border-border group relative transition-all hover:border-orange-500/30"
-                  title="Weekly streak: Active if you complete tasks in a week."
-                >
-                   <FireIcon className="w-8 h-8 text-orange-600 flex-shrink-0" />
-                   <div>
-                      <p className="text-3xl font-black tabular-nums leading-none tracking-tighter">{stats.streak}</p>
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Week Streak</p>
-                   </div>
-                </div>
-                <div className="flex items-center gap-4 px-6 py-4 bg-muted/20 border border-border transition-all hover:border-emerald-500/30">
-                   <TrophyIcon className="w-8 h-8 text-amber-500 flex-shrink-0" />
-                   <div>
-                      <p className="text-3xl font-black tabular-nums leading-none tracking-tighter">{stats.xp.toLocaleString()}</p>
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Total Points</p>
-                   </div>
-                </div>
-              </div>
+              })}
             </div>
-            
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto">
-               <div className={`p-6 sm:p-10 text-center flex flex-col items-center justify-center min-w-0 sm:min-w-[240px] group/card hover:border-blue-500/30 transition-all border ${isKids ? 'bg-blue-500/10 border-blue-500/30' : 'bg-background border-border'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center mb-2 sm:mb-4 transition-transform group-hover/card:scale-110 ${isKids ? 'text-3xl' : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'}`}>
-                     {isKids ? '⭐' : <ChartBarIcon className="w-8 h-8" />}
-                  </div>
-                  <p className="text-3xl sm:text-5xl font-black tabular-nums tracking-tighter">{stats.avgScore}%</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground mt-2">
-                    {isKids ? 'My Grade' : isAdult ? 'Accuracy Avg' : 'Grade Avg'}
-                  </p>
-               </div>
-               <div className={`p-6 sm:p-10 text-center flex flex-col items-center justify-center min-w-0 sm:min-w-[240px] group/card hover:border-emerald-500/30 transition-all border ${isKids ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-background border-border'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center mb-2 sm:mb-4 transition-transform group-hover/card:scale-110 ${isKids ? '🏅' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
-                     <CheckBadgeIcon className="w-8 h-8" />
-                  </div>
-                  <p className="text-3xl sm:text-5xl font-black tabular-nums tracking-tighter">{stats.lessonsDone}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground mt-2">
-                    {isKids ? 'Lessons Cleared!' : 'Lessons Done'}
-                  </p>
-               </div>
-            </div>
-          </div>
-        </section>
-
-
-        {/* Missions Section */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black uppercase italic flex items-center gap-3">
-              {isKids ? '⭐ Morning Missions' : 'Today\'s Critical Path'}
-              <span className="text-orange-500">{isKids ? '🎮' : '🎯'}</span>
-            </h2>
-            <div className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hidden sm:block">
-              Daily reset in 14 hours
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {dailyMissions.map((mission, idx) => (
-              <motion.a
-                key={mission.id}
-                href={mission.href}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.1 }}
-                className={`relative group flex flex-col gap-5 p-6 bg-card border border-l-8 ${mission.color} border-border transition-all ${mission.done ? 'opacity-60 saturate-0' : 'hover:border-orange-500/30 hover:-translate-y-1'}`}
-              >
-                {mission.done && (
-                  <div className="absolute top-4 right-4 w-6 h-6 bg-emerald-500 text-white flex items-center justify-center rounded-full text-xs shadow-lg">✓</div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-4xl filter drop-shadow-md">{mission.emoji}</span>
-                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest px-3 py-1 border border-orange-500/20 bg-orange-500/5">
-                    +{mission.xp} XP
-                  </span>
-                </div>
-                <div>
-                  <p className="text-base font-black text-foreground uppercase tracking-tight leading-tight mb-1">
-                    {mission.done ? <s className="opacity-50">{mission.label}</s> : mission.label}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground font-bold leading-relaxed">{mission.desc}</p>
-                </div>
-              </motion.a>
-            ))}
-          </div>
-        </section>
-
-        {/* XP Level Progress Card */}
-        <section className="bg-card border border-border p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
-          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-            <div className="flex items-center gap-6 flex-1 w-full">
-              <div className={`w-20 h-20 border-4 ${currentLevelConfig.bar.replace('bg-', 'border-')} flex items-center justify-center shrink-0`}>
-                <span className="text-4xl font-black">
-                  {currentLevelConfig.name === 'Bronze' ? '🥉' : currentLevelConfig.name === 'Silver' ? '🥈' : currentLevelConfig.name === 'Gold' ? '🥇' : '💎'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className={`text-xs font-black uppercase tracking-[0.3em] ${currentLevelConfig.color}`}>{currentLevelConfig.name} Protocol</p>
-                    <p className="text-[10px] text-muted-foreground font-black uppercase mt-1">Status: Level {stats.level}</p>
-                  </div>
-                  {nextLevelConfig && (
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-foreground uppercase tracking-widest">
-                        {nextLevelConfig.name} Gateway
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-black tabular-nums">
-                        -{(nextLevelConfig.min - stats.xp).toLocaleString()} XP
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="h-4 w-full bg-muted/20 border border-border overflow-hidden">
-                  <motion.div
-                    className={`h-full ${currentLevelConfig.bar} shadow-[0_0_15px_rgba(234,88,12,0.3)]`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${xpProgress}%` }}
-                    transition={{ duration: 1.5, ease: 'circOut' }}
-                  />
-                </div>
-                <div className="flex justify-between mt-2">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tabular-nums">{stats.xp.toLocaleString()} XP ACHIEVED</p>
-                  {nextLevelConfig && <p className="text-[9px] font-black text-muted-foreground uppercase tabular-nums">{nextLevelConfig.min.toLocaleString()} XP THRESHOLD</p>}
-                </div>
-              </div>
-            </div>
-            
-            {badges.length > 0 && (
-              <div className="flex flex-col gap-3 shrink-0 w-full lg:w-auto pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-10">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center lg:text-left">Recent Achievements</p>
-                <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start">
-                  {badges.map((badge: any, i: number) => (
-                    <div key={badge.id} title={badge.badge_label} className="w-12 h-12 bg-muted/20 border border-border flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-help">
-                      {badge.badge_icon || '🏅'}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </section>
 
       </div>

@@ -28,19 +28,20 @@ export default function Logo({
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Logo mark — white bg so it looks correct on any background */}
+      {/* Logo mark:
+          - Light mode: no bg needed (logo already has white bg), just show image directly
+          - Dark mode: white bg container so the logo is visible against dark backgrounds */}
       <div className={`
-        ${s.container} flex-shrink-0 flex items-center justify-center
-        bg-white rounded-xl overflow-hidden
-        shadow-md border border-border/40
-        dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]
+        ${s.container} shrink-0 flex items-center justify-center
+        rounded-xl overflow-hidden
+        dark:bg-white dark:shadow-md dark:border dark:border-white/20
       `}>
         <Image
           src={brandAssets.logo}
           alt="Rillcod Technologies"
           width={s.img}
           height={s.img}
-          className="w-[80%] h-[80%] object-contain"
+          className="w-[85%] h-[85%] object-contain"
           priority
           onError={(e) => {
             const t = e.target as HTMLImageElement;
