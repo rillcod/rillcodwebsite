@@ -219,8 +219,8 @@ export default function StudentDashboard() {
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'Mission Vault',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Student Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'My Saved Work',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -235,8 +235,8 @@ export default function StudentDashboard() {
         <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 text-2xl">🚀</div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Activity Hub</h3>
-          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Social Hub · Code Vault · Skill Quests · Mastery Protocol</p>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
         <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">Open →</div>
       </Link>
@@ -255,7 +255,7 @@ export default function StudentDashboard() {
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <RocketLaunchIcon className="w-4 h-4 text-orange-500" />
-              Active Mission
+              Your Next Lesson
             </h2>
             <Link href="/dashboard/learning" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">
               Learning Center →
@@ -273,7 +273,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
               <div className="relative z-10">
-                <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-[0.2em] mb-1.5">Current Module</p>
+                <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-[0.2em] mb-1.5">Up Next</p>
                 <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight leading-none group-hover:text-orange-400 transition-colors">
                   {data.nextLesson.title}
                 </h3>
@@ -302,29 +302,29 @@ export default function StudentDashboard() {
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
             <ArchiveBoxIcon className="w-4 h-4 text-blue-500" />
-            Enrollment
+            My Programme
           </h2>
           <div className="bg-card border border-border p-6 flex flex-col gap-6 h-[calc(100%-2rem)]">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
-                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Active Track</span>
+                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Enrolled</span>
                 <span className="text-[10px] font-black text-muted-foreground">LVL {data.lessonsDone}</span>
               </div>
               <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
                 {profile?.enrollment_type || 'Core Learning'}
               </h4>
               <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
-                Your current learning path is synchronized with the latest Rillcod curriculum.
+                Your learning path is kept up to date with the latest Rillcod lessons.
               </p>
             </div>
             
             <div className="space-y-3 pt-4 border-t border-border">
                <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-blue-500/30 transition-all">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Detailed Progress</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
                   <ArrowRightIcon className="w-3.5 h-3.5 text-blue-500" />
                </Link>
                <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Tasks & HW</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
                   <div className="flex items-center gap-2">
                     {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
                     <ArrowRightIcon className="w-3.5 h-3.5 text-rose-500" />
@@ -355,9 +355,9 @@ export default function StudentDashboard() {
             <div className="flex-1 min-w-0 w-full">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Performance Matrix</h2>
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Your Progress</h2>
                   <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
-                    Global Rank: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Unranked'}
+                    Leaderboard Position: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Not ranked yet'}
                   </p>
                 </div>
                 <div className="flex items-center gap-6">
@@ -415,13 +415,13 @@ export default function StudentDashboard() {
               <SparklesIcon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1">AI Lesson Preview</p>
+              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em] mb-1">What You&apos;ll Learn Next</p>
               {aiHook ? (
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-foreground uppercase tracking-tight">{aiHook.hook_title}</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed italic">{aiHook.real_world_example}</p>
                   <div className="p-3 bg-indigo-500/5 border border-indigo-500/10">
-                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Challenge Question</p>
+                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About This</p>
                     <p className="text-xs text-foreground font-medium">"{aiHook.challenge_question}"</p>
                   </div>
                   <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
@@ -433,7 +433,7 @@ export default function StudentDashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-foreground break-words">{data.nextLesson.title}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you'll learn</p>
+            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you&apos;ll learn</p>
                   </div>
                   <button type="button" onClick={generateHook} disabled={loadingHook}
                     className="w-full sm:w-auto shrink-0 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2">
@@ -453,8 +453,8 @@ export default function StudentDashboard() {
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
           { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Activity Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'Mission Vault',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Student Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'My Saved Work',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -472,8 +472,8 @@ export default function StudentDashboard() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-0.5">Student Hub</p>
-          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Activity Hub</h3>
-          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Social Hub · Code Vault · Skill Quests · Mastery Protocol</p>
+          <h3 className="text-sm font-black text-foreground group-hover:text-emerald-400 transition-colors">Student Hub</h3>
+          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Community · Projects · Quests · Challenges</p>
         </div>
         <div className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0 hidden sm:block">
           Open →
@@ -483,11 +483,11 @@ export default function StudentDashboard() {
       <div className="bg-card border border-border p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
           <div>
-            <p className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.35em]">Student Activity Stack</p>
-            <h3 className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">Build, Engage, Compete</h3>
+            <p className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.35em]">Your Learning Tools</p>
+            <h3 className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight">Everything in one place</h3>
           </div>
-          <p className="text-[10px] sm:text-xs text-muted-foreground font-medium max-w-xl">
-            Your community, missions, protocol track, vault, and collaboration tools now sit directly inside the student dashboard flow.
+          <p className="text-xs text-muted-foreground font-medium max-w-xl">
+            Your community, assignments, saved work, and challenges — all in one place.
           </p>
         </div>
 
@@ -503,22 +503,22 @@ export default function StudentDashboard() {
             {
               href: '/dashboard/vault',
               icon: ArchiveBoxIcon,
-              label: 'Mission Vault',
-              detail: 'Keep snippets, notes, and reusable builds',
+              label: 'My Saved Work',
+              detail: 'Save your notes, code snippets, and work',
               color: 'text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/5 hover:border-fuchsia-500/40',
             },
             {
               href: '/dashboard/missions',
               icon: RocketLaunchIcon,
-              label: 'Skill Quests',
-              detail: 'Practice with structured challenge missions',
+              label: 'Practice Quests',
+              detail: 'Practice with guided challenges',
               color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40',
             },
             {
               href: '/dashboard/protocol',
               icon: CommandLineIcon,
-              label: 'Mastery Protocol',
-              detail: 'Follow the guided path to deeper mastery',
+              label: 'Skill Challenges',
+              detail: 'Follow a step-by-step path to get better',
               color: 'text-blue-400 border-blue-500/20 bg-blue-500/5 hover:border-blue-500/40',
             },
             {
