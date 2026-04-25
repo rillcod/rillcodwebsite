@@ -359,7 +359,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               <div className="border-t border-white/10 pt-4">
                 {/* Topic field */}
                 <div className="space-y-1 mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assignment Topic / Domain</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Assignment Topic / Domain</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}

@@ -476,7 +476,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <button
                                     onClick={generateAIFeedback}
                                     disabled={isAIThinking}
-                                    className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-none text-[10px] font-black uppercase tracking-widest text-orange-400 transition-all disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 transition-all disabled:opacity-50"
                                 >
                                     {isAIThinking ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                     {isAIThinking ? 'Analyzing...' : 'AI Assistant'}

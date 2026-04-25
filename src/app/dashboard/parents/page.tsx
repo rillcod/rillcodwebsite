@@ -472,7 +472,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   <code className="bg-muted px-1 text-foreground text-[11px]">relationship</code> (optional)
                 </p>
                 <button onClick={downloadTemplate}
-                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors underline underline-offset-2">
+                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 transition-colors underline underline-offset-2">
                   Download Template CSV
                 </button>
               </div>
@@ -570,7 +570,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               {/* Credentials for created accounts */}
               {results.filter(r => r.status === 'created' && r.password).length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">
                     New Account Credentials — Save These Now
                   </p>
                   <div className="border border-border max-h-48 overflow-y-auto divide-y divide-border">
@@ -1389,7 +1389,7 @@ export default function ParentsPage() {
                       <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
                         <LinkIcon className="w-3.5 h-3.5 text-orange-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 hidden sm:block">Link Student</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Link Student</span>
                     </button>
 
                     {/* Activate / Deactivate */}
@@ -1447,7 +1447,7 @@ export default function ParentsPage() {
                       <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
                         <CreditCardIcon className="w-3.5 h-3.5 text-orange-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 hidden sm:block">Card</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Card</span>
                     </Link>
 
                     {/* Delete — pushed right */}

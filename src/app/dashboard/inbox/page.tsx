@@ -1553,7 +1553,7 @@ export default function UnifiedInbox() {
             {isParentOrStudent && (
               <div className="px-3 pb-3 shrink-0">
                 <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-lg">
-                  <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-2">Support Channels</h4>
+                  <h4 className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] mb-2">Support Channels</h4>
                   <div className="grid grid-cols-3 gap-2">
                     <button onClick={startSupportConversation} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-orange-500/40 rounded-lg transition-all group">
                       <MessageSquare className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />

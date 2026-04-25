@@ -89,7 +89,7 @@ export default function WAECGradingPage() {
             <Link href="/dashboard/grades" className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">WAEC-Aligned Grading</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">WAEC-Aligned Grading</span>
           </div>
           <h1 className="text-2xl font-black">Grading System Reference</h1>
           <p className="text-xs text-muted-foreground mt-1">

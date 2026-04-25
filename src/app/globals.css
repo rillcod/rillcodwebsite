@@ -42,6 +42,26 @@
     @apply bg-background text-foreground;
     scroll-behavior: smooth;
   }
+
+  /* ── Systematic red accent on interactive elements ── */
+
+  /* Focus rings use red */
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--brand-red) !important;
+    box-shadow: 0 0 0 2px rgba(196, 30, 58, 0.15);
+  }
+
+  /* Active tab underline — any element with role=tab that is selected */
+  [role="tab"][aria-selected="true"] {
+    border-bottom-color: var(--brand-red) !important;
+    color: var(--brand-red);
+  }
+
+  /* Primary buttons get red hover border */
+  .btn-primary:hover, button[type="submit"]:hover {
+    box-shadow: 0 0 0 2px rgba(196, 30, 58, 0.3);
+  }
 }
 
 :root {
@@ -537,6 +557,27 @@ select {
   /* Red glow for urgent/important elements */
   .glow-red {
     box-shadow: 0 0 12px rgba(196, 30, 58, 0.3);
+  }
+  /* Section label — small uppercase red label above headings */
+  .section-label {
+    @apply text-[9px] font-black uppercase tracking-[0.4em];
+    color: var(--brand-red);
+  }
+  /* Red underline accent */
+  .underline-red {
+    text-decoration: underline;
+    text-decoration-color: var(--brand-red);
+    text-underline-offset: 3px;
+  }
+  /* Red divider line */
+  .divider-red {
+    height: 2px;
+    background: linear-gradient(to right, var(--brand-red), transparent);
+  }
+  /* Stat card with red top border */
+  .stat-card {
+    @apply bg-card border border-border;
+    border-top: 2px solid var(--brand-red);
   }
 }
 

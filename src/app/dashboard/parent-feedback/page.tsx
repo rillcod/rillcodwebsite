@@ -379,7 +379,7 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">{fb.category}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">{fb.category}</span>
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${STATUS_STYLE[fb.status]}`}>
                       {fb.status}
                     </span>

@@ -270,7 +270,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
   return (
     <div className="bg-background border border-border rounded-none shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
       <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-orange-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-brand-red-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
         <div className="flex-shrink-0 p-4 bg-muted backdrop-blur-md rounded-none border border-border shadow-2xl">

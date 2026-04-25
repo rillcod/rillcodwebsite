@@ -47,13 +47,13 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
               </div>
             ))
             : stats.map(({ label, value, icon: Icon, gradient }) => (
-              <div key={label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
+              <div key={label} className="bg-card shadow-sm border border-border border-t-2 border-t-brand-red-600 rounded-none p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
                 <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
                 <div className="flex items-start justify-between mb-5 relative z-10">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
                   </div>
-                  <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">Live</span>
+                  <span className="text-[8px] sm:text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] bg-brand-red-600/5 px-2 py-0.5 rounded-full border border-brand-red-600/20">Live</span>
                 </div>
                 <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>

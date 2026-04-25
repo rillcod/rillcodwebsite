@@ -387,7 +387,7 @@ export default function ProtocolPage() {
                                       <button
                                         onClick={() => aiExplanations[module.id] ? toggleExplanation(module.id) : explainConcept(module)}
                                         disabled={aiExplaining === module.id}
-                                        className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50"
+                                        className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50"
                                       >
                                         <SparklesIcon className="w-4 h-4" />
                                         {aiExplaining === module.id ? 'Analyzing...' : aiExplanations[module.id] ? (showExplanations.has(module.id) ? 'Hide Logic' : 'Show Logic') : 'Explain Logic'}
