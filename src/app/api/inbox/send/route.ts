@@ -105,12 +105,52 @@ async function sendWhatsAppMessage(to: string, message: string) {
   }
 }
 
+// Send a pre-approved WhatsApp template message (for initiating conversations)
+async function sendWhatsAppTemplate(
+  to: string,
+  templateName: string,
+  variables: string[], // ordered list of {{1}}, {{2}} values
+) {
+  const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
+  const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
+  if (!WHATSAPP_API_URL || !WHATSAPP_API_TOKEN) {
+    return { success: false, reason: 'credentials_missing' };
+  }
+  try {
+    const response = await fetch(WHATSAPP_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: to.replace(/\D/g, ''),
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: 'en' },
+          components: variables.length > 0 ? [{
+            type: 'body',
+            parameters: variables.map(v => ({ type: 'text', text: v })),
+          }] : [],
+        },
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) return { success: false, error: data.error?.message, errorCode: data.error?.code };
+    return { success: true, messageId: data.messages?.[0]?.id };
+  } catch (err: any) {
+    return { success: false, reason: 'network_error', error: err.message };
+  }
+}
+
 // POST /api/inbox/send — send a message (staff → WhatsApp; learner → inbound portal message)
 export async function POST(req: NextRequest) {
   try {
     const admin = adminClient();
     const body = await req.json();
-    const { conversation_id, message } = body;
+    const { conversation_id, message, use_template, template_name, template_variables } = body;
 
     if (!conversation_id || !message?.trim()) {
       return NextResponse.json({ error: 'conversation_id and message required' }, { status: 400 });
@@ -210,10 +250,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Try to send via WhatsApp Business API
-    const whatsappResult = await sendWhatsAppMessage(
-      conversation.phone_number,
-      message.trim()
-    );
+    // use_template=true → approved template (for initiating conversations)
+    // default → free-form text (only works within 24h reply window)
+    const whatsappResult = use_template
+      ? await sendWhatsAppTemplate(
+          conversation.phone_number,
+          template_name || 'student_update_notification',
+          template_variables || [conversation.contact_name || 'Parent', message.trim()],
+        )
+      : await sendWhatsAppMessage(conversation.phone_number, message.trim());
 
     // Determine message status based on API result
     let messageStatus = 'sent';
@@ -227,8 +272,8 @@ export async function POST(req: NextRequest) {
       messageStatus = 'pending'; // Will retry or send manually
       metadata.api_error = whatsappResult.reason;
       metadata.error_details = whatsappResult.error;
-      metadata.is_not_whatsapp_user = whatsappResult.isNotWhatsAppUser || false;
-      metadata.is_rate_limit_error = whatsappResult.isRateLimitError || false;
+      metadata.is_not_whatsapp_user = (whatsappResult as any).isNotWhatsAppUser || false;
+      metadata.is_rate_limit_error = (whatsappResult as any).isRateLimitError || false;
       metadata.error_code = whatsappResult.errorCode;
     }
 
@@ -273,8 +318,8 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      const isNotWhatsAppUser = whatsappResult.isNotWhatsAppUser || whatsappResult.reason === 'not_whatsapp_user';
-      const isRateLimitError = whatsappResult.isRateLimitError || whatsappResult.reason === 'rate_limit';
+      const isNotWhatsAppUser = (whatsappResult as any).isNotWhatsAppUser || whatsappResult.reason === 'not_whatsapp_user';
+      const isRateLimitError = (whatsappResult as any).isRateLimitError || whatsappResult.reason === 'rate_limit';
       
       return NextResponse.json({ 
         success: true, 
