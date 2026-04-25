@@ -70,7 +70,7 @@ export default function MyCardPage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -262,8 +262,8 @@ export default function MyCardPage() {
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-          <CreditCardIcon className="w-5 h-5 text-orange-400" />
+        <div className="w-10 h-10 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0">
+          <CreditCardIcon className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-black text-card-foreground">My Access Card</h1>
@@ -272,9 +272,9 @@ export default function MyCardPage() {
       </div>
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 bg-orange-500/[0.07] border border-orange-500/20 rounded-xl p-4 text-sm">
-        <InformationCircleIcon className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
-        <p className="text-orange-300/80">
+      <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4 text-sm">
+        <InformationCircleIcon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+        <p className="text-primary/60">
           Present this card to school staff for identity verification. The QR code links to your profile verification page.
         </p>
       </div>
@@ -359,7 +359,7 @@ export default function MyCardPage() {
         {/* Actions */}
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <button onClick={handlePrint}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${printed ? 'bg-emerald-500 text-white' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${printed ? 'bg-emerald-500 text-white' : 'bg-primary hover:bg-primary/90 text-white'}`}>
             {printed ? <CheckCircleIcon className="w-4 h-4" /> : <PrinterIcon className="w-4 h-4" />}
             {printed ? 'Print dialog opened!' : 'Print Card'}
           </button>
@@ -384,7 +384,7 @@ export default function MyCardPage() {
             { icon: CreditCardIcon, label: 'Card Status', value: 'Valid & Active' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3">
-              <Icon className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+              <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider">{label}</p>
                 <p className="text-sm font-bold text-card-foreground mt-0.5">{value}</p>
