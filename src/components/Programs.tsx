@@ -62,7 +62,7 @@ const Programs: React.FC = () => {
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Exciting tech adventures waiting for your child!
           </p>
-          <div className="w-20 h-2 bg-[#FF914D] mx-auto rounded-full mt-4"></div>
+          <div className="w-20 h-2 bg-primary mx-auto rounded-full mt-4"></div>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -82,15 +82,15 @@ const Programs: React.FC = () => {
                 <p className="text-muted-foreground mb-6">{program.description}</p>
                 
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Link 
-                    href="/student-registration" 
-                    className="inline-flex items-center justify-center px-6 py-3 bg-[#FF914D] text-white rounded-full hover:bg-[#e67e3d] transform transition-all duration-300 hover:scale-105 hover:shadow-lg font-bold animate-pulse"
+                  <Link
+                    href="/student-registration"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-full hover:opacity-90 transform transition-all duration-300 hover:scale-105 hover:shadow-lg font-bold"
                   >
                     Enroll Now
                   </Link>
-                  <Link 
+                  <Link
                     href="/programs"
-                    className="inline-flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transform transition-all duration-300 hover:scale-105 hover:shadow-lg font-bold"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-muted text-foreground rounded-full hover:bg-border transform transition-all duration-300 hover:scale-105 hover:shadow-lg font-bold"
                   >
                     Learn More
                   </Link>

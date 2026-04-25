@@ -22,18 +22,18 @@ export function PresenceSidebar() {
         <div className="w-80 h-full bg-[#0a0a14]/50 backdrop-blur-xl border-l border-border flex flex-col overflow-hidden hidden xl:flex">
             <div className="p-6 border-b border-border space-y-6">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-[#FF914D] uppercase tracking-[0.2em]">Active Learners</h3>
-                    <div className="px-2 py-0.5 rounded-md bg-[#FF914D]/10 border border-[#FF914D]/20 text-[10px] text-[#FF914D] font-bold">
+                    <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Active Learners</h3>
+                    <div className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary font-bold">
                         {sortedUsers.length} Online
                     </div>
                 </div>
                 <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#FF914D] transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-primary transition-colors" />
                     <input
                         placeholder="Search peers..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-border rounded-2xl text-xs text-white placeholder-muted-foreground focus:outline-none focus:border-[#FF914D]/30 focus:bg-white/10 transition-all font-medium"
+                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-border rounded-2xl text-xs text-white placeholder-muted-foreground focus:outline-none focus:border-primary/30 focus:bg-white/10 transition-all font-medium"
                     />
                 </div>
             </div>
@@ -47,7 +47,7 @@ export function PresenceSidebar() {
                         >
                             <div className="relative">
                                 <Avatar className="w-10 h-10 border border-border">
-                                    <AvatarFallback className="bg-[#FF914D]/10 text-[#FF914D] text-xs font-black">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-black">
                                         {user.userName?.substring(0, 2).toUpperCase() || '??'}
                                     </AvatarFallback>
                                 </Avatar>

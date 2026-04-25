@@ -8,7 +8,7 @@ export default function ForceRefreshBanner({ visible }: { visible: boolean }) {
   if (!visible) return null;
 
   return (
-    <div className="fixed top-0 inset-x-0 z-[9998] flex items-center justify-between gap-4 bg-blue-600 px-4 py-2 text-sm text-white">
+    <div className="fixed top-0 inset-x-0 z-[9998] flex items-center justify-between gap-4 bg-primary px-4 py-2 text-sm text-white">
       <span>A new version of Rillcod Academy is available.</span>
       <button
         onClick={() => window.location.reload()}

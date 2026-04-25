@@ -52,7 +52,7 @@ const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
               <Link
                 href="/login"
-                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-none hover:bg-primary transition-all shadow-lg"
+                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-none hover:bg-primary transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
               >
                 Student Login
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -80,7 +80,7 @@ const Hero: React.FC = () => {
           <div className="relative order-first lg:order-last">
             <div className="relative w-full aspect-square max-w-[500px] mx-auto group">
               {/* Floating Accent */}
-              <div className="absolute -top-4 -right-4 z-20 bg-card border border-border rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
+              <div className="absolute -top-4 -right-4 z-20 bg-card border border-border border-t-2 border-t-brand-red-600 rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-none flex items-center justify-center mb-2">
                     <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </div>

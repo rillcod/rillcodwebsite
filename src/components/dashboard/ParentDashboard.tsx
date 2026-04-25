@@ -172,7 +172,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Outstanding Balance */}
-          <div className={`bg-card border p-5 flex items-center gap-4 ${stats.outstandingBalance > 0 ? 'border-rose-500/30' : 'border-border'}`}>
+          <div className={`bg-card border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4 ${stats.outstandingBalance > 0 ? 'border-rose-500/30' : 'border-border'}`}>
             <RadialRing
               value={stats.overdueinvoices > 0 ? 100 : stats.outstandingBalance > 0 ? 50 : 0}
               max={100}
@@ -195,7 +195,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
           </div>
 
           {/* Children Enrolled */}
-          <div className="bg-card border border-border p-5 flex items-center gap-4">
+          <div className="bg-card border border-border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4">
             <RadialRing
               value={children.length}
               max={Math.max(children.length, 5)}
@@ -214,7 +214,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
           </div>
 
           {/* Notifications */}
-          <div className="bg-card border border-border p-5 flex items-center gap-4">
+          <div className="bg-card border border-border border-t-2 border-t-brand-red-600/40 p-5 flex items-center gap-4">
             <RadialRing
               value={Math.min(stats.unreadNotifications * 10, 100)}
               max={100}
@@ -239,7 +239,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       {/* Children Cards */}
       {!dataLoading && children.length > 0 && (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">My Children</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">My Children</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {children.map(child => (
               <div key={child.id} className="bg-card border border-border p-5 hover:bg-white/5 transition-all group relative overflow-hidden">
@@ -295,7 +295,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       {/* Loading skeleton */}
       {dataLoading && (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">My Children</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">My Children</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="bg-card border border-border p-5 animate-pulse">
@@ -365,7 +365,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
       {/* Quick Actions */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Quick Access</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">Quick Access</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
           {QUICK_ACTIONS.map(({ name, href, icon: Icon, desc, bg, ring }) => (
             <Link key={name} href={href}

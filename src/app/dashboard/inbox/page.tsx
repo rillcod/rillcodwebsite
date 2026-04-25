@@ -1633,7 +1633,7 @@ export default function UnifiedInbox() {
                             {conv.last_message_preview || 'No messages yet'}
                           </p>
                           {conv.unread_count > 0 && (
-                            <span className="bg-primary text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-orange-950/50">
+                            <span className="bg-primary text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-primary/50">
                               {conv.unread_count}
                             </span>
                           )}

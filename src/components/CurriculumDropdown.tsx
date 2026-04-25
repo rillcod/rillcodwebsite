@@ -30,10 +30,10 @@ export default function CurriculumDropdown({ curriculum }: CurriculumDropdownPro
     <div className="bg-card rounded-lg shadow-md overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all duration-300"
+        className="w-full flex items-center justify-between p-6 bg-muted hover:bg-muted/80 transition-all duration-300"
       >
         <div className="flex items-center">
-          <BookOpenIcon className="w-6 h-6 text-blue-600 mr-3" />
+          <BookOpenIcon className="w-6 h-6 text-primary mr-3" />
           <h3 className="text-xl font-bold text-foreground">Detailed Curriculum</h3>
         </div>
         {isOpen ? (
@@ -48,9 +48,9 @@ export default function CurriculumDropdown({ curriculum }: CurriculumDropdownPro
           <div className="p-6">
             <div className="space-y-6">
               {curriculum.map((module, index) => (
-                <div key={index} className="border-l-4 border-blue-500 pl-6">
+                <div key={index} className="border-l-4 border-primary pl-6">
                   <div className="flex items-center mb-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-4">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-4">
                       <span className="text-white font-bold text-sm">{index + 1}</span>
                     </div>
                     <h4 className="text-lg font-semibold text-foreground">{module.title}</h4>

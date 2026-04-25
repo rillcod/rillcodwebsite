@@ -132,7 +132,7 @@ export const ConfirmModal: React.FC<{
   const variantClasses = {
     danger: 'bg-red-600 hover:bg-red-700',
     warning: 'bg-yellow-600 hover:bg-yellow-700',
-    info: 'bg-blue-600 hover:bg-blue-700',
+    info: 'bg-primary hover:opacity-90',
   };
 
   const handleConfirm = () => {

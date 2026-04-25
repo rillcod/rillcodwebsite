@@ -5,7 +5,7 @@ export default function Loading() {
   return (
     <div className="min-h-screen bg-background font-sans flex items-center justify-center relative overflow-hidden">
       {/* Grid Pattern Background */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#FF914D 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(var(--color-primary) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
       
       <div className="relative z-10 text-center">
         {/* Technical Spinner */}

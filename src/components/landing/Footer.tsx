@@ -25,7 +25,7 @@ export default function Footer() {
   return (
     <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans">
       {/* Sharp Accent Line */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary to-transparent opacity-50 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-red-600 via-primary to-transparent" />
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 pt-20 pb-12 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-16 lg:gap-24 mb-20">
@@ -33,12 +33,12 @@ export default function Footer() {
           {/* Brand Col */}
           <div className="lg:col-span-5 space-y-8">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-background border border-border flex items-center justify-center rounded-none group-hover:scale-105 transition-transform ring-1 ring-border ring-offset-2 ring-offset-card shadow-sm">
-                <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" />
+              <div className="w-10 h-10 flex items-center justify-center rounded-xl overflow-hidden group-hover:scale-105 transition-transform dark:bg-white shrink-0 border border-border dark:border-transparent">
+                <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="w-[85%] h-[85%] object-contain" />
               </div>
               <div className="leading-none">
-                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">RILLCOD<span className="text-primary not-italic">.</span></span>
-                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-primary">TECHNOLOGIES</span>
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">RILLCOD<span className="text-brand-red-600 not-italic">.</span></span>
+                <span className="text-xs font-black uppercase tracking-[0.15em] block text-muted-foreground mt-0.5">Technologies</span>
               </div>
             </Link>
             

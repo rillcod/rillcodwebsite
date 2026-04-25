@@ -6,9 +6,9 @@ import { toast } from 'sonner';
 import { contactInfo } from '@/config/brand';
 
 const contactCards = [
-  { icon: Mail, title: 'Network Hub', value: contactInfo.email, sub: 'Inquiry Matrix', accent: 'text-primary', bg: 'bg-primary/10' },
-  { icon: Phone, title: 'Direct Uplink', value: contactInfo.phone, sub: 'Voice Protocol', accent: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { icon: MapPin, title: 'Physical Node', value: 'Lagos, Nigeria', sub: 'Geospatial Data', accent: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: Mail, title: 'Email Us', value: contactInfo.email, sub: 'Partnership Inquiries', accent: 'text-primary', bg: 'bg-primary/10' },
+  { icon: Phone, title: 'Call Us', value: contactInfo.phone, sub: 'Mon – Fri, 8am – 5pm', accent: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: MapPin, title: 'Our Office', value: 'Benin City, Edo State', sub: 'Nigeria', accent: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 ];
 
 const Contact: React.FC = () => {
@@ -33,13 +33,13 @@ const Contact: React.FC = () => {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-        toast.success('UPLINK INITIALIZED: Our coordination team will reach out shortly.');
+        toast.success('Message sent! Our team will get back to you within 12 business hours.');
         setFormData({ name: '', email: '', message: '' });
       } else {
         throw new Error();
       }
     } catch {
-      toast.error('Transmission Failed. Please check your matrix signal.');
+      toast.error('Failed to send message. Please try again or contact us directly.');
     } finally {
       setSending(false);
     }
@@ -58,14 +58,14 @@ const Contact: React.FC = () => {
           <div>
               <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
                  <Sparkles className="w-4 h-4 text-primary" />
-                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Connect Matrix</span>
+                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Get In Touch</span>
               </div>
               <h3 className="text-3xl sm:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase">
-                Stay in the <br />
-                <span className="text-foreground/40 italic">Loop.</span>
+                Let's Work <br />
+                <span className="text-foreground/40 italic">Together.</span>
               </h3>
           </div>
-          <p className="text-muted-foreground text-sm sm:text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-primary pl-6">
+          <p className="text-muted-foreground text-sm sm:text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-brand-red-600 pl-6">
             Whether you're a school owner or a curious parent, our team is ready to help you deploy Rillcod in your institution.
           </p>
         </div>
@@ -87,14 +87,14 @@ const Contact: React.FC = () => {
               </div>
             ))}
 
-            {/* Protocol Notice */}
+            {/* Response Notice */}
             <div className="mt-8 p-8 bg-card border border-border rounded-none relative overflow-hidden group border-t-2 border-t-primary shadow-2xl">
                <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-primary/5 rotate-12" />
                <h5 className="text-foreground font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-3">
-                 <ShieldCheck className="w-4 h-4 text-primary" /> Secure Protocol
+                 <ShieldCheck className="w-4 h-4 text-primary" /> Quick Response
                </h5>
                <p className="text-sm text-muted-foreground leading-relaxed font-bold italic">
-                 All school inquiries are processed within 12 standard business hours by our coordination team.
+                 All school inquiries are responded to within 12 business hours by our dedicated partnership team.
                </p>
             </div>
           </div>
@@ -107,7 +107,7 @@ const Contact: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                    <div className="grid md:grid-cols-2 gap-8">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Entity Name</label>
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Name</label>
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Full Name / School Name"
@@ -115,20 +115,20 @@ const Contact: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Secure Email</label>
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
-                          placeholder="Contact Email Address"
+                          placeholder="your@email.com"
                           className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                    </div>
 
                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Message Content</label>
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Message</label>
                       <textarea
                         name="message" value={formData.message} onChange={handleChange} required rows={5}
-                        placeholder="Detail your request or partnership proposal..."
+                        placeholder="Tell us about your school or request..."
                         className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
                       />
                    </div>
@@ -137,7 +137,7 @@ const Contact: React.FC = () => {
                      type="submit" disabled={sending}
                      className="group flex items-center justify-center gap-4 w-full md:w-auto px-12 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
                    >
-                     {sending ? 'Processing...' : 'Initialize Uplink'}
+                     {sending ? 'Sending...' : 'Send Message'}
                      <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                    </button>
                 </form>

@@ -28,7 +28,7 @@ function StatusBadge({ status }: { status: string }) {
 function EnrollTypeBadge({ type }: { type?: string }) {
     const map: Record<string, string> = {
         school: 'bg-primary/20 text-primary border-primary/30',
-        bootcamp: 'bg-[#FF914D]/20 text-[#FF914D] border-[#FF914D]/30',
+        bootcamp: 'bg-amber-500/20 text-amber-500 border-amber-500/30',
         online: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     };
     const label: Record<string, string> = {
@@ -234,7 +234,7 @@ export default function ApprovalsPage() {
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-none p-5">
-                        <p className="text-2xl font-extrabold text-[#FF914D]">{students.filter(s => s.enrollment_type === 'bootcamp').length}</p>
+                        <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'bootcamp').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Bootcamp</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-none p-5">
@@ -261,7 +261,7 @@ export default function ApprovalsPage() {
                         Students ({students.length})
                     </button>
                     <button onClick={() => setTab('prospective')}
-                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-[#FF914D] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                         Summer School ({prospective.length})
                     </button>
                     {profile?.role === 'admin' && (
@@ -410,8 +410,8 @@ export default function ApprovalsPage() {
                         <div className="p-5 border-b border-border flex items-center justify-between">
                             <h3 className="font-bold text-foreground">Prospective Student Queue (Summer School)</h3>
                             <div className="flex items-center gap-2">
-                                <SunIcon className="w-4 h-4 text-[#FF914D]" />
-                                <span className="text-[10px] uppercase font-black text-[#FF914D] tracking-widest">Summer School 2026</span>
+                                <SunIcon className="w-4 h-4 text-amber-500" />
+                                <span className="text-[10px] uppercase font-black text-amber-500 tracking-widest">Summer School 2026</span>
                             </div>
                         </div>
                         <div className="divide-y divide-border">

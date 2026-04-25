@@ -88,51 +88,51 @@ export const roles: { role: UserRole; title: string; description: string; icon: 
 // Partner schools data
 export const partnerSchools = [
   {
-    name: 'Lagos State Model College',
-    location: 'Lagos, Nigeria',
-    students: 450,
+    name: 'Deeper Life High School',
+    location: 'Benin City, Edo State',
+    students: 420,
     partnership: 'Premium',
-    image: '/images/schools/lagos-model.jpg',
-    description: 'Leading public school with focus on STEM education'
+    image: '/images/schools/school1.jpg',
+    description: 'Faith-based institution delivering STEM excellence'
   },
   {
-    name: 'Abuja International School',
-    location: 'Abuja, Nigeria',
-    students: 320,
-    partnership: 'Enterprise',
-    image: '/images/schools/abuja-international.jpg',
-    description: 'International curriculum with technology integration'
-  },
-  {
-    name: 'Port Harcourt Academy',
-    location: 'Port Harcourt, Nigeria',
+    name: 'Quincy Academy',
+    location: 'Benin City, Edo State',
     students: 280,
+    partnership: 'Enterprise',
+    image: '/images/schools/school2.jpg',
+    description: 'Modern learning environment with strong tech integration'
+  },
+  {
+    name: 'Abundant Grace Preparatory',
+    location: 'Benin City, Edo State',
+    students: 240,
     partnership: 'Basic',
-    image: '/images/schools/port-harcourt.jpg',
+    image: '/images/schools/school3.jpg',
     description: 'Community-focused education with modern facilities'
   },
   {
-    name: 'Kano Science College',
-    location: 'Kano, Nigeria',
-    students: 380,
+    name: 'Montessori School',
+    location: 'Benin City, Edo State',
+    students: 180,
+    partnership: 'Basic',
+    image: '/images/schools/school4.jpg',
+    description: 'Child-centred learning with digital literacy focus'
+  },
+  {
+    name: 'Heritage Secondary School',
+    location: 'Edo State, Nigeria',
+    students: 320,
     partnership: 'Premium',
-    image: '/images/schools/kano-science.jpg',
+    image: '/images/schools/school5.jpg',
     description: 'Science and technology excellence center'
   },
   {
-    name: 'Ibadan Grammar School',
-    location: 'Ibadan, Nigeria',
-    students: 420,
-    partnership: 'Basic',
-    image: '/images/schools/ibadan-grammar.jpg',
-    description: 'Traditional excellence meets modern technology'
-  },
-  {
-    name: 'Enugu State College',
-    location: 'Enugu, Nigeria',
-    students: 350,
+    name: 'New Covenant College',
+    location: 'Edo State, Nigeria',
+    students: 290,
     partnership: 'Enterprise',
-    image: '/images/schools/enugu-state.jpg',
+    image: '/images/schools/school6.jpg',
     description: 'Innovative learning environment with digital focus'
   }
 ]

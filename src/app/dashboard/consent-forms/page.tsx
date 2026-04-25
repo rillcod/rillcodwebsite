@@ -96,7 +96,7 @@ export default function ConsentFormsPage() {
         {/* Create modal */}
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="bg-[#0d1526] border border-border rounded-none w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
+            <div className="bg-card border border-border rounded-none w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
               <div className="flex items-center justify-between">
                 <h2 className="font-black">New Consent Form</h2>
                 <button onClick={() => setShowCreate(false)}><XMarkIcon className="w-5 h-5 text-muted-foreground" /></button>
