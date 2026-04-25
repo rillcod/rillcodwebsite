@@ -244,7 +244,12 @@ export default function LeaderboardPage() {
             const lvl = getLevel(e.xp);
             const isMe = e.id === profile?.id;
             return (
-              <div key={e.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${isMe ? 'bg-orange-500/10' : 'hover:bg-muted'}`}>
+              <div key={e.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${
+                i === 0 ? 'bg-brand-red-600/5 border-l-2 border-brand-red-600' :
+                i === 1 ? 'bg-orange-500/5 border-l-2 border-orange-400' :
+                i === 2 ? 'bg-orange-500/5 border-l-2 border-orange-300' :
+                isMe ? 'bg-orange-500/10 border-l-2 border-orange-500' : 'hover:bg-muted'
+              }`}>
                 {/* Rank */}
                 <div className="w-8 text-center flex-shrink-0">
                   {i < 3
