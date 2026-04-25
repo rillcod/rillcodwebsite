@@ -254,7 +254,7 @@ export default function ProtocolPage() {
               onClick={() => setLangFilter(value)}
               className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 langFilter === value
-                  ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)]'
+                  ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(26,58,143,0.4)] ring-2 ring-brand-red-600/40'
                   : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 hover:bg-muted/50'
               }`}
             >
@@ -291,7 +291,7 @@ export default function ProtocolPage() {
                   <div className={`w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-500 ${
                     phaseCompletedCount === phaseModules.length
                       ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                      : isExpanded ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.3)]' : 'bg-white/5 border-white/10 text-white/20'
+                      : isExpanded ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(26,58,143,0.3)] ring-2 ring-brand-red-600/40' : 'bg-white/5 border-white/10 text-white/20'
                   }`}>
                     <span className="text-xl font-black uppercase">{phase.id}</span>
                   </div>

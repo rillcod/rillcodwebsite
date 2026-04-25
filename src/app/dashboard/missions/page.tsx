@@ -1714,7 +1714,7 @@ export default function MissionsPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2, delay: idx * 0.03 }}
                   className={`bg-white/[0.02] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 border ${
-                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-orange-500/50 shadow-[0_0_30px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
+                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-orange-500/50 shadow-[0_0_30px_rgba(26,58,143,0.15)] ring-2 ring-brand-red-600/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
                   } ${isActive ? 'md:col-span-2' : ''}`}
                 >
                   {/* Mission card header */}
