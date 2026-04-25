@@ -305,17 +305,27 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 </div>
             )}
 
-            {/* Account Details & QR */}
-            <div style={{ position: 'relative', zIndex: 10, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, paddingTop: '14px', borderTop: `2px solid ${C.slate100}` }}>
+            {/* Signature · Payment Details · QR */}
+            <div style={{ position: 'relative', zIndex: 10, marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, paddingTop: '14px', borderTop: `2px solid ${C.slate100}` }}>
 
-                {/* Bank account details — always shown */}
-                <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center' }}>
-                    <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 5 }}>School Fees Payment Account</p>
-                    <p style={{ fontSize: '16px', fontWeight: 900, color: C.black, letterSpacing: '0.05em', marginBottom: 3 }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
-                    <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, marginBottom: 5 }}>RILLCOD LTD</p>
+                {/* Left — single signature */}
+                <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                    <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>Signatory Authority</p>
+                    <img src="/images/signature.png" alt="Official Signature" crossOrigin="anonymous" style={{ height: '40px', margin: '0 auto 8px', opacity: 0.85, filter: 'contrast(1.25)', mixBlendMode: 'multiply' }} />
+                    <div style={{ width: '160px', height: '2.5px', background: C.black, margin: '0 auto 6px' }} />
+                    <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic' }}>Director</p>
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rillcod Technologies</p>
+                </div>
+
+                {/* Centre — bank account details */}
+                <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
+                    <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>Providus Bank &nbsp;·&nbsp; <span style={{ fontFamily: 'monospace' }}>7901178957</span></p>
+                    <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>RILLCOD LTD</p>
                     <p style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Use student name as reference &nbsp;·&nbsp; Send proof to admin</p>
                 </div>
 
+                {/* Right — QR */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <div style={{ padding: '12px', background: C.white, border: `1px solid ${C.slate200}` }}>
                         <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={64} fgColor={C.black} />
