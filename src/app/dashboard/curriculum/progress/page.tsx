@@ -478,7 +478,7 @@ export default function CurriculumProgressPage() {
                           <span className="text-muted-foreground/30">›</span>
                           <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">v{curr.version}</span>
                           {!curr.is_visible_to_school && !isSchool && (
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/30 uppercase tracking-wider">
+                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-muted-foreground/70 border border-zinc-500/30 uppercase tracking-wider">
                               Hidden from schools
                             </span>
                           )}
@@ -512,7 +512,7 @@ export default function CurriculumProgressPage() {
                         className={`p-2 rounded-lg border transition-all shrink-0 ${
                           curr.is_visible_to_school
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                            : 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'
+                            : 'border-zinc-500/30 bg-zinc-500/10 text-muted-foreground/70 hover:bg-zinc-500/20'
                         } disabled:opacity-40`}
                       >
                         {togglingId === curr.curriculum_id ? (
@@ -647,7 +647,7 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
 
           {/* Skipped weeks */}
           {school.skipped > 0 && (
-            <p className="text-[10px] text-zinc-500 font-bold">{school.skipped} week(s) skipped</p>
+            <p className="text-[10px] text-muted-foreground font-bold">{school.skipped} week(s) skipped</p>
           )}
         </div>
       )}

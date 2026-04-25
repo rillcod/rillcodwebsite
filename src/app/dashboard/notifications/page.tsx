@@ -334,7 +334,7 @@ export default function NotificationsPage() {
                   onClick={() => setSoundEnabled((prev) => !prev)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${soundEnabled ? 'bg-orange-500' : 'bg-muted'}`}
                 >
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 rounded-full bg-card transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </label>
               <label className="space-y-2 text-sm font-semibold text-foreground">

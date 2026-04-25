@@ -132,8 +132,8 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             onClick={() => setTemplate('classic')}
             className={`px-5 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all border ${
               template === 'classic'
-                ? 'bg-white text-slate-900 border-slate-300 shadow'
-                : 'bg-slate-100 text-slate-400 border-slate-200 hover:text-slate-600'
+                ? 'bg-card text-foreground border-border shadow'
+                : 'bg-muted text-muted-foreground/70 border-border hover:text-muted-foreground'
             }`}
           >
             Classic
@@ -143,7 +143,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             className={`px-5 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-y border-r ${
               template === 'bold'
                 ? isReceipt ? 'bg-emerald-600 text-white border-emerald-600 shadow' : 'bg-amber-500 text-white border-amber-500 shadow'
-                : 'bg-slate-100 text-slate-400 border-slate-200 hover:text-slate-600'
+                : 'bg-muted text-muted-foreground/70 border-border hover:text-muted-foreground'
             }`}
           >
             Bold
@@ -152,7 +152,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={copyRef}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest transition-colors rounded-none"
+            className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-slate-200 text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-colors rounded-none"
           >
             <ClipboardIcon className="w-3.5 h-3.5" />
             {copied ? 'Copied!' : `Copy Ref`}
@@ -168,7 +168,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest transition-colors rounded-none"
+            className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-slate-200 text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-colors rounded-none"
           >
             <PrinterIcon className="w-3.5 h-3.5" />
             Print
@@ -185,7 +185,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               ? isReceipt
                 ? 'bg-[#0a1a14] text-white'
                 : 'bg-[#0f0f1f] text-white'
-              : 'bg-white text-slate-800'
+              : 'bg-card text-foreground'
           }`}
         >
           {/* Background watermark */}
@@ -198,8 +198,8 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           {/* Decorative — template specific */}
           {template === 'classic' ? (
             <>
-              <div className="absolute top-0 right-0 w-80 h-80 bg-slate-50 rounded-full -mr-32 -mt-32 pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-96 h-96 bg-slate-50 rounded-full -ml-48 -mb-48 pointer-events-none opacity-50" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-background rounded-full -mr-32 -mt-32 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-96 h-96 bg-background rounded-full -ml-48 -mb-48 pointer-events-none opacity-50" />
             </>
           ) : (
             <>
@@ -214,15 +214,15 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className={`w-16 h-16 flex items-center justify-center shadow-xl overflow-hidden ${
-                  template === 'bold' ? 'bg-white/10 border border-white/20 rounded-2xl p-2.5' : 'bg-white rounded-2xl border border-slate-100 p-2.5'
+                  template === 'bold' ? 'bg-white/10 border border-white/20 rounded-2xl p-2.5' : 'bg-card rounded-2xl border border-slate-100 p-2.5'
                 }`}>
                   <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h1 className={`text-2xl font-black uppercase tracking-tighter leading-none ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>
+                  <h1 className={`text-2xl font-black uppercase tracking-tighter leading-none ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
                     Rillcod <span style={{ color: accentColor }}>Academy</span>
                   </h1>
-                  <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2 ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+                  <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                     <span style={{ color: accentColor }}><ShieldCheckIcon className="w-3 h-3" /></span> Authorized Learning Platform
                   </p>
                 </div>
@@ -244,12 +244,12 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex flex-col">
                     <span className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Reference Number</span>
-                    <span className={`text-xs font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/70' : 'text-slate-600'}`}>{data.number}</span>
+                    <span className={`text-xs font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/70' : 'text-muted-foreground'}`}>{data.number}</span>
                   </div>
-                  <div className={`w-[1px] h-8 ${template === 'bold' ? 'bg-white/10' : 'bg-slate-100'}`} />
+                  <div className={`w-[1px] h-8 ${template === 'bold' ? 'bg-white/10' : 'bg-muted'}`} />
                   <div className="flex flex-col">
                     <span className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>{isReceipt ? 'Payment Date' : 'Issue Date'}</span>
-                    <span className={`text-xs font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/70' : 'text-slate-600'}`}>{data.date}</span>
+                    <span className={`text-xs font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/70' : 'text-muted-foreground'}`}>{data.date}</span>
                   </div>
                 </div>
               </div>
@@ -265,9 +265,9 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               }`}>
                 {isReceipt ? 'PAID' : data.status}
               </div>
-              <div className={`p-4 rounded-2xl border max-w-[240px] ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-                <p className={`text-xs font-black mb-1 ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{data.schoolName}</p>
-                <p className={`text-[10px] leading-relaxed font-medium ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>
+              <div className={`p-4 rounded-2xl border max-w-[240px] ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-background border-slate-100'}`}>
+                <p className={`text-xs font-black mb-1 ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{data.schoolName}</p>
+                <p className={`text-[10px] leading-relaxed font-medium ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>
                   {data.schoolAddress || 'Digital Learning Hub, Benin City, Edo State, Nigeria'}
                 </p>
               </div>
@@ -281,13 +281,13 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                 {isReceipt ? 'Received From' : 'Client Details'}
               </p>
               <div className="flex items-start gap-4">
-                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${template === 'bold' ? 'bg-white/10 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-                  <UserIcon className={`w-5 h-5 ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`} />
+                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${template === 'bold' ? 'bg-white/10 border-white/10' : 'bg-background border-slate-100'}`}>
+                  <UserIcon className={`w-5 h-5 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
                 </div>
                 <div>
-                  <p className={`font-extrabold uppercase tracking-tight ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{data.studentName}</p>
+                  <p className={`font-extrabold uppercase tracking-tight ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{data.studentName}</p>
                   {data.studentEmail && (
-                    <p className={`text-xs mt-0.5 ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{data.studentEmail}</p>
+                    <p className={`text-xs mt-0.5 ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>{data.studentEmail}</p>
                   )}
                 </div>
               </div>
@@ -301,32 +301,32 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                   <>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Payment Method</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>
                         {data.paymentMethod ? (PAYMENT_METHOD_LABELS[data.paymentMethod] || data.paymentMethod) : '—'}
                       </p>
                     </div>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Received By</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>{data.receivedBy || data.instructorName || 'Accounts Dept.'}</p>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>{data.receivedBy || data.instructorName || 'Accounts Dept.'}</p>
                     </div>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Currency</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>{data.currency} ({currencySymbol})</p>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>{data.currency} ({currencySymbol})</p>
                     </div>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Payment Date</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>{data.date}</p>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>{data.date}</p>
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Due Date</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>{data.dueDate || data.date}</p>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>{data.dueDate || data.date}</p>
                     </div>
                     <div>
                       <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Currency</p>
-                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-slate-700'}`}>{data.currency} ({currencySymbol})</p>
+                      <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/70' : 'text-foreground/80'}`}>{data.currency} ({currencySymbol})</p>
                     </div>
                   </>
                 )}
@@ -339,26 +339,26 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             <table className="w-full text-left">
               <thead>
                 <tr className={`border-y ${template === 'bold' ? 'border-white/10' : 'border-slate-100'}`}>
-                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>Description</th>
-                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-center ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>Qty</th>
-                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-right ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>Unit Price</th>
-                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-right ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>Total</th>
+                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>Description</th>
+                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-center ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>Qty</th>
+                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-right ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>Unit Price</th>
+                  <th className={`py-4 text-[10px] font-black uppercase tracking-widest text-right ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>Total</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${template === 'bold' ? 'divide-white/5' : 'divide-slate-50'}`}>
                 {data.items.map((item, idx) => (
                   <tr key={idx}>
                     <td className="py-5">
-                      <p className={`text-sm font-extrabold tracking-tight ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{item.description}</p>
+                      <p className={`text-sm font-extrabold tracking-tight ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{item.description}</p>
                     </td>
                     <td className="py-5 text-center">
-                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{item.quantity}</p>
+                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>{item.quantity}</p>
                     </td>
                     <td className="py-5 text-right">
-                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{currencySymbol}{(item.unit_price ?? 0).toLocaleString()}</p>
+                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>{currencySymbol}{(item.unit_price ?? 0).toLocaleString()}</p>
                     </td>
                     <td className="py-5 text-right">
-                      <p className={`text-sm font-black ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{currencySymbol}{(item.total ?? 0).toLocaleString()}</p>
+                      <p className={`text-sm font-black ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{currencySymbol}{(item.total ?? 0).toLocaleString()}</p>
                     </td>
                   </tr>
                 ))}
@@ -368,23 +368,23 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
 
           {/* ── Bank Deposit Info (receipts only) ── */}
           {isReceipt && data.depositAccount && (
-            <div className={`relative z-10 mb-8 p-5 border rounded-2xl ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
+            <div className={`relative z-10 mb-8 p-5 border rounded-2xl ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-background border-slate-100'}`}>
               <div className="flex items-center gap-3 mb-4">
-                <BuildingOfficeIcon className={`w-4 h-4 ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`} />
+                <BuildingOfficeIcon className={`w-4 h-4 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
                 <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Deposited To</p>
               </div>
               <div className="grid grid-cols-3 gap-6">
                 <div>
                   <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Bank</p>
-                  <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/80' : 'text-slate-800'}`}>{data.depositAccount.bank_name}</p>
+                  <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/80' : 'text-foreground'}`}>{data.depositAccount.bank_name}</p>
                 </div>
                 <div>
                   <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Account Number</p>
-                  <p className={`text-xs font-black tracking-[0.15em] ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{data.depositAccount.account_number}</p>
+                  <p className={`text-xs font-black tracking-[0.15em] ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{data.depositAccount.account_number}</p>
                 </div>
                 <div>
                   <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Account Name</p>
-                  <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/80' : 'text-slate-800'}`}>{data.depositAccount.account_name}</p>
+                  <p className={`text-xs font-bold ${template === 'bold' ? 'text-white/80' : 'text-foreground'}`}>{data.depositAccount.account_name}</p>
                 </div>
               </div>
             </div>
@@ -396,7 +396,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>
                 {isReceipt ? 'Remarks' : 'Notes & Instructions'}
               </p>
-              <p className={`text-[11px] leading-relaxed font-medium text-justify ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>
+              <p className={`text-[11px] leading-relaxed font-medium text-justify ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>
                 {data.notes || (isReceipt
                   ? 'This is an official payment receipt. Please keep this document for your records.'
                   : 'Kindly clear all outstanding balances before the start of the next term. Payments can be made via card online or direct bank transfer to our Providus Bank account.'
@@ -405,27 +405,27 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             </div>
 
             <div className="w-64 space-y-3">
-              <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+              <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                 <span>Subtotal</span>
                 <span>{currencySymbol}{data.amount.toLocaleString()}</span>
               </div>
               {data.processingFee && data.processingFee > 0 && (
-                <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+                <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                   <span className="flex items-center gap-1">
                     Processing Fee <span style={{ color: accentColor }}><ShieldCheckIcon className="w-3 h-3" /></span>
                   </span>
                   <span>{currencySymbol}{data.processingFee.toLocaleString()}</span>
                 </div>
               )}
-              <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+              <div className={`flex justify-between items-center text-sm font-bold ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                 <span>Tax (0%)</span>
                 <span>{currencySymbol}0</span>
               </div>
               <div className={`pt-3 border-t-2 flex justify-between items-baseline ${template === 'bold' ? 'border-white/20' : 'border-slate-900'}`}>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                   {isReceipt ? 'Amount Received' : 'Total Amount'}
                 </span>
-                <span className={`text-3xl font-black tracking-tighter ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>
+                <span className={`text-3xl font-black tracking-tighter ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
                   {currencySymbol}{(data.amount + (data.processingFee || 0)).toLocaleString()}
                 </span>
               </div>
@@ -442,14 +442,14 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           {/* ── Footer / QR ── */}
           <div className={`mt-auto relative z-10 pt-10 border-t flex items-center justify-between ${template === 'bold' ? 'border-white/10' : 'border-slate-100'}`}>
             <div className="flex items-center gap-8">
-              <div className={`p-3 rounded-2xl shadow-sm ${template === 'bold' ? 'bg-white' : 'bg-white border border-slate-100'}`}>
+              <div className={`p-3 rounded-2xl shadow-sm ${template === 'bold' ? 'bg-card' : 'bg-card border border-slate-100'}`}>
                 <QRCode value={`https://rillcod.com/v/${type}/${data.number}`} size={64} />
               </div>
               <div>
-                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-2 ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-2 ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
                   <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" /> Authenticity Verified
                 </p>
-                <p className={`text-[9px] uppercase tracking-widest max-w-[150px] ${template === 'bold' ? 'text-white/40' : 'text-slate-400'}`}>
+                <p className={`text-[9px] uppercase tracking-widest max-w-[150px] ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                   Scan to verify the validity of this {type} online.
                 </p>
               </div>
@@ -466,7 +466,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                 />
                 <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-48 h-[1px] ${template === 'bold' ? 'bg-white/20' : 'bg-slate-200'}`} />
               </div>
-              <p className={`text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{data.instructorName || 'Accounts Department'}</p>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{data.instructorName || 'Accounts Department'}</p>
             </div>
           </div>
 

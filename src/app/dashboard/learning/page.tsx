@@ -297,7 +297,7 @@ export default function StudentLearningPage() {
   // Level configuration
   const LEVEL_CONFIG = useMemo(() => [
     { name: 'Bronze', min: 0, max: 499, color: 'text-amber-700', bar: 'bg-amber-600', bg: 'bg-amber-500/10' },
-    { name: 'Silver', min: 500, max: 1999, color: 'text-slate-400', bar: 'bg-slate-400', bg: 'bg-slate-500/10' },
+    { name: 'Silver', min: 500, max: 1999, color: 'text-muted-foreground/70', bar: 'bg-slate-400', bg: 'bg-slate-500/10' },
     { name: 'Gold', min: 2000, max: 4999, color: 'text-amber-400', bar: 'bg-amber-400', bg: 'bg-amber-500/10' },
     { name: 'Platinum', min: 5000, max: 9999, color: 'text-cyan-400', bar: 'bg-cyan-400', bg: 'bg-cyan-500/10' },
   ], []);

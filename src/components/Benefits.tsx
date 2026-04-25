@@ -46,13 +46,13 @@ const Benefits: React.FC = () => {
   ];
 
   return (
-    <section id="benefits" className="py-16 bg-gray-50">
+    <section id="benefits" className="py-16 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Why Choose Our Program?
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We provide a comprehensive learning experience that prepares students for the digital future.
           </p>
         </div>
@@ -61,16 +61,16 @@ const Benefits: React.FC = () => {
           {benefits.map((benefit, index) => (
             <div 
               key={index}
-              className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              className="bg-card rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
             >
               <div className="flex flex-col items-center text-center">
                 <div className="mb-4 bg-orange-100 p-4 rounded-full">
                   {benefit.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-xl font-semibold text-foreground mb-2">
                   {benefit.title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   {benefit.description}
                 </p>
               </div>

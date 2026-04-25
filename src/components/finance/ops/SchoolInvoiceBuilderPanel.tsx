@@ -721,7 +721,7 @@ function Toggle({
         aria-pressed={checked}
       >
         <div
-          className={`w-4 h-4 rounded-full bg-white transition-all ${
+          className={`w-4 h-4 rounded-full bg-card transition-all ${
             checked ? 'translate-x-4' : 'translate-x-0'
           }`}
         />

@@ -52,19 +52,19 @@ export function TeacherAnalytics() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <button className="p-4 border rounded-none hover:bg-gray-50 transition-colors">
+            <button className="p-4 border rounded-none hover:bg-background transition-colors">
               <div className="text-2xl mb-2">📝</div>
               <div className="text-sm font-medium">Create Lesson</div>
             </button>
-            <button className="p-4 border rounded-none hover:bg-gray-50 transition-colors">
+            <button className="p-4 border rounded-none hover:bg-background transition-colors">
               <div className="text-2xl mb-2">📊</div>
               <div className="text-sm font-medium">View Reports</div>
             </button>
-            <button className="p-4 border rounded-none hover:bg-gray-50 transition-colors">
+            <button className="p-4 border rounded-none hover:bg-background transition-colors">
               <div className="text-2xl mb-2">🔧</div>
               <div className="text-sm font-medium">IoT Monitor</div>
             </button>
-            <button className="p-4 border rounded-none hover:bg-gray-50 transition-colors">
+            <button className="p-4 border rounded-none hover:bg-background transition-colors">
               <div className="text-2xl mb-2">👥</div>
               <div className="text-sm font-medium">Manage Students</div>
             </button>

@@ -150,7 +150,7 @@ export default function ModernReportCard({ report, orgSettings }: {
     return (
         <div
             id="modern-report-card"
-            className={cn('bg-white text-black relative overflow-hidden flex flex-col mx-auto', isIndustrial && 'font-mono')}
+            className={cn('bg-card text-black relative overflow-hidden flex flex-col mx-auto', isIndustrial && 'font-mono')}
             style={{
                 width: '210mm', height: '297mm',
                 paddingTop: '12mm', paddingLeft: '18mm', paddingRight: '18mm', paddingBottom: '10mm',

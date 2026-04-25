@@ -45,7 +45,7 @@ export function ScaledIframePreview({
       </p>
       <div
         ref={containerRef}
-        className="w-full overflow-hidden rounded-sm bg-white shadow-inner ring-1 ring-black/5"
+        className="w-full overflow-hidden rounded-sm bg-card shadow-inner ring-1 ring-black/5"
         style={{ height: height * scale }}
       >
         <div

@@ -28,29 +28,29 @@ export default function UserProfile() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted transition-colors"
       >
         <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
           {userInitials}
         </div>
         <div className="hidden md:block text-left">
-          <p className="text-sm font-medium text-gray-900">{userName}</p>
-          <p className="text-xs text-gray-500">{user.email}</p>
+          <p className="text-sm font-medium text-foreground">{userName}</p>
+          <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-muted-foreground/70 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-          <div className="px-4 py-2 border-b border-gray-100">
-            <p className="text-sm font-medium text-gray-900">{userName}</p>
-            <p className="text-xs text-gray-500">{user.email}</p>
+        <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border py-2 z-50">
+          <div className="px-4 py-2 border-b border-border">
+            <p className="text-sm font-medium text-foreground">{userName}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
           
           <div className="py-1">
             <Link
               href="/profile"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              className="flex items-center px-4 py-2 text-sm text-foreground/80 hover:bg-muted transition-colors"
               onClick={() => setIsOpen(false)}
             >
               <User className="w-4 h-4 mr-3" />
@@ -59,7 +59,7 @@ export default function UserProfile() {
             
             <Link
               href="/settings"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              className="flex items-center px-4 py-2 text-sm text-foreground/80 hover:bg-muted transition-colors"
               onClick={() => setIsOpen(false)}
             >
               <Settings className="w-4 h-4 mr-3" />
@@ -67,7 +67,7 @@ export default function UserProfile() {
             </Link>
           </div>
           
-          <div className="border-t border-gray-100 pt-1">
+          <div className="border-t border-border pt-1">
             <button
               onClick={handleSignOut}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"

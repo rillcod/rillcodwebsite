@@ -1139,7 +1139,7 @@ export default function TimetablePage() {
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${ttForm.is_active ? 'bg-orange-600' : 'bg-muted'}`}
                   onClick={() => setTTForm(s => ({ ...s, is_active: !s.is_active }))}>
-                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform shadow ${ttForm.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  <div className={`w-5 h-5 bg-card rounded-full mt-0.5 transition-transform shadow ${ttForm.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground font-semibold">Active timetable</p>

@@ -89,7 +89,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   className={`flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 relative ${
                     isActive
                       ? 'text-orange-500'
-                      : 'text-slate-500 hover:text-white'
+                      : 'text-muted-foreground hover:text-white'
                   }`}
                 >
                   <item.icon className={`h-5 w-5 mb-1 transition-all duration-200 ${
@@ -128,7 +128,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 text-slate-500 hover:text-white"
+        className="flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 text-muted-foreground hover:text-white"
       >
         <PlusIcon className="h-5 w-5 mb-1" />
         <span className="text-[9px] font-black uppercase tracking-widest">More</span>
@@ -146,7 +146,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
           {/* Menu */}
           <div className="absolute bottom-20 right-0 mb-2 bg-[#1a1a1a] border border-border rounded-none shadow-2xl py-3 min-w-[200px] z-50">
             <div className="px-4 py-2 border-b border-border mb-2">
-                <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Extended Protocol</span>
+                <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Extended Protocol</span>
             </div>
             {items.map((item) => {
               const isActive = pathname === item.href;
@@ -158,7 +158,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
                   className={`flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest transition-colors duration-200 ${
                     isActive
                       ? 'bg-orange-500/10 text-orange-500 border-l-2 border-orange-500'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      : 'text-muted-foreground/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
                   <item.icon className="h-4 w-4 mr-4" />

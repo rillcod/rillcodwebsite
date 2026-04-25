@@ -863,7 +863,7 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
               />
             </div>
           ) : type === 'video' ? (
-            <video src={url} controls className="w-full max-h-[60vh] bg-black" />
+            <video src={url} controls className="w-full max-h-[60vh] bg-background" />
           ) : (
             <div className="flex flex-col items-center gap-4 py-10">
               <FilmIcon className="w-12 h-12 text-white/20" />

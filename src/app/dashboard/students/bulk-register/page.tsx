@@ -1827,7 +1827,7 @@ Yusuf Ibrahim SS1A`}
                 {/* Print Sheet Hidden */}
                 <div id="printable-sheet" className="hidden">
                   <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD TECHNOLOGIES // STUDENT CREDENTIALS</h2>
-                  <div className="flex gap-4 text-sm font-bold text-slate-500 mb-6 pb-4 border-b">
+                  <div className="flex gap-4 text-sm font-bold text-muted-foreground mb-6 pb-4 border-b">
                     <span>Batch: {results[0]?.batch_id?.slice(0, 8)}</span>
                     <span>Date: {new Date().toLocaleDateString()}</span>
                     {selectedSchoolName && <span>School: {selectedSchoolName}</span>}
@@ -1847,14 +1847,14 @@ Yusuf Ibrahim SS1A`}
                         <tr key={i}>
                           <td className="p-2 border font-mono">{i + 1}</td>
                           <td className="p-2 border font-bold uppercase">{r.full_name}</td>
-                          <td className="p-2 border text-slate-500">{r.class_name || effectiveClassCode}</td>
+                          <td className="p-2 border text-muted-foreground">{r.class_name || effectiveClassCode}</td>
                           <td className="p-2 border font-mono">{r.email}</td>
                           <td className="p-2 border font-mono font-bold">{r.password}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div className="mt-8 p-4 bg-slate-50 border rounded-none text-[10px] text-slate-500 italic">
+                  <div className="mt-8 p-4 bg-background border rounded-none text-[10px] text-muted-foreground italic">
                     Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
                   </div>
                 </div>

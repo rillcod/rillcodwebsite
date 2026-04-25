@@ -7,7 +7,7 @@ interface ThreeDDeviceViewerProps {
 
 export const ThreeDDeviceViewer: React.FC<ThreeDDeviceViewerProps> = ({ deviceType, sensorData }) => {
   return (
-    <div className="flex items-center justify-center h-32 bg-gray-100 rounded-md">
+    <div className="flex items-center justify-center h-32 bg-muted rounded-md">
       <p>3D Viewer for {deviceType}</p>
       <pre>{JSON.stringify(sensorData, null, 2)}</pre>
     </div>

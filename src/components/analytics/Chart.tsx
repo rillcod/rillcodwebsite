@@ -91,7 +91,7 @@ const Chart: React.FC<ChartProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${className}`}>
+    <div className={`bg-card rounded-lg shadow-sm border border-border p-6 ${className}`}>
       <div className="h-64">
         {renderChart()}
       </div>

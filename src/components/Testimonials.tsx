@@ -25,7 +25,7 @@ const Testimonials: React.FC = () => {
           <h2 className="text-3xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight italic">
             Institutional <span className="text-orange-500">Trust.</span>
           </h2>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-orange-500 pl-8 inline-block text-left">
+          <p className="text-lg text-muted-foreground/70 max-w-2xl mx-auto font-medium italic border-l-2 border-orange-500 pl-8 inline-block text-left">
             Join the network of premier Nigerian educational institutions that rely on Rillcod Technologies.
           </p>
           <div className="w-24 h-1 bg-orange-500 mx-auto mt-12"></div>
@@ -49,7 +49,7 @@ const Testimonials: React.FC = () => {
             </div>
             <div className="text-left">
               <h4 className="font-black text-white uppercase tracking-widest italic">Academic Director</h4>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Partner Institution | Benin City, Nigeria</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Partner Institution | Benin City, Nigeria</p>
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@ const Testimonials: React.FC = () => {
         </div>
         
         <div className="mt-24 text-center">
-          <p className="text-lg text-slate-400 font-medium italic mb-10">
+          <p className="text-lg text-muted-foreground/70 font-medium italic mb-10">
             Deploy Rillcod STEM Protocol in your institution.
           </p>
           <Link

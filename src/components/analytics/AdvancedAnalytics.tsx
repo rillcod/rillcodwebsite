@@ -190,7 +190,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
       case 'good': return 'text-blue-600 bg-blue-100'
       case 'improving': return 'text-yellow-600 bg-yellow-100'
       case 'needs-help': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
+      default: return 'text-muted-foreground bg-muted'
     }
   }
 
@@ -199,27 +199,27 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
       case 'positive': return 'text-green-600'
       case 'warning': return 'text-yellow-600'
       case 'negative': return 'text-red-600'
-      default: return 'text-gray-600'
+      default: return 'text-muted-foreground'
     }
   }
 
   return (
     <div className="space-y-8">
       {/* Header with Controls */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <h2 className="text-2xl font-bold text-foreground flex items-center">
               <ChartBarIcon className="h-8 w-8 mr-3 text-blue-600" />
               Advanced Analytics Dashboard
             </h2>
-            <p className="text-gray-600 mt-1">Comprehensive insights for {role} role</p>
+            <p className="text-muted-foreground mt-1">Comprehensive insights for {role} role</p>
           </div>
           <div className="flex gap-4">
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="week">This Week</option>
               <option value="month">This Month</option>
@@ -229,7 +229,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
             <select
               value={selectedView}
               onChange={(e) => setSelectedView(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="overview">Overview</option>
               <option value="performance">Performance</option>
@@ -289,14 +289,14 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
 
       {/* Performance Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
             <LightBulbIcon className="h-5 w-5 mr-2 text-yellow-500" />
             Performance Insights
           </h3>
           <div className="space-y-4">
             {getPerformanceInsights().map((insight, index) => (
-              <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg">
+              <div key={index} className="flex items-start p-4 bg-background rounded-lg">
                 <div className={`p-2 rounded-lg mr-4 ${
                   insight.color === 'green' ? 'bg-green-100' :
                   insight.color === 'blue' ? 'bg-blue-100' :
@@ -312,19 +312,19 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">{insight.title}</h4>
+                    <h4 className="font-medium text-foreground">{insight.title}</h4>
                     <span className={`font-bold ${getMetricColor(insight.type)}`}>
                       {insight.metric}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{insight.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{insight.description}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Learning Path Progress</h3>
           <Line 
             data={learningPathData} 
@@ -345,7 +345,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
 
       {/* Skill Assessment and Project Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Skill Assessment</h3>
           <Radar 
             data={skillRadarData} 
@@ -362,7 +362,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
           />
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Project Completion Status</h3>
           <Doughnut 
             data={projectCompletionData} 
@@ -378,7 +378,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
       </div>
 
       {/* Time Spent Analysis */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-6">Time Spent by Subject</h3>
         <div className="h-80">
           <Bar 
@@ -397,38 +397,38 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
       </div>
 
       {/* Top Performing Students */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-6">Top Performing Students</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-background">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Student</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Grade</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Progress</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {getStudentProgress().map((student, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-all">
+                <tr key={index} className="hover:bg-background transition-all">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                         <span className="text-blue-600 font-semibold text-sm">#{index + 1}</span>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{student.name}</p>
+                        <p className="font-medium text-foreground">{student.name}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900">{student.grade}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900">{student.subject}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-foreground">{student.grade}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-foreground">{student.subject}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-16 h-2 bg-gray-200 rounded-full mr-2">
+                      <div className="w-16 h-2 bg-muted rounded-full mr-2">
                         <div 
                           className="h-full bg-blue-600 rounded-full transition-all duration-500"
                           style={{ width: `${student.progress}%` }}
@@ -459,34 +459,34 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
 
       {/* Recommendations and Next Steps */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">AI-Powered Recommendations</h3>
+        <h3 className="text-lg font-semibold mb-4 text-foreground">AI-Powered Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start">
             <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Optimize Python Learning</p>
-              <p className="text-sm text-gray-600">Implement more visual learning aids and hands-on exercises</p>
+              <p className="font-medium text-foreground">Optimize Python Learning</p>
+              <p className="text-sm text-muted-foreground">Implement more visual learning aids and hands-on exercises</p>
             </div>
           </div>
           <div className="flex items-start">
             <StarIcon className="h-5 w-5 text-yellow-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Advanced Scratch Projects</p>
-              <p className="text-sm text-gray-600">Introduce complex game development and animation projects</p>
+              <p className="font-medium text-foreground">Advanced Scratch Projects</p>
+              <p className="text-sm text-muted-foreground">Introduce complex game development and animation projects</p>
             </div>
           </div>
           <div className="flex items-start">
             <UserGroupIcon className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Peer Mentoring Program</p>
-              <p className="text-sm text-gray-600">Pair advanced students with beginners for collaborative learning</p>
+              <p className="font-medium text-foreground">Peer Mentoring Program</p>
+              <p className="text-sm text-muted-foreground">Pair advanced students with beginners for collaborative learning</p>
             </div>
           </div>
           <div className="flex items-start">
             <TrophyIcon className="h-5 w-5 text-purple-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Competition Preparation</p>
-              <p className="text-sm text-gray-600">Prepare top students for regional and national coding competitions</p>
+              <p className="font-medium text-foreground">Competition Preparation</p>
+              <p className="text-sm text-muted-foreground">Prepare top students for regional and national coding competitions</p>
             </div>
           </div>
         </div>

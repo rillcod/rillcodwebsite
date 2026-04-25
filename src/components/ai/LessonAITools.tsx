@@ -66,7 +66,7 @@ function AIToggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boole
       <div className="relative">
         <input type="checkbox" className="sr-only" checked={enabled} onChange={e => onChange(e.target.checked)} />
         <div className={`w-8 h-4 rounded-full transition-colors ${enabled ? 'bg-orange-500' : 'bg-white/10'}`} />
-        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
+        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-card shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
       </div>
       <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
         {enabled ? 'AI ON' : 'AI OFF'}

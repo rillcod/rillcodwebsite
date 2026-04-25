@@ -257,7 +257,7 @@ function TeacherPersonalDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Active Session</span>
+                  <span className="text-xs font-black text-muted-foreground/70 uppercase tracking-widest">Active Session</span>
                 </div>
               </div>
               
@@ -280,7 +280,7 @@ function TeacherPersonalDashboard() {
                <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
                  {profile?.full_name?.[0]?.toUpperCase() || '?'}
                </div>
-               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-none flex items-center justify-center text-black shadow-2xl rotate-12">
+               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-none flex items-center justify-center text-black shadow-2xl rotate-12">
                  <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
                </div>
             </div>
@@ -299,7 +299,7 @@ function TeacherPersonalDashboard() {
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
               </div>
               <p className="text-2xl sm:text-3xl font-black text-foreground mb-0.5 sm:mb-1">{card.value}</p>
-              <p className="text-xs text-slate-400 font-black uppercase tracking-widest">{card.label}</p>
+              <p className="text-xs text-muted-foreground/70 font-black uppercase tracking-widest">{card.label}</p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{card.change}</span>
                  <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${card.color}`} />
@@ -335,7 +335,7 @@ function TeacherPersonalDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-black text-foreground mb-1.5 truncate group-hover:text-orange-400 transition-colors">{cls.name}</h3>
-                      <div className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
                         <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-orange-500" />{cls.time}</span>
                         <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-blue-500" />{cls.students} Enrollments</span>
                       </div>
@@ -385,7 +385,7 @@ function TeacherPersonalDashboard() {
                     <div key={act.id} className="p-5 hover:bg-card shadow-sm transition-colors group">
                       <div className="flex items-center justify-between mb-1">
                         <p className={`text-xs font-black uppercase tracking-widest ${act.color}`}>{act.title}</p>
-                        <span className="text-xs font-bold text-slate-400">{act.time}</span>
+                        <span className="text-xs font-bold text-muted-foreground/70">{act.time}</span>
                       </div>
                       <p className="text-sm font-bold text-slate-300 group-hover:text-foreground transition-colors">{act.subtitle}</p>
                     </div>
@@ -405,7 +405,7 @@ function TeacherPersonalDashboard() {
                 ) : perfData.map((item) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex justify-between items-center px-1">
-                      <span className="text-xs font-black uppercase tracking-widest text-slate-400 truncate pr-4">{item.label}</span>
+                      <span className="text-xs font-black uppercase tracking-widest text-muted-foreground/70 truncate pr-4">{item.label}</span>
                       <span className="text-xs font-black text-foreground">{item.value}%</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-card shadow-sm p-[1px]">
@@ -455,7 +455,7 @@ function TeacherPersonalDashboard() {
             <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-card shadow-sm rounded-none transition-all group">
               <item.icon className={`w-5 h-5 ${item.color} mb-3 group-hover:scale-110 transition-transform`} />
               <p className="text-xl sm:text-2xl font-black text-foreground group-hover:text-orange-400 transition-colors tabular-nums">{item.value}</p>
-              <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-1">{item.label}</p>
+              <p className="text-xs text-muted-foreground/70 font-black uppercase tracking-widest mt-1">{item.label}</p>
             </div>
           ))}
         </div>

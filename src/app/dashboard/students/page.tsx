@@ -1119,7 +1119,7 @@ export default function StudentsPage() {
                                     className={`flex items-center gap-3 p-3.5 border rounded-none transition-all ${isFull ? 'opacity-50 cursor-not-allowed bg-rose-500/5 border-rose-500/20' : bulkEnrolClassId === c.id ? 'cursor-pointer bg-orange-600/15 border-orange-500/40' : 'cursor-pointer bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
                                   >
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
-                                      {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                      {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-card" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
@@ -1399,7 +1399,7 @@ export default function StudentsPage() {
                 { label: 'Temporary Password', value: credentials.tempPassword },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">{label}</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-2">{label}</p>
                   <div className="flex items-center gap-px">
                     <div className="flex-1 px-5 py-3.5 bg-black/40 border border-border rounded-none text-foreground font-mono text-sm select-all">
                       {value}
@@ -1599,7 +1599,7 @@ export default function StudentsPage() {
           {/* Print Header (Only visible when printing) */}
           <div className="hidden print:block mb-8">
             <h1 className="text-2xl font-black text-black">Student List</h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               {profile?.school_name || 'School Report'} · {new Date().toLocaleDateString()}
             </p>
           </div>
@@ -2190,7 +2190,7 @@ export default function StudentsPage() {
         @media print {
           body { background: white !important; color: black !important; }
           .bg-[\#0f0f1a], .bg-gradient-to-br { background: white !important; }
-          .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+          .bg-card\/5, .bg-card\/8, .bg-card\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
           .text-foreground, .text-foreground\/60, .text-foreground\/40, .text-foreground\/30 { color: #111827 !important; }
           .border-border\/10, .border-border\/20, .border-border\/5 { border-color: #e5e7eb !important; }
           .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
@@ -2314,7 +2314,7 @@ function StudentSelfView() {
               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
                 {profile?.full_name?.[0].toUpperCase()}
               </div>
-              <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-none flex items-center justify-center text-black shadow-2xl -rotate-12">
+              <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-none flex items-center justify-center text-black shadow-2xl -rotate-12">
                 <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
               </div>
             </div>

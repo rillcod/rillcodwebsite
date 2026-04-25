@@ -38,7 +38,7 @@ interface AuditLog {
 
 const EVENT_COLORS: Record<string, string> = {
   login:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  logout:  'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  logout:  'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30',
   signup:  'bg-blue-500/20 text-blue-400 border-blue-500/30',
   create:  'bg-violet-500/20 text-violet-400 border-violet-500/30',
   update:  'bg-amber-500/20 text-amber-400 border-amber-500/30',

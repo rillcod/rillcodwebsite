@@ -120,23 +120,23 @@ export default function PortalAccess({
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto h-12 w-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
             <BuildingOfficeIcon className="h-8 w-8 text-white" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground dark:text-white">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-center text-sm text-muted-foreground dark:text-muted-foreground/70">
             {isSignUp ? 'Join Rillcod Technologies Portal' : 'Access your portal dashboard'}
           </p>
         </div>
 
         {/* Role Selection */}
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             Select your role
           </label>
           <div className="grid grid-cols-1 gap-3">
@@ -149,21 +149,21 @@ export default function PortalAccess({
                   onClick={() => setRole(option.value)}
                   className={`relative p-4 border rounded-lg transition-all duration-200 ${role === option.value
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 ring-opacity-50'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      : 'border-border dark:border-gray-600 hover:border-border/80 dark:hover:border-gray-500'
                     }`}
                 >
                   <div className="flex items-start">
                     <div className={`p-2 rounded-lg mr-3 ${role === option.value
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                        : 'bg-muted dark:bg-gray-700 text-muted-foreground dark:text-muted-foreground/70'
                       }`}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 text-left">
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <h3 className="text-sm font-medium text-foreground dark:text-white">
                         {option.label}
                       </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-muted-foreground dark:text-muted-foreground/70 mt-1">
                         {option.description}
                       </p>
                     </div>
@@ -182,7 +182,7 @@ export default function PortalAccess({
           <div className="space-y-4">
             {isSignUp && (
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="fullName" className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
                   Full Name
                 </label>
                 <input
@@ -192,14 +192,14 @@ export default function PortalAccess({
                   required={isSignUp}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="mt-1 block w-full px-3 py-2 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your full name"
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
                 Email address
               </label>
               <input
@@ -210,13 +210,13 @@ export default function PortalAccess({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="mt-1 block w-full px-3 py-2 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 placeholder="Enter your email"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
                 Password
               </label>
               <div className="mt-1 relative">
@@ -228,7 +228,7 @@ export default function PortalAccess({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="block w-full px-3 py-2 pr-10 border border-border dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your password"
                 />
                 <button
@@ -237,9 +237,9 @@ export default function PortalAccess({
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5 text-muted-foreground/70" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5 text-muted-foreground/70" />
                   )}
                 </button>
               </div>
@@ -297,11 +297,11 @@ export default function PortalAccess({
         <div className="text-center space-y-2">
           <Link
             href="/"
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            className="text-sm text-muted-foreground dark:text-muted-foreground/70 hover:text-foreground dark:hover:text-muted-foreground/30"
           >
             ← Back to Home
           </Link>
-          <div className="text-xs text-gray-500 dark:text-gray-500">
+          <div className="text-xs text-muted-foreground dark:text-muted-foreground">
             Need help? Contact support at support@rillcodacademy.com
           </div>
         </div>

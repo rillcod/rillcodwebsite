@@ -256,7 +256,7 @@ export function CertificateCard({ cert }: CertificateProps) {
                     onMouseLeave={handleMouseLeave}
                     animate={{ rotateX, rotateY, scale: isHovering ? 1.02 : 1 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.5 }}
-                    className="relative w-full shadow-[0_30px_60px_rgba(0,0,0,0.9)] border border-white/10 flex items-center justify-center bg-white rounded-xl overflow-hidden"
+                    className="relative w-full shadow-[0_30px_60px_rgba(0,0,0,0.9)] border border-white/10 flex items-center justify-center bg-card rounded-xl overflow-hidden"
                     style={{ aspectRatio: '1122/794', transformStyle: 'preserve-3d', touchAction: 'none' }}
                 >
                     <motion.div 

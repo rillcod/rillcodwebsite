@@ -91,7 +91,7 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
                             </div>
                             <div className="text-center">
                                 <span className={`block text-[9px] font-black ${tier.text}`}>{tier.label}</span>
-                                <span className="block text-[9px] font-bold text-slate-500">{count}</span>
+                                <span className="block text-[9px] font-bold text-muted-foreground">{count}</span>
                             </div>
                         </div>
                     );
@@ -99,7 +99,7 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
             </div>
 
             <div className="pt-3 border-t border-white/[0.05] flex items-center justify-between">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                     {totalWithGrades} graded · {noneCount} pending
                 </span>
             </div>
@@ -742,7 +742,7 @@ tbody tr:hover{background:#f3f4f6}
     return (
         <>
         <style>{`@media print { @page { margin: 14mm 12mm; } body { background: white !important; } .print\\:hidden { display: none !important; } }`}</style>
-        <div className="min-h-screen bg-background text-foreground print:bg-white print:text-black print:min-h-0">
+        <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
             <div className="print:hidden max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
@@ -1172,7 +1172,7 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
-                                         <div className="overflow-auto bg-gray-100 p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
+                                         <div className="overflow-auto bg-muted p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
                                             <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />

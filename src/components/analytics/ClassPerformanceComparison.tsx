@@ -238,9 +238,9 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center">
+          <h2 className="text-xl font-bold text-foreground flex items-center">
             <ChartBarIcon className="h-6 w-6 mr-2 text-blue-600" />
             Class Performance Comparison
           </h2>
@@ -248,20 +248,20 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">All Classes</option>
               {classData.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <div className="flex border border-gray-300 rounded-md">
+            <div className="flex border border-border rounded-md">
               <button
                 onClick={() => setViewMode('bar')}
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'bar' 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
                 Bar
@@ -271,7 +271,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'line' 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
                 Line
@@ -281,7 +281,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'radar' 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
                 Radar
@@ -296,21 +296,21 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
           <div className="flex items-center mb-4">
             <StarIcon className="h-6 w-6 text-green-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">Top Performing Class</h3>
+            <h3 className="text-lg font-semibold text-foreground">Top Performing Class</h3>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mb-2">{topClass.name}</p>
-          <p className="text-sm text-gray-600 mb-4">Average Score: {getAverageScore(topClass)}%</p>
+          <p className="text-2xl font-bold text-foreground mb-2">{topClass.name}</p>
+          <p className="text-sm text-muted-foreground mb-4">Average Score: {getAverageScore(topClass)}%</p>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-gray-600">Students</p>
+              <p className="text-muted-foreground">Students</p>
               <p className="font-semibold">{topClass.students}</p>
             </div>
             <div>
-              <p className="text-gray-600">Attendance</p>
+              <p className="text-muted-foreground">Attendance</p>
               <p className="font-semibold">{topClass.attendance}%</p>
             </div>
             <div>
-              <p className="text-gray-600">Engagement</p>
+              <p className="text-muted-foreground">Engagement</p>
               <p className="font-semibold">{topClass.engagement}%</p>
             </div>
           </div>
@@ -319,21 +319,21 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-6 border border-yellow-200">
           <div className="flex items-center mb-4">
             <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">Needs Improvement</h3>
+            <h3 className="text-lg font-semibold text-foreground">Needs Improvement</h3>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mb-2">{needsImprovementClass.name}</p>
-          <p className="text-sm text-gray-600 mb-4">Average Score: {getAverageScore(needsImprovementClass)}%</p>
+          <p className="text-2xl font-bold text-foreground mb-2">{needsImprovementClass.name}</p>
+          <p className="text-sm text-muted-foreground mb-4">Average Score: {getAverageScore(needsImprovementClass)}%</p>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-gray-600">Students</p>
+              <p className="text-muted-foreground">Students</p>
               <p className="font-semibold">{needsImprovementClass.students}</p>
             </div>
             <div>
-              <p className="text-gray-600">Attendance</p>
+              <p className="text-muted-foreground">Attendance</p>
               <p className="font-semibold">{needsImprovementClass.attendance}%</p>
             </div>
             <div>
-              <p className="text-gray-600">Engagement</p>
+              <p className="text-muted-foreground">Engagement</p>
               <p className="font-semibold">{needsImprovementClass.engagement}%</p>
             </div>
           </div>
@@ -341,7 +341,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
       </div>
 
       {/* Chart Visualization */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-6">Performance Visualization</h3>
         <div className="h-96">
           {viewMode === 'bar' && (
@@ -398,30 +398,30 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
       </div>
 
       {/* Detailed Class Comparison Table */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold mb-6">Detailed Class Comparison</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-background">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Students</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scratch</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Python</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Web Dev</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UI/UX</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flutter</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Class</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Students</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Avg Score</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Scratch</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Python</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Web Dev</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">UI/UX</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Flutter</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendance</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Engagement</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Trend</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {classData.map((classItem) => (
-                <tr key={classItem.id} className="hover:bg-gray-50 transition-all">
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{classItem.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900">{classItem.students}</td>
+                <tr key={classItem.id} className="hover:bg-background transition-all">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-foreground">{classItem.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-foreground">{classItem.students}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {getAverageScore(classItem)}%
@@ -505,34 +505,34 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
 
       {/* Recommendations */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">Class Performance Recommendations</h3>
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Class Performance Recommendations</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-start">
             <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Grade 9A Excellence</p>
-              <p className="text-sm text-gray-600">Highest performing class - consider sharing their strategies with other classes</p>
+              <p className="font-medium text-foreground">Grade 9A Excellence</p>
+              <p className="text-sm text-muted-foreground">Highest performing class - consider sharing their strategies with other classes</p>
             </div>
           </div>
           <div className="flex items-start">
             <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Grade 7B Support Needed</p>
-              <p className="text-sm text-gray-600">Lowest performing class - implement additional support and mentoring</p>
+              <p className="font-medium text-foreground">Grade 7B Support Needed</p>
+              <p className="text-sm text-muted-foreground">Lowest performing class - implement additional support and mentoring</p>
             </div>
           </div>
           <div className="flex items-start">
             <ArrowTrendingUpIcon className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Consistent Improvement</p>
-              <p className="text-sm text-gray-600">All classes showing positive trends - maintain current teaching methods</p>
+              <p className="font-medium text-foreground">Consistent Improvement</p>
+              <p className="text-sm text-muted-foreground">All classes showing positive trends - maintain current teaching methods</p>
             </div>
           </div>
           <div className="flex items-start">
             <UserGroupIcon className="h-5 w-5 text-purple-500 mr-3 mt-0.5" />
             <div>
-              <p className="font-medium text-gray-900">Peer Learning</p>
-              <p className="text-sm text-gray-600">Implement cross-class collaboration to boost overall performance</p>
+              <p className="font-medium text-foreground">Peer Learning</p>
+              <p className="text-sm text-muted-foreground">Implement cross-class collaboration to boost overall performance</p>
             </div>
           </div>
         </div>

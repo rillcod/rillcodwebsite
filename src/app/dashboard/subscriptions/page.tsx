@@ -33,7 +33,7 @@ interface Subscription {
 
 const STATUS_CONFIG: Record<SubStatus, { label: string; color: string }> = {
   active:    { label: 'Active',    color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  cancelled: { label: 'Cancelled', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  cancelled: { label: 'Cancelled', color: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
   expired:   { label: 'Expired',   color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
   suspended: { label: 'Suspended', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 };

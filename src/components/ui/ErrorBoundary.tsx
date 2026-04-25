@@ -39,18 +39,18 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="max-w-md w-full text-center">
-            <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="bg-card rounded-lg shadow-lg p-8">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
               
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl font-bold text-foreground mb-2">
                 Something went wrong on this page.
               </h1>
               
-              <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
                 We&apos;re sorry, but something unexpected happened. Please try again or contact support if the problem persists.
               </p>
 
@@ -65,7 +65,7 @@ class ErrorBoundary extends Component<Props, State> {
                 
                 <Link
                   href="/"
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-border text-sm font-medium rounded-md text-foreground/80 bg-card hover:bg-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <Home className="w-4 h-4 mr-2" />
                   Go Home
@@ -74,7 +74,7 @@ class ErrorBoundary extends Component<Props, State> {
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="mt-6 text-left">
-                  <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground/80">
                     Error Details (Development)
                   </summary>
                   <pre className="mt-2 text-xs text-red-600 bg-red-50 p-3 rounded overflow-auto">

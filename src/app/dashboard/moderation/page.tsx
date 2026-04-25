@@ -31,7 +31,7 @@ interface FlaggedItem {
 const STATUS_CONFIG: Record<FlagStatus, { label: string; color: string; icon: any }> = {
   pending:   { label: 'Pending',   color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   icon: ClockIcon },
   reviewed:  { label: 'Reviewed',  color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',      icon: EyeIcon },
-  dismissed: { label: 'Dismissed', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',      icon: XCircleIcon },
+  dismissed: { label: 'Dismissed', color: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30',      icon: XCircleIcon },
   removed:   { label: 'Removed',   color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',      icon: TrashIcon },
 };
 

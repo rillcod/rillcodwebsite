@@ -261,7 +261,7 @@ const TYPE_COLOR: Record<string, string> = {
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   reading: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   quiz: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  article: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  article: 'bg-slate-500/20 text-muted-foreground/70 border-slate-500/30',
   project: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
   live: 'bg-red-500/20 text-red-500 border-red-500/30',
 };
@@ -2452,7 +2452,7 @@ export default function LessonDetailPage() {
                     className={`flex items-center gap-4 p-4 rounded-none transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
                     {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_cyan]" />}
 
-                    <div className={`shrink-0 w-8 h-8 rounded-none border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-white text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
+                    <div className={`shrink-0 w-8 h-8 rounded-none border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-card text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
                       {isCompleted ? <CheckBadgeIcon className="w-4 h-4" /> : idx + 1}
                     </div>
 
@@ -2478,7 +2478,7 @@ export default function LessonDetailPage() {
         </div>
       </aside>
 
-      <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-black' : 'bg-background'} custom-scrollbar scroll-smooth`}>
+      <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-background' : 'bg-background'} custom-scrollbar scroll-smooth`}>
         {/* Dynamic Progress Indicator */}
         <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
           <motion.div
@@ -2733,7 +2733,7 @@ export default function LessonDetailPage() {
                             </div>
                           </div>
                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-card text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
                             Start Lesson <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
                           </Link>
                         </div>

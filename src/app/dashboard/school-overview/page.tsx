@@ -355,7 +355,7 @@ export default function SchoolOverviewPage() {
               {[...students].sort((a, b) => b.avgGrade - a.avgGrade).slice(0, 5).map((s, i) => (
                 <div key={s.id} className="flex items-center gap-3">
                   <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${
-                    i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
+                    i === 0 ? 'text-yellow-400' : i === 1 ? 'text-muted-foreground/50' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'
                   }`}>{i + 1}</span>
                   <div className="w-7 h-7 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>

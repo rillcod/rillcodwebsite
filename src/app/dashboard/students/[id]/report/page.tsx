@@ -140,7 +140,7 @@ export default function StudentProgressReportPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground print:bg-white print:text-black">
+    <div className="min-h-screen bg-background text-foreground print:bg-card print:text-black">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Header bar ── */}
@@ -255,7 +255,7 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Student info card ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-gray-200 print:bg-white">
+        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-border print:bg-card">
           <div className="flex items-start gap-5 flex-wrap">
             <div className="w-16 h-16 rounded-none bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
               {(student.full_name ?? 'S')[0]}
@@ -286,7 +286,7 @@ export default function StudentProgressReportPage() {
         {/* ── Performance summary ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {/* Overall ring */}
-          <div className="col-span-2 sm:col-span-1 bg-card shadow-sm border border-border rounded-none p-5 flex flex-col items-center justify-center print:border-gray-200">
+          <div className="col-span-2 sm:col-span-1 bg-card shadow-sm border border-border rounded-none p-5 flex flex-col items-center justify-center print:border-border">
             <div className="relative">
               <RingProgress pct={avgPct} color={avgPct >= 70 ? '#10b981' : avgPct >= 50 ? '#f59e0b' : '#f43f5e'} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -301,7 +301,7 @@ export default function StudentProgressReportPage() {
             { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 print:border-gray-200">
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 print:border-border">
               <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
@@ -313,17 +313,17 @@ export default function StudentProgressReportPage() {
 
         {/* ── Enrollments ── */}
         {enrollments.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-gray-200">
-            <div className="p-5 border-b border-border print:border-gray-200 flex items-center gap-2">
+          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-border">
+            <div className="p-5 border-b border-border print:border-border flex items-center gap-2">
               <BookOpenIcon className="w-4 h-4 text-blue-400" />
               <h3 className="font-bold text-foreground print:text-black">Programme Enrolments</h3>
             </div>
-            <div className="divide-y divide-white/5 print:divide-gray-200">
+            <div className="divide-y divide-white/5 print:divide-border">
               {enrollments.map((e: any) => (
                 <div key={e.id} className="p-4 flex items-center gap-4 text-sm">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground print:text-black">{e.programs?.name ?? '—'}</p>
-                    <p className="text-muted-foreground text-xs mt-0.5 print:text-gray-500">
+                    <p className="text-muted-foreground text-xs mt-0.5 print:text-muted-foreground">
                       Enrolled: {e.enrollment_date ? new Date(e.enrollment_date).toLocaleDateString() : '—'}
                       {e.completion_date ? ` · Completed: ${new Date(e.completion_date).toLocaleDateString()}` : ''}
                     </p>
@@ -340,8 +340,8 @@ export default function StudentProgressReportPage() {
         )}
 
         {/* ── Assignment submissions ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-gray-200">
-          <div className="p-5 border-b border-border print:border-gray-200 flex items-center justify-between">
+        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-border">
+          <div className="p-5 border-b border-border print:border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ChartBarIcon className="w-4 h-4 text-orange-400" />
               <h3 className="font-bold text-foreground print:text-black">Assignment Performance</h3>
@@ -357,15 +357,15 @@ export default function StudentProgressReportPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border print:border-gray-200 text-xs text-muted-foreground uppercase tracking-wider">
-                    <th className="text-left px-5 py-3 print:text-gray-500">Assignment</th>
-                    <th className="text-left px-5 py-3 print:text-gray-500">Course</th>
-                    <th className="text-center px-4 py-3 print:text-gray-500">Score</th>
-                    <th className="text-center px-4 py-3 print:text-gray-500">Grade</th>
-                    <th className="text-left px-4 py-3 print:text-gray-500">Status</th>
+                  <tr className="border-b border-border print:border-border text-xs text-muted-foreground uppercase tracking-wider">
+                    <th className="text-left px-5 py-3 print:text-muted-foreground">Assignment</th>
+                    <th className="text-left px-5 py-3 print:text-muted-foreground">Course</th>
+                    <th className="text-center px-4 py-3 print:text-muted-foreground">Score</th>
+                    <th className="text-center px-4 py-3 print:text-muted-foreground">Grade</th>
+                    <th className="text-left px-4 py-3 print:text-muted-foreground">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 print:divide-gray-100">
+                <tbody className="divide-y divide-white/5 print:divide-border">
                   {submissions.map((s: any) => {
                     const maxPts = s.assignments?.max_points ?? 100;
                     const pct = s.grade != null ? Math.round((s.grade / maxPts) * 100) : null;
@@ -375,12 +375,12 @@ export default function StudentProgressReportPage() {
                         <td className="px-5 py-3 font-semibold text-foreground print:text-black truncate max-w-[200px]">
                           {s.assignments?.title ?? '—'}
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground print:text-gray-500 truncate max-w-[160px]">
+                        <td className="px-5 py-3 text-muted-foreground print:text-muted-foreground truncate max-w-[160px]">
                           {s.assignments?.courses?.title ?? '—'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {s.grade != null
-                            ? <span className="font-bold text-foreground print:text-black">{s.grade}<span className="text-muted-foreground print:text-gray-400">/{maxPts}</span></span>
+                            ? <span className="font-bold text-foreground print:text-black">{s.grade}<span className="text-muted-foreground print:text-muted-foreground/70">/{maxPts}</span></span>
                             : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -404,7 +404,7 @@ export default function StudentProgressReportPage() {
           )}
           {/* Footer summary row */}
           {graded.length > 0 && (
-            <div className={`p-4 border-t border-border print:border-gray-200 flex items-center justify-between ${grade.bg} print:border print:rounded-none `}>
+            <div className={`p-4 border-t border-border print:border-border flex items-center justify-between ${grade.bg} print:border print:rounded-none `}>
               <div className="flex items-center gap-2">
                 <TrophyIcon className={`w-5 h-5 ${grade.color}`} />
                 <p className={`font-bold text-sm ${grade.color} print:text-black`}>
@@ -417,7 +417,7 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Instructor notes (placeholder — editable later) ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-gray-200 space-y-4">
+        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-border space-y-4">
           <div className="flex items-center gap-2 mb-1">
             <SparklesIcon className="w-4 h-4 text-amber-400" />
             <h3 className="font-bold text-foreground print:text-black">Instructor's Evaluation</h3>
@@ -425,7 +425,7 @@ export default function StudentProgressReportPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-none p-4 print:border-green-200">
               <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2 print:text-green-700">Key Strengths</p>
-              <p className="text-muted-foreground text-sm print:text-gray-500 italic">
+              <p className="text-muted-foreground text-sm print:text-muted-foreground italic">
                 {avgPct >= 80 ? 'Demonstrates consistent excellence across assignments.' :
                   avgPct >= 60 ? 'Shows command of core concepts with room for growth.' :
                     'Shows effort; needs more practice to reach target level.'}
@@ -436,7 +436,7 @@ export default function StudentProgressReportPage() {
                 <LightBulbIcon className="w-3.5 h-3.5 text-amber-400 print:text-amber-600" />
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest print:text-amber-700">Areas for Growth</p>
               </div>
-              <p className="text-muted-foreground text-sm print:text-gray-500 italic">
+              <p className="text-muted-foreground text-sm print:text-muted-foreground italic">
                 {missing > 0 ? `${missing} missing assignment${missing > 1 ? 's' : ''} should be completed.` : ''}
                 {late > 0 ? ` ${late} late submission${late > 1 ? 's' : ''} — work on time management.` : ''}
                 {missing === 0 && late === 0 ? 'Maintain current performance level and challenge with advanced topics.' : ''}
@@ -448,18 +448,18 @@ export default function StudentProgressReportPage() {
         {/* ── Certificate footer (for print) ── */}
         <div className="hidden print:block border-2 border-orange-400 rounded-none p-8 text-center mt-8">
           <h4 className="text-xl font-bold text-orange-600">CERTIFICATE OF PROGRESS</h4>
-          <p className="text-gray-700 mt-2 leading-relaxed">
+          <p className="text-foreground/80 mt-2 leading-relaxed">
             This certifies that <strong>{student.full_name}</strong> has completed the progress review
             for the current term at Rillcod Technologies.
           </p>
           <div className="flex justify-center gap-16 mt-8">
             <div className="text-center">
-              <div className="w-32 border-b border-gray-400 mb-1" />
-              <p className="text-xs text-gray-500">Instructor's Signature</p>
+              <div className="w-32 border-b border-border/80 mb-1" />
+              <p className="text-xs text-muted-foreground">Instructor's Signature</p>
             </div>
             <div className="text-center">
-              <div className="w-32 border-b border-gray-400 mb-1" />
-              <p className="text-xs text-gray-500">Date</p>
+              <div className="w-32 border-b border-border/80 mb-1" />
+              <p className="text-xs text-muted-foreground">Date</p>
             </div>
           </div>
         </div>

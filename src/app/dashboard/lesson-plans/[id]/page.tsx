@@ -357,7 +357,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
   published: { label: 'Published', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   archived:  { label: 'Archived',  cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 };

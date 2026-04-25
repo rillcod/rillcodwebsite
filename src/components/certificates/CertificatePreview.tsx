@@ -44,7 +44,7 @@ export default function CertificatePreview({
     return (
         <div
             id="certificate-preview-container"
-            className="relative overflow-hidden shadow-2xl transition-all duration-500 hover:shadow-[0_0_60px_rgba(0,0,0,0.3)] bg-white"
+            className="relative overflow-hidden shadow-2xl transition-all duration-500 hover:shadow-[0_0_60px_rgba(0,0,0,0.3)] bg-card"
             style={{ ...containerStyle }}
         >
             {/* Structural corner marks — only for digital preview */}

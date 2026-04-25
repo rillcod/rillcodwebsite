@@ -172,7 +172,7 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
   pending: { label: 'Pending', color: 'text-muted-foreground', icon: ClockIcon },
   in_progress: { label: 'In Progress', color: 'text-blue-400', icon: ArrowPathIcon },
   completed: { label: 'Completed', color: 'text-emerald-400', icon: CheckCircleIcon },
-  skipped: { label: 'Skipped', color: 'text-zinc-500', icon: ExclamationTriangleIcon },
+  skipped: { label: 'Skipped', color: 'text-muted-foreground', icon: ExclamationTriangleIcon },
 };
 
 const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';

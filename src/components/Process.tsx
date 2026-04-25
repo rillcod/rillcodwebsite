@@ -31,11 +31,11 @@ const Process: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 md:py-24 bg-white overflow-hidden">
+    <section className="py-16 md:py-24 bg-card overflow-hidden">
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Your Learning Adventure</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Your Learning Adventure</h2>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Follow the map to coding greatness!
           </p>
           <div className="w-20 h-2 bg-purple-500 mx-auto rounded-full mt-4"></div>
@@ -43,7 +43,7 @@ const Process: React.FC = () => {
         
         <div className="relative">
           {/* Path connecting the steps */}
-          <div className="hidden md:block absolute top-1/2 left-0 w-full h-4 bg-gray-200 rounded-full transform -translate-y-1/2 z-0">
+          <div className="hidden md:block absolute top-1/2 left-0 w-full h-4 bg-muted rounded-full transform -translate-y-1/2 z-0">
             <div className="h-full bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 rounded-full w-0 transition-all duration-1000" style={{ width: '100%' }}></div>
           </div>
           
@@ -55,16 +55,16 @@ const Process: React.FC = () => {
                   {step.icon}
                 </div>
                 
-                <div className="bg-white rounded-xl shadow-md p-6 w-full">
-                  <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">{step.title}</h3>
-                  <p className="text-gray-600 text-center">{step.description}</p>
+                <div className="bg-card rounded-xl shadow-md p-6 w-full">
+                  <h3 className="text-xl font-bold text-foreground mb-3 text-center">{step.title}</h3>
+                  <p className="text-muted-foreground text-center">{step.description}</p>
                 </div>
                 
                 {/* Footprint path for mobile */}
                 {index < steps.length - 1 && (
                   <div className="flex justify-center my-4 md:hidden">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                      <span className="text-gray-500">👣</span>
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                      <span className="text-muted-foreground">👣</span>
                     </div>
                   </div>
                 )}

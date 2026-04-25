@@ -37,10 +37,10 @@ export default function OptimizedImage({
   if (hasError) {
     return (
       <div 
-        className={`bg-gray-200 flex items-center justify-center ${className}`}
+        className={`bg-muted flex items-center justify-center ${className}`}
         style={{ width, height }}
       >
-        <div className="text-gray-500 text-center">
+        <div className="text-muted-foreground text-center">
           <div className="text-4xl mb-2">🖼️</div>
           <div className="text-sm">Image not available</div>
         </div>
@@ -52,7 +52,7 @@ export default function OptimizedImage({
     <div className={`relative overflow-hidden ${className}`}>
       {isLoading && (
         <div 
-          className="absolute inset-0 bg-gray-200 animate-pulse"
+          className="absolute inset-0 bg-muted animate-pulse"
           style={{ width, height }}
         />
       )}

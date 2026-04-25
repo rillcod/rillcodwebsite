@@ -123,15 +123,15 @@ export default function AdminNavbar() {
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white dark:bg-gray-800">
-          <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-card dark:bg-gray-800">
+          <div className="flex h-16 items-center justify-between px-4 border-b border-border dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain rounded-md" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Admin</span>
+              <span className="text-xl font-bold text-foreground dark:text-white">Admin</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-muted-foreground/50"
             >
               <X className="w-6 h-6" />
             </button>
@@ -145,7 +145,7 @@ export default function AdminNavbar() {
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive(item.href)
                     ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                    : 'text-muted-foreground hover:bg-background hover:text-foreground dark:text-muted-foreground/50 dark:hover:bg-gray-700 dark:hover:text-white'
                   }`}
               >
                 {item.icon}
@@ -154,10 +154,10 @@ export default function AdminNavbar() {
             ))}
           </nav>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <div className="border-t border-border dark:border-gray-700 p-4">
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md transition-colors"
+              className="flex items-center w-full px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground dark:text-muted-foreground/50 dark:hover:bg-gray-700 dark:hover:text-white rounded-md transition-colors"
             >
               <LogOut className="w-5 h-5 mr-3" />
               Logout
@@ -168,11 +168,11 @@ export default function AdminNavbar() {
 
       {/* Desktop navbar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-          <div className="flex h-16 items-center px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col flex-grow bg-card dark:bg-gray-800 border-r border-border dark:border-gray-700">
+          <div className="flex h-16 items-center px-4 border-b border-border dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain rounded-md" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Admin Panel</span>
+              <span className="text-xl font-bold text-foreground dark:text-white">Admin Panel</span>
             </div>
           </div>
 
@@ -183,7 +183,7 @@ export default function AdminNavbar() {
                 href={item.href}
                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive(item.href)
                     ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                    : 'text-muted-foreground hover:bg-background hover:text-foreground dark:text-muted-foreground/50 dark:hover:bg-gray-700 dark:hover:text-white'
                   }`}
               >
                 {item.icon}
@@ -192,10 +192,10 @@ export default function AdminNavbar() {
             ))}
           </nav>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <div className="border-t border-border dark:border-gray-700 p-4">
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md transition-colors"
+              className="flex items-center w-full px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground dark:text-muted-foreground/50 dark:hover:bg-gray-700 dark:hover:text-white rounded-md transition-colors"
             >
               <LogOut className="w-5 h-5 mr-3" />
               Logout
@@ -206,10 +206,10 @@ export default function AdminNavbar() {
 
       {/* Top navbar */}
       <div className="lg:pl-64">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border dark:border-gray-700 bg-card dark:bg-gray-800 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <button
             type="button"
-            className="-m-2.5 p-2.5 text-gray-700 dark:text-gray-300 lg:hidden"
+            className="-m-2.5 p-2.5 text-foreground/80 dark:text-muted-foreground/50 lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
@@ -217,30 +217,30 @@ export default function AdminNavbar() {
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="relative flex flex-1 items-center">
-              <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
+              <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-muted-foreground/70 pl-3" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block h-full w-full border-0 py-0 pl-10 pr-0 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm bg-transparent"
+                className="block h-full w-full border-0 py-0 pl-10 pr-0 text-foreground dark:text-white placeholder:text-muted-foreground/70 focus:ring-0 sm:text-sm bg-transparent"
               />
             </div>
 
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               <button
                 type="button"
-                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                className="-m-2.5 p-2.5 text-muted-foreground/70 hover:text-muted-foreground dark:hover:text-muted-foreground/50"
               >
                 <Bell className="h-6 w-6" />
               </button>
 
-              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200 dark:bg-gray-700" />
+              <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-muted dark:bg-gray-700" />
 
               <div className="flex items-center gap-x-4">
                 <div className="hidden sm:flex sm:flex-col sm:items-end">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Admin User</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">admin@rillcod.com</p>
+                  <p className="text-sm font-medium text-foreground dark:text-white">Admin User</p>
+                  <p className="text-xs text-muted-foreground dark:text-muted-foreground/70">admin@rillcod.com</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
                   <Shield className="h-5 w-5 text-white" />

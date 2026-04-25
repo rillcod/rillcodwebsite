@@ -38,10 +38,10 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
     return (
         <div className="space-y-1.5">
             <div className="flex justify-between items-end">
-                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+                <span className="text-[11px] font-black text-muted-foreground/70 uppercase tracking-widest">{label}</span>
                 <span className="text-sm font-black" style={{ color }}>{value}%</span>
             </div>
-            <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+            <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-border">
                 <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: color }} />
             </div>
         </div>
@@ -51,8 +51,8 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
 function GradeRow({ label, value }: { label: string; value: string | null | undefined }) {
     return (
         <div className="flex justify-between items-center gap-2">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">{label}</span>
-            <span className="text-[10px] font-black text-gray-600 bg-white border border-gray-200 rounded-full px-2 py-0.5 text-right leading-tight">
+            <span className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest shrink-0">{label}</span>
+            <span className="text-[10px] font-black text-muted-foreground bg-card border border-border rounded-full px-2 py-0.5 text-right leading-tight">
                 {value ?? '—'}
             </span>
         </div>
@@ -62,8 +62,8 @@ function GradeRow({ label, value }: { label: string; value: string | null | unde
 function SectionHeaderPremium({ title }: { title: string }) {
     return (
         <div className="flex items-center gap-4">
-            <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-[0.15em] shrink-0">{title}</h3>
-            <div className="h-[2px] w-full bg-gray-50 flex items-center">
+            <h3 className="text-[12px] font-black text-foreground uppercase tracking-[0.15em] shrink-0">{title}</h3>
+            <div className="h-[2px] w-full bg-background flex items-center">
                 <div className="h-[2px] w-8 bg-violet-600/30" />
             </div>
         </div>
@@ -73,8 +73,8 @@ function SectionHeaderPremium({ title }: { title: string }) {
 function ReportField({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
     return (
         <div>
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-0.5">{label}</p>
-            <p className={`text-[13px] ${bold ? 'font-black' : 'font-bold'} text-gray-900`}>{value}</p>
+            <p className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest mb-0.5">{label}</p>
+            <p className={`text-[13px] ${bold ? 'font-black' : 'font-bold'} text-foreground`}>{value}</p>
         </div>
     );
 }
@@ -173,16 +173,16 @@ export default function ReportCard({ report, orgSettings }: {
     return (
         <div
             id="report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0 flex flex-col"
+            className="bg-card text-foreground font-sans relative overflow-hidden shrink-0 flex flex-col"
             style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 13, border: '4px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Background */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40 print:opacity-100" />
             <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-violet-50/50 rounded-full blur-3xl -z-10 -ml-40 -mb-40 print:opacity-100" />
-            <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
+            <div className="absolute inset-0 border-[1px] border-border m-4 pointer-events-none" />
 
             {/* HEADER */}
-            <div className="relative pt-5 pb-3 px-10 bg-white border-b border-gray-200" style={{ borderBottom: '2px solid #e5e7eb', borderLeft: '6px solid #1a1a2e' }}>
+            <div className="relative pt-5 pb-3 px-10 bg-card border-b border-border" style={{ borderBottom: '2px solid #e5e7eb', borderLeft: '6px solid #1a1a2e' }}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 skew-x-12 -mr-16" />
                 <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-6">
@@ -194,14 +194,14 @@ export default function ReportCard({ report, orgSettings }: {
                             onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                         <div>
-                            <h1 className="text-xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
+                            <h1 className="text-xl font-black tracking-tighter uppercase leading-none mb-1 text-foreground">
                                 {org.org_name || 'Rillcod Technologies'}
                             </h1>
                             <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.3em]">
                                 {org.org_tagline || 'Pioneering Technical Excellence'}
                             </p>
                             {(org.org_phone || org.org_email) && (
-                                <p className="text-[10px] font-semibold text-gray-400 mt-1">
+                                <p className="text-[10px] font-semibold text-muted-foreground/70 mt-1">
                                     {org.org_phone && <>📞 {org.org_phone}</>}
                                     {org.org_phone && org.org_email && <span className="mx-1.5 opacity-40">·</span>}
                                     {org.org_email && <>✉ {org.org_email}</>}
@@ -213,35 +213,35 @@ export default function ReportCard({ report, orgSettings }: {
                         <div className="inline-block px-3 py-1 bg-amber-50 border border-amber-200 rounded-full mb-2">
                             <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Official Record</span>
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Progress Report</h2>
+                        <h2 className="text-2xl font-black text-foreground uppercase tracking-tighter">Progress Report</h2>
                     </div>
                 </div>
             </div>
 
             {/* STATS BAR */}
-            <div className="bg-gray-50 border-y border-gray-100 px-10 py-2 flex justify-between items-center">
+            <div className="bg-background border-y border-border px-10 py-2 flex justify-between items-center">
                 <div className="flex gap-8">
                     <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">ID</p>
-                        <p className="text-[12px] font-black text-gray-900">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</p>
+                        <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">ID</p>
+                        <p className="text-[12px] font-black text-foreground">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</p>
                     </div>
                     <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date</p>
-                        <p className="text-[12px] font-black text-gray-900">{today}</p>
+                        <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">Date</p>
+                        <p className="text-[12px] font-black text-foreground">{today}</p>
                     </div>
                     {report.school_name && (
                         <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">School</p>
-                            <p className="text-[12px] font-black text-gray-900">{report.school_name}</p>
+                            <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">School</p>
+                            <p className="text-[12px] font-black text-foreground">{report.school_name}</p>
                         </div>
                     )}
                 </div>
                 <div className="flex items-center gap-6">
                     {hasPayment && feeStyle && (
                         <div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{report.fee_label || 'Fee'}</p>
+                            <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">{report.fee_label || 'Fee'}</p>
                             <div className="flex items-center gap-1.5">
-                                {report.fee_amount && <span className="text-[12px] font-black text-gray-900">₦{report.fee_amount}</span>}
+                                {report.fee_amount && <span className="text-[12px] font-black text-foreground">₦{report.fee_amount}</span>}
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black"
                                     style={{ backgroundColor: feeStyle.bg, color: feeStyle.text }}>
                                     {feeStyle.label}
@@ -250,8 +250,8 @@ export default function ReportCard({ report, orgSettings }: {
                         </div>
                     )}
                     <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Verify</p>
-                        <p className="text-[12px] font-black text-gray-900">rillcod.com/verify</p>
+                        <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">Verify</p>
+                        <p className="text-[12px] font-black text-foreground">rillcod.com/verify</p>
                     </div>
                 </div>
             </div>
@@ -263,24 +263,24 @@ export default function ReportCard({ report, orgSettings }: {
                     <div className="col-span-4 flex flex-col gap-2">
 
                         {/* Student Participant panel */}
-                        <div className="bg-white rounded-3xl px-5 py-3 border border-gray-200" style={{ borderLeft: '5px solid #1a1a2e' }}>
-                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-2">Student Participant</p>
-                            <p className="text-lg font-black text-gray-900 leading-tight mb-1">{report.student_name ?? '—'}</p>
-                            <div className="h-px bg-gray-200 my-2.5" />
+                        <div className="bg-card rounded-3xl px-5 py-3 border border-border" style={{ borderLeft: '5px solid #1a1a2e' }}>
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/70 mb-2">Student Participant</p>
+                            <p className="text-lg font-black text-foreground leading-tight mb-1">{report.student_name ?? '—'}</p>
+                            <div className="h-px bg-muted my-2.5" />
                             <div className="space-y-1.5">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Programme</p>
-                                    <p className="text-[13px] font-bold text-gray-700">{report.course_name ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Programme</p>
+                                    <p className="text-[13px] font-bold text-foreground/80">{report.course_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Class / Section</p>
-                                    <p className="text-[13px] font-bold text-gray-700">{report.section_class ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Class / Section</p>
+                                    <p className="text-[13px] font-bold text-foreground/80">{report.section_class ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
                                         {report.school_section === 'school' ? 'Academic Term' : 'Duration'}
                                     </p>
-                                    <p className="text-[13px] font-bold text-gray-700">
+                                    <p className="text-[13px] font-bold text-foreground/80">
                                         {report.school_section === 'school'
                                             ? `${report.report_term ?? '—'}${report.report_period ? ` · ${report.report_period}` : ''}`
                                             : (report.course_duration ?? report.report_term ?? '—')}
@@ -309,7 +309,7 @@ export default function ReportCard({ report, orgSettings }: {
                         <div className="flex-1 grid grid-cols-2 gap-5">
 
                             {/* Left — scores */}
-                            <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 flex flex-col gap-3">
+                            <div className="bg-background border border-border rounded-2xl px-5 py-4 flex flex-col gap-3">
                                 {/* Scoring key — print-safe inline styles */}
                                 <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
@@ -339,15 +339,15 @@ export default function ReportCard({ report, orgSettings }: {
                             </div>
 
                             {/* Right — weighted grade display */}
-                            <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[32px] p-4 relative overflow-hidden border border-gray-200" style={{ borderLeft: '4px solid #1a1a2e' }}>
+                            <div className="flex flex-col items-center justify-center bg-background rounded-[32px] p-4 relative overflow-hidden border border-border" style={{ borderLeft: '4px solid #1a1a2e' }}>
                                 <div className="relative z-10 text-center">
                                     <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2" />
-                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">WAEC Grade</p>
+                                    <p className="text-[11px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-1">WAEC Grade</p>
                                     <h3 className="text-5xl font-black tracking-tight" style={{ color: grade.color }}>{grade.g}</h3>
-                                    <div className="mt-4 px-4 py-1.5 bg-white rounded-full border border-gray-200">
-                                        <span className="text-xs font-black uppercase tracking-widest text-gray-700">{grade.label}</span>
+                                    <div className="mt-4 px-4 py-1.5 bg-card rounded-full border border-border">
+                                        <span className="text-xs font-black uppercase tracking-widest text-foreground/80">{grade.label}</span>
                                     </div>
-                                    <p className="text-xl font-black text-gray-500 mt-3">{overall}%</p>
+                                    <p className="text-xl font-black text-muted-foreground mt-3">{overall}%</p>
                                 </div>
                             </div>
 
@@ -411,7 +411,7 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="pt-2 border-t-2 border-gray-100">
+                <div className="pt-2 border-t-2 border-border">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}

@@ -73,8 +73,8 @@ export default function FeedbackPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-orange-600 to-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <ChatBubbleLeftRightIcon className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">We Value Your Feedback</h1>
-          <p className="text-gray-600">Help us serve you better by sharing your thoughts</p>
+          <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">We Value Your Feedback</h1>
+          <p className="text-muted-foreground">Help us serve you better by sharing your thoughts</p>
         </div>
 
         {/* Progress Steps */}
@@ -84,21 +84,21 @@ export default function FeedbackPage() {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                 step === s ? 'bg-orange-600 text-white' :
                 ['type', 'rating', 'details'].indexOf(step) > idx ? 'bg-emerald-500 text-white' :
-                'bg-gray-200 text-gray-400'
+                'bg-muted text-muted-foreground/70'
               }`}>
                 {['type', 'rating', 'details'].indexOf(step) > idx ? '✓' : idx + 1}
               </div>
-              {idx < 3 && <div className={`w-8 h-1 ${['type', 'rating', 'details'].indexOf(step) > idx ? 'bg-emerald-500' : 'bg-gray-200'}`} />}
+              {idx < 3 && <div className={`w-8 h-1 ${['type', 'rating', 'details'].indexOf(step) > idx ? 'bg-emerald-500' : 'bg-muted'}`} />}
             </div>
           ))}
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
           {/* Step 1: Type */}
           {step === 'type' && (
             <div className="p-8">
-              <h2 className="text-xl font-black text-gray-900 mb-6">What type of feedback do you have?</h2>
+              <h2 className="text-xl font-black text-foreground mb-6">What type of feedback do you have?</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {feedbackTypes.map(type => (
                   <button
@@ -107,12 +107,12 @@ export default function FeedbackPage() {
                     className={`p-6 rounded-xl border-2 transition-all text-left ${
                       feedbackType === type.value
                         ? 'border-orange-500 bg-orange-50'
-                        : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                        : 'border-border hover:border-orange-300 hover:bg-background'
                     }`}
                   >
                     <div className="text-4xl mb-3">{type.icon}</div>
-                    <h3 className="font-bold text-gray-900 mb-1">{type.label}</h3>
-                    <p className="text-sm text-gray-600">{type.desc}</p>
+                    <h3 className="font-bold text-foreground mb-1">{type.label}</h3>
+                    <p className="text-sm text-muted-foreground">{type.desc}</p>
                   </button>
                 ))}
               </div>
@@ -128,7 +128,7 @@ export default function FeedbackPage() {
           {/* Step 2: Rating */}
           {step === 'rating' && (
             <div className="p-8">
-              <h2 className="text-xl font-black text-gray-900 mb-6">How would you rate your experience?</h2>
+              <h2 className="text-xl font-black text-foreground mb-6">How would you rate your experience?</h2>
               <div className="flex justify-center gap-4 mb-8">
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
@@ -136,12 +136,12 @@ export default function FeedbackPage() {
                     onClick={() => setRating(star)}
                     className="transition-transform hover:scale-110"
                   >
-                    <StarIcon className={`w-12 h-12 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                    <StarIcon className={`w-12 h-12 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/50'}`} />
                   </button>
                 ))}
               </div>
               {rating > 0 && (
-                <p className="text-center text-gray-600 mb-6">
+                <p className="text-center text-muted-foreground mb-6">
                   {rating === 5 ? '🎉 Excellent!' :
                    rating === 4 ? '😊 Great!' :
                    rating === 3 ? '👍 Good' :
@@ -152,7 +152,7 @@ export default function FeedbackPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep('type')}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all"
+                  className="flex-1 px-6 py-3 border-2 border-border text-foreground/80 font-black uppercase tracking-widest rounded-xl hover:bg-background transition-all"
                 >
                   Back
                 </button>
@@ -170,33 +170,33 @@ export default function FeedbackPage() {
           {/* Step 3: Details */}
           {step === 'details' && (
             <div className="p-8">
-              <h2 className="text-xl font-black text-gray-900 mb-6">Tell us more</h2>
+              <h2 className="text-xl font-black text-foreground mb-6">Tell us more</h2>
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="text-xs font-black text-gray-600 uppercase tracking-widest block mb-2">Subject</label>
+                  <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-2">Subject</label>
                   <input
                     type="text"
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
                     placeholder="Brief summary..."
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-gray-600 uppercase tracking-widest block mb-2">Message</label>
+                  <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-2">Message</label>
                   <textarea
                     value={message}
                     onChange={e => setMessage(e.target.value)}
                     placeholder="Share your thoughts in detail..."
                     rows={6}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-orange-500 transition-colors resize-none"
                   />
                 </div>
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep('rating')}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all"
+                  className="flex-1 px-6 py-3 border-2 border-border text-foreground/80 font-black uppercase tracking-widest rounded-xl hover:bg-background transition-all"
                 >
                   Back
                 </button>
@@ -217,8 +217,8 @@ export default function FeedbackPage() {
               <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircleIcon className="w-12 h-12 text-emerald-600" />
               </div>
-              <h2 className="text-2xl font-black text-gray-900 mb-3">Thank You!</h2>
-              <p className="text-gray-600 mb-6">
+              <h2 className="text-2xl font-black text-foreground mb-3">Thank You!</h2>
+              <p className="text-muted-foreground mb-6">
                 Your feedback has been received. We'll review it and get back to you within 24 hours.
               </p>
               <button
@@ -239,7 +239,7 @@ export default function FeedbackPage() {
 
         {/* Quick Contact */}
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600 mb-3">Need immediate assistance?</p>
+          <p className="text-sm text-muted-foreground mb-3">Need immediate assistance?</p>
           <div className="flex flex-wrap justify-center gap-4">
             <a href="mailto:support@rillcod.com" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
               📧 support@rillcod.com

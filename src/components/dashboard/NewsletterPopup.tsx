@@ -134,7 +134,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
 
         {/* Scrollable Document Area */}
         <div className="flex-1 overflow-auto p-4 sm:p-12 bg-black/40">
-           <div className="mx-auto rounded-[2rem] bg-white overflow-hidden shadow-2xl"
+           <div className="mx-auto rounded-[2rem] bg-card overflow-hidden shadow-2xl"
                   style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
                 
                 {/* Printable Content (Premium Letterhead) */}

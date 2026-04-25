@@ -313,11 +313,11 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
 
       {/* Preview */}
       <div className="flex-1 overflow-auto p-4 sm:p-8">
-        <div className="max-w-5xl mx-auto bg-white text-black rounded border border-border shadow-sm p-6 sm:p-8">
+        <div className="max-w-5xl mx-auto bg-card text-black rounded border border-border shadow-sm p-6 sm:p-8">
           {/* Print header */}
           <div className="mb-6 pb-4 border-b-2 border-gray-800">
             <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {schoolFilter ? `School: ${schoolFilter} · ` : ''}
               {filtered.length} parent{filtered.length !== 1 ? 's' : ''} ·
               Printed: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -619,19 +619,19 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
     : parents;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <div className="fixed inset-0 z-50 bg-card text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Screen bar */}
-      <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-gray-100 border-b border-gray-200 sticky top-0 z-10">
+      <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-muted border-b border-border sticky top-0 z-10">
         <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest truncate">Parent Access Cards</h2>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <p className="hidden md:block text-[10px] text-gray-500">{filtered.length} cards · Print on A4</p>
+          <p className="hidden md:block text-[10px] text-muted-foreground">{filtered.length} cards · Print on A4</p>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
           >
             <PrinterIcon className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Print Cards</span><span className="sm:hidden">Print</span>
           </button>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors shrink-0">
+          <button onClick={onClose} className="p-2 hover:bg-muted transition-colors shrink-0">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>

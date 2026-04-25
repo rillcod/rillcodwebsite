@@ -52,7 +52,7 @@ const LANGUAGE_COLORS: Record<string, string> = {
   css: 'bg-pink-500/15 text-pink-400',
   typescript: 'bg-cyan-500/15 text-cyan-400',
   sql: 'bg-emerald-500/15 text-emerald-400',
-  bash: 'bg-slate-500/15 text-slate-400',
+  bash: 'bg-slate-500/15 text-muted-foreground/70',
 };
 
 const RUNNER_LANGUAGES: Record<string, 'javascript' | 'python' | 'html' | 'robotics'> = {
@@ -457,7 +457,7 @@ export default function VaultPage() {
                         <h3 className="font-bold text-foreground text-sm">{item.title}</h3>
                         <span
                           className={`px-2 py-0.5 text-xs font-bold ${
-                            LANGUAGE_COLORS[item.language] || 'bg-slate-500/15 text-slate-400'
+                            LANGUAGE_COLORS[item.language] || 'bg-slate-500/15 text-muted-foreground/70'
                           }`}
                         >
                           {item.language}

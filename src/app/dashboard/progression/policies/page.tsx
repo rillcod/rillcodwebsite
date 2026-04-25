@@ -59,7 +59,7 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
       <div className="relative mt-0.5 shrink-0">
         <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
         <div className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-violet-600' : 'bg-muted'}`} />
-        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-4' : ''}`} />
+        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-card transition-transform ${checked ? 'translate-x-4' : ''}`} />
       </div>
       <div>
         <p className="text-sm font-bold text-foreground group-hover:text-violet-300 transition-colors">{label}</p>

@@ -88,7 +88,7 @@ export function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <Bell className="h-6 w-6" />
         {unreadCount > 0 && (
@@ -102,7 +102,7 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
+        <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-lg border z-50">
           <Card>
             <CardContent className="p-0">
               <div className="p-4 border-b">
@@ -121,14 +121,14 @@ export function NotificationBell() {
               
               <div className="max-h-96 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
+                  <div className="p-4 text-center text-muted-foreground">
                     No notifications
                   </div>
                 ) : (
                   notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-4 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer ${
+                      className={`p-4 border-b last:border-b-0 hover:bg-background cursor-pointer ${
                         !notification.read ? 'bg-blue-50' : ''
                       }`}
                       onClick={() => markAsRead(notification.id)}
@@ -143,11 +143,11 @@ export function NotificationBell() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <h4 className="font-medium text-sm">{notification.title}</h4>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {notification.timestamp.toLocaleTimeString()}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                           {!notification.read && (
                             <div className="mt-2">
                               <Badge className={`text-xs ${getTypeColor(notification.type)}`}>

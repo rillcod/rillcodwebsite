@@ -18,7 +18,7 @@ import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
   Bronze:   { label: 'Bronze',   emoji: '🥉', bar: 'bg-amber-700',  text: 'text-amber-700',  border: 'border-amber-700/40' },
-  Silver:   { label: 'Silver',   emoji: '🥈', bar: 'bg-slate-400',  text: 'text-slate-400',  border: 'border-slate-400/40' },
+  Silver:   { label: 'Silver',   emoji: '🥈', bar: 'bg-slate-400',  text: 'text-muted-foreground/70',  border: 'border-slate-400/40' },
   Gold:     { label: 'Gold',     emoji: '🥇', bar: 'bg-amber-400',  text: 'text-amber-400',  border: 'border-amber-400/40' },
   Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400',   text: 'text-cyan-400',   border: 'border-cyan-400/40' },
   Modern:   { label: 'Level',    emoji: '⭐', bar: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500/40' },

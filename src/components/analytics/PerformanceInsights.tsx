@@ -30,7 +30,7 @@ export function PerformanceInsights() {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="border-none shadow-lg shadow-teal-500/5 bg-white dark:bg-slate-900 overflow-hidden">
+                <Card className="border-none shadow-lg shadow-teal-500/5 bg-card dark:bg-slate-900 overflow-hidden">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-teal-50 rounded-2xl">
@@ -39,13 +39,13 @@ export function PerformanceInsights() {
                             <Badge variant="outline" className="text-green-600 bg-green-50 border-green-100">+12%</Badge>
                         </div>
                         <div className="mt-4">
-                            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">94.2%</p>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Accuracy Rate</p>
+                            <p className="text-2xl font-black text-foreground dark:text-slate-100">94.2%</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Accuracy Rate</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-lg shadow-blue-500/5 bg-white dark:bg-slate-900">
+                <Card className="border-none shadow-lg shadow-blue-500/5 bg-card dark:bg-slate-900">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-blue-50 rounded-2xl">
@@ -54,28 +54,28 @@ export function PerformanceInsights() {
                             <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-100">Top 5%</Badge>
                         </div>
                         <div className="mt-4">
-                            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">850</p>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Total XP Points</p>
+                            <p className="text-2xl font-black text-foreground dark:text-slate-100">850</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Total XP Points</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-lg shadow-purple-500/5 bg-white dark:bg-slate-900">
+                <Card className="border-none shadow-lg shadow-purple-500/5 bg-card dark:bg-slate-900">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-purple-50 rounded-2xl">
                                 <Clock className="w-5 h-5 text-purple-600" />
                             </div>
-                            <Badge variant="outline" className="text-slate-400 bg-slate-50 border-slate-100">-2m</Badge>
+                            <Badge variant="outline" className="text-muted-foreground/70 bg-background border-slate-100">-2m</Badge>
                         </div>
                         <div className="mt-4">
-                            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">14.5h</p>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Time Invested</p>
+                            <p className="text-2xl font-black text-foreground dark:text-slate-100">14.5h</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Time Invested</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-lg shadow-orange-500/5 bg-white dark:bg-slate-900">
+                <Card className="border-none shadow-lg shadow-orange-500/5 bg-card dark:bg-slate-900">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-orange-50 rounded-2xl">
@@ -84,21 +84,21 @@ export function PerformanceInsights() {
                             <Badge variant="outline" className="text-orange-600 bg-orange-50 border-orange-100">Steak: 12d</Badge>
                         </div>
                         <div className="mt-4">
-                            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">Gold</p>
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Achievement Tier</p>
+                            <p className="text-2xl font-black text-foreground dark:text-slate-100">Gold</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Achievement Tier</p>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-none shadow-2xl shadow-slate-200/50 dark:shadow-none bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+                <Card className="border-none shadow-2xl shadow-slate-200/50 dark:shadow-none bg-card dark:bg-slate-900 rounded-3xl overflow-hidden">
                     <CardHeader className="p-8 pb-0">
                         <CardTitle className="text-lg font-bold flex items-center justify-between">
                             Activity Trends
                             <Badge variant="outline" className="text-[10px] font-black uppercase px-2">Weekly</Badge>
                         </CardTitle>
-                        <CardDescription className="text-xs text-slate-400 font-medium">Comparative analysis of your scores vs class average</CardDescription>
+                        <CardDescription className="text-xs text-muted-foreground/70 font-medium">Comparative analysis of your scores vs class average</CardDescription>
                     </CardHeader>
                     <CardContent className="p-4 md:p-8">
                         <div className="h-[300px] w-full">
@@ -125,38 +125,38 @@ export function PerformanceInsights() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-2xl shadow-slate-200/50 dark:shadow-none bg-white dark:bg-slate-900 rounded-3xl">
+                <Card className="border-none shadow-2xl shadow-slate-200/50 dark:shadow-none bg-card dark:bg-slate-900 rounded-3xl">
                     <CardHeader className="p-8">
                         <CardTitle className="text-lg font-bold">Concept Mastery</CardTitle>
-                        <CardDescription className="text-xs text-slate-400 font-medium">Performance broken down by subject matter</CardDescription>
+                        <CardDescription className="text-xs text-muted-foreground/70 font-medium">Performance broken down by subject matter</CardDescription>
                     </CardHeader>
                     <CardContent className="p-8 pt-0 space-y-6">
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Robotics & IoT</span>
                                 <span className="text-teal-600">92%</span>
                             </div>
-                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-teal-500 rounded-full" style={{ width: '92%' }} />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Web Engineering</span>
                                 <span className="text-blue-600">78%</span>
                             </div>
-                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-blue-500 rounded-full" style={{ width: '78%' }} />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Artificial Intelligence</span>
                                 <span className="text-purple-600">85%</span>
                             </div>
-                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className="h-full bg-purple-500 rounded-full" style={{ width: '85%' }} />
                             </div>
                         </div>

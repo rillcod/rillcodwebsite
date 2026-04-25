@@ -709,7 +709,7 @@ function AttendanceContent() {
                         <div className="space-y-3">
                           {/* Camera viewfinder (auto-started) */}
                           {hasBarcodeDetector && (
-                            <div className="relative w-full max-w-xs mx-auto aspect-square bg-black rounded-none overflow-hidden">
+                            <div className="relative w-full max-w-xs mx-auto aspect-square bg-background rounded-none overflow-hidden">
                               <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline muted />
                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <div className="w-48 h-48 border-2 border-violet-400 rounded-sm relative">

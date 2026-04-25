@@ -10,7 +10,7 @@ interface LogoProps {
   useSvg?: boolean;
 }
 
-export default function Logo({ size = 'md', showText = true, className = '', textColor = 'text-gray-900 dark:text-white', useSvg = false }: LogoProps) {
+export default function Logo({ size = 'md', showText = true, className = '', textColor = 'text-foreground dark:text-white', useSvg = false }: LogoProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',

@@ -47,7 +47,7 @@ const TYPE_COLOR: Record<string, string> = {
   coding:      'bg-emerald-500/10 text-emerald-400',
   reading:     'bg-indigo-500/10 text-indigo-400',
   quiz:        'bg-purple-500/10 text-purple-400',
-  article:     'bg-slate-500/10 text-slate-400',
+  article:     'bg-slate-500/10 text-muted-foreground/70',
   project:     'bg-yellow-500/10 text-yellow-500',
   live:        'bg-red-500/10 text-red-500',
   lesson:      'bg-blue-500/10 text-blue-400',

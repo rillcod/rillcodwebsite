@@ -106,7 +106,7 @@ const Hero: React.FC = () => {
                       <p className="text-[9px] font-black text-orange-500 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors">New Student?</p>
                       <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">Register Now</p>
                     </div>
-                    <div className="w-9 h-9 bg-orange-500 group-hover/cta:bg-white flex items-center justify-center flex-shrink-0 transition-colors">
+                    <div className="w-9 h-9 bg-orange-500 group-hover/cta:bg-card flex items-center justify-center flex-shrink-0 transition-colors">
                       <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-orange-500 group-hover/cta:translate-x-0.5 transition-all" />
                     </div>
                   </Link>
