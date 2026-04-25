@@ -104,7 +104,7 @@ RULES:
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum' | 'flashcard';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'project' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum' | 'flashcard';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -875,6 +875,35 @@ Return a JSON object with this exact shape:
   ]
 }`; }
 
+    case 'project': {
+      return `Generate a detailed project activity for Rillcod Technologies students.
+Topic / Project Title: "${req.topic}"
+Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+${req.programName ? `Programme: "${req.programName}"` : ''}
+${req.courseName ? `Course: "${req.courseName}"` : ''}
+Difficulty: ${req.difficulty ?? 'intermediate'}
+
+Return a JSON object with this exact shape:
+{
+  "title": "string — engaging project title",
+  "description": "string — 2-3 sentence project overview that excites students",
+  "instructions": "string — detailed step-by-step instructions (numbered lists, be specific about requirements)",
+  "category": "string — one of: coding, web, ai, design, research, hardware, presentation",
+  "difficulty": "string — one of: beginner, intermediate, advanced",
+  "tags": ["string — 3-6 relevant skill tags"],
+  "submission_types": ["string — one or more of: link, code, file, screenshot, text"],
+  "rubric": [
+    { "name": "string — e.g. Functionality", "desc": "string — what earns full marks", "maxPts": 40 }
+  ]
+}
+
+RULES:
+- Instructions must be clear enough for a student to follow independently — numbered steps, specific deliverables.
+- rubric must have 3-4 criteria with maxPts values summing to exactly 100.
+- submission_types must match the deliverable (code project → link + code; hardware → screenshot + text).
+- Make it engaging and achievable for Nigerian secondary school students.`; }
+
     default:
       throw new Error(`Unknown generate type: ${req.type}`);
   }
@@ -933,7 +962,7 @@ export async function POST(req: NextRequest) {
     if (!body.topic?.trim() && !body.prompt?.trim()) {
       return NextResponse.json({ error: 'topic or prompt is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum', 'flashcard'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'project', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom', 'curriculum', 'flashcard'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
@@ -991,7 +1020,9 @@ export async function POST(req: NextRequest) {
         modelQueue = [
           "google/gemini-2.0-flash-001",           // Primary: fast, reliable, 1M ctx, excellent JSON
           "qwen/qwen3-235b-a22b:free",             // 235B params, massive reasoning, free
+          "deepseek/deepseek-r1:free",             // Reasoning model — rich structured content
           "moonshotai/kimi-k2.5",                  // High intelligence, great for detailed content
+          "deepseek/deepseek-chat-v3-5",           // Strong writer fallback
           "x-ai/grok-2-1212",                      // Creative/playful fallback
         ];
         adaptiveTemperature = 0.75;
@@ -1058,11 +1089,26 @@ export async function POST(req: NextRequest) {
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "deepseek/deepseek-chat-v3-5",
+          "deepseek/deepseek-r1:free",             // Free reasoning fallback
+          "qwen/qwen3-235b-a22b:free",
           "meta-llama/llama-3.3-70b-instruct",
           "google/gemini-2.0-flash-lite-001",
         ];
         adaptiveTemperature = 0.4; // Balanced — consistent but not rigid
         adaptiveMaxTokens = 2000;
+        break;
+
+      case 'project':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "deepseek/deepseek-r1:free",             // Reasoning — structured project specs
+          "qwen/qwen3-235b-a22b:free",
+          "deepseek/deepseek-chat-v3-5",
+          "meta-llama/llama-3.3-70b-instruct",
+          "google/gemini-2.0-flash-lite-001",
+        ];
+        adaptiveTemperature = 0.65;
+        adaptiveMaxTokens = 3000;
         break;
 
       case 'lesson-plan':

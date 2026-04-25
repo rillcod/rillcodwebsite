@@ -24,11 +24,13 @@ const openRouter = new OpenAI({
 });
 
 const CURRICULUM_MODELS = [
-  'google/gemini-2.0-flash-001',
-  'moonshotai/kimi-k2.5',
-  'deepseek/deepseek-chat-v3-5',
-  'meta-llama/llama-3.3-70b-instruct',
-  'google/gemini-2.0-flash-lite-001',
+  'google/gemini-2.0-flash-001',       // Primary: 1M ctx, fast, reliable JSON
+  'qwen/qwen3-235b-a22b:free',         // 235B free — thorough at structured syllabi
+  'deepseek/deepseek-r1:free',         // Reasoning model — great for multi-week curriculum
+  'moonshotai/kimi-k2.5',              // High intelligence fallback
+  'deepseek/deepseek-chat-v3-5',       // Strong structured output
+  'meta-llama/llama-3.3-70b-instruct', // Reliable fallback
+  'google/gemini-2.0-flash-lite-001',  // Emergency fallback
 ];
 
 function buildCurriculumPrompt(
