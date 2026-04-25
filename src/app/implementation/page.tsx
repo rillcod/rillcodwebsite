@@ -1,7 +1,7 @@
 import { Calendar, CheckCircle, Users, BookOpen, Award } from "lucide-react";
 
 const roadmap = [
-  { phase: 1, title: "Showcase & Assessment (Week 1)", desc: "Live coding and robotics showcases, PTA presentations, infrastructure evaluation, partnership agreement." },
+  { phase: 1, title: "Showcase & Assessment (Week 1)", desc: "Live coding and robotics showcases, PTA presentations, technology review, partnership agreement." },
   { phase: 2, title: "Preparation (Week 2)", desc: "Equipment setup, staff training, marketing launch, quality assurance." },
   { phase: 3, title: "Program Launch (Second Week of Term)", desc: "Coordinated start, media coverage, student engagement, parent updates." },
   { phase: 4, title: "Continuous Improvement (Ongoing)", desc: "Monthly reviews, termly showcases, curriculum updates, partnership expansion." }
