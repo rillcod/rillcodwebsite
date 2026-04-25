@@ -25,8 +25,8 @@ export default function Error({
     <div className="min-h-screen bg-background font-sans relative overflow-hidden flex items-center justify-center">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-red-500/10 to-orange-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-red-500/10 to-primary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -70,14 +70,14 @@ export default function Error({
           <div className="flex flex-col sm:flex-row gap-8 justify-center mb-16 relative">
             <button
               onClick={reset}
-              className="inline-flex items-center justify-center px-12 py-5 bg-foreground text-background rounded-none hover:bg-orange-500 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl group"
+              className="inline-flex items-center justify-center px-12 py-5 bg-foreground text-background rounded-none hover:bg-primary hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl group"
             >
               <ArrowPathIcon className="w-4 h-4 mr-3 group-hover:rotate-180 transition-transform duration-500" />
               REBOOT SYSTEM
             </button>
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-12 py-5 border border-border text-foreground rounded-none hover:border-orange-500 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] group"
+              className="inline-flex items-center justify-center px-12 py-5 border border-border text-foreground rounded-none hover:border-primary transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] group"
             >
               <HomeIcon className="w-4 h-4 mr-3" />
               RETURN TO BASE
@@ -86,12 +86,12 @@ export default function Error({
 
           {/* External Support Uplink */}
           <div className="bg-card border border-border rounded-none p-10 shadow-2xl relative overflow-hidden max-w-2xl mx-auto">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-orange-500/5 rotate-45 transform -translate-x-16 -translate-y-16"></div>
+            <div className="absolute top-0 left-0 w-32 h-32 bg-primary/5 rotate-45 transform -translate-x-16 -translate-y-16"></div>
             <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">Support Frequency:</h3>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-10">
               <Link
                 href="/contact"
-                className="text-[11px] font-black text-foreground uppercase tracking-widest hover:text-orange-500 transition-colors border-b border-border hover:border-orange-500 pb-1"
+                className="text-[11px] font-black text-foreground uppercase tracking-widest hover:text-primary transition-colors border-b border-border hover:border-primary pb-1"
               >
                 Protocol Support
               </Link>

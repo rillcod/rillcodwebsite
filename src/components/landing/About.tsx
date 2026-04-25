@@ -8,8 +8,8 @@ const pillars = [
     icon: Target,
     title: 'Modern Mastery',
     desc: 'Moving beyond theory to hands-on engineering and software development.',
-    color: 'text-orange-500',
-    bg: 'bg-orange-500/10'
+    color: 'text-primary',
+    bg: 'bg-primary/10'
   },
   {
     icon: Lightbulb,
@@ -39,7 +39,7 @@ const About: React.FC = () => {
           {/* CONTENT */}
           <div>
             <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
-               <Command className="w-4 h-4 text-orange-500" />
+               <Command className="w-4 h-4 text-primary" />
                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Our Mission</span>
             </div>
             
@@ -75,7 +75,7 @@ const About: React.FC = () => {
                       <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">25+</p>
                       <p className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Partner Schools</p>
                       <div className="w-full h-1 bg-muted rounded-none mt-4 overflow-hidden">
-                         <div className="w-[85%] h-full bg-orange-500 rounded-none shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
+                         <div className="w-[85%] h-full bg-primary rounded-none shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
                       </div>
                    </div>
                    <div>
@@ -96,7 +96,7 @@ const About: React.FC = () => {
 
                 {/* Decorative Sharp Accent */}
                 <div className="absolute -bottom-6 -right-6 bg-muted border border-border p-6 rounded-none backdrop-blur-md shadow-xl">
-                   <Target className="w-8 h-8 text-orange-500/20" />
+                   <Target className="w-8 h-8 text-primary/20" />
                 </div>
              </div>
           </div>

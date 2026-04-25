@@ -49,7 +49,7 @@ export default function Contact() {
       icon: <Clock className="w-6 h-6" />,
       title: "Business Hours",
       details: ["Monday–Friday: 8:00 AM–6:00 PM", "Saturday: 9:00 AM–3:00 PM"],
-      color: "text-orange-600",
+      color: "text-primary",
       bgColor: "bg-orange-50",
       action: "/school-registration",
       actionText: "Schedule Visit"
@@ -141,27 +141,27 @@ export default function Contact() {
     <div className="min-h-screen bg-[#121212] relative overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-none pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-none pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-primary relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
           <h1 className="text-4xl md:text-6xl font-black text-white mb-8 uppercase tracking-tight italic">
-            Get in <span className="text-orange-500">Touch.</span>
+            Get in <span className="text-primary">Touch.</span>
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-orange-500 pl-8 inline-block text-left mb-0">
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-primary pl-8 inline-block text-left mb-0">
             Ready to transform your school with cutting-edge technology education? 
             We're here to help you get started on this exciting journey at Rillcod Technologies.
           </p>
-          <div className="w-24 h-1 bg-orange-500 mx-auto mt-12"></div>
+          <div className="w-24 h-1 bg-primary mx-auto mt-12"></div>
         </div>
 
         {/* Contact Methods */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
           {contactMethods.map((method, index) => (
-            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-10 hover:border-orange-500 transition-all group">
-              <div className={`w-16 h-16 bg-white/5 border border-border group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 mb-8 transition-all`}>
+            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-10 hover:border-primary transition-all group">
+              <div className={`w-16 h-16 bg-white/5 border border-border group-hover:border-primary rounded-none flex items-center justify-center text-primary mb-8 transition-all`}>
                 {method.icon}
               </div>
               <h3 className="text-xl font-black text-white mb-3 uppercase italic tracking-tighter">{method.title}</h3>
@@ -169,7 +169,7 @@ export default function Contact() {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">{method.contact}</p>
               <Link
                 href={method.action}
-                className={`flex items-center justify-center w-full px-8 py-4 bg-white/5 border border-border text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-none hover:bg-orange-500 hover:border-orange-500 transition-all`}
+                className={`flex items-center justify-center w-full px-8 py-4 bg-white/5 border border-border text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-none hover:bg-primary hover:border-primary transition-all`}
               >
                 Establish Uplink
               </Link>
@@ -179,7 +179,7 @@ export default function Contact() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* Contact Form */}
-          <div className="bg-[#1a1a1a] border border-border rounded-none p-12 shadow-2xl relative border-l-8 border-l-orange-500">
+          <div className="bg-[#1a1a1a] border border-border rounded-none p-12 shadow-2xl relative border-l-8 border-l-primary">
             <h2 className="text-2xl font-black text-white mb-10 uppercase italic tracking-tight">Transmission Portal</h2>
             
             {isSubmitted ? (
@@ -202,27 +202,27 @@ export default function Contact() {
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Identity Name</label>
                     <div className="relative group">
-                       <User className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <User className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-primary transition-colors" />
                        <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Your identity"
-                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all placeholder:text-slate-900"
                        />
                     </div>
-                    {errors.name && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.name}</p>}
+                    {errors.name && <p className="text-primary text-[9px] font-black uppercase tracking-widest mt-2">{errors.name}</p>}
                   </div>
                   
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Return Address</label>
                     <div className="relative group">
-                       <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-primary transition-colors" />
                        <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="uplink@domain.com"
-                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all placeholder:text-slate-900"
                        />
                     </div>
-                    {errors.email && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.email}</p>}
+                    {errors.email && <p className="text-primary text-[9px] font-black uppercase tracking-widest mt-2">{errors.email}</p>}
                   </div>
                 </div>
 
@@ -230,11 +230,11 @@ export default function Contact() {
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Uplink Code (Phone)</label>
                     <div className="relative group">
-                       <Phone className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <Phone className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-primary transition-colors" />
                        <input
                           type="tel" name="phone" value={formData.phone} onChange={handleChange}
                           placeholder="+234 XXX XXX XXXX"
-                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all placeholder:text-slate-900"
                        />
                     </div>
                   </div>
@@ -242,11 +242,11 @@ export default function Contact() {
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Entity Name (School)</label>
                     <div className="relative group">
-                       <Building className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <Building className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-primary transition-colors" />
                        <input
                           type="text" name="school" value={formData.school} onChange={handleChange}
                           placeholder="Institutional Name"
-                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all placeholder:text-slate-900"
                        />
                     </div>
                   </div>
@@ -256,7 +256,7 @@ export default function Contact() {
                   <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Subject Vector</label>
                   <select
                     name="subject" value={formData.subject} onChange={handleChange} required
-                    className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all"
+                    className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all"
                   >
                     <option value="" className="bg-[#121212]">SELECT CATEGORY</option>
                     <option value="School Partnership" className="bg-[#121212]">PARTNERSHIP INQUIRY</option>
@@ -270,18 +270,18 @@ export default function Contact() {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Payload Message</label>
                   <div className="relative group">
-                    <MessageSquare className="absolute left-6 top-6 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                    <MessageSquare className="absolute left-6 top-6 w-4 h-4 text-slate-800 group-focus-within:text-primary transition-colors" />
                     <textarea
                       name="message" value={formData.message} onChange={handleChange} required rows={5}
                       placeholder="Enter detailed payload..."
-                      className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 resize-none"
+                      className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-primary transition-all placeholder:text-slate-900 resize-none"
                     ></textarea>
                   </div>
                 </div>
 
                 <button
                   type="submit" disabled={isLoading}
-                  className="w-full py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50 flex items-center justify-center gap-4"
+                  className="w-full py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-4"
                 >
                   {isLoading ? 'Processing...' : (
                     <>
@@ -300,9 +300,9 @@ export default function Contact() {
               <h2 className="text-xl font-black text-white mb-10 uppercase italic tracking-tight">Access Points</h2>
               <div className="space-y-8">
                 {contactInfo.map((info, index) => (
-                  <div key={index} className="bg-[#121212] border border-border rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                  <div key={index} className="bg-[#121212] border border-border rounded-none p-8 hover:border-primary/30 transition-all group">
                     <div className="flex items-start gap-6">
-                      <div className="w-12 h-12 bg-white/5 border border-border group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 transition-all">
+                      <div className="w-12 h-12 bg-white/5 border border-border group-hover:border-primary rounded-none flex items-center justify-center text-primary transition-all">
                         {info.icon}
                       </div>
                       <div className="flex-1">
@@ -314,7 +314,7 @@ export default function Contact() {
                         </div>
                         <Link
                           href={info.action}
-                          className="inline-flex items-center gap-2 mt-6 text-[9px] font-black text-orange-500 uppercase tracking-widest hover:text-white transition-colors"
+                          className="inline-flex items-center gap-2 mt-6 text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors"
                         >
                           {info.actionText} →
                         </Link>
@@ -326,7 +326,7 @@ export default function Contact() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-[#1a1a1a] border border-border border-t-8 border-t-orange-500 p-12 text-white shadow-2xl">
+            <div className="bg-[#1a1a1a] border border-border border-t-8 border-t-primary p-12 text-white shadow-2xl">
               <h3 className="text-lg font-black mb-8 uppercase italic tracking-widest">Protocol Shortcuts</h3>
               <div className="space-y-4">
                 {[
@@ -336,13 +336,13 @@ export default function Contact() {
                 ].map((action, i) => (
                   <Link
                     key={i} href={action.href}
-                    className="flex items-center justify-between p-6 bg-[#121212] border border-border hover:border-orange-500/50 transition-all group"
+                    className="flex items-center justify-between p-6 bg-[#121212] border border-border hover:border-primary/50 transition-all group"
                   >
                     <div className="flex items-center gap-4">
-                      <action.icon className="w-4 h-4 text-orange-500" />
+                      <action.icon className="w-4 h-4 text-primary" />
                       <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
                     </div>
-                    <span className="text-orange-500 group-hover:translate-x-2 transition-transform">→</span>
+                    <span className="text-primary group-hover:translate-x-2 transition-transform">→</span>
                   </Link>
                 ))}
               </div>

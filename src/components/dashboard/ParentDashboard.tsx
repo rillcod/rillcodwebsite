@@ -35,7 +35,7 @@ interface DashStats {
 }
 
 const QUICK_ACTIONS = [
-  { name: 'My Children',    href: '/dashboard/my-children',        icon: UserGroupIcon,              desc: 'View all linked children',      bg: 'from-orange-600 to-orange-400',   ring: 'border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10' },
+  { name: 'My Children',    href: '/dashboard/my-children',        icon: UserGroupIcon,              desc: 'View all linked children',      bg: 'from-primary to-primary',   ring: 'border-primary/30 bg-primary/5 hover:bg-primary/10' },
   { name: 'Report Cards',   href: '/dashboard/parent-results',     icon: DocumentChartBarIcon,       desc: 'View academic progress',        bg: 'from-violet-600 to-violet-400',   ring: 'border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10' },
   { name: 'Path Progress',  href: '/dashboard/parent-path-progress',icon: BookOpenIcon,                desc: 'See current week and path',     bg: 'from-fuchsia-600 to-fuchsia-400', ring: 'border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10' },
   { name: 'Attendance',     href: '/dashboard/parent-attendance',  icon: ClipboardDocumentCheckIcon, desc: 'Check attendance records',      bg: 'from-emerald-600 to-emerald-400', ring: 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' },
@@ -136,7 +136,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
       {/* Welcome Banner */}
       <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-orange-600 to-orange-400 opacity-[0.04] blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-primary to-primary opacity-[0.04] blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-1">Parent Portal</p>
@@ -207,7 +207,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
             <div>
               <p className="text-lg font-black text-foreground leading-none">{children.length}</p>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children Enrolled</p>
-              <Link href="/dashboard/my-children" className="text-[9px] text-orange-400 font-black mt-1 inline-flex items-center gap-1 hover:underline">
+              <Link href="/dashboard/my-children" className="text-[9px] text-primary font-black mt-1 inline-flex items-center gap-1 hover:underline">
                 View all children →
               </Link>
             </div>
@@ -243,17 +243,17 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {children.map(child => (
               <div key={child.id} className="bg-card border border-border p-5 hover:bg-white/5 transition-all group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-600 to-orange-400 opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform pointer-events-none" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary to-primary opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform pointer-events-none" />
 
                 <div className="flex items-start gap-3 relative z-10">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0">
                     <AcademicCapIcon className="w-5 h-5 text-white" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-black text-foreground text-sm truncate">{child.full_name}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">{child.school_name ?? '—'}</p>
                     {child.grade_level && (
-                      <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mt-0.5">{child.grade_level}</p>
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5">{child.grade_level}</p>
                     )}
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     {child.status}
                   </span>
                   <Link href={`/dashboard/parent-results?student=${child.id}`}
-                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-400 transition-colors">
+                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary transition-colors">
                     Progress <ArrowRightIcon className="w-3 h-3" />
                   </Link>
                 </div>
@@ -280,7 +280,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     { label: 'Invoices', href: `/dashboard/parent-invoices?student=${child.id}`, icon: BanknotesIcon },
                   ].map(({ label, href, icon: Icon }) => (
                     <Link key={label} href={href}
-                      className="flex flex-col items-center gap-1 py-2 bg-muted hover:bg-orange-500/10 hover:border-orange-500/20 border border-transparent transition-all text-center">
+                      className="flex flex-col items-center gap-1 py-2 bg-muted hover:bg-primary/10 hover:border-primary/20 border border-transparent transition-all text-center">
                       <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-[8px] font-black uppercase tracking-wider text-muted-foreground">{label}</span>
                     </Link>

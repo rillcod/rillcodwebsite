@@ -29,7 +29,7 @@ export function ContentLibraryCard({ item }: { item: ContentItem }) {
     const IconMap = {
         video: <FileVideo className="w-5 h-5 text-purple-500" />,
         document: <FileText className="w-5 h-5 text-blue-500" />,
-        quiz: <Layout className="w-5 h-5 text-orange-500" />,
+        quiz: <Layout className="w-5 h-5 text-primary" />,
         assignment: <FileText className="w-5 h-5 text-teal-500" />
     };
 

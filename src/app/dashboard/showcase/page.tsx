@@ -59,26 +59,26 @@ function AddItemModal({ onClose, onSave, schoolId }: {
         <div className="space-y-3">
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Student ID</label>
-            <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+            <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
               value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}
               placeholder="Paste student portal user ID" />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Title</label>
-            <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+            <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
               value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
               placeholder="e.g. Paystack Clone — Week 7 Project" />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Description</label>
-            <textarea rows={3} className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 resize-none"
+            <textarea rows={3} className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none"
               value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
               placeholder="What did the student build or achieve?" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Type</label>
-              <select className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              <select className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 value={form.item_type} onChange={e => setForm(p => ({ ...p, item_type: e.target.value }))}>
                 <option value="project">Project</option>
                 <option value="assignment">Assignment</option>
@@ -87,7 +87,7 @@ function AddItemModal({ onClose, onSave, schoolId }: {
             </div>
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Term</label>
-              <select className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              <select className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 value={form.term_number} onChange={e => setForm(p => ({ ...p, term_number: e.target.value }))}>
                 <option value="1">First Term</option>
                 <option value="2">Second Term</option>
@@ -96,21 +96,21 @@ function AddItemModal({ onClose, onSave, schoolId }: {
             </div>
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Course</label>
-              <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              <input className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 value={form.course_name} onChange={e => setForm(p => ({ ...p, course_name: e.target.value }))}
                 placeholder="e.g. Python Basics" />
             </div>
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Teacher Note (optional)</label>
-            <textarea rows={2} className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 resize-none"
+            <textarea rows={2} className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary resize-none"
               value={form.teacher_note} onChange={e => setForm(p => ({ ...p, teacher_note: e.target.value }))}
               placeholder="Why this work stands out…" />
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.is_published}
               onChange={e => setForm(p => ({ ...p, is_published: e.target.checked }))}
-              className="accent-orange-500 w-4 h-4" />
+              className="accent-primary w-4 h-4" />
             <span className="text-sm text-foreground font-bold">Publish immediately (visible to parents)</span>
           </label>
         </div>
@@ -129,7 +129,7 @@ function AddItemModal({ onClose, onSave, schoolId }: {
                 item_type: form.item_type as ShowcaseItem['item_type'],
               });
             }}
-            className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors">
+            className="flex-1 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm transition-colors">
             Add to Showcase
           </button>
         </div>
@@ -150,7 +150,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
 
   return (
     <div className={`bg-card border transition-all space-y-3 overflow-hidden ${
-      item.is_pinned ? 'border-amber-500/40 ring-1 ring-brand-red-600/30' : 'border-border hover:border-orange-500/30'
+      item.is_pinned ? 'border-amber-500/40 ring-1 ring-brand-red-600/30' : 'border-border hover:border-primary/30'
     }`}>
       {/* Pinned banner */}
       {item.is_pinned && (
@@ -164,7 +164,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
       {item.thumbnail_url ? (
         <img src={item.thumbnail_url} alt={item.title} className="w-full h-36 object-cover" />
       ) : (
-        <div className="w-full h-28 bg-gradient-to-br from-orange-500/5 via-violet-500/5 to-transparent flex items-center justify-center border-b border-border">
+        <div className="w-full h-28 bg-gradient-to-br from-primary/5 via-violet-500/5 to-transparent flex items-center justify-center border-b border-border">
           <Icon className="w-10 h-10 text-muted-foreground/40" />
         </div>
       )}
@@ -192,7 +192,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
             <p className="text-[11px] text-muted-foreground mt-0.5">{item.student_name}</p>
           )}
           {item.course_name && (
-            <p className="text-[10px] text-orange-400 font-bold">{item.course_name}</p>
+            <p className="text-[10px] text-primary font-bold">{item.course_name}</p>
           )}
         </div>
 
@@ -203,7 +203,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
 
         {/* Teacher note */}
         {item.teacher_note && (
-          <div className="border-l-2 border-orange-500/40 pl-3">
+          <div className="border-l-2 border-primary/40 pl-3">
             <p className="text-[10px] text-muted-foreground italic">"{item.teacher_note}"</p>
           </div>
         )}
@@ -348,7 +348,7 @@ export default function ShowcasePage() {
         {canManage && (
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold transition-colors shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors shrink-0"
           >
             <PlusIcon className="w-4 h-4" /> Add Item
           </button>
@@ -371,8 +371,8 @@ export default function ShowcasePage() {
       </div>
 
       {/* Nigerian showcase context banner */}
-      <div className="bg-gradient-to-r from-orange-500/5 to-amber-500/5 border border-orange-500/20 p-4 flex gap-3">
-        <SparklesIcon className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+      <div className="bg-gradient-to-r from-primary/5 to-amber-500/5 border border-primary/20 p-4 flex gap-3">
+        <SparklesIcon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div>
           <p className="text-xs font-black text-foreground">End-of-Term Showcase Ceremony</p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -389,7 +389,7 @@ export default function ShowcasePage() {
           {(['all', 'project', 'assignment', 'assessment'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 text-xs font-bold capitalize transition-colors ${
-                filter === f ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-foreground'
+                filter === f ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'
               }`}>
               {f === 'all' ? 'All Types' : f + 's'}
             </button>
@@ -399,7 +399,7 @@ export default function ShowcasePage() {
           {(['all', '1', '2', '3'] as const).map(t => (
             <button key={t} onClick={() => setTermFilter(t)}
               className={`px-3 py-1.5 text-xs font-bold transition-colors ${
-                termFilter === t ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-foreground'
+                termFilter === t ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'
               }`}>
               {t === 'all' ? 'All Terms' : `Term ${t}`}
             </button>
@@ -409,7 +409,7 @@ export default function ShowcasePage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

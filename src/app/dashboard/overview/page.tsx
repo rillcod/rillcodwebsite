@@ -180,12 +180,12 @@ export default function OverviewPage() {
   const adminStats = [
     { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/schools' },
     { label: 'Partner Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
-    { label: 'Total Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/students' },
+    { label: 'Total Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
     { label: 'Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
   ];
 
   const teacherStats = [
-    { label: 'My Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/classes' },
+    { label: 'My Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
     { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
     { label: 'Needs Grading', value: counts.pending ?? 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/grades' },
     { label: 'Assignments', value: counts.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
@@ -193,14 +193,14 @@ export default function OverviewPage() {
 
   const studentStats = [
     { label: 'Submissions', value: counts.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/grades' },
-    { label: 'Enrolled In', value: counts.enrolled ?? 0, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/courses' },
+    { label: 'Enrolled In', value: counts.enrolled ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/courses' },
     { label: 'Assignments', value: 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/assignments' },
     { label: 'Progress', value: 0, icon: TrophyIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/progress' },
   ];
 
   const schoolStats = [
     { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
-    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/teachers' },
+    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/teachers' },
     { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
     { label: 'Analytics', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/analytics' },
   ];
@@ -208,22 +208,22 @@ export default function OverviewPage() {
   const stats = role === 'admin' ? adminStats : role === 'teacher' ? teacherStats : role === 'school' ? schoolStats : studentStats;
 
   const quickLinks = role === 'admin' ? [
-    { label: 'Approvals Queue', href: '/dashboard/approvals', icon: ClipboardDocumentListIcon, color: 'bg-orange-600' },
+    { label: 'Approvals Queue', href: '/dashboard/approvals', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'School Management', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-blue-600' },
     { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, color: 'bg-emerald-600' },
     { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-amber-600' },
   ] : role === 'teacher' ? [
-    { label: 'Grade Submissions', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, color: 'bg-orange-600' },
+    { label: 'Grade Submissions', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'Assignments', href: '/dashboard/assignments', icon: CalendarIcon, color: 'bg-blue-600' },
     { label: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ] : role === 'school' ? [
-    { label: 'School Registry', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-orange-600' },
+    { label: 'School Registry', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-primary' },
     { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-blue-600' },
     { label: 'Exam Results', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
     { label: 'Messages', href: '/dashboard/messages', icon: BellIcon, color: 'bg-amber-600' },
   ] : [
-    { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-orange-600' },
+    { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-blue-600' },
     { label: 'My Grades', href: '/dashboard/grades', icon: TrophyIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
@@ -234,10 +234,10 @@ export default function OverviewPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-600/20 via-blue-600/10 to-transparent border border-border rounded-none p-7 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-orange-500/10 to-transparent rounded-none pointer-events-none" />
+        <div className="bg-gradient-to-r from-primary/20 via-blue-600/10 to-transparent border border-border rounded-none p-7 relative overflow-hidden">
+          <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-primary/10 to-transparent rounded-none pointer-events-none" />
           <div className="relative">
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">
               {role} Dashboard
             </span>
             <h1 className="text-3xl font-extrabold mt-1">
@@ -300,7 +300,7 @@ export default function OverviewPage() {
               <div className="divide-y divide-white/5">
                 {recentStudents.map(s => (
                   <div key={s.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-card shadow-sm transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                       {(s.full_name ?? '?')[0]}
                     </div>
                     <div className="flex-1 min-w-0">

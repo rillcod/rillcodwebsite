@@ -315,7 +315,7 @@ export default function FAQ() {
               {popularFAQs.slice(0, 6).map((faq) => (
                 <div key={faq.id} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-border dark:border-gray-700/20 p-6 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-primary rounded-full flex items-center justify-center flex-shrink-0">
                       <Star className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1">
@@ -348,7 +348,7 @@ export default function FAQ() {
                   <div className="flex items-start space-x-4">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                       faq.popular 
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500' 
+                        ? 'bg-gradient-to-r from-yellow-400 to-primary' 
                         : 'bg-gradient-to-r from-blue-500 to-purple-500'
                     }`}>
                       {faq.popular ? (

@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading analytics…</p>
       </div>
     </div>
@@ -146,8 +146,8 @@ export default function AnalyticsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ChartBarIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">{profile?.role?.toUpperCase()}</span>
+              <ChartBarIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">{profile?.role?.toUpperCase()}</span>
             </div>
             <h1 className="text-3xl font-extrabold">
               {isAdmin ? 'Global Analytics' : `${profile?.school_name || 'School'} Analytics`}
@@ -333,7 +333,7 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Quick metrics */}
-            <div className="bg-gradient-to-br from-orange-500/5 to-transparent border border-orange-500/20 p-5 space-y-4">
+            <div className="bg-gradient-to-br from-primary/5 to-transparent border border-primary/20 p-5 space-y-4">
               <h3 className="font-black text-sm">Quick Stats</h3>
               <div className="space-y-3">
                 {[
@@ -356,7 +356,7 @@ export default function AnalyticsPage() {
         {programs.length > 0 && (
           <div className="bg-card border border-border p-6 space-y-5 print:hidden">
             <div className="flex items-center gap-2">
-              <ChartBarIcon className="w-5 h-5 text-orange-400" />
+              <ChartBarIcon className="w-5 h-5 text-primary" />
               <h3 className="text-base font-black">Enrollment by Program</h3>
             </div>
             <VerticalBarChart

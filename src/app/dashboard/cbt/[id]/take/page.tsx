@@ -328,7 +328,7 @@ export default function TakeExamPage() {
                     <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
                   </div>
                   <div className="w-full h-4 bg-card shadow-sm rounded-full overflow-hidden border border-border p-0.5">
-                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-orange-600 to-orange-400 from-orange-600 to-orange-400' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
+                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-primary to-primary from-primary to-primary' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
                       style={{ width: `${Math.min(result.score, 100)}%` }} />
                   </div>
                 </div>
@@ -344,9 +344,9 @@ export default function TakeExamPage() {
                   </div>
                 </div>
                 {isAiGraded && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-orange-600/10 rounded-none border border-orange-500/20 w-fit mx-auto">
-                    <SparklesIcon className="w-3.5 h-3.5 text-orange-400" />
-                    <span className="text-[9px] font-black uppercase text-orange-400 tracking-widest">AI Evaluated Subjective Answers</span>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-none border border-primary/20 w-fit mx-auto">
+                    <SparklesIcon className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] font-black uppercase text-primary tracking-widest">AI Evaluated Subjective Answers</span>
                   </div>
                 )}
               </div>

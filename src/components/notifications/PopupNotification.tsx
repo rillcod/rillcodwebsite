@@ -52,12 +52,12 @@ const typeConfig = {
   },
   warning: {
     icon: ExclamationTriangleIcon,
-    bgGradient: 'bg-gradient-to-br from-amber-500/15 via-yellow-400/10 to-orange-500/5',
+    bgGradient: 'bg-gradient-to-br from-amber-500/15 via-yellow-400/10 to-primary/5',
     borderColor: 'border-amber-500/40',
     textColor: 'text-amber-600 dark:text-amber-300',
     iconColor: 'text-amber-700 dark:text-amber-400',
     glowColor: 'shadow-amber-500/20',
-    progressColor: 'bg-gradient-to-r from-amber-500 to-orange-400',
+    progressColor: 'bg-gradient-to-r from-amber-500 to-primary',
     emoji: '⚠️'
   },
   error: {
@@ -72,22 +72,22 @@ const typeConfig = {
   },
   achievement: {
     icon: TrophyIcon,
-    bgGradient: 'bg-gradient-to-br from-yellow-500/20 via-amber-400/15 to-orange-500/10',
+    bgGradient: 'bg-gradient-to-br from-yellow-500/20 via-amber-400/15 to-primary/10',
     borderColor: 'border-yellow-500/50',
     textColor: 'text-yellow-600 dark:text-yellow-300',
     iconColor: 'text-yellow-700 dark:text-yellow-400',
     glowColor: 'shadow-yellow-500/30',
-    progressColor: 'bg-gradient-to-r from-yellow-500 to-orange-400',
+    progressColor: 'bg-gradient-to-r from-yellow-500 to-primary',
     emoji: '🏆'
   },
   streak: {
     icon: FireIcon,
-    bgGradient: 'bg-gradient-to-br from-orange-500/20 via-red-400/15 to-pink-500/10',
-    borderColor: 'border-orange-500/50',
-    textColor: 'text-orange-600 dark:text-orange-300',
-    iconColor: 'text-orange-700 dark:text-orange-400',
-    glowColor: 'shadow-orange-500/30',
-    progressColor: 'bg-gradient-to-r from-orange-500 to-red-400',
+    bgGradient: 'bg-gradient-to-br from-primary/20 via-red-400/15 to-pink-500/10',
+    borderColor: 'border-primary/50',
+    textColor: 'text-primary dark:text-primary',
+    iconColor: 'text-orange-700 dark:text-primary',
+    glowColor: 'shadow-primary/30',
+    progressColor: 'bg-gradient-to-r from-primary to-red-400',
     emoji: '🔥'
   },
   celebration: {
@@ -257,7 +257,7 @@ export default function PopupNotification({ notification, onClose, onAction }: P
 
           {/* Priority indicator */}
           {notification.priority === 'urgent' && (
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500 animate-pulse" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-primary to-red-500 animate-pulse" />
           )}
 
           <div className="relative p-5">

@@ -109,7 +109,7 @@ export default function StudioUI(p: StudioUIProps) {
           </div>
           {/* Right actions */}
           <div className="flex items-center gap-1 shrink-0">
-            {runStreak > 0 && <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-orange-500/10 border border-orange-500/20 rounded-lg text-orange-400 text-[9px] font-black"><FireIcon className="w-3 h-3" />{runStreak}d</div>}
+            {runStreak > 0 && <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[9px] font-black"><FireIcon className="w-3 h-3" />{runStreak}d</div>}
             <button onClick={() => setShowLeaderboard(true)} className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-[9px] font-black transition-all touch-manipulation">
               <span>{levelInfo.emoji}</span><span className={levelInfo.color}>{levelInfo.pts}</span>
             </button>
@@ -119,7 +119,7 @@ export default function StudioUI(p: StudioUIProps) {
               </button>
             )}
             {isTeacher && (
-              <button onClick={() => setShowAIModal(true)} className="flex items-center gap-1 px-2 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 text-[9px] font-black transition-all touch-manipulation">
+              <button onClick={() => setShowAIModal(true)} className="flex items-center gap-1 px-2 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-primary text-[9px] font-black transition-all touch-manipulation">
                 <SparklesIcon className="w-3.5 h-3.5" /><span className="hidden sm:inline">AI</span>
               </button>
             )}
@@ -149,7 +149,7 @@ export default function StudioUI(p: StudioUIProps) {
         </div>
         {/* Mobile stats strip */}
         <div className="sm:hidden flex items-center gap-2 px-3 pb-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {runStreak > 0 && <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-[8px] font-black shrink-0"><FireIcon className="w-3 h-3" />{runStreak}d streak</span>}
+          {runStreak > 0 && <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-[8px] font-black shrink-0"><FireIcon className="w-3 h-3" />{runStreak}d streak</span>}
           <button onClick={() => setShowLeaderboard(true)} className="flex items-center gap-1 px-2 py-0.5 bg-muted/20 border border-border rounded-full text-[8px] font-black shrink-0 touch-manipulation">
             <span>{levelInfo.emoji}</span><span className={levelInfo.color}>{levelInfo.pts} XP</span>
           </button>
@@ -179,7 +179,7 @@ export default function StudioUI(p: StudioUIProps) {
               transition={{ type: 'spring', stiffness: 320, damping: 32 }}
               className="fixed top-0 left-0 h-full w-[280px] sm:w-72 bg-card border-r border-border flex flex-col z-[60] shadow-2xl md:relative md:top-auto md:left-auto md:h-auto md:shadow-none md:z-auto md:shrink-0 md:w-64 lg:w-72">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/10 shrink-0">
-                <div className="flex items-center gap-2"><BeakerIcon className="w-4 h-4 text-orange-400" /><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Explorer</span></div>
+                <div className="flex items-center gap-2"><BeakerIcon className="w-4 h-4 text-primary" /><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Explorer</span></div>
                 <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors touch-manipulation"><XMarkIcon className="w-4 h-4" /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ scrollbarWidth: 'thin' }}>
@@ -250,19 +250,19 @@ export default function StudioUI(p: StudioUIProps) {
                   <div>
                     <div className="flex items-center justify-between px-1 mb-2">
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">📁 Projects</p>
-                      <button onClick={createNew} className="p-1.5 rounded-lg hover:bg-muted text-orange-400 transition-colors touch-manipulation"><PlusIcon className="w-4 h-4" /></button>
+                      <button onClick={createNew} className="p-1.5 rounded-lg hover:bg-muted text-primary transition-colors touch-manipulation"><PlusIcon className="w-4 h-4" /></button>
                     </div>
                     {projects.length === 0 ? (
                       <div className="p-5 text-center border-2 border-dashed border-border rounded-xl">
                         <BeakerIcon className="w-7 h-7 mx-auto text-muted-foreground/20 mb-2" />
                         <p className="text-[10px] text-muted-foreground font-bold">No projects yet</p>
-                        <button onClick={createNew} className="mt-1.5 text-[9px] text-orange-400 font-black uppercase tracking-widest hover:underline touch-manipulation">Create one →</button>
+                        <button onClick={createNew} className="mt-1.5 text-[9px] text-primary font-black uppercase tracking-widest hover:underline touch-manipulation">Create one →</button>
                       </div>
                     ) : (
                       <div className="space-y-1">
                         {projects.map(proj => (
                           <div key={proj.id} onClick={() => { loadProject(proj); setSidebarOpen(false); }}
-                            className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all touch-manipulation ${activeProject?.id === proj.id ? 'bg-orange-500/10 border border-orange-500/20' : 'hover:bg-muted/50 border border-transparent'}`}>
+                            className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all touch-manipulation ${activeProject?.id === proj.id ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50 border border-transparent'}`}>
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-base leading-none shrink-0">{LANGUAGES.find(l => l.id === proj.language)?.emoji || '📄'}</span>
                               <div className="min-w-0">
@@ -286,8 +286,8 @@ export default function StudioUI(p: StudioUIProps) {
                   <div className="space-y-1.5">
                     {((LAB_EXAMPLES as any)[lang] || []).map((ex: any) => (
                       <button key={ex.name} onClick={() => { setCode(ex.code); setSidebarOpen(false); }}
-                        className="w-full text-left p-2.5 rounded-xl bg-card border border-border hover:border-orange-500/30 hover:bg-orange-500/5 transition-all group touch-manipulation active:scale-[0.98]">
-                        <p className="text-[10px] font-bold text-muted-foreground group-hover:text-orange-400 transition-colors">{ex.name}</p>
+                        className="w-full text-left p-2.5 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-primary/5 transition-all group touch-manipulation active:scale-[0.98]">
+                        <p className="text-[10px] font-bold text-muted-foreground group-hover:text-primary transition-colors">{ex.name}</p>
                         <p className="text-[8px] text-muted-foreground/60 mt-0.5 line-clamp-1">{ex.desc}</p>
                       </button>
                     ))}
@@ -301,9 +301,9 @@ export default function StudioUI(p: StudioUIProps) {
                     <div className="space-y-1.5">
                       {HTML_SNIPPETS.map(s => (
                         <button key={s.name} onClick={() => insertSnippet(s.code)}
-                          className="w-full text-left p-2.5 rounded-xl bg-card border border-border hover:border-orange-500/30 hover:bg-orange-500/5 transition-all group touch-manipulation">
+                          className="w-full text-left p-2.5 rounded-xl bg-card border border-border hover:border-primary/30 hover:bg-primary/5 transition-all group touch-manipulation">
                           <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-bold text-muted-foreground group-hover:text-orange-400">{s.name}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground group-hover:text-primary">{s.name}</p>
                             <span className="text-[7px] font-black text-muted-foreground/40 uppercase">{s.cat}</span>
                           </div>
                         </button>
@@ -368,7 +368,7 @@ export default function StudioUI(p: StudioUIProps) {
               <div className="flex gap-0.5">
                 {lang !== 'scratch' && (
                   <button onClick={() => setEditorMode('code')}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all touch-manipulation ${editorMode === 'code' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}>
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all touch-manipulation ${editorMode === 'code' ? 'bg-primary/15 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}>
                     {'</>'} Code
                   </button>
                 )}
@@ -418,7 +418,7 @@ export default function StudioUI(p: StudioUIProps) {
                 <div className="hidden md:flex w-[45%] flex-col border-l border-border bg-background dark:bg-slate-900">
                   <div className="h-9 bg-card dark:bg-slate-800 border-b border-border dark:border-slate-700 flex items-center px-3 justify-between shrink-0">
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /><span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Live Preview</span></div>
-                    <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all touch-manipulation ${liveUpdate ? 'border-orange-500/30 text-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-border text-muted-foreground/70'}`}>{liveUpdate ? 'Live: ON' : 'Live: OFF'}</button>
+                    <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border transition-all touch-manipulation ${liveUpdate ? 'border-primary/30 text-primary bg-orange-50 dark:bg-primary/10' : 'border-border text-muted-foreground/70'}`}>{liveUpdate ? 'Live: ON' : 'Live: OFF'}</button>
                   </div>
                   <div className="flex-1 flex items-center justify-center p-3 overflow-hidden bg-slate-200 dark:bg-slate-800">
                     <div className={`bg-card shadow-2xl overflow-hidden transition-all duration-500 ${device === 'mobile' ? 'w-[375px] h-[667px] rounded-[2.5rem] border-[10px] border-slate-900' : 'w-full h-full rounded-lg border border-border'}`}>
@@ -460,7 +460,7 @@ export default function StudioUI(p: StudioUIProps) {
           <div className={`border-t border-border flex flex-col bg-[#020617] relative shrink-0 ${view === 'output' ? 'flex flex-1 md:flex-none' : 'hidden md:flex'}`}
             style={{ height: view === 'output' ? undefined : `${terminalHeight}px` }}>
             <div onMouseDown={startResizing} className="hidden md:flex absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize items-center justify-center group z-10">
-              <div className="w-10 h-1 bg-border rounded-full group-hover:bg-orange-500 transition-colors" />
+              <div className="w-10 h-1 bg-border rounded-full group-hover:bg-primary transition-colors" />
             </div>
             <div className="h-9 border-b border-border/50 flex items-center px-3 justify-between bg-muted/10 shrink-0 mt-1">
               <div className="flex items-center gap-2">
@@ -501,17 +501,17 @@ export default function StudioUI(p: StudioUIProps) {
       {/* MOBILE BOTTOM NAV */}
       <nav className="md:hidden shrink-0 border-t border-border bg-card/95 backdrop-blur-xl z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-around px-2 h-16">
-          <button onClick={() => setSidebarOpen(true)} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${sidebarOpen ? 'text-orange-400 bg-orange-500/10' : 'text-muted-foreground'}`}>
+          <button onClick={() => setSidebarOpen(true)} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${sidebarOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
             <Squares2X2Icon className="w-5 h-5" /><span className="text-[7px] font-black uppercase tracking-widest">Menu</span>
           </button>
-          <button onClick={() => setView('editor')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'editor' ? 'text-orange-400 bg-orange-500/10' : 'text-muted-foreground'}`}>
+          <button onClick={() => setView('editor')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'editor' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
             <CodeBracketIcon className="w-5 h-5" /><span className="text-[7px] font-black uppercase tracking-widest">Code</span>
           </button>
           <button onClick={runCode} disabled={running || lang === 'scratch'}
             className="flex flex-col items-center justify-center w-14 h-14 -mt-5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-2xl shadow-xl shadow-emerald-900/40 border-4 border-background transition-all active:scale-95 touch-manipulation">
             {running ? <ArrowPathIcon className="w-6 h-6 text-white animate-spin" /> : <PlayIcon className="w-6 h-6 text-white" />}
           </button>
-          <button onClick={() => setView('output')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'output' ? 'text-orange-400 bg-orange-500/10' : 'text-muted-foreground'}`}>
+          <button onClick={() => setView('output')} className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all touch-manipulation active:scale-95 ${view === 'output' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
             {lang === 'html' ? <EyeIcon className="w-5 h-5" /> : <CommandLineIcon className="w-5 h-5" />}
             <span className="text-[7px] font-black uppercase tracking-widest">{lang === 'html' ? 'Preview' : 'Output'}</span>
           </button>
@@ -538,7 +538,7 @@ export default function StudioUI(p: StudioUIProps) {
               onClick={e => e.stopPropagation()}
               className="w-full sm:max-w-sm bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
               <div className="flex justify-center pt-3 pb-1 sm:hidden"><div className="w-10 h-1 bg-muted-foreground/30 rounded-full" /></div>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-amber-500/10 to-orange-500/10 shrink-0">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-amber-500/10 to-primary/10 shrink-0">
                 <div className="flex items-center gap-3"><TrophyIcon className="w-5 h-5 text-amber-400" /><div><h3 className="text-sm font-black uppercase tracking-widest">Leaderboard</h3><p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Top Coders 🏆</p></div></div>
                 <button onClick={() => setShowLeaderboard(false)} className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors touch-manipulation"><XMarkIcon className="w-4 h-4" /></button>
               </div>
@@ -564,10 +564,10 @@ export default function StudioUI(p: StudioUIProps) {
                   const medals = ['🥇', '🥈', '🥉'];
                   const isMe = entry.portal_user_id === profile?.id;
                   return (
-                    <div key={entry.portal_user_id} className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${isMe ? 'bg-orange-500/10 border border-orange-500/20' : 'hover:bg-muted/30'}`}>
+                    <div key={entry.portal_user_id} className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${isMe ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/30'}`}>
                       <span className="text-lg w-7 text-center shrink-0">{medals[i] || `${i + 1}`}</span>
-                      <p className={`flex-1 text-[11px] font-bold truncate ${isMe ? 'text-orange-400' : ''}`}>{entry.portal_users?.full_name || 'Coder'}{isMe ? ' 👈' : ''}</p>
-                      <p className={`text-[11px] font-black shrink-0 ${isMe ? 'text-orange-400' : 'text-muted-foreground'}`}>{entry.total_points} XP</p>
+                      <p className={`flex-1 text-[11px] font-bold truncate ${isMe ? 'text-primary' : ''}`}>{entry.portal_users?.full_name || 'Coder'}{isMe ? ' 👈' : ''}</p>
+                      <p className={`text-[11px] font-black shrink-0 ${isMe ? 'text-primary' : 'text-muted-foreground'}`}>{entry.total_points} XP</p>
                     </div>
                   );
                 })}
@@ -591,9 +591,9 @@ export default function StudioUI(p: StudioUIProps) {
               onClick={e => e.stopPropagation()}
               className="w-full sm:max-w-lg bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex justify-center pt-3 pb-1 sm:hidden"><div className="w-10 h-1 bg-muted-foreground/30 rounded-full" /></div>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-orange-500/10 to-pink-500/10">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/10 to-pink-500/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-orange-500/20 rounded-xl flex items-center justify-center border border-orange-500/30"><SparklesIcon className="w-5 h-5 text-orange-400" /></div>
+                  <div className="w-9 h-9 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30"><SparklesIcon className="w-5 h-5 text-primary" /></div>
                   <div><h3 className="text-sm font-black uppercase tracking-widest">AI Code Generator</h3><p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">for {p.activeLang?.name}</p></div>
                 </div>
                 <button onClick={() => setShowAIModal(false)} className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors touch-manipulation"><XMarkIcon className="w-4 h-4" /></button>
@@ -602,14 +602,14 @@ export default function StudioUI(p: StudioUIProps) {
                 <textarea autoFocus value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) generateWithAI(); }}
                   placeholder="Describe what you want to build…"
-                  className="w-full h-28 bg-muted/30 border border-border hover:border-orange-500/30 focus:border-orange-500/50 rounded-xl p-3 text-sm text-foreground outline-none resize-none transition-all placeholder:text-muted-foreground/40" />
+                  className="w-full h-28 bg-muted/30 border border-border hover:border-primary/30 focus:border-primary/50 rounded-xl p-3 text-sm text-foreground outline-none resize-none transition-all placeholder:text-muted-foreground/40" />
                 <div className="flex flex-wrap gap-1.5">
                   {['Fibonacci', 'Bubble sort', 'Calculator', 'Animated button', 'Guess the number', 'Robot square'].map(q => (
-                    <button key={q} onClick={() => setAiPrompt(q)} className="px-2.5 py-1 bg-muted/30 hover:bg-orange-500/10 border border-border hover:border-orange-500/30 rounded-full text-[9px] font-bold text-muted-foreground hover:text-orange-400 transition-all touch-manipulation">{q}</button>
+                    <button key={q} onClick={() => setAiPrompt(q)} className="px-2.5 py-1 bg-muted/30 hover:bg-primary/10 border border-border hover:border-primary/30 rounded-full text-[9px] font-bold text-muted-foreground hover:text-primary transition-all touch-manipulation">{q}</button>
                   ))}
                 </div>
                 <button onClick={generateWithAI} disabled={isAIGenerating || !aiPrompt.trim()}
-                  className="w-full h-12 bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-500 hover:to-pink-500 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation">
+                  className="w-full h-12 bg-gradient-to-r from-primary to-pink-600 hover:from-primary hover:to-pink-500 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation">
                   {isAIGenerating ? <><ArrowPathIcon className="w-4 h-4 animate-spin" />Generating…</> : <><SparklesIcon className="w-4 h-4" />Generate Code</>}
                 </button>
               </div>

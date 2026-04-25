@@ -91,7 +91,7 @@ function BillingCycleProofUpload({ cycleId, onUploaded }: { cycleId: string; onU
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg transition-all"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-lg transition-all"
       >
         <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Upload Proof
       </button>
@@ -99,17 +99,17 @@ function BillingCycleProofUpload({ cycleId, onUploaded }: { cycleId: string; onU
   }
 
   return (
-    <div className="mt-2 border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-3">
-      <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Upload Payment Evidence</p>
+    <div className="mt-2 border border-primary/20 rounded-xl p-3 bg-primary/5 space-y-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Upload Payment Evidence</p>
       <textarea
         value={note}
         onChange={e => setNote(e.target.value)}
         rows={2}
         placeholder="Optional: add bank reference, transfer narration, or a note for admin…"
-        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-orange-500/50 resize-none"
+        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 resize-none"
       />
       <div className="flex items-center gap-2">
-        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-primary hover:bg-primary text-white'}`}>
           <PaperClipIcon className="w-3.5 h-3.5" />
           {uploading ? 'Uploading…' : 'Choose File'}
           <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleFile} disabled={uploading} className="hidden" />
@@ -529,8 +529,8 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         </p>
                         {/* Pay / Proof directly on the invoice if not yet paid */}
                         {row.invoices.status !== 'paid' && row.invoices.status !== 'cancelled' && (
-                          <div className="border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">Pay this invoice</p>
+                          <div className="border border-primary/20 rounded-xl p-3 bg-primary/5 space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Pay this invoice</p>
                             <p className="text-[11px] text-muted-foreground">
                               Amount: <span className="font-black text-foreground">{fmt(row.currency, Number(row.invoices.amount ?? row.amount_due ?? 0))}</span>
                             </p>

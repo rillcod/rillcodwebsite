@@ -73,12 +73,12 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quickActions.map(({ name, href, icon: Icon, desc }) => (
                 <Link key={name} href={href}
-                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
-                  <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500/25 transition-colors">
-                    <Icon className="h-5 w-5 text-orange-400" />
+                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
+                  <div className="w-10 h-10 rounded-none bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                    <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground text-sm group-hover:text-orange-500 transition-colors">{name}</p>
+                    <p className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">{name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                   </div>
                 </Link>
@@ -124,7 +124,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                       <a.icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-orange-500 transition-colors uppercase leading-none mt-1">{a.title}</p>
+                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-primary transition-colors uppercase leading-none mt-1">{a.title}</p>
                       <p className="text-xs text-muted-foreground mt-2 font-medium truncate">{a.desc}</p>
                     </div>
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap mt-1 bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">
@@ -139,9 +139,9 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
 
         {/* Right Sidebar */}
         <div className="space-y-5">
-          <div className="bg-gradient-to-br from-orange-600/20 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
+          <div className="bg-gradient-to-br from-primary/20 to-primary/20 border border-primary/20 rounded-none p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
+              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                 {(profile.full_name ?? 'S')[0].toUpperCase()}
               </div>
               <div>
@@ -149,7 +149,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                 <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
               </div>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-orange-500/20 text-orange-400 border-orange-500/30">School</span>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-primary/20 text-primary border-primary/30">School</span>
             <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/dashboard/notifications" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <CogIcon className="w-4 h-4" /> Notification Controls
@@ -164,15 +164,15 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
           <div className="bg-card shadow-sm border border-border rounded-none p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-foreground text-sm">What's Next</h3>
-              <Link href="/dashboard/timetable" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">Full View</Link>
+              <Link href="/dashboard/timetable" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Full View</Link>
             </div>
             <div className="space-y-2">
               {upcomingSlots.length > 0 ? upcomingSlots.map(slot => (
                 <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-none relative overflow-hidden">
-                  <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-600" />
+                  <div className="absolute top-0 left-0 bottom-0 w-1 bg-primary" />
                   <div className="flex justify-between items-start gap-2">
                     <p className="text-xs font-bold text-foreground truncate">{slot.subject}</p>
-                    <span className="text-[9px] font-black text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
+                    <span className="text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 truncate">
                     {slot.room ? `📍 ${slot.room}` : 'No room set'}
@@ -228,7 +228,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
+                  <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>

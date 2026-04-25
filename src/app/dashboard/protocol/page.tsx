@@ -154,17 +154,17 @@ export default function ProtocolPage() {
   if (authLoading || !profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden selection:bg-orange-500/30">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden selection:bg-primary/30">
       
       {/* Background Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-500/10 blur-[120px] rounded-full" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full" />
         <div className="absolute bottom-[10%] right-[-5%] w-[35%] h-[35%] bg-amber-500/10 blur-[100px] rounded-full" />
       </div>
 
@@ -181,11 +181,11 @@ export default function ProtocolPage() {
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div className="flex items-center gap-4 sm:gap-5">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10 flex-shrink-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-primary to-amber-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10 flex-shrink-0">
               <CommandLineIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <p className="text-[9px] sm:text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5 sm:mb-1">Rillcod Academy</p>
+              <p className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest mb-0.5 sm:mb-1">Rillcod Academy</p>
               <h1 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight mb-1 sm:mb-2">Protocol</h1>
               <p className="text-[11px] sm:text-sm text-muted-foreground font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
             </div>
@@ -194,13 +194,13 @@ export default function ProtocolPage() {
             <div className="flex flex-col md:items-end">
               <div className="flex items-center gap-3 mb-1 sm:mb-2">
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Mastery</span>
-                <span className="text-lg sm:text-xl font-black text-orange-400">{Math.round(overallProgress)}%</span>
+                <span className="text-lg sm:text-xl font-black text-primary">{Math.round(overallProgress)}%</span>
               </div>
               <div className="w-32 sm:w-48 h-1.5 bg-muted rounded-full overflow-hidden border border-border">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${overallProgress}%` }}
-                  className="h-full bg-gradient-to-r from-orange-500 to-amber-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
+                  className="h-full bg-gradient-to-r from-primary to-amber-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
                 />
               </div>
             </div>
@@ -212,15 +212,15 @@ export default function ProtocolPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="mb-12 p-6 rounded-3xl bg-gradient-to-r from-orange-600/10 to-amber-500/5 border border-orange-500/20 backdrop-blur-xl relative overflow-hidden group shadow-2xl hover:border-orange-500/40 transition-all duration-500 flex items-start gap-5"
+          className="mb-12 p-6 rounded-3xl bg-gradient-to-r from-primary/10 to-amber-500/5 border border-primary/20 backdrop-blur-xl relative overflow-hidden group shadow-2xl hover:border-primary/40 transition-all duration-500 flex items-start gap-5"
         >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2 group-hover:bg-orange-500/20 transition-all duration-700" />
-          <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-orange-500/20 border border-orange-500/30 rounded-xl relative z-10">
-            <SparklesIcon className="w-6 h-6 text-orange-400" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[60px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-700" />
+          <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-primary/20 border border-primary/30 rounded-xl relative z-10">
+            <SparklesIcon className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0 relative z-10 pt-1 pr-8">
             <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="text-xs font-black text-orange-400 uppercase tracking-widest drop-shadow-md">AI Instructor</h3>
+              <h3 className="text-xs font-black text-primary uppercase tracking-widest drop-shadow-md">AI Instructor</h3>
               <div className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded text-[9px] text-emerald-400 uppercase font-black tracking-widest">Active Intel</div>
             </div>
             {tipLoading ? (
@@ -234,7 +234,7 @@ export default function ProtocolPage() {
           </div>
           <button
             onClick={fetchStudyTip}
-            className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-orange-400 transition-all border border-transparent hover:border-orange-500/30 active:scale-95"
+            className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-primary transition-all border border-transparent hover:border-primary/30 active:scale-95"
           >
             <ArrowPathIcon className={`w-4 h-4 ${tipLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -254,7 +254,7 @@ export default function ProtocolPage() {
               onClick={() => setLangFilter(value)}
               className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                 langFilter === value
-                  ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(26,58,143,0.4)] ring-2 ring-brand-red-600/40'
+                  ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(26,58,143,0.4)] ring-2 ring-brand-red-600/40'
                   : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 hover:bg-muted/50'
               }`}
             >
@@ -291,7 +291,7 @@ export default function ProtocolPage() {
                   <div className={`w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border transition-all duration-500 ${
                     phaseCompletedCount === phaseModules.length
                       ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                      : isExpanded ? 'bg-orange-500 border-orange-400 text-white shadow-[0_0_20px_rgba(26,58,143,0.3)] ring-2 ring-brand-red-600/40' : 'bg-white/5 border-white/10 text-white/20'
+                      : isExpanded ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(26,58,143,0.3)] ring-2 ring-brand-red-600/40' : 'bg-white/5 border-white/10 text-white/20'
                   }`}>
                     <span className="text-xl font-black uppercase">{phase.id}</span>
                   </div>
@@ -309,7 +309,7 @@ export default function ProtocolPage() {
                       <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{phaseModules.length} Modules</p>
                       <div className="flex items-center gap-2 flex-1 max-w-[120px]">
                         <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
-                          <div className={`h-full transition-all duration-700 ${phaseCompletedCount === phaseModules.length ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${phaseProgress}%` }} />
+                          <div className={`h-full transition-all duration-700 ${phaseCompletedCount === phaseModules.length ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${phaseProgress}%` }} />
                         </div>
                         <span className="text-[9px] font-black text-muted-foreground truncate">{Math.round(phaseProgress)}%</span>
                       </div>
@@ -360,7 +360,7 @@ export default function ProtocolPage() {
                                   className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${
                                     isActive
                                       ? 'bg-white/10 border-white/20 text-white'
-                                      : 'bg-gradient-to-r from-orange-600 to-amber-600 border-orange-500/50 text-white shadow-xl hover:translate-x-1'
+                                      : 'bg-gradient-to-r from-primary to-amber-600 border-primary/50 text-white shadow-xl hover:translate-x-1'
                                   }`}
                                 >
                                   {isActive ? 'Close' : status === 'completed' ? 'Review' : 'Engage'}
@@ -387,7 +387,7 @@ export default function ProtocolPage() {
                                       <button
                                         onClick={() => aiExplanations[module.id] ? toggleExplanation(module.id) : explainConcept(module)}
                                         disabled={aiExplaining === module.id}
-                                        className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-all disabled:opacity-50"
+                                        className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 border border-primary/30 rounded-xl hover:bg-primary/20 transition-all disabled:opacity-50"
                                       >
                                         <SparklesIcon className="w-4 h-4" />
                                         {aiExplaining === module.id ? 'Analyzing...' : aiExplanations[module.id] ? (showExplanations.has(module.id) ? 'Hide Logic' : 'Show Logic') : 'Explain Logic'}
@@ -406,11 +406,11 @@ export default function ProtocolPage() {
 
                                     <AnimatePresence>
                                       {aiExplanations[module.id] && showExplanations.has(module.id) && (
-                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-6 bg-orange-500/5 border border-orange-500/20 rounded-2xl relative overflow-hidden backdrop-blur-xl">
-                                          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl rounded-full" />
+                                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 p-6 bg-primary/5 border border-primary/20 rounded-2xl relative overflow-hidden backdrop-blur-xl">
+                                          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl rounded-full" />
                                           <div className="flex items-center gap-3 mb-3 relative z-10">
-                                            <SparklesIcon className="w-4 h-4 text-orange-400" />
-                                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Protocol Intelligence</span>
+                                            <SparklesIcon className="w-4 h-4 text-primary" />
+                                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Protocol Intelligence</span>
                                           </div>
                                           <p className="text-sm text-white/70 leading-relaxed relative z-10 whitespace-pre-wrap">{aiExplanations[module.id]}</p>
                                         </motion.div>
@@ -433,9 +433,9 @@ export default function ProtocolPage() {
 
         {/* Completion Milestone */}
         {completedCount === totalModules && totalModules > 0 && (
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-16 p-10 bg-gradient-to-br from-orange-600/20 to-amber-600/10 border border-orange-500/30 rounded-[2.5rem] text-center backdrop-blur-3xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-500/10 to-transparent scale-150" />
-            <CheckBadgeIcon className="w-20 h-20 text-orange-400 mx-auto mb-6 drop-shadow-[0_0_20px_rgba(249,115,22,0.6)]" />
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mt-16 p-10 bg-gradient-to-br from-primary/20 to-amber-600/10 border border-primary/30 rounded-[2.5rem] text-center backdrop-blur-3xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 to-transparent scale-150" />
+            <CheckBadgeIcon className="w-20 h-20 text-primary mx-auto mb-6 drop-shadow-[0_0_20px_rgba(249,115,22,0.6)]" />
             <h2 className="text-4xl font-black text-white uppercase tracking-tight mb-4">Protocol Fully Encrypted</h2>
             <p className="text-white/60 max-w-xl mx-auto font-medium text-lg leading-relaxed">
               You have successfully navigated all industrial phases. You are now designated as a Rillcod Architect.

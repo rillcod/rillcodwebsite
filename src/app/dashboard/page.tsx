@@ -104,7 +104,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">Loading your dashboard…</p>
         </div>
       </div>
@@ -128,7 +128,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
           <p className="text-muted-foreground text-sm">Setting up your workspace…</p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => { void refreshProfile(); }}
-              className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition"
+              className="px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition"
             >
               Try again
             </button>
@@ -282,12 +282,12 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
               {role} Portal
             </span>
             <div className="h-px w-8 bg-muted" />
-            <span className="text-[10px] font-bold text-orange-500/60 uppercase tracking-widest">Global Status: Online</span>
+            <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest">Global Status: Online</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight leading-tight">
             Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
           </h1>
-          <p className="text-orange-500/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
+          <p className="text-primary/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
             <ClockIcon className="w-4 h-4" />
             {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
           </p>
@@ -315,30 +315,30 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
 function transformStatsForAdmin(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Partner Schools', value: stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Partner Schools', value: stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-primary to-primary' },
+    { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: AcademicCapIcon, gradient: 'from-primary to-primary' },
+    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
+    { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
   ];
 }
 
 function transformStatsForTeacher(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Pending Grading', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Avg Class Perf', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-primary to-primary' },
+    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
+    { label: 'Pending Grading', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary' },
+    { label: 'Avg Class Perf', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
   ];
 }
 
 function transformStatsForSchool(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Registered Students', value: stats.portalStudents || 0, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
-    { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Registered Students', value: stats.portalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
+    { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: AcademicCapIcon, gradient: 'from-primary to-primary' },
+    { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
+    { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary' },
   ];
 }
 
@@ -350,6 +350,6 @@ function transformActivities(activities: any[]) {
     desc: a.description,
     time: a.time_ago,
     icon: a.icon_type === 'trophy' ? TrophyIcon : ClipboardDocumentListIcon,
-    color: a.color_class === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
+    color: a.color_class === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary/20 text-primary',
   }));
 }

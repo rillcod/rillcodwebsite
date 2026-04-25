@@ -95,7 +95,7 @@ export default function ExamDetailPage() {
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!exam) return (
@@ -518,7 +518,7 @@ ${mode === 'staff' ? `
                   <div className="relative" ref={printMenuRef}>
                     <button
                       onClick={() => setPrintMenuOpen(o => !o)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold rounded-none transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-none transition-colors">
                       <PrinterIcon className="w-3.5 h-3.5" /> Print
                       <svg className="w-3 h-3 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </button>
@@ -531,7 +531,7 @@ ${mode === 'staff' ? `
                           <div className="flex gap-1">
                             {(['all', 'mcq', 'theory'] as const).map(f => (
                               <button key={f} onClick={() => setPrintFilter(f)}
-                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-none border transition-colors ${printFilter === f ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
+                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-none border transition-colors ${printFilter === f ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
                                 {f === 'all' ? 'Both' : f === 'mcq' ? 'Objective' : 'Theory'}
                               </button>
                             ))}
@@ -546,7 +546,7 @@ ${mode === 'staff' ? `
                               <div>
                                 <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                                   Obj / MCQ
-                                  <span className="text-orange-400/60 ml-1 normal-case font-normal">({questions.filter((q:any) => q.options?.length > 0).length} avail)</span>
+                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q:any) => q.options?.length > 0).length} avail)</span>
                                 </label>
                                 <input
                                   type="number" min="1"
@@ -554,7 +554,7 @@ ${mode === 'staff' ? `
                                   value={printMcqCount}
                                   onChange={e => setPrintMcqCount(e.target.value)}
                                   placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
                                 />
                               </div>
                             )}
@@ -562,7 +562,7 @@ ${mode === 'staff' ? `
                               <div>
                                 <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                                   Theory
-                                  <span className="text-orange-400/60 ml-1 normal-case font-normal">({questions.filter((q:any) => !q.options?.length).length} avail)</span>
+                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q:any) => !q.options?.length).length} avail)</span>
                                 </label>
                                 <input
                                   type="number" min="1"
@@ -570,7 +570,7 @@ ${mode === 'staff' ? `
                                   value={printTheoryCount}
                                   onChange={e => setPrintTheoryCount(e.target.value)}
                                   placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
                                 />
                               </div>
                             )}
@@ -590,7 +590,7 @@ ${mode === 'staff' ? `
                                 value={printDuration}
                                 onChange={e => setPrintDuration(e.target.value)}
                                 placeholder={exam?.duration_minutes ? String(exam.duration_minutes) : 'Auto'}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
                               />
                             </div>
                             <div>
@@ -602,13 +602,13 @@ ${mode === 'staff' ? `
                                 value={printPassMark}
                                 onChange={e => setPrintPassMark(e.target.value)}
                                 placeholder={String(exam?.passing_score ?? 70)}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
                               />
                             </div>
                           </div>
                           <button
                             onClick={() => { setPrintMcqCount(''); setPrintTheoryCount(''); setPrintDuration(''); setPrintPassMark(''); }}
-                            className="text-[8px] font-bold text-muted-foreground hover:text-orange-400 uppercase tracking-widest transition-colors">
+                            className="text-[8px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors">
                             Reset to defaults
                           </button>
                         </div>
@@ -623,7 +623,7 @@ ${mode === 'staff' ? `
                         <button
                           onClick={() => { setPrintMenuOpen(false); handlePrintExam('staff', printFilter); }}
                           className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors flex flex-col gap-0.5">
-                          <span className="text-orange-400">Staff Copy + Answer Key</span>
+                          <span className="text-primary">Staff Copy + Answer Key</span>
                           <span className="text-muted-foreground font-normal">Includes marked answers &amp; key</span>
                         </button>
                       </div>

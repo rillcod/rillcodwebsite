@@ -59,7 +59,7 @@ function CopyButton({ value }: { value: string }) {
     <button
       type="button"
       onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-border hover:border-orange-500/50 text-muted-foreground hover:text-orange-400 transition-all"
+      className="flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-border hover:border-primary/50 text-muted-foreground hover:text-primary transition-all"
     >
       <ClipboardIcon className="w-3 h-3" />
       {copied ? 'Copied!' : 'Copy'}
@@ -135,7 +135,7 @@ export function StudentPicker({
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder={multi ? 'Search and tick to select multiple…' : 'Search students by name…'}
-          className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+          className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
         />
       </div>
       <div className="border border-border max-h-40 overflow-y-auto bg-background">
@@ -151,15 +151,15 @@ export function StudentPicker({
                 type="button"
                 key={s.id}
                 onClick={() => handleClick(s)}
-                className={`w-full text-left px-4 py-2.5 hover:bg-orange-500/5 transition-all border-b border-border last:border-b-0 flex items-center gap-2 ${isSelected ? 'bg-orange-500/10' : ''}`}
+                className={`w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-all border-b border-border last:border-b-0 flex items-center gap-2 ${isSelected ? 'bg-primary/10' : ''}`}
               >
                 {multi && (
-                  <span className={`w-3.5 h-3.5 border rounded-none flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'border-border'}`}>
+                  <span className={`w-3.5 h-3.5 border rounded-none flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-primary border-primary text-white' : 'border-border'}`}>
                     {isSelected ? '✓' : ''}
                   </span>
                 )}
                 <span className="flex-1 min-w-0">
-                  <span className={`text-xs font-bold ${isSelected ? 'text-orange-400' : 'text-foreground'}`}>{s.full_name}</span>
+                  <span className={`text-xs font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>{s.full_name}</span>
                   <span className="text-[10px] text-muted-foreground ml-2">
                     {s.grade_level ?? ''}
                     {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
@@ -171,8 +171,8 @@ export function StudentPicker({
         )}
       </div>
       {!multi && selected && (
-        <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px]">
-          <span className="text-orange-400 font-bold">Selected: {selected.full_name}</span>
+        <div className="px-3 py-2 bg-primary/5 border border-primary/20 text-[10px]">
+          <span className="text-primary font-bold">Selected: {selected.full_name}</span>
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
           {selected.grade_level && <span className="text-muted-foreground ml-1">· {selected.grade_level}</span>}
           {selected.parent_email && (
@@ -181,8 +181,8 @@ export function StudentPicker({
         </div>
       )}
       {multi && selectedMulti.length > 0 && (
-        <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px] space-y-1">
-          <span className="text-orange-400 font-bold">{selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected:</span>
+        <div className="px-3 py-2 bg-primary/5 border border-primary/20 text-[10px] space-y-1">
+          <span className="text-primary font-bold">{selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected:</span>
           <p className="text-muted-foreground">{selectedMulti.map(s => s.full_name).join(', ')}</p>
         </div>
       )}
@@ -340,12 +340,12 @@ export function ParentForm({
               <CopyButton value={credentials.email} />
             </div>
           </div>
-          <div className="bg-card border border-orange-500/30 p-5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-3 flex items-center gap-1">
+          <div className="bg-card border border-primary/30 p-5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-1">
               <KeyIcon className="w-3 h-3" /> Generated Password
             </p>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-orange-300 font-mono tracking-wider">{credentials.password}</span>
+              <span className="text-sm font-bold text-primary font-mono tracking-wider">{credentials.password}</span>
               <CopyButton value={credentials.password} />
             </div>
           </div>
@@ -357,7 +357,7 @@ export function ParentForm({
         <p className="text-xs text-muted-foreground">Share these credentials with the parent. They can change their password after first login.</p>
         <div className="flex gap-3">
           <button onClick={onCancel}
-            className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+            className="px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
             Done — Back to Parents
           </button>
         </div>
@@ -381,7 +381,7 @@ export function ParentForm({
       {/* ── Section 1: Parent Account Info ──────────────────────────────── */}
       <div className="bg-card border border-border">
         <div className="px-6 py-3 border-b border-border flex items-center gap-2">
-          <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+          <span className="w-1 h-4 bg-primary flex-shrink-0" />
           <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Parent Account Info</p>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -392,7 +392,7 @@ export function ParentForm({
                 type="email" required value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="parent@example.com"
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
           )}
@@ -403,7 +403,7 @@ export function ParentForm({
               required value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
               placeholder="Parent's full name"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
@@ -413,7 +413,7 @@ export function ParentForm({
               type="tel" value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               placeholder="+234 …"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
@@ -424,7 +424,7 @@ export function ParentForm({
                   <KeyIcon className="w-3 h-3" /> Login Password *
                 </label>
                 <button type="button" onClick={() => setForm(f => ({ ...f, password: genPassword() }))}
-                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors">
+                  className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary transition-colors">
                   ↻ Regenerate
                 </button>
               </div>
@@ -435,7 +435,7 @@ export function ParentForm({
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   minLength={8}
-                  className="w-full px-4 py-2.5 pr-20 bg-background border border-border text-sm text-foreground font-mono focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-4 py-2.5 pr-20 bg-background border border-border text-sm text-foreground font-mono focus:outline-none focus:border-primary transition-colors"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                   <CopyButton value={form.password} />
@@ -453,7 +453,7 @@ export function ParentForm({
       {/* ── Section 2: School & Class ────────────────────────────────────── */}
       <div className="bg-card border border-border">
         <div className="px-6 py-3 border-b border-border flex items-center gap-2">
-          <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+          <span className="w-1 h-4 bg-primary flex-shrink-0" />
           <p className="text-[10px] font-black uppercase tracking-widest text-foreground">School &amp; Class</p>
         </div>
         <div className="p-6 space-y-5">
@@ -466,7 +466,7 @@ export function ParentForm({
                 value={selectedSchool}
                 onChange={e => handleSchoolSelect(e.target.value)}
                 disabled={(schools.length <= 1 && profile?.role !== 'admin') || schoolChanging}
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-80"
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-80"
               >
                 {schools.length === 0 && <option value="">— No Schools Available —</option>}
                 {/* Always show a placeholder for admin or when no school is pre-selected */}
@@ -476,11 +476,11 @@ export function ParentForm({
                 {schools.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               {!selectedSchool && profile?.role !== 'teacher' && (
-                <p className="text-[10px] text-orange-400/80 mt-1 font-bold">Select a school to load students for that school.</p>
+                <p className="text-[10px] text-primary/80 mt-1 font-bold">Select a school to load students for that school.</p>
               )}
               {schoolChanging && (
-                <p className="text-[10px] text-orange-400 mt-1.5 animate-pulse flex items-center gap-1">
-                  <span className="w-2 h-2 border border-orange-400 border-t-transparent rounded-full animate-spin inline-block" />
+                <p className="text-[10px] text-primary mt-1.5 animate-pulse flex items-center gap-1">
+                  <span className="w-2 h-2 border border-primary border-t-transparent rounded-full animate-spin inline-block" />
                   Loading students for this school…
                 </p>
               )}
@@ -495,7 +495,7 @@ export function ParentForm({
                   value={selectedTeacherId}
                   disabled={profile?.role === 'teacher'}
                   onChange={e => { setSelectedTeacherId(e.target.value); setForm(f => ({ ...f, student_id: '' })); }}
-                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
                 >
                   {profile?.role === 'admin' && <option value="">— All Teachers —</option>}
                   {schoolTeachers.map(t => (
@@ -516,7 +516,7 @@ export function ParentForm({
             <select
               value={selectedClass}
               onChange={e => { setSelectedClass(e.target.value); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             >
               <option value="">— All Students in School —</option>
               {classList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -532,13 +532,13 @@ export function ParentForm({
       <div className="bg-card border border-border">
         <div className="px-6 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+            <span className="w-1 h-4 bg-primary flex-shrink-0" />
             <p className="text-[10px] font-black uppercase tracking-widest text-foreground">
               {isEdit ? 'Link Student' : 'Link Students'}
             </p>
           </div>
           {!isEdit && form.student_ids.length > 0 && (
-            <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-[10px] font-black text-orange-400">
+            <span className="px-2 py-0.5 bg-primary/10 border border-primary/30 text-[10px] font-black text-primary">
               {form.student_ids.length} selected
             </span>
           )}
@@ -577,7 +577,7 @@ export function ParentForm({
                   type="button"
                   onClick={() => setForm(f => ({ ...f, relationship: r }))}
                   className={`px-4 py-2 text-xs font-bold border transition-all ${form.relationship === r
-                    ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
+                    ? 'bg-primary/15 border-primary/50 text-primary'
                     : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'}`}
                 >
                   {r}
@@ -595,7 +595,7 @@ export function ParentForm({
           Cancel
         </button>
         <button type="submit" disabled={saving || schoolChanging}
-          className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+          className="flex-1 px-6 py-3 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
           {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
           {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Parent Account'}
         </button>

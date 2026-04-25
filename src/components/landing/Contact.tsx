@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { contactInfo } from '@/config/brand';
 
 const contactCards = [
-  { icon: Mail, title: 'Network Hub', value: contactInfo.email, sub: 'Inquiry Matrix', accent: 'text-orange-500', bg: 'bg-orange-500/10' },
+  { icon: Mail, title: 'Network Hub', value: contactInfo.email, sub: 'Inquiry Matrix', accent: 'text-primary', bg: 'bg-primary/10' },
   { icon: Phone, title: 'Direct Uplink', value: contactInfo.phone, sub: 'Voice Protocol', accent: 'text-blue-500', bg: 'bg-blue-500/10' },
   { icon: MapPin, title: 'Physical Node', value: 'Lagos, Nigeria', sub: 'Geospatial Data', accent: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 ];
@@ -49,7 +49,7 @@ const Contact: React.FC = () => {
     <section id="contact" className="py-24 bg-background relative overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-none" />
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
 
@@ -57,7 +57,7 @@ const Contact: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
           <div>
               <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
-                 <Sparkles className="w-4 h-4 text-orange-500" />
+                 <Sparkles className="w-4 h-4 text-primary" />
                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Connect Matrix</span>
               </div>
               <h3 className="text-3xl sm:text-6xl font-black text-foreground leading-[1.05] tracking-tight uppercase">
@@ -65,7 +65,7 @@ const Contact: React.FC = () => {
                 <span className="text-foreground/40 italic">Loop.</span>
               </h3>
           </div>
-          <p className="text-muted-foreground text-sm sm:text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-orange-500 pl-6">
+          <p className="text-muted-foreground text-sm sm:text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-primary pl-6">
             Whether you're a school owner or a curious parent, our team is ready to help you deploy Rillcod in your institution.
           </p>
         </div>
@@ -75,7 +75,7 @@ const Contact: React.FC = () => {
           {/* Info Side (4 Cols) */}
           <div className="lg:col-span-4 space-y-4">
             {contactCards.map((c, i) => (
-              <div key={i} className="group flex items-center gap-5 bg-card border border-border rounded-none p-6 hover:bg-muted transition-all border-l-2 border-l-transparent hover:border-l-orange-500 shadow-sm">
+              <div key={i} className="group flex items-center gap-5 bg-card border border-border rounded-none p-6 hover:bg-muted transition-all border-l-2 border-l-transparent hover:border-l-primary shadow-sm">
                  <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-none flex items-center justify-center shrink-0`}>
                     <c.icon className="w-6 h-6" />
                  </div>
@@ -88,10 +88,10 @@ const Contact: React.FC = () => {
             ))}
 
             {/* Protocol Notice */}
-            <div className="mt-8 p-8 bg-card border border-border rounded-none relative overflow-hidden group border-t-2 border-t-orange-500 shadow-2xl">
-               <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-orange-500/5 rotate-12" />
+            <div className="mt-8 p-8 bg-card border border-border rounded-none relative overflow-hidden group border-t-2 border-t-primary shadow-2xl">
+               <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-primary/5 rotate-12" />
                <h5 className="text-foreground font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-3">
-                 <ShieldCheck className="w-4 h-4 text-orange-500" /> Secure Protocol
+                 <ShieldCheck className="w-4 h-4 text-primary" /> Secure Protocol
                </h5>
                <p className="text-sm text-muted-foreground leading-relaxed font-bold italic">
                  All school inquiries are processed within 12 standard business hours by our coordination team.
@@ -101,8 +101,8 @@ const Contact: React.FC = () => {
 
           {/* Form Side (8 Cols) */}
           <div className="lg:col-span-8">
-             <div className="bg-card border border-border rounded-none p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-orange-500">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-none blur-[100px] pointer-events-none" />
+             <div className="bg-card border border-border rounded-none p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-primary">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-none blur-[100px] pointer-events-none" />
                 
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                    <div className="grid md:grid-cols-2 gap-8">
@@ -111,7 +111,7 @@ const Contact: React.FC = () => {
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Full Name / School Name"
-                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-muted-foreground/30 shadow-inner"
+                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                       <div className="space-y-3">
@@ -119,7 +119,7 @@ const Contact: React.FC = () => {
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="Contact Email Address"
-                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-muted-foreground/30 shadow-inner"
+                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                    </div>
@@ -129,13 +129,13 @@ const Contact: React.FC = () => {
                       <textarea
                         name="message" value={formData.message} onChange={handleChange} required rows={5}
                         placeholder="Detail your request or partnership proposal..."
-                        className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
+                        className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
                       />
                    </div>
 
                    <button
                      type="submit" disabled={sending}
-                     className="group flex items-center justify-center gap-4 w-full md:w-auto px-12 py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
+                     className="group flex items-center justify-center gap-4 w-full md:w-auto px-12 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
                    >
                      {sending ? 'Processing...' : 'Initialize Uplink'}
                      <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />

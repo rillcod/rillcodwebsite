@@ -248,7 +248,7 @@ export default function CommunityPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
                 <UserGroupIcon className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -316,7 +316,7 @@ export default function CommunityPage() {
             {/* Post Composer */}
             <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <ChatBubbleLeftRightIcon className="w-4 h-4 text-orange-400" />
+                <ChatBubbleLeftRightIcon className="w-4 h-4 text-primary" />
                 <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Share with the community</span>
               </div>
 
@@ -325,7 +325,7 @@ export default function CommunityPage() {
                 <div className="flex-1 space-y-2">
                   <textarea
                     ref={composerRef}
-                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/60 resize-none transition-all"
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 resize-none transition-all"
                     placeholder="Ask a question, share your project, or celebrate a win..."
                     rows={3}
                     value={message}
@@ -354,7 +354,7 @@ export default function CommunityPage() {
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="flex items-center gap-2 mb-2 pl-12">
                       <select
-                        className="px-3 py-1.5 bg-muted border border-border rounded-lg text-[11px] font-bold text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                        className="px-3 py-1.5 bg-muted border border-border rounded-lg text-[11px] font-bold text-foreground focus:outline-none focus:border-primary transition-colors"
                         value={language}
                         onChange={e => setLanguage(e.target.value as Language)}
                       >
@@ -390,7 +390,7 @@ export default function CommunityPage() {
                   <LightBulbIcon className="w-3.5 h-3.5" /> Get Inspired
                 </button>
                 <button onClick={handlePost} disabled={posting || !message.trim() || message.length > MAX_CHARS}
-                  className="ml-auto flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-white text-[11px] font-black uppercase tracking-widest transition-all">
+                  className="ml-auto flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-white text-[11px] font-black uppercase tracking-widest transition-all">
                   {posting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PlusIcon className="w-4 h-4" />}
                   {posting ? 'Posting...' : 'Post'}
                 </button>
@@ -406,7 +406,7 @@ export default function CommunityPage() {
                   placeholder="Search posts..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all"
                 />
                 {search && (
                   <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -419,11 +419,11 @@ export default function CommunityPage() {
                   <button key={tab.key} onClick={() => setFilter(tab.key)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                       filter === tab.key
-                        ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400'
+                        ? 'bg-primary/10 border border-primary/30 text-primary'
                         : 'bg-muted/50 border border-border text-muted-foreground hover:text-foreground'
                     }`}>
                     {tab.label}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${filter === tab.key ? 'bg-orange-500/20 text-orange-400' : 'bg-muted text-muted-foreground'}`}>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${filter === tab.key ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                       {tab.count}
                     </span>
                   </button>
@@ -472,14 +472,14 @@ export default function CommunityPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.04 }}
                       key={post.id}
-                      className={`bg-card rounded-2xl border transition-all p-5 ${isOwn ? 'border-orange-500/20' : 'border-border hover:border-border/80'}`}
+                      className={`bg-card rounded-2xl border transition-all p-5 ${isOwn ? 'border-primary/20' : 'border-border hover:border-border/80'}`}
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <AuthorAvatar name={post.author_name} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-sm text-foreground">{post.author_name}</span>
-                            {isOwn && <span className="text-[9px] font-black px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded">You</span>}
+                            {isOwn && <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded">You</span>}
                             {(post.user_id === profile.id ? false : isStaff) && <span className="text-[9px] font-black px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded">Staff</span>}
                             {post.code_snippet && (
                               <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded">Code</span>
@@ -530,7 +530,7 @@ export default function CommunityPage() {
                       <div className="flex items-center gap-4 pt-2.5 border-t border-border">
                         <button onClick={() => handleLike(post)}
                           disabled={likedPosts.has(post.id)}
-                          className={`flex items-center gap-1.5 text-sm transition-colors disabled:cursor-default ${likedPosts.has(post.id) ? 'text-orange-400' : 'text-muted-foreground hover:text-orange-400'}`}>
+                          className={`flex items-center gap-1.5 text-sm transition-colors disabled:cursor-default ${likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}>
                           <FireIcon className="w-4 h-4" />
                           <span className="font-bold">{post.likes || 0}</span>
                         </button>
@@ -572,7 +572,7 @@ export default function CommunityPage() {
                   const Icon = p.icon;
                   return (
                     <button key={i} onClick={() => applyPrompt(p.text)}
-                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-orange-500/30 hover:bg-orange-500/5 text-left transition-all group rounded-xl">
+                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-primary/30 hover:bg-primary/5 text-left transition-all group rounded-xl">
                       <span style={{ color: p.color }} className="flex-shrink-0 mt-0.5"><Icon className="w-3.5 h-3.5" /></span>
                       <span className="text-[10px] text-muted-foreground group-hover:text-foreground/80 leading-snug transition-colors">{p.text}</span>
                     </button>
@@ -707,7 +707,7 @@ export default function CommunityPage() {
             </div>
 
             {/* ⭐ Young Innovators — Learning Paths */}
-            <div className="bg-gradient-to-br from-amber-600/10 to-orange-600/10 border border-amber-500/20 rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-br from-amber-600/10 to-primary/10 border border-amber-500/20 rounded-2xl overflow-hidden">
               <div className="px-4 pt-4 pb-3 border-b border-amber-500/10">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-lg">⭐</span>
@@ -744,7 +744,7 @@ export default function CommunityPage() {
 
               {/* Track 2: Web for Kids */}
               <div className="px-3 pt-3 pb-1">
-                <p className="text-[8px] font-black text-orange-400/60 uppercase tracking-widest mb-2 px-1">🌐 Web Design</p>
+                <p className="text-[8px] font-black text-primary/60 uppercase tracking-widest mb-2 px-1">🌐 Web Design</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '🎨', title: 'My Profile Page', desc: 'Build a colourful HTML card', path: '/dashboard/protocol?phase=46', badge: '⭐⭐' },
@@ -752,13 +752,13 @@ export default function CommunityPage() {
                     { emoji: '🏆', title: 'My Portfolio', desc: 'Showcase all your projects', path: '/dashboard/protocol?phase=48', badge: '⭐⭐⭐⭐' },
                   ].map((sim, i) => (
                     <a key={i} href={sim.path}
-                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 rounded-xl transition-all group">
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-orange-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
-                      <span className="text-[8px] text-orange-400/60 shrink-0">{sim.badge}</span>
+                      <span className="text-[8px] text-primary/60 shrink-0">{sim.badge}</span>
                     </a>
                   ))}
                 </div>

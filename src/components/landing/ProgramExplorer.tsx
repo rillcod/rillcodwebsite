@@ -36,9 +36,9 @@ const programs = [
     icon: Puzzle,
     color: 'orange',
     features: ['Game Design', 'Animation', 'Logic Thinking', 'Storytelling'],
-    gradient: 'from-orange-400 to-orange-600',
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/20'
+    gradient: 'from-primary to-primary',
+    bg: 'bg-primary/10',
+    border: 'border-primary/20'
   },
   {
     id: 'web',
@@ -86,7 +86,7 @@ const ProgramExplorer: React.FC = () => {
     <section id="programs" className="py-24 bg-background relative overflow-hidden">
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-full opacity-[0.02] pointer-events-none z-0">
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-orange-500 blur-[120px] rounded-full" />
+        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary blur-[120px] rounded-full" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-600 blur-[100px] rounded-full" />
       </div>
 
@@ -95,12 +95,12 @@ const ProgramExplorer: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="max-w-xl">
              <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card border border-border rounded-none">
-                <Layers className="w-3.5 h-3.5 text-orange-500" />
+                <Layers className="w-3.5 h-3.5 text-primary" />
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Learning Tracks</span>
              </div>
              <h2 className="text-4xl md:text-6xl font-black text-foreground leading-tight uppercase tracking-tight">
                Discover Your <br />
-               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">Tech Journey.</span>
+               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary">Tech Journey.</span>
              </h2>
           </div>
           <p className="text-muted-foreground text-lg italic border-l-2 border-brand-red-600 pl-6 max-w-sm">
@@ -121,11 +121,11 @@ const ProgramExplorer: React.FC = () => {
                   onClick={() => setActiveTab(p.id)}
                   className={`group flex items-center gap-4 p-4 transition-all relative overflow-hidden ${
                     activeTab === p.id 
-                    ? 'bg-orange-500 text-white shadow-xl translate-x-1 lg:translate-x-2 ring-2 ring-brand-red-600/40' 
+                    ? 'bg-primary text-white shadow-xl translate-x-1 lg:translate-x-2 ring-2 ring-brand-red-600/40' 
                     : 'bg-card text-foreground hover:bg-muted border border-border'
                   }`}
                 >
-                  <p.icon className={`w-5 h-5 ${activeTab === p.id ? 'text-white' : 'text-orange-500'} shrink-0`} />
+                  <p.icon className={`w-5 h-5 ${activeTab === p.id ? 'text-white' : 'text-primary'} shrink-0`} />
                   <div className="text-left">
                     <p className={`text-xs font-black uppercase tracking-widest ${activeTab === p.id ? 'text-white' : 'text-foreground'}`}>
                       {p.title}
@@ -146,7 +146,7 @@ const ProgramExplorer: React.FC = () => {
             
             <div className="mt-12 p-6 bg-brand-red-600/5 border border-brand-red-600/10 hidden lg:block">
                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-orange-500" />
+                  <Zap className="w-4 h-4 text-primary" />
                   <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">Enrollment open</span>
                </div>
                <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -158,7 +158,7 @@ const ProgramExplorer: React.FC = () => {
           {/* RIGHT: Content Area */}
           <div className="flex-1 p-8 md:p-12 lg:p-20 relative overflow-hidden">
              {/* Background Decoration */}
-             <div className="absolute -top-24 -right-24 w-64 h-64 bg-orange-500 opacity-[0.03] blur-[100px] -z-10" />
+             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary opacity-[0.03] blur-[100px] -z-10" />
              
              <AnimatePresence mode="wait">
                 <motion.div
@@ -171,7 +171,7 @@ const ProgramExplorer: React.FC = () => {
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-6 mb-10">
                     <div className={`w-20 h-20 ${activeProgram.bg} border ${activeProgram.border} flex items-center justify-center p-4 shadow-inner`}>
-                      <activeProgram.icon className={`w-10 h-10 ${activeProgram.id === 'scratch' ? 'text-orange-500' : 
+                      <activeProgram.icon className={`w-10 h-10 ${activeProgram.id === 'scratch' ? 'text-primary' : 
                         activeProgram.id === 'ict' ? 'text-emerald-500' :
                         activeProgram.id === 'web' ? 'text-blue-500' :
                         activeProgram.id === 'python' ? 'text-violet-500' : 'text-pink-500'}`} />
@@ -192,8 +192,8 @@ const ProgramExplorer: React.FC = () => {
 
                   <div className="grid sm:grid-cols-2 gap-4 md:gap-8 mb-12">
                     {activeProgram.features.map((f, i) => (
-                      <div key={i} className="flex items-start gap-4 p-5 bg-muted/40 border border-border/50 group hover:border-orange-500/30 transition-colors">
-                        <CheckCircle2 className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                      <div key={i} className="flex items-start gap-4 p-5 bg-muted/40 border border-border/50 group hover:border-primary/30 transition-colors">
+                        <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <span className="text-sm font-bold text-foreground leading-tight">{f}</span>
                       </div>
                     ))}
@@ -202,17 +202,17 @@ const ProgramExplorer: React.FC = () => {
                   <div className="mt-auto flex flex-col sm:flex-row items-center gap-6">
                     <a
                       href="/student-registration"
-                      className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-950/20"
+                      className="w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-primary transition-all shadow-xl shadow-orange-950/20"
                     >
                       Enroll Child
                       <ArrowRight className="w-5 h-5" />
                     </a>
                     <a
                       href={`/programs/${activeProgram.id}`}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] hover:text-orange-500 transition-colors"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] hover:text-primary transition-colors"
                     >
                       Full Curriculum Docs
-                      <Sparkles className="w-4 h-4 text-orange-500" />
+                      <Sparkles className="w-4 h-4 text-primary" />
                     </a>
                   </div>
                 </motion.div>
@@ -227,7 +227,7 @@ const ProgramExplorer: React.FC = () => {
               <span className="text-xs font-black uppercase tracking-widest text-foreground">Future Proof</span>
            </div>
            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-orange-500" />
+              <Zap className="w-5 h-5 text-primary" />
               <span className="text-xs font-black uppercase tracking-widest text-foreground">Industry Linked</span>
            </div>
            <div className="flex items-center gap-2">

@@ -124,20 +124,20 @@ function sameDay(a: string, b: string) {
 
 const AVATAR_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-500',
-  parents:  'bg-orange-500',
+  parents:  'bg-primary',
   school:   'bg-blue-600',
   teachers: 'bg-violet-600',
 };
 const ROLE_COLORS: Record<string, string> = {
   student: 'bg-emerald-500/20 text-emerald-400',
-  parent:  'bg-orange-500/20 text-orange-400',
+  parent:  'bg-primary/20 text-primary',
   teacher: 'bg-violet-500/20 text-violet-400',
   school:  'bg-blue-500/20 text-blue-400',
   admin:   'bg-rose-500/20 text-rose-400',
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-900/40 text-emerald-500',
-  parents:  'bg-orange-900/40 text-orange-500',
+  parents:  'bg-orange-900/40 text-primary',
   school:   'bg-blue-900/40 text-blue-500',
   teachers: 'bg-violet-900/40 text-violet-500',
 };
@@ -1430,7 +1430,7 @@ export default function UnifiedInbox() {
   // ── Guards ─────────────────────────────────────────────────────────────────
   if (authLoading) return (
     <div className="h-full bg-[#111b21] flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
   );
   if (!hasAccess) return (
@@ -1439,7 +1439,7 @@ export default function UnifiedInbox() {
         <X className="w-16 h-16 text-rose-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
         <p className="text-white/50 mb-6">Your account does not have inbox access.</p>
-        <Link href="/dashboard" className="px-6 py-2 bg-orange-600 text-white font-bold rounded-xl">Back to Dashboard</Link>
+        <Link href="/dashboard" className="px-6 py-2 bg-primary text-white font-bold rounded-xl">Back to Dashboard</Link>
       </div>
     </div>
   );
@@ -1464,7 +1464,7 @@ export default function UnifiedInbox() {
               {sidebarView === 'contacts' ? 'Contacts' : 'Inbox'}
             </h2>
             {sidebarView === 'chats' && totalUnread > 0 && (
-              <span className="bg-orange-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{totalUnread}</span>
+              <span className="bg-primary text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{totalUnread}</span>
             )}
           </div>
           <div className="flex items-center gap-1">
@@ -1475,7 +1475,7 @@ export default function UnifiedInbox() {
             {sidebarView === 'chats' ? (
               <>
                 <button onClick={() => setFilterUnread(v => !v)} title={filterUnread ? 'Show all' : 'Unread only'}
-                  className={`p-2 rounded-full transition-colors ${filterUnread ? 'bg-orange-500 text-white' : 'text-white/50 hover:bg-white/10'}`}>
+                  className={`p-2 rounded-full transition-colors ${filterUnread ? 'bg-primary text-white' : 'text-white/50 hover:bg-white/10'}`}>
                   <Filter className="w-4 h-4" />
                 </button>
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-violet-400 hover:bg-white/10 rounded-full transition-colors" title="Compose email">
@@ -1490,7 +1490,7 @@ export default function UnifiedInbox() {
               <button
                 onClick={() => { setSidebarView(v => v === 'chats' ? 'contacts' : 'chats'); setActiveContact(null); }}
                 title={sidebarView === 'chats' ? 'View contacts' : 'Back to chats'}
-                className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-orange-500/20 text-orange-400' : 'text-white/50 hover:bg-white/10'}`}
+                className={`p-2 rounded-full transition-colors ${sidebarView === 'contacts' ? 'bg-primary/20 text-primary' : 'text-white/50 hover:bg-white/10'}`}
               >
                 <BookUser className="w-5 h-5" />
               </button>
@@ -1506,7 +1506,7 @@ export default function UnifiedInbox() {
                 <button key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setActiveConv(null); setConvSearch(''); setFilterUnread(false); }}
                   className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${
-                    activeTab === tab.id ? 'border-orange-400 text-orange-400' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
+                    activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
                   }`}>
                   <tab.icon className="w-[15px] h-[15px]" />{tab.label}
                 </button>
@@ -1519,7 +1519,7 @@ export default function UnifiedInbox() {
                 <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input value={convSearch} onChange={e => setConvSearch(e.target.value)}
                   placeholder={`Search ${activeTab === 'school' && isSchool ? 'teachers' : activeTab}…`}
-                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-orange-500/30" />
+                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-[7px] outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
                 {convSearch && (
                   <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
                     <X className="w-3.5 h-3.5" />
@@ -1552,11 +1552,11 @@ export default function UnifiedInbox() {
 
             {isParentOrStudent && (
               <div className="px-3 pb-3 shrink-0">
-                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-lg">
+                <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg">
                   <h4 className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] mb-2">Support Channels</h4>
                   <div className="grid grid-cols-3 gap-2">
-                    <button onClick={startSupportConversation} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-orange-500/40 rounded-lg transition-all group">
-                      <MessageSquare className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                    <button onClick={startSupportConversation} className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-primary/40 rounded-lg transition-all group">
+                      <MessageSquare className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                       <span className="text-[8px] font-bold text-white/50 uppercase">In-App</span>
                     </button>
                     <a href="https://wa.me/2348123456789" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 p-2 bg-[#202c33] border border-white/5 hover:border-emerald-500/40 rounded-lg transition-all group">
@@ -1575,13 +1575,13 @@ export default function UnifiedInbox() {
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {isLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
+                <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filteredConvs.length === 0 ? (
                 <div className="text-center p-12">
                   <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" />
                   <p className="text-white/30 text-sm">{convSearch || filterUnread ? 'No matching conversations.' : isParentOrStudent ? 'Start a support chat with our team.' : 'No conversations yet.'}</p>
                   {!convSearch && !filterUnread && (
-                    <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="mt-3 text-orange-400 text-sm font-bold hover:underline">
+                    <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="mt-3 text-primary text-sm font-bold hover:underline">
                       {isParentOrStudent ? 'Start Chat →' : 'Start one →'}
                     </button>
                   )}
@@ -1619,11 +1619,11 @@ export default function UnifiedInbox() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
-                          <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-orange-400' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
+                          <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-primary' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
                         </div>
                         
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-orange-500 text-white shadow-sm shadow-orange-900/40">You</span>}
+                          {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary text-white shadow-sm shadow-orange-900/40">You</span>}
                           {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
                           {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 truncate max-w-[80px]">{conv.school_name}</span>}
                         </div>
@@ -1633,7 +1633,7 @@ export default function UnifiedInbox() {
                             {conv.last_message_preview || 'No messages yet'}
                           </p>
                           {conv.unread_count > 0 && (
-                            <span className="bg-orange-500 text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-orange-950/50">
+                            <span className="bg-primary text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-orange-950/50">
                               {conv.unread_count}
                             </span>
                           )}
@@ -1654,7 +1654,7 @@ export default function UnifiedInbox() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                 <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
                   placeholder="Search contacts…"
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                  className="w-full bg-[#2a3942] text-white text-sm rounded-lg pl-10 pr-4 py-2 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 {contactSearch && (
                   <button onClick={() => setContactSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"><X className="w-3.5 h-3.5" /></button>
                 )}
@@ -1663,7 +1663,7 @@ export default function UnifiedInbox() {
               <div className="flex gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar">
                 {['all', 'student', 'parent', 'teacher', 'school', 'external'].map(r => (
                   <button key={r} onClick={() => setContactRoleFilter(r)}
-                    className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${contactRoleFilter === r ? 'bg-orange-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                    className={`shrink-0 text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${contactRoleFilter === r ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
                     {r}
                   </button>
                 ))}
@@ -1679,7 +1679,7 @@ export default function UnifiedInbox() {
                   <div className="relative">
                     <School className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
                     <select value={contactSchoolFilter} onChange={e => setContactSchoolFilter(e.target.value)}
-                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-orange-500/40">
+                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
                       <option value="">All Schools</option>
                       {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -1687,14 +1687,14 @@ export default function UnifiedInbox() {
                   <div className="relative">
                     <GraduationCap className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
                     <select value={contactClassFilter} onChange={e => setContactClassFilter(e.target.value)}
-                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-orange-500/40">
+                      className="w-full bg-[#2a3942] text-white text-xs rounded-lg pl-8 pr-3 py-2 outline-none appearance-none focus:ring-1 focus:ring-primary/40">
                       <option value="">All Classes / Grades</option>
                       {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   {(contactSchoolFilter || contactClassFilter) && (
                     <button onClick={() => { setContactSchoolFilter(''); setContactClassFilter(''); }}
-                      className="text-[10px] text-orange-400/70 hover:text-orange-400 font-bold transition-colors">
+                      className="text-[10px] text-primary/70 hover:text-primary font-bold transition-colors">
                       Clear filters ×
                     </button>
                   )}
@@ -1707,19 +1707,19 @@ export default function UnifiedInbox() {
               <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
                 {contactsLoading ? 'Loading…' : `${filteredContacts.length} contact${filteredContacts.length !== 1 ? 's' : ''}`}
               </span>
-              <button onClick={fetchContacts} className="text-[10px] text-orange-400/60 hover:text-orange-400 font-bold transition-colors">Refresh</button>
+              <button onClick={fetchContacts} className="text-[10px] text-primary/60 hover:text-primary font-bold transition-colors">Refresh</button>
             </div>
 
             {/* Contact list */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {contactsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
+                <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filteredContacts.length === 0 ? (
                 <div className="text-center p-12">
                   <UserCircle className="w-10 h-10 text-white/10 mx-auto mb-3" />
                   <p className="text-white/30 text-sm">{contactSearch || contactRoleFilter !== 'all' ? 'No matching contacts.' : 'No contacts yet.'}</p>
                   <button onClick={() => { setShowAddContact(true); setEditingContact(null); setAddContactForm(EMPTY_CONTACT_FORM); }}
-                    className="mt-3 text-orange-400 text-sm font-bold hover:underline">Add one →</button>
+                    className="mt-3 text-primary text-sm font-bold hover:underline">Add one →</button>
                 </div>
               ) : (
                 filteredContacts.map(contact => (
@@ -1728,7 +1728,7 @@ export default function UnifiedInbox() {
                     className={`px-3 py-3 cursor-pointer transition-colors border-b border-white/[0.04] group ${activeContact?.id === contact.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${
-                        contact.role === 'student' ? 'bg-emerald-500' : contact.role === 'parent' ? 'bg-orange-500' :
+                        contact.role === 'student' ? 'bg-emerald-500' : contact.role === 'parent' ? 'bg-primary' :
                         contact.role === 'teacher' ? 'bg-blue-600' : contact.role === 'school' ? 'bg-indigo-600' : 'bg-white/20'
                       }`}>
                         {initials(contact.full_name)}
@@ -1745,14 +1745,14 @@ export default function UnifiedInbox() {
                           {contact.class_name  && <span className="text-[11px] text-violet-400">{contact.class_name}</span>}
                         </div>
                       </div>
-                      <ChevronRight className={`w-4 h-4 text-white/20 shrink-0 transition-transform ${activeContact?.id === contact.id ? 'rotate-90 text-orange-400' : 'group-hover:text-orange-400'}`} />
+                      <ChevronRight className={`w-4 h-4 text-white/20 shrink-0 transition-transform ${activeContact?.id === contact.id ? 'rotate-90 text-primary' : 'group-hover:text-primary'}`} />
                     </div>
 
                     {/* Expanded contact actions */}
                     {activeContact?.id === contact.id && (
                       <div className="mt-3 ml-14 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
                         <button onClick={() => startChatFromContact(contact)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-400 text-white text-[11px] font-black rounded-full transition-colors">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary text-white text-[11px] font-black rounded-full transition-colors">
                           <MessageSquare className="w-3 h-3" /> Message
                         </button>
                         {contact.phone && (
@@ -1805,7 +1805,7 @@ export default function UnifiedInbox() {
                       {initials(activeConv.contact_name)}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-white text-[15px] truncate group-hover:text-orange-300 transition-colors">{activeConv.contact_name}</h3>
+                      <h3 className="font-bold text-white text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
                       <p className="text-[11px] text-white/40 truncate flex items-center gap-1.5">
                         {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
                          activeConv.subject ? activeConv.subject :
@@ -1815,7 +1815,7 @@ export default function UnifiedInbox() {
                         {/* Assignment Status Pill */}
                         {activeConv.type === 'students' && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            activeConv.assigned_staff_id === profile?.id ? 'bg-orange-500/20 text-orange-400' :
+                            activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
                             activeConv.assigned_staff_id ? 'bg-violet-500/20 text-violet-400' : 'bg-white/5 text-white/30'
                           }`}>
                             {activeConv.assigned_staff_id === profile?.id ? 'Assigned to you' :
@@ -1849,12 +1849,12 @@ export default function UnifiedInbox() {
                           onClick={() => assignConversation(activeConv.id, profile!.id)}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
                         >
-                          <div className="w-7 h-7 rounded-full bg-orange-600 flex items-center justify-center text-[10px] font-black text-white">ME</div>
+                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white">ME</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[12px] font-bold text-white truncate">Assign to myself</p>
-                            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-tight">You</p>
+                            <p className="text-[10px] text-primary font-bold uppercase tracking-tight">You</p>
                           </div>
-                          {activeConv.assigned_staff_id === profile?.id && <Check className="w-4 h-4 text-orange-500" />}
+                          {activeConv.assigned_staff_id === profile?.id && <Check className="w-4 h-4 text-primary" />}
                         </button>
                         {staff.filter(s => s.id !== profile?.id).map(s => (
                           <button 
@@ -1906,7 +1906,7 @@ export default function UnifiedInbox() {
                 >
                   <Mail className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-orange-400 bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
+                <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
               </div>
@@ -1914,16 +1914,16 @@ export default function UnifiedInbox() {
 
             {/* ── Save-to-contacts banner ── */}
             {showSaveBanner && (
-              <div className="shrink-0 bg-orange-500/10 border-b border-orange-500/20 px-4 py-2 flex items-center justify-between gap-3">
+              <div className="shrink-0 bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <UserPlus className="w-4 h-4 text-orange-400 shrink-0" />
-                  <p className="text-orange-300 text-xs font-bold truncate">
+                  <UserPlus className="w-4 h-4 text-primary shrink-0" />
+                  <p className="text-primary text-xs font-bold truncate">
                     <span className="text-white">{activeConv.contact_name}</span> is not in your contacts yet.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={saveContactFromConversation}
-                    className="px-3 py-1 bg-orange-500 hover:bg-orange-400 text-white text-[11px] font-black rounded-full transition-colors">
+                    className="px-3 py-1 bg-primary hover:bg-primary text-white text-[11px] font-black rounded-full transition-colors">
                     Add Contact
                   </button>
                   <button onClick={() => setShowSaveBanner(false)} className="text-white/30 hover:text-white/60">
@@ -1970,7 +1970,7 @@ export default function UnifiedInbox() {
                             {/* Inbound meta row — role/school/class for teachers/admins */}
                             {!isMine && (
                               <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                                <span className="text-orange-400 text-[11px] font-black">{activeConv.contact_name}</span>
+                                <span className="text-primary text-[11px] font-black">{activeConv.contact_name}</span>
                                 {activeConv.role && (
                                   <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>{activeConv.role}</span>
                                 )}
@@ -2134,7 +2134,7 @@ export default function UnifiedInbox() {
                   placeholder="Type a message…" rows={1}
                   className="flex-1 bg-[#2a3942] text-white text-[14px] rounded-2xl px-4 py-2.5 outline-none resize-none placeholder-white/25 focus:ring-1 focus:ring-white/15 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
                 <button type="submit" disabled={!newMessage.trim() || isSending}
-                  className="w-10 h-10 bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-orange-500/20">
+                  className="w-10 h-10 bg-primary hover:bg-primary disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-primary/20">
                   {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-[15px] h-[15px] ml-0.5" />}
                 </button>
               </form>
@@ -2166,7 +2166,7 @@ export default function UnifiedInbox() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-7">
               {!isParentOrStudent && (
-                <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-400 text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
+                <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
                   <Plus className="w-4 h-4" /> New Chat
                 </button>
               )}
@@ -2290,12 +2290,12 @@ export default function UnifiedInbox() {
                 <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                 <input autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
                   placeholder="Type to search…"
-                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-2.5 outline-none placeholder-white/25 focus:ring-1 focus:ring-orange-500/30" />
+                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-2.5 outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {loadingDirectory ? (
-                <div className="p-12 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-orange-400" /></div>
+                <div className="p-12 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-primary" /></div>
               ) : (
                 <>
                   {directoryResults.map(item => (
@@ -2314,7 +2314,7 @@ export default function UnifiedInbox() {
                           {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-orange-400 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-primary transition-colors" />
                     </button>
                   ))}
 
@@ -2325,7 +2325,7 @@ export default function UnifiedInbox() {
                         const phone = directorySearch.replace(/\D/g, '');
                         startNewConversation({ id: phone, full_name: `+${phone}`, phone: phone, role: 'external' });
                       }}
-                      className="w-full flex items-center px-4 py-4 bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-left group border-b border-orange-500/10"
+                      className="w-full flex items-center px-4 py-4 bg-primary/5 hover:bg-primary/10 transition-colors text-left group border-b border-primary/10"
                     >
                       <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mr-3">
                         <Plus className="w-5 h-5 text-white" />
@@ -2334,7 +2334,7 @@ export default function UnifiedInbox() {
                         <p className="font-black text-white text-[14px]">Message +{directorySearch.replace(/\D/g, '')} directly</p>
                         <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Start WhatsApp conversation</p>
                       </div>
-                      <MessageSquare className="w-5 h-5 text-orange-400 mr-2" />
+                      <MessageSquare className="w-5 h-5 text-primary mr-2" />
                     </button>
                   )}
 
@@ -2360,8 +2360,8 @@ export default function UnifiedInbox() {
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-orange-500/20 flex items-center justify-center">
-                  {editingContact ? <Pencil className="w-4 h-4 text-orange-400" /> : <UserPlus className="w-4 h-4 text-orange-400" />}
+                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
+                  {editingContact ? <Pencil className="w-4 h-4 text-primary" /> : <UserPlus className="w-4 h-4 text-primary" />}
                 </div>
                 <div>
                   <h2 className="text-white font-black text-[16px]">{editingContact ? 'Edit Contact' : 'New Contact'}</h2>
@@ -2389,7 +2389,7 @@ export default function UnifiedInbox() {
                   <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={addContactForm.full_name} onChange={e => setAddContactForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="e.g. Amara Okonkwo" autoFocus
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
@@ -2400,7 +2400,7 @@ export default function UnifiedInbox() {
                   <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={addContactForm.phone} onChange={e => setAddContactForm(f => ({ ...f, phone: e.target.value }))}
                     placeholder="+234 800 000 0000" type="tel"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
@@ -2411,7 +2411,7 @@ export default function UnifiedInbox() {
                   <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={addContactForm.email} onChange={e => setAddContactForm(f => ({ ...f, email: e.target.value }))}
                     placeholder="name@school.edu.ng" type="email"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
@@ -2422,7 +2422,7 @@ export default function UnifiedInbox() {
                   <div className="flex gap-2 flex-wrap">
                     {['student', 'parent', 'teacher', 'school', 'external'].map(r => (
                       <button key={r} type="button" onClick={() => setAddContactForm(f => ({ ...f, role: r }))}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase transition-colors ${addContactForm.role === r ? 'bg-orange-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase transition-colors ${addContactForm.role === r ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
                         {r}
                       </button>
                     ))}
@@ -2437,7 +2437,7 @@ export default function UnifiedInbox() {
                   <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={addContactForm.school_name} onChange={e => setAddContactForm(f => ({ ...f, school_name: e.target.value }))}
                     placeholder="e.g. Lagos Academy"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
@@ -2448,7 +2448,7 @@ export default function UnifiedInbox() {
                   <GraduationCap className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={addContactForm.class_name} onChange={e => setAddContactForm(f => ({ ...f, class_name: e.target.value }))}
                     placeholder="e.g. JSS 2A"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
 
@@ -2457,7 +2457,7 @@ export default function UnifiedInbox() {
                 <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Notes (optional)</label>
                 <textarea value={addContactForm.notes} onChange={e => setAddContactForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Any additional context…" rows={2}
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl px-4 py-2.5 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl px-4 py-2.5 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
               </div>
             </div>
 
@@ -2468,7 +2468,7 @@ export default function UnifiedInbox() {
                 Cancel
               </button>
               <button onClick={saveContact} disabled={savingContact || !addContactForm.full_name.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
                 {savingContact ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : (editingContact ? 'Save Changes' : 'Add Contact')}
               </button>
             </div>
@@ -2483,7 +2483,7 @@ export default function UnifiedInbox() {
               <div>
                 <h2 className="text-white font-black text-[16px]">New Conversation</h2>
                 <p className="text-white/40 text-xs mt-0.5">
-                  With: <strong className="text-orange-400">{subjectDialog.pendingItem?.full_name || subjectDialog.pendingItem?.name || 'Contact'}</strong>
+                  With: <strong className="text-primary">{subjectDialog.pendingItem?.full_name || subjectDialog.pendingItem?.name || 'Contact'}</strong>
                 </p>
               </div>
               <button onClick={() => setSubjectDialog({ open: false, subject: '', pendingItem: null })} className="p-2 hover:bg-white/10 rounded-full">
@@ -2503,7 +2503,7 @@ export default function UnifiedInbox() {
                     onChange={e => setSubjectDialog(d => ({ ...d, subject: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') confirmSubjectAndCreate(); }}
                     placeholder="e.g. Student progress update"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40"
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40"
                   />
                 </div>
               </div>
@@ -2514,7 +2514,7 @@ export default function UnifiedInbox() {
                 Cancel
               </button>
               <button onClick={confirmSubjectAndCreate} disabled={!subjectDialog.subject.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
                 <MessageSquare className="w-4 h-4" /> Start Chat
               </button>
             </div>
@@ -2643,8 +2643,8 @@ export default function UnifiedInbox() {
           <div className="w-full max-w-sm bg-[#202c33] rounded-2xl overflow-hidden shadow-2xl">
             {/* Header */}
             <div className="px-6 pt-6 pb-4 text-center border-b border-white/[0.08]">
-              <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4 border-2 border-orange-500/20">
-                <UserCircle className="w-8 h-8 text-orange-400" />
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 border-2 border-primary/20">
+                <UserCircle className="w-8 h-8 text-primary" />
               </div>
               <h2 className="text-white font-black text-lg">Complete Your Profile</h2>
               <p className="text-white/40 text-xs mt-1 leading-relaxed">
@@ -2660,7 +2660,7 @@ export default function UnifiedInbox() {
                   <UserCircle className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={profileForm.full_name} onChange={e => setProfileForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="e.g. Mrs. Adaeze Okafor" autoFocus
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
               <div>
@@ -2669,7 +2669,7 @@ export default function UnifiedInbox() {
                   <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
                     placeholder="+234 800 000 0000" type="tel"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
               <div>
@@ -2678,7 +2678,7 @@ export default function UnifiedInbox() {
                   <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                   <input value={profileForm.school_name} onChange={e => setProfileForm(f => ({ ...f, school_name: e.target.value }))}
                     placeholder="e.g. Lagos Academy"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-orange-500/40" />
+                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
                 </div>
               </div>
             </div>
@@ -2690,7 +2690,7 @@ export default function UnifiedInbox() {
                 Cancel
               </button>
               <button onClick={saveProfileAndSend} disabled={savingProfile || !profileForm.full_name.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
+                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2">
                 {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Save & Send'}
               </button>
             </div>
@@ -2706,7 +2706,7 @@ export default function UnifiedInbox() {
           title="Quick chat by number"
         >
           <MessageSquare className="w-6 h-6" />
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
             <Plus className="w-3 h-3" />
           </span>
         </button>

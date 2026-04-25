@@ -137,13 +137,13 @@ export default function SchoolTeacherMessagesPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-5 h-5 text-orange-400" />
+            <ChatBubbleLeftRightIcon className="w-5 h-5 text-primary" />
             <h1 className="text-3xl font-black">School-Teacher Messages</h1>
           </div>
           {(profile?.role === 'school' || profile?.role === 'admin') && (
             <button
               onClick={() => setShowNewConversation(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-none text-sm font-bold transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white rounded-none text-sm font-bold transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               New Conversation
@@ -156,7 +156,7 @@ export default function SchoolTeacherMessagesPage() {
           <div className="lg:col-span-1 bg-card border border-border rounded-none overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-8">
-                <div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : conversations.length === 0 ? (
               <div className="text-center py-10 px-4">
@@ -179,7 +179,7 @@ export default function SchoolTeacherMessagesPage() {
                       selected?.id === conv.id ? 'bg-muted' : ''
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-black text-orange-400 flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-primary/30 flex items-center justify-center text-xs font-black text-primary flex-shrink-0">
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
@@ -218,7 +218,7 @@ export default function SchoolTeacherMessagesPage() {
                     const isOwn = msg.sender_id === profile?.id;
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                        <div className="w-7 h-7 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                           {(msg.sender?.full_name ?? '?')[0]}
                         </div>
                         <div className={`max-w-[70%] space-y-1 ${isOwn ? 'items-end' : ''}`}>
@@ -229,7 +229,7 @@ export default function SchoolTeacherMessagesPage() {
                           )}
                           <div className={`px-3 py-2 rounded-none text-sm ${
                             isOwn 
-                              ? 'bg-orange-600/90 text-white' 
+                              ? 'bg-primary/90 text-white' 
                               : 'bg-muted border border-border text-foreground'
                           }`}>
                             {msg.content}
@@ -252,12 +252,12 @@ export default function SchoolTeacherMessagesPage() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Type a message…"
-                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-orange-500"
+                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
                   <button 
                     onClick={sendMessage} 
                     disabled={!input.trim() || sending} 
-                    className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-none transition-colors"
+                    className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-none transition-colors"
                   >
                     <PaperAirplaneIcon className="w-4 h-4" />
                   </button>
@@ -283,7 +283,7 @@ export default function SchoolTeacherMessagesPage() {
                         onClick={() => createConversation(teacher.id)}
                         className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-none text-left transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-bold text-orange-400">
+                        <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary">
                           <AcademicCapIcon className="w-4 h-4" />
                         </div>
                         <div>
@@ -303,7 +303,7 @@ export default function SchoolTeacherMessagesPage() {
                         onClick={() => createConversation(school.id)}
                         className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-none text-left transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-bold text-orange-400">
+                        <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary">
                           <BuildingOfficeIcon className="w-4 h-4" />
                         </div>
                         <div>

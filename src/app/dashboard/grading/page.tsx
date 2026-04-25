@@ -91,15 +91,15 @@ export default function GradingQueuePage() {
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Submissions</span>
+            <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">Submissions</span>
           </div>
           <h1 className="text-3xl font-black">Grading Queue</h1>
           <p className="text-muted-foreground text-sm mt-1">Review AI-suggested grades and override as needed</p>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
         ) : submissions.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-none">
             <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
@@ -112,7 +112,7 @@ export default function GradingQueuePage() {
               const isOpen = gradingId === sub.id;
               const maxPts = sub.assignments?.max_points ?? 100;
               return (
-                <div key={sub.id} className={`bg-card border rounded-none transition-all ${isOpen ? 'border-orange-500/40' : 'border-border'}`}>
+                <div key={sub.id} className={`bg-card border rounded-none transition-all ${isOpen ? 'border-primary/40' : 'border-border'}`}>
                   <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm text-foreground truncate">{sub.assignments?.title ?? 'Assignment'}</p>
@@ -155,7 +155,7 @@ export default function GradingQueuePage() {
                             max={maxPts}
                             value={grade[sub.id] ?? ''}
                             onChange={e => setGrade(g => ({ ...g, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-orange-500"
+                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary"
                             placeholder={`0–${maxPts}`}
                           />
                         </div>
@@ -164,7 +164,7 @@ export default function GradingQueuePage() {
                           <input
                             value={feedback[sub.id] ?? ''}
                             onChange={e => setFeedback(f => ({ ...f, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-orange-500"
+                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary"
                             placeholder="Brief feedback for the student…"
                           />
                         </div>
@@ -172,7 +172,7 @@ export default function GradingQueuePage() {
                       <button
                         onClick={() => overrideGrade(sub.id)}
                         disabled={!grade[sub.id] || saving === sub.id}
-                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-sm font-bold rounded-none transition-colors"
+                        className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white text-sm font-bold rounded-none transition-colors"
                       >
                         {saving === sub.id ? 'Saving…' : 'Save Grade'}
                       </button>

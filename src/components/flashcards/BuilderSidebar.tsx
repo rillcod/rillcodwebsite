@@ -63,7 +63,7 @@ export default function BuilderSidebar({
                 onClick={() => onTemplateChange(template)}
                 className={`p-3 border rounded-lg text-left transition-all ${
                   selectedTemplate.id === template.id
-                    ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20'
+                    ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
                     : 'border-border hover:border-muted-foreground hover:bg-muted/50'
                 }`}
               >

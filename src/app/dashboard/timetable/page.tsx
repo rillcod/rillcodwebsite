@@ -90,7 +90,7 @@ function SlotMenu({
                 onClick={() => setSub('reassign')}
                 className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <UserIcon className="w-3.5 h-3.5 text-orange-400" /> Reassign Teacher
+                <UserIcon className="w-3.5 h-3.5 text-primary" /> Reassign Teacher
               </button>
               <button
                 onClick={() => setSub('move')}
@@ -125,7 +125,7 @@ function SlotMenu({
                   <button
                     key={t.id}
                     onClick={() => { onReassign(slot.id, t.id, t.full_name ?? ''); setOpen(false); setSub(null); }}
-                    className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-muted transition-colors ${slot.teacher_id === t.id ? 'text-orange-400 font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-muted transition-colors ${slot.teacher_id === t.id ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     {slot.teacher_id === t.id && <CheckIcon className="w-3 h-3 flex-shrink-0" />}
                     {t.full_name ?? 'Unnamed'}
@@ -175,12 +175,12 @@ function SlotCell({
   const isExam = /exam|test|quiz/i.test(slot.subject);
 
   const cardCls = isCurrent
-    ? 'bg-orange-600 border-orange-400 shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-orange-500/50'
+    ? 'bg-primary border-primary shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-primary/50'
     : isPractical
       ? 'bg-cyan-500/10 border-cyan-500/20'
       : isExam
         ? 'bg-rose-500/10 border-rose-500/20'
-        : 'bg-orange-500/10 border-orange-500/20';
+        : 'bg-primary/10 border-primary/20';
 
   return (
     <div className={`border rounded-none p-3 transition-all duration-300 ${cardCls}`}>
@@ -212,7 +212,7 @@ function SlotCell({
       </div>
 
       {slot.teacher_name && (
-        <p className={`text-[10px] mt-2 font-medium truncate ${isCurrent ? 'text-muted-foreground' : 'text-orange-500/60'}`}>
+        <p className={`text-[10px] mt-2 font-medium truncate ${isCurrent ? 'text-muted-foreground' : 'text-primary/60'}`}>
           👤 {slot.teacher_name}
         </p>
       )}
@@ -694,7 +694,7 @@ export default function TimetablePage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading timetable…</p>
       </div>
     </div>
@@ -711,7 +711,7 @@ export default function TimetablePage() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
               <UserGroupIcon className="w-4 h-4" /> Classes
             </Link>
-            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
               <CalendarDaysIcon className="w-4 h-4" /> Timetable
             </span>
             <Link href="/dashboard/attendance"
@@ -722,7 +722,7 @@ export default function TimetablePage() {
         )}
         {isStudent && (
           <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
               <CalendarDaysIcon className="w-4 h-4" /> Timetable
             </span>
             <Link href="/dashboard/attendance"
@@ -736,8 +736,8 @@ export default function TimetablePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <CalendarDaysIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Schedule</span>
+              <CalendarDaysIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Schedule</span>
             </div>
             <h1 className="text-3xl font-extrabold">Timetable</h1>
             <p className="text-muted-foreground text-sm mt-1">
@@ -757,14 +757,14 @@ export default function TimetablePage() {
             {isAdmin && (
               <button
                 onClick={handlePrintAll}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 text-orange-400 font-bold text-sm rounded-none transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary font-bold text-sm rounded-none transition-all"
               >
                 <CalendarDaysIcon className="w-4 h-4" /> Print All
               </button>
             )}
             {isAdmin && (
               <button onClick={openNewTT}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
                 <PlusIcon className="w-4 h-4" /> New Timetable
               </button>
             )}
@@ -782,21 +782,21 @@ export default function TimetablePage() {
         {isTeacher && (
           <div className="space-y-5">
             {teacherTodaySlots.length > 0 ? (
-              <div className="bg-orange-600/10 border border-orange-500/30 rounded-none p-5">
+              <div className="bg-primary/10 border border-primary/30 rounded-none p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-9 h-9 bg-orange-600/20 rounded-none flex items-center justify-center">
-                    <BellAlertIcon className="w-5 h-5 text-orange-400" />
+                  <div className="w-9 h-9 bg-primary/20 rounded-none flex items-center justify-center">
+                    <BellAlertIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <p className="font-black text-foreground text-sm">You have {teacherTodaySlots.length} class{teacherTodaySlots.length > 1 ? 'es' : ''} today</p>
-                    <p className="text-[11px] text-orange-400/70">{TODAY} · {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                    <p className="text-[11px] text-primary/70">{TODAY} · {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   {teacherTodaySlots.map(slot => (
-                    <div key={slot.id} className="flex items-center gap-4 bg-orange-600/10 border border-orange-500/20 rounded-none px-4 py-3">
+                    <div key={slot.id} className="flex items-center gap-4 bg-primary/10 border border-primary/20 rounded-none px-4 py-3">
                       <div className="flex-shrink-0 min-w-[80px]">
-                        <p className="text-sm font-black text-orange-500">{slot.start_time}</p>
+                        <p className="text-sm font-black text-primary">{slot.start_time}</p>
                         <p className="text-[10px] text-muted-foreground">to {slot.end_time}</p>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -828,17 +828,17 @@ export default function TimetablePage() {
                 const daySlots = teacherSlots.filter(s => s.day_of_week === day);
                 if (daySlots.length === 0) return null;
                 return (
-                  <div key={day} className={`border rounded-none p-5 ${day === TODAY ? 'bg-orange-600/5 border-orange-500/20' : 'bg-card shadow-sm border-border'}`}>
+                  <div key={day} className={`border rounded-none p-5 ${day === TODAY ? 'bg-primary/5 border-primary/20' : 'bg-card shadow-sm border-border'}`}>
                     <div className="flex items-center gap-2 mb-3">
                       <h3 className="font-black text-foreground">{day}</h3>
-                      {day === TODAY && <Badge text="Today" color="bg-orange-600/30 text-orange-500" />}
+                      {day === TODAY && <Badge text="Today" color="bg-primary/30 text-primary" />}
                       <span className="text-[11px] text-muted-foreground ml-auto">{daySlots.length} slot{daySlots.length > 1 ? 's' : ''}</span>
                     </div>
                     <div className="space-y-2">
                       {daySlots.map(slot => (
                         <div key={slot.id} className="flex items-start gap-4 bg-white/[0.03] border border-border rounded-none px-4 py-3">
                           <div className="flex-shrink-0 text-center min-w-[70px]">
-                            <p className="text-sm font-black text-orange-400">{slot.start_time}</p>
+                            <p className="text-sm font-black text-primary">{slot.start_time}</p>
                             <p className="text-[10px] text-muted-foreground">to {slot.end_time}</p>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -874,11 +874,11 @@ export default function TimetablePage() {
           <>
             {/* Today's highlight */}
             {(isStudent || isSchool) && timetables.length > 0 && todaySlots.length > 0 && (
-              <div className="bg-orange-600/10 border border-orange-500/30 rounded-none p-4 flex items-center gap-4">
-                <BellAlertIcon className="w-5 h-5 text-orange-400 flex-shrink-0" />
+              <div className="bg-primary/10 border border-primary/30 rounded-none p-4 flex items-center gap-4">
+                <BellAlertIcon className="w-5 h-5 text-primary flex-shrink-0" />
                 <div>
                   <p className="text-sm font-black text-foreground">{todaySlots.length} class{todaySlots.length > 1 ? 'es' : ''} scheduled today</p>
-                  <p className="text-[11px] text-orange-400/70">{TODAY} — {todaySlots.map(s => s.subject).join(', ')}</p>
+                  <p className="text-[11px] text-primary/70">{TODAY} — {todaySlots.map(s => s.subject).join(', ')}</p>
                 </div>
               </div>
             )}
@@ -897,13 +897,13 @@ export default function TimetablePage() {
                       onClick={() => handleSelectTT(tt.id)}
                       onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id
-                        ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/30'
+                        ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30'
                         : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                       <BuildingOfficeIcon className="w-4 h-4 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="truncate">{tt.title}</p>
                         {(tt as any).schools?.name && (
-                          <p className={`text-[10px] truncate ${activeTimetable === tt.id ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                          <p className={`text-[10px] truncate ${activeTimetable === tt.id ? 'text-primary' : 'text-muted-foreground'}`}>
                             {(tt as any).schools.name}
                           </p>
                         )}
@@ -944,7 +944,7 @@ export default function TimetablePage() {
                 </span>
                 {canEdit && (
                   <button onClick={() => openNewSlot()}
-                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-none transition-colors font-bold">
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-none transition-colors font-bold">
                     <PlusIcon className="w-3.5 h-3.5" /> Add Slot
                   </button>
                 )}
@@ -958,7 +958,7 @@ export default function TimetablePage() {
                   <button
                     key={day}
                     onClick={() => setMobileDay(day)}
-                    className={`flex-1 min-w-[60px] py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-orange-600 text-foreground shadow-lg' : 'text-muted-foreground'}`}
+                    className={`flex-1 min-w-[60px] py-3 rounded-none text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-primary text-foreground shadow-lg' : 'text-muted-foreground'}`}
                   >
                     {day.slice(0, 3)}
                     {day === TODAY && <span className="block text-[8px] opacity-60">Today</span>}
@@ -977,17 +977,17 @@ export default function TimetablePage() {
                       <div key={day} className={`space-y-2 ${mobileDay === day ? 'block' : 'hidden sm:block'}`}>
                         {/* Day header */}
                         <div className={`border rounded-none px-3 py-2 flex items-center justify-between ${day === TODAY
-                          ? 'bg-orange-600/30 border-orange-500/40'
-                          : 'bg-orange-600/10 border-orange-500/10'}`}>
+                          ? 'bg-primary/30 border-primary/40'
+                          : 'bg-primary/10 border-primary/10'}`}>
                           <div>
-                            <p className={`text-xs font-black uppercase tracking-widest ${day === TODAY ? 'text-orange-500' : 'text-orange-500/60'}`}>
+                            <p className={`text-xs font-black uppercase tracking-widest ${day === TODAY ? 'text-primary' : 'text-primary/60'}`}>
                               {day.slice(0, 3)}
                             </p>
-                            {day === TODAY && <p className="text-[9px] text-orange-500/60">Today</p>}
+                            {day === TODAY && <p className="text-[9px] text-primary/60">Today</p>}
                           </div>
                           <div className="flex items-center gap-1">
                             {daySlotList.length > 0 && (
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${day === TODAY ? 'bg-orange-500/40 text-orange-500' : 'bg-muted text-muted-foreground'}`}>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${day === TODAY ? 'bg-primary/40 text-primary' : 'bg-muted text-muted-foreground'}`}>
                                 {daySlotList.length}
                               </span>
                             )}
@@ -997,7 +997,7 @@ export default function TimetablePage() {
                                 className="p-1 rounded-none hover:bg-muted transition-colors"
                                 title={`Add slot for ${day}`}
                               >
-                                <PlusIcon className={`w-3.5 h-3.5 ${day === TODAY ? 'text-orange-500' : 'text-muted-foreground hover:text-foreground'}`} />
+                                <PlusIcon className={`w-3.5 h-3.5 ${day === TODAY ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} />
                               </button>
                             )}
                           </div>
@@ -1010,7 +1010,7 @@ export default function TimetablePage() {
                               {canEdit ? (
                                 <button
                                   onClick={() => openNewSlot(day)}
-                                  className="text-[10px] text-muted-foreground hover:text-orange-400 transition-colors flex items-center gap-1 mx-auto">
+                                  className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mx-auto">
                                   <PlusIcon className="w-3 h-3" /> Add slot
                                 </button>
                               ) : (
@@ -1058,7 +1058,7 @@ export default function TimetablePage() {
                     <p className="text-lg font-semibold text-muted-foreground">No timetables yet</p>
                     <p className="text-muted-foreground text-sm mt-1">Create one and assign it to a school, section, and term.</p>
                     <button onClick={openNewTT}
-                      className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all">
+                      className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-none transition-all">
                       <PlusIcon className="w-4 h-4" /> Create First Timetable
                     </button>
                   </>
@@ -1094,7 +1094,7 @@ export default function TimetablePage() {
                   Partner School <span className="text-rose-400">*</span>
                 </label>
                 <select value={ttForm.school_id} onChange={e => setTTForm(s => ({ ...s, school_id: e.target.value }))}
-                  className={`w-full bg-card shadow-sm border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 ${!ttForm.school_id ? 'border-rose-500/40' : 'border-border'}`}>
+                  className={`w-full bg-card shadow-sm border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.school_id ? 'border-rose-500/40' : 'border-border'}`}>
                   <option value="">— Select partner school —</option>
                   {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
                 </select>
@@ -1106,14 +1106,14 @@ export default function TimetablePage() {
                 </label>
                 <input value={ttForm.title} onChange={e => setTTForm(s => ({ ...s, title: e.target.value }))}
                   placeholder="e.g. 2025/2026 First Term — Primary"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Section</label>
                   <select value={ttForm.section} onChange={e => setTTForm(s => ({ ...s, section: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                     <option value="">All</option>
                     <option value="Primary">Primary</option>
                     <option value="Secondary">Secondary</option>
@@ -1123,21 +1123,21 @@ export default function TimetablePage() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</label>
                   <select value={ttForm.academic_year} onChange={e => setTTForm(s => ({ ...s, academic_year: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                     {['2024/2025', '2025/2026', '2026/2027'].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term</label>
                   <select value={ttForm.term} onChange={e => setTTForm(s => ({ ...s, term: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                     {['First Term', 'Second Term', 'Third Term', 'Annual'].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
 
               <label className="flex items-center gap-3 cursor-pointer">
-                <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${ttForm.is_active ? 'bg-orange-600' : 'bg-muted'}`}
+                <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${ttForm.is_active ? 'bg-primary' : 'bg-muted'}`}
                   onClick={() => setTTForm(s => ({ ...s, is_active: !s.is_active }))}>
                   <div className={`w-5 h-5 bg-card rounded-full mt-0.5 transition-transform shadow ${ttForm.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
@@ -1151,7 +1151,7 @@ export default function TimetablePage() {
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowTTForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
               <button onClick={saveTT} disabled={saving || !ttForm.title.trim() || !ttForm.school_id}
-                className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground font-bold text-sm rounded-none transition-all">
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground font-bold text-sm rounded-none transition-all">
                 {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                 {editingTT ? 'Update' : 'Create'}
               </button>
@@ -1183,19 +1183,19 @@ export default function TimetablePage() {
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject / Activity <span className="text-rose-400">*</span></label>
                 <input value={slotForm.subject} onChange={e => setSlotForm(s => ({ ...s, subject: e.target.value }))}
                   placeholder="e.g. Python Programming"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Day</label>
                 <select value={slotForm.day_of_week} onChange={e => setSlotForm(s => ({ ...s, day_of_week: e.target.value }))}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                   {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Assigned Teacher</label>
                 <select value={slotForm.teacher_id} onChange={e => setSlotForm(s => ({ ...s, teacher_id: e.target.value }))}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                   <option value="">— Unassigned —</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
                 </select>
@@ -1203,31 +1203,31 @@ export default function TimetablePage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Time</label>
                 <input type="time" value={slotForm.start_time} onChange={e => setSlotForm(s => ({ ...s, start_time: e.target.value }))}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Time</label>
                 <input type="time" value={slotForm.end_time} onChange={e => setSlotForm(s => ({ ...s, end_time: e.target.value }))}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Room / Location</label>
                 <input value={slotForm.room} onChange={e => setSlotForm(s => ({ ...s, room: e.target.value }))}
                   placeholder="e.g. ICT Lab 2"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
               <div className="space-y-1 col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notes</label>
                 <input value={slotForm.notes} onChange={e => setSlotForm(s => ({ ...s, notes: e.target.value }))}
                   placeholder="e.g. Bring laptops, practical session"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
             </div>
 
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowSlotForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
               <button onClick={saveSlot} disabled={saving || !slotForm.subject.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground font-bold text-sm rounded-none transition-all">
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground font-bold text-sm rounded-none transition-all">
                 {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                 {editingSlot ? 'Update Slot' : 'Add Slot'}
               </button>

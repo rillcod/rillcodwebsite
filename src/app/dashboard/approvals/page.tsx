@@ -27,7 +27,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function EnrollTypeBadge({ type }: { type?: string }) {
     const map: Record<string, string> = {
-        school: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        school: 'bg-primary/20 text-primary border-primary/30',
         bootcamp: 'bg-[#FF914D]/20 text-[#FF914D] border-[#FF914D]/30',
         online: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     };
@@ -197,8 +197,8 @@ export default function ApprovalsPage() {
                 {/* Header */}
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-orange-400" />
-                        <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Registration Queue · {profile?.role}</span>
+                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-bold text-primary uppercase tracking-widest">Registration Queue · {profile?.role}</span>
                     </div>
                     <h1 className="text-3xl font-extrabold">Approvals</h1>
                     <p className="text-muted-foreground text-sm mt-1">Review and action pending registrations</p>
@@ -230,7 +230,7 @@ export default function ApprovalsPage() {
                         <p className="text-xs text-muted-foreground mt-1">Pending Students</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-none p-5">
-                        <p className="text-2xl font-extrabold text-orange-400">{students.filter(s => s.enrollment_type === 'school' || !s.enrollment_type).length}</p>
+                        <p className="text-2xl font-extrabold text-primary">{students.filter(s => s.enrollment_type === 'school' || !s.enrollment_type).length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
                     <div className="bg-card shadow-sm border border-border rounded-none p-5">
@@ -257,7 +257,7 @@ export default function ApprovalsPage() {
                 {/* Tabs */}
                 <div className="flex gap-2 bg-card shadow-sm p-1 rounded-none border border-border w-fit">
                     <button onClick={() => setTab('students')}
-                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'students' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'students' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                         Students ({students.length})
                     </button>
                     <button onClick={() => setTab('prospective')}
@@ -266,7 +266,7 @@ export default function ApprovalsPage() {
                     </button>
                     {profile?.role === 'admin' && (
                         <button onClick={() => setTab('schools')}
-                            className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'schools' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                            className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'schools' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                             Schools ({schools.length})
                         </button>
                     )}
@@ -291,7 +291,7 @@ export default function ApprovalsPage() {
                             {students.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                             {(s.full_name ?? '?')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -351,7 +351,7 @@ export default function ApprovalsPage() {
                                                 {s.city && <span>{s.city}{s.state ? `, ${s.state}` : ''}</span>}
                                                 {s.principal_name && <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />Principal: {s.principal_name}</span>}
                                                 {s.student_count && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />{Number(s.student_count).toLocaleString()} students</span>}
-                                                {s.program_interest && <span className="text-orange-400 font-medium">{s.program_interest}</span>}
+                                                {s.program_interest && <span className="text-primary font-medium">{s.program_interest}</span>}
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
                                         </div>
@@ -396,7 +396,7 @@ export default function ApprovalsPage() {
                             </div>
                             <button
                                 onClick={() => setCredentials(null)}
-                                className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none text-sm transition-all"
+                                className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-none text-sm transition-all"
                             >
                                 Done — I've noted the credentials
                             </button>
@@ -418,7 +418,7 @@ export default function ApprovalsPage() {
                             {prospective.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                             {(s.full_name ?? '?')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">

@@ -186,7 +186,7 @@ export default function IoTPage() {
 
   if (authLoading || !profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -211,11 +211,11 @@ export default function IoTPage() {
 
         {/* Demo mode banner */}
         {isDemo && (
-          <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/20 rounded-none px-5 py-4">
-            <BeakerIcon className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 bg-primary/10 border border-primary/20 rounded-none px-5 py-4">
+            <BeakerIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-orange-500">Simulation Mode</p>
-              <p className="text-xs text-orange-400/70 mt-0.5">
+              <p className="text-sm font-bold text-primary">Simulation Mode</p>
+              <p className="text-xs text-primary/70 mt-0.5">
                 No <code className="bg-muted px-1 rounded">iot_devices</code> table found in the database.
                 Displaying simulated demo data with live random fluctuations.
                 Connect real hardware and create the table to see live metrics.
@@ -279,7 +279,7 @@ export default function IoTPage() {
             { label: 'Avg CPU', value: avgCpu, unit: '%', color: avgCpu >= 85 ? 'text-rose-400' : avgCpu >= 70 ? 'text-amber-400' : 'text-emerald-400' },
             { label: 'Avg Temp', value: avgTemp, unit: '°C', color: avgTemp >= 55 ? 'text-rose-400' : avgTemp >= 48 ? 'text-amber-400' : 'text-emerald-400' },
             { label: 'Avg Uptime', value: Math.round(devices.reduce((a, d) => a + d.uptime, 0) / Math.max(devices.length, 1)), unit: '%', color: 'text-blue-400' },
-            { label: 'Active Alerts', value: alerts.filter(a => !a.resolved).length, unit: '', color: 'text-orange-400' },
+            { label: 'Active Alerts', value: alerts.filter(a => !a.resolved).length, unit: '', color: 'text-primary' },
           ].map(s => (
             <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4">
               <p className={`text-xl font-extrabold ${s.color}`}>{s.value}{s.unit}</p>

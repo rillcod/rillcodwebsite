@@ -257,7 +257,7 @@ const TYPE_COLOR: Record<string, string> = {
   'hands-on': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   hands_on: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   interactive: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  workshop: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  workshop: 'bg-primary/20 text-primary border-primary/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   reading: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   quiz: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
@@ -546,7 +546,7 @@ const MOTION_COLORS = [
   { bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40',    text: 'text-cyan-400',    glow: 'rgba(6,182,212,0.5)'    },
   { bg: 'bg-violet-500/20',  border: 'border-violet-500/40',  text: 'text-violet-400',  glow: 'rgba(139,92,246,0.5)'   },
   { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', glow: 'rgba(16,185,129,0.5)'   },
-  { bg: 'bg-orange-500/20',  border: 'border-orange-500/40',  text: 'text-orange-400',  glow: 'rgba(249,115,22,0.5)'   },
+  { bg: 'bg-primary/20',  border: 'border-primary/40',  text: 'text-primary',  glow: 'rgba(249,115,22,0.5)'   },
   { bg: 'bg-rose-500/20',    border: 'border-rose-500/40',    text: 'text-rose-400',    glow: 'rgba(244,63,94,0.5)'    },
   { bg: 'bg-amber-500/20',   border: 'border-amber-500/40',   text: 'text-amber-400',   glow: 'rgba(245,158,11,0.5)'   },
 ];
@@ -650,10 +650,10 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
             <motion.div
               animate={{ scale: [1, 1.07, 1] }}
               transition={{ duration: 3.5, repeat: Infinity }}
-              className="absolute w-20 h-20 bg-orange-500/20 border-2 border-orange-500/50 flex items-center justify-center z-10 shadow-[0_0_28px_rgba(249,115,22,0.3)]"
+              className="absolute w-20 h-20 bg-primary/20 border-2 border-primary/50 flex items-center justify-center z-10 shadow-[0_0_28px_rgba(249,115,22,0.3)]"
               style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
             >
-              <p className="text-[8px] font-black text-orange-300 uppercase text-center leading-tight px-1">{effectiveLabels[0] || 'Core'}</p>
+              <p className="text-[8px] font-black text-primary uppercase text-center leading-tight px-1">{effectiveLabels[0] || 'Core'}</p>
             </motion.div>
             {effectiveLabels.slice(1, 7).map((label, i, arr) => {
               const angle = (i / arr.length) * Math.PI * 2 - Math.PI / 2;
@@ -697,9 +697,9 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
             <motion.div
               animate={{ scale: [1, 1.12, 1], rotate: 360 }}
               transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-              className="absolute w-14 h-14 bg-orange-500/25 border-2 border-orange-500/50 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)] z-10"
+              className="absolute w-14 h-14 bg-primary/25 border-2 border-primary/50 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)] z-10"
             >
-              <div className="w-4 h-4 rounded-full bg-orange-400" />
+              <div className="w-4 h-4 rounded-full bg-primary" />
             </motion.div>
           </div>
         )}
@@ -806,13 +806,13 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
   };
 
   return (
-    <div className="p-5 rounded-none border border-orange-500/20 bg-background space-y-5 relative overflow-hidden hover:border-orange-500/40 transition-all my-6 shadow-lg">
+    <div className="p-5 rounded-none border border-primary/20 bg-background space-y-5 relative overflow-hidden hover:border-primary/40 transition-all my-6 shadow-lg">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-none bg-orange-500/10 text-orange-400 flex-shrink-0">
+        <div className="p-2 rounded-none bg-primary/10 text-primary flex-shrink-0">
           <QuestionMarkCircleIcon className="w-5 h-5" />
         </div>
         <div>
-          <p className="text-[9px] font-bold text-orange-400 uppercase tracking-widest">Quick Check</p>
+          <p className="text-[9px] font-bold text-primary uppercase tracking-widest">Quick Check</p>
           <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Quiz</h3>
         </div>
       </div>
@@ -824,7 +824,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
           {block.options?.map((opt: string, optIdx: number) => {
             const isCorrect = optIdx === block.correctAnswer;
             const isSelected = selected === optIdx;
-            let stateClass = "border-border/60 bg-white/[0.02] hover:border-orange-500/40 hover:bg-orange-500/5";
+            let stateClass = "border-border/60 bg-white/[0.02] hover:border-primary/40 hover:bg-primary/5";
             if (revealed) {
               if (isCorrect) stateClass = "border-emerald-500/50 bg-emerald-500/10";
               else if (isSelected) stateClass = "border-rose-500/50 bg-rose-500/10";
@@ -962,7 +962,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
               repeat: Infinity,
               ease: "easeOut"
             }}
-            className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
+            className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-primary', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
           />
         ))}
       </div>
@@ -973,7 +973,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
         className="max-w-2xl w-full bg-background border border-border rounded-none p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="w-32 h-32 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
+          <div className="w-32 h-32 rounded-none bg-gradient-to-br from-primary to-primary to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
             <TrophyIcon className="w-16 h-16" />
           </div>
         </div>
@@ -981,7 +981,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
         <div className="space-y-6 pt-10">
           <div className="flex items-center justify-center gap-4">
             <div className="h-px w-12 bg-muted" />
-            <p className="text-[12px] font-bold text-orange-400 uppercase tracking-widest">Achievement</p>
+            <p className="text-[12px] font-bold text-primary uppercase tracking-widest">Achievement</p>
             <div className="h-px w-12 bg-muted" />
           </div>
           <h2 className="text-5xl sm:text-7xl font-black text-foreground leading-none tracking-tighter">LESSON COMPLETE!</h2>
@@ -1008,7 +1008,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
         <div className="grid grid-cols-2 gap-6">
           <div className="bg-card shadow-sm border border-border rounded-none p-8">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">XP Earned</p>
-            <p className="text-3xl font-black text-orange-400">+250 XP</p>
+            <p className="text-3xl font-black text-primary">+250 XP</p>
           </div>
           <div className="bg-card shadow-sm border border-border rounded-none p-8">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Status</p>
@@ -1018,7 +1018,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
 
         <button
           onClick={onDismiss}
-          className="w-full py-8 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-[0.4em] text-xs rounded-none transition-all shadow-2xl active:scale-95"
+          className="w-full py-8 bg-primary hover:bg-primary text-white font-black uppercase tracking-[0.4em] text-xs rounded-none transition-all shadow-2xl active:scale-95"
         >
           Continue
         </button>
@@ -1280,7 +1280,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
   const INFO_COLORS = [
     { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
     { accent: 'border-l-violet-500',  num: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/5'  },
-    { accent: 'border-l-orange-500',  num: 'bg-orange-500',  text: 'text-orange-400',  bg: 'bg-orange-500/5'  },
+    { accent: 'border-l-primary',  num: 'bg-primary',  text: 'text-primary',  bg: 'bg-primary/5'  },
     { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
     { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
     { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/5'   },
@@ -1296,11 +1296,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             return (
               <AnimatedBlock key={i} i={i}>
                 <div className="relative group pt-4">
-                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-orange-500 via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
+                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-primary via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
                   <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text">
                     {block.content}
                   </h2>
-                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-orange-500/50 via-violet-500/30 to-transparent transition-all duration-500" />
+                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-primary/50 via-violet-500/30 to-transparent transition-all duration-500" />
                 </div>
               </AnimatedBlock>
             );
@@ -1606,8 +1606,8 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="space-y-3">
                   {(block.title || block.concept) && (
                     <div className="flex items-center gap-3">
-                      <div className="w-1 h-4 bg-orange-500 rounded-full" />
-                      <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+                      <div className="w-1 h-4 bg-primary rounded-full" />
+                      <p className="text-[10px] font-black text-primary/70 uppercase tracking-widest">{block.title || block.concept}</p>
                     </div>
                   )}
                   <D3ChartRenderer type={block.chartType || 'bar'} dataset={block.dataset || []} labels={block.labels} />
@@ -1871,7 +1871,7 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     python: 'text-emerald-400 bg-emerald-500/10',
     javascript: 'text-yellow-400 bg-yellow-500/10',
     js: 'text-yellow-400 bg-yellow-500/10',
-    html: 'text-orange-400 bg-orange-500/10',
+    html: 'text-primary bg-primary/10',
     css: 'text-blue-400 bg-blue-500/10',
     robotics: 'text-violet-400 bg-violet-500/10',
     bash: 'text-muted-foreground bg-muted/50',
@@ -2084,7 +2084,7 @@ function renderMarkdownNotes(md: string): React.ReactNode[] {
 }
 
 const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-none transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-orange-600 to-orange-400 to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-none transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-primary to-primary to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
     <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${active ? 'text-foreground' : 'text-current'}`} />
     <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] shrink-0">{label}</span>
     {count !== undefined && count > 0 && (
@@ -2364,7 +2364,7 @@ export default function LessonDetailPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       {alwaysScripts}
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Loading lesson...</p>
     </div>
   );
@@ -2435,7 +2435,7 @@ export default function LessonDetailPage() {
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-card/20">
             <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-none mb-6 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-600/10 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
-              <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Course'}</h3>
+              <h3 className="text-xs font-bold text-primary uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Course'}</h3>
               <div className="flex items-center gap-2 mt-2 relative z-10">
                 <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{courseLessons.length} lessons</span>
                 <div className="h-px flex-1 bg-muted" />
@@ -2482,7 +2482,7 @@ export default function LessonDetailPage() {
         {/* Dynamic Progress Indicator */}
         <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
           <motion.div
-            className="h-full bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+            className="h-full bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary shadow-[0_0_15px_rgba(6,182,212,0.5)]"
             style={{ width: `${scrollProgress}%` }}
           />
         </div>
@@ -2533,7 +2533,7 @@ export default function LessonDetailPage() {
                 <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-[1.0] text-foreground selection:bg-cyan-500 selection:text-black break-words">
                   {lesson.title}
                 </h1>
-                <div className="h-2 w-32 bg-gradient-to-r from-orange-600 to-orange-400 to-transparent rounded-full opacity-40"></div>
+                <div className="h-2 w-32 bg-gradient-to-r from-primary to-primary to-transparent rounded-full opacity-40"></div>
                 <div className="flex items-start gap-8 max-w-4xl">
                   <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed italic border-l-4 border-border pl-5 sm:pl-8 py-2">
                     {lesson.description}
@@ -2601,15 +2601,15 @@ export default function LessonDetailPage() {
                     {/* ── Lesson Hook Banner ── */}
                     {hookLoading && (
                       <div className="flex items-center gap-3 px-1 py-6 text-muted-foreground/50">
-                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Loading lesson intro...</span>
                       </div>
                     )}
                     {lessonHook && (
-                      <div className="rounded-none border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5 overflow-hidden mb-8">
-                        <div className="flex items-center gap-3 px-6 py-3 border-b border-orange-500/15 bg-orange-500/5">
+                      <div className="rounded-none border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-amber-500/5 overflow-hidden mb-8">
+                        <div className="flex items-center gap-3 px-6 py-3 border-b border-primary/15 bg-primary/5">
                           <span className="text-base">🔥</span>
-                          <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em]">{lessonHook.hook_title}</p>
+                          <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">{lessonHook.hook_title}</p>
                         </div>
                         <div className="p-6 sm:p-8 space-y-5">
                           <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -2674,14 +2674,14 @@ export default function LessonDetailPage() {
                       <div className="max-w-xl mx-auto p-8 bg-card border border-border space-y-6">
                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em]">
                           <span className="text-muted-foreground flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                             Progress
                           </span>
-                          <span className="text-orange-500">{interactions.size} interactive blocks done</span>
+                          <span className="text-primary">{interactions.size} interactive blocks done</span>
                         </div>
                         <div className="h-1 bg-muted/50 rounded-none overflow-hidden">
                           <motion.div
-                            className="h-full bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.5)]"
+                            className="h-full bg-primary shadow-[0_0_15px_rgba(234,88,12,0.5)]"
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(100, (interactions.size / (lesson.content_layout?.filter((b: any) => b.type === 'quiz' || b.type === 'activity').length || 1)) * 100)}%` }}
                           />
@@ -2693,7 +2693,7 @@ export default function LessonDetailPage() {
                     <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
                       {!completed && profile?.role === 'student' ? (
                         <div className="relative group">
-                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-none sm:rounded-none blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary rounded-none sm:rounded-none blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
                           <button onClick={handleMarkComplete} disabled={marking}
                             className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-none sm:rounded-none text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
                             <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
@@ -2912,7 +2912,7 @@ export default function LessonDetailPage() {
                   </div>
 
                   <div className="space-y-6 pt-12 border-t border-border">
-                    <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-orange-500/5 border border-orange-500/10 w-fit">
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-primary/5 border border-primary/10 w-fit">
                       <AcademicCapIcon className="w-4 h-4" /> CBT Exams
                     </h3>
                     {programQuizzes.length === 0 ? (
@@ -2921,22 +2921,22 @@ export default function LessonDetailPage() {
                       <div className="grid grid-cols-1 gap-4">
                         {programQuizzes.map((q: any) => (
                           <Link key={q.id} href={`/dashboard/cbt/${q.id}`}
-                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-orange-500/[0.03] hover:border-orange-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 blur-3xl rounded-full" />
+                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-primary/[0.03] hover:border-primary/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-400 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-primary/10 border border-primary/20 rounded-none text-primary group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <StarIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
-                                <h4 className="font-black text-2xl text-foreground group-hover:text-orange-400 transition-colors tracking-tight">{q.title}</h4>
+                                <h4 className="font-black text-2xl text-foreground group-hover:text-primary transition-colors tracking-tight">{q.title}</h4>
                                 <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-orange-500/60 font-bold">{q.duration_minutes} min</span>
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-primary/60 font-bold">{q.duration_minutes} min</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
                                   <span className="text-muted-foreground">{q.total_questions} questions</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-orange-400 group-hover:border-orange-500/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/40 group-hover:translate-x-1 transition-all shadow-xl">
                               <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>

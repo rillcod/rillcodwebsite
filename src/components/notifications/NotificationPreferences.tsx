@@ -227,7 +227,7 @@ export default function NotificationPreferences() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -279,8 +279,8 @@ export default function NotificationPreferences() {
               className="bg-card border border-border p-6"
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-                  <CategoryIcon className="w-4 h-4 text-orange-400" />
+                <div className="w-8 h-8 bg-primary/10 border border-primary/30 flex items-center justify-center">
+                  <CategoryIcon className="w-4 h-4 text-primary" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">{category.title}</h3>
               </div>
@@ -299,7 +299,7 @@ export default function NotificationPreferences() {
                       className={`
                         relative p-4 border transition-all duration-200 cursor-pointer
                         ${isEnabled 
-                          ? 'border-orange-500/30 bg-orange-500/5' 
+                          ? 'border-primary/30 bg-primary/5' 
                           : 'border-border bg-background hover:border-muted-foreground/30'
                         }
                       `}
@@ -309,7 +309,7 @@ export default function NotificationPreferences() {
                         <div className={`
                           flex-shrink-0 w-8 h-8 rounded-full border flex items-center justify-center transition-all
                           ${isEnabled 
-                            ? 'bg-orange-500 border-orange-500 text-white' 
+                            ? 'bg-primary border-primary text-white' 
                             : 'bg-muted border-border text-muted-foreground'
                           }
                         `}>
@@ -336,7 +336,7 @@ export default function NotificationPreferences() {
                         <div className="flex-shrink-0">
                           <div className={`
                             relative w-10 h-6 rounded-full transition-all duration-200 cursor-pointer
-                            ${isEnabled ? 'bg-orange-500' : 'bg-muted'}
+                            ${isEnabled ? 'bg-primary' : 'bg-muted'}
                           `}>
                             <motion.div
                               className="absolute top-1 w-4 h-4 bg-card rounded-full shadow-sm"
@@ -350,7 +350,7 @@ export default function NotificationPreferences() {
                       {/* Loading overlay */}
                       {saving && (
                         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center">
-                          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         </div>
                       )}
                     </motion.div>
@@ -402,7 +402,7 @@ export default function NotificationPreferences() {
             className={`
               flex items-center justify-center gap-2 p-3 text-sm font-medium transition-colors
               ${soundEnabled 
-                ? 'bg-orange-600 hover:bg-orange-500 text-white' 
+                ? 'bg-primary hover:bg-primary text-white' 
                 : 'bg-muted hover:bg-muted/80 text-muted-foreground'
               }
             `}
@@ -425,8 +425,8 @@ export default function NotificationPreferences() {
         className="bg-card border border-border p-6"
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-            <SpeakerWaveIcon className="w-4 h-4 text-orange-400" />
+          <div className="w-8 h-8 bg-primary/10 border border-primary/30 flex items-center justify-center">
+            <SpeakerWaveIcon className="w-4 h-4 text-primary" />
           </div>
           <h3 className="text-lg font-bold text-foreground">Sound Settings</h3>
         </div>

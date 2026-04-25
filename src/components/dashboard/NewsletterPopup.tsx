@@ -108,7 +108,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         {/* Header Bar */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-600 rounded-none flex items-center justify-center shadow-lg shadow-orange-900/40">
+            <div className="w-10 h-10 bg-primary rounded-none flex items-center justify-center shadow-lg shadow-orange-900/40">
               <SpeakerWaveIcon className="w-5 h-5 text-foreground" />
             </div>
             <div>
@@ -121,7 +121,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-xs font-bold transition-all border border-border"
             >
-              <PrinterIcon className="w-4 h-4 text-orange-400" /> Save as PDF
+              <PrinterIcon className="w-4 h-4 text-primary" /> Save as PDF
             </button>
             <button 
               onClick={handleClose}
@@ -195,7 +195,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         <div className="p-6 border-t border-border bg-white/[0.02] flex justify-center">
             <button 
               onClick={handleClose}
-              className="flex items-center gap-2 px-10 py-4 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-black transition-all shadow-xl shadow-orange-900/40"
+              className="flex items-center gap-2 px-10 py-4 bg-primary hover:bg-primary rounded-none text-sm font-black transition-all shadow-xl shadow-orange-900/40"
             >
               <CheckCircleIcon className="w-5 h-5" /> I Have Read the Newsletter
             </button>

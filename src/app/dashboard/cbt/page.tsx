@@ -70,7 +70,7 @@ export default function CBTPage() {
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8 animate-pulse">
           <div className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-orange-600/30" />
+              <div className="w-14 h-14 bg-primary/30" />
               <div className="space-y-2 pt-1">
                 <div className="h-9 bg-muted w-64" />
                 <div className="h-3 bg-muted w-40" />
@@ -88,7 +88,7 @@ export default function CBTPage() {
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="relative bg-card border border-border overflow-hidden animate-pulse">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600/30" />
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30" />
               <div className="pl-7 pr-6 py-5 space-y-3">
                 <div className="h-5 bg-muted w-1/2" />
                 <div className="h-4 bg-muted w-1/3" />
@@ -107,7 +107,7 @@ export default function CBTPage() {
 
         {/* ── EXAM HUB TAB BAR ── */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
             <CommandLineIcon className="w-4 h-4" /> CBT Exams
           </span>
           <Link href="/dashboard/exams"
@@ -119,19 +119,19 @@ export default function CBTPage() {
         {/* ── HERO HEADER ── */}
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
           {/* Ambient glow */}
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
           <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
             {/* Left: icon + title */}
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+              <div className="w-14 h-14 bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
                 <AcademicCapIcon className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
                   CBT Section
                 </h1>
-                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-orange-400 mt-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mt-1">
                   Examinations &amp; Evaluations
                 </p>
                 <p className="text-sm text-muted-foreground mt-1.5">
@@ -145,7 +145,7 @@ export default function CBTPage() {
               <div className="flex flex-col items-end gap-3 flex-shrink-0 w-full sm:w-auto">
                 <div className="flex gap-px border border-border w-full sm:w-auto overflow-x-auto">
                   {[
-                    { label: 'Total Exams', value: exams.length, color: 'text-orange-400' },
+                    { label: 'Total Exams', value: exams.length, color: 'text-primary' },
                     { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-400' },
                     { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-blue-400' },
                     { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-400' },
@@ -158,7 +158,7 @@ export default function CBTPage() {
                 </div>
                 <Link
                   href="/dashboard/cbt/new"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 transition-colors"
                 >
                   <PlusIcon className="w-4 h-4" /> Create Exam
                 </Link>
@@ -179,7 +179,7 @@ export default function CBTPage() {
               onClick={() => setTypeFilter(tab.key)}
               className={`flex items-center justify-center gap-2 px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors flex-1 sm:flex-none ${idx > 0 ? 'border-l border-border' : ''} ${
                 typeFilter === tab.key
-                  ? 'bg-orange-600 text-white'
+                  ? 'bg-primary text-white'
                   : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
               }`}
             >
@@ -199,7 +199,7 @@ export default function CBTPage() {
             placeholder="Search exams or programmes…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
 
@@ -214,7 +214,7 @@ export default function CBTPage() {
             {isStaff && (
               <Link
                 href="/dashboard/cbt/new"
-                className="inline-flex items-center gap-2 mt-6 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                className="inline-flex items-center gap-2 mt-6 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
               >
                 <PlusIcon className="w-4 h-4" /> Create First Exam
               </Link>
@@ -234,10 +234,10 @@ export default function CBTPage() {
               return (
                 <div
                   key={exam.id}
-                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
+                  className="group relative bg-card border border-border hover:border-primary/20 transition-all overflow-hidden"
                 >
                   {/* Left accent bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${exam.is_active ? 'bg-orange-600' : 'bg-muted'}`} />
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${exam.is_active ? 'bg-primary' : 'bg-muted'}`} />
 
                   <div className="pl-7 pr-6 py-5">
                     <div className="flex items-start justify-between gap-4">
@@ -248,7 +248,7 @@ export default function CBTPage() {
                           <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                             {exam.is_active ? 'Active' : 'Inactive'}
                           </span>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-orange-500/20 text-orange-400 border-orange-500/30'}`}>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                             {getExamType(exam) === 'evaluation' ? 'Evaluation' : 'Examination'}
                           </span>
                           {!isStaff && studentSession && (
@@ -349,7 +349,7 @@ export default function CBTPage() {
                           ) : available ? (
                             <Link
                               href={`/dashboard/cbt/${exam.id}/take`}
-                              className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 transition-colors"
+                              className="flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 transition-colors"
                             >
                               <PlayIcon className="w-4 h-4" /> Start Exam
                             </Link>

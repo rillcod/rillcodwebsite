@@ -199,7 +199,7 @@ export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, p
             {/* Header */}
             <div className="flex items-start justify-between px-4 py-3 border-b border-border bg-card shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-none bg-orange-500 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-none bg-primary flex items-center justify-center shrink-0">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <div className="min-w-0">
@@ -226,14 +226,14 @@ export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, p
                   className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-none bg-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-none bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
                       AI
                     </div>
                   )}
                   <div
                     className={`max-w-[75%] px-3 py-2 text-sm leading-relaxed rounded-none ${
                       msg.role === 'user'
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-muted text-foreground'
                     }`}
                   >
@@ -245,7 +245,7 @@ export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, p
               {/* Typing indicator */}
               {isLoading && (
                 <div className="flex gap-2 justify-start">
-                  <div className="w-6 h-6 rounded-none bg-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-none bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
                     AI
                   </div>
                   <div className="bg-muted rounded-none px-3 py-2.5 flex items-center gap-1">
@@ -269,14 +269,14 @@ export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, p
                   onKeyDown={handleKeyDown}
                   placeholder="Ask a question…"
                   rows={1}
-                  className="flex-1 resize-none bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors max-h-24 overflow-y-auto"
+                  className="flex-1 resize-none bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors max-h-24 overflow-y-auto"
                   style={{ lineHeight: '1.5' }}
                   disabled={isLoading}
                 />
                 <button
                   onClick={handleSubmit}
                   disabled={!input.trim() || isLoading}
-                  className="shrink-0 w-9 h-9 flex items-center justify-center bg-orange-500 text-white rounded-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary transition-colors"
                   aria-label="Send message"
                 >
                   <Send className="w-4 h-4" />
@@ -295,7 +295,7 @@ export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, p
         onClick={isOpen ? handleClose : handleOpen}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
-        className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-none shadow-lg transition-colors border border-orange-500"
+        className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-semibold rounded-none shadow-lg transition-colors border border-primary"
         aria-label="Open study assistant"
       >
         <Sparkles className="w-4 h-4" />

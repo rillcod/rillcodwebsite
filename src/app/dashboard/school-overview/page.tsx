@@ -286,7 +286,7 @@ export default function SchoolOverviewPage() {
           </Link>
           <Link
             href="/dashboard/students/import"
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors"
           >
             <UserGroupIcon className="w-4 h-4" /> Import Students
           </Link>
@@ -399,7 +399,7 @@ export default function SchoolOverviewPage() {
               placeholder="Search student..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 w-44"
+              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary w-44"
             />
             <select
               value={sortBy}
@@ -457,7 +457,7 @@ export default function SchoolOverviewPage() {
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-muted-foreground">
                     No students enrolled yet.{' '}
-                    <Link href="/dashboard/students/import" className="text-orange-400 underline">Import students</Link>
+                    <Link href="/dashboard/students/import" className="text-primary underline">Import students</Link>
                   </td>
                 </tr>
               )}

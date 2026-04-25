@@ -133,7 +133,7 @@ export default function ImportStudentsPage() {
 
   if (authLoading || !profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -159,16 +159,16 @@ export default function ImportStudentsPage() {
       </div>
 
       {/* Template Download */}
-      <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-primary/10 border border-primary/20 rounded-none p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-orange-500 font-bold text-sm">Need the CSV template?</p>
-          <p className="text-orange-500/60 text-xs mt-0.5">
+          <p className="text-primary font-bold text-sm">Need the CSV template?</p>
+          <p className="text-primary/60 text-xs mt-0.5">
             Download the template with all required columns filled in.
           </p>
         </div>
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors flex-shrink-0"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Download Template
         </button>
@@ -184,9 +184,9 @@ export default function ImportStudentsPage() {
           if (f) handleFile(f);
         }}
         onClick={() => fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-none p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-orange-400 bg-orange-500/10' : 'border-border hover:border-border bg-muted'}`}
+        className={`border-2 border-dashed rounded-none p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-border bg-muted'}`}
       >
-        <ArrowUpTrayIcon className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-orange-400' : 'text-muted-foreground'}`} />
+        <ArrowUpTrayIcon className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
         <p className="text-foreground font-bold">{fileName || 'Drag & drop your CSV here'}</p>
         <p className="text-muted-foreground text-sm mt-1">or click to browse — .csv files only</p>
         <input ref={fileRef} type="file" accept=".csv" className="hidden"

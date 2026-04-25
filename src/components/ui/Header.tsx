@@ -127,7 +127,7 @@ export default function Header() {
                         className="flex items-center gap-4 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         onClick={() => setActiveDropdown(null)}
                       >
-                        <Icon className="w-4 h-4 text-orange-500 fill-none" />
+                        <Icon className="w-4 h-4 text-primary fill-none" />
                         <span>{item.label}</span>
                       </Link>
                     );

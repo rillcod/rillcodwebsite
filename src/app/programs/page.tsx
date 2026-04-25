@@ -63,7 +63,7 @@ export default function Programs() {
     <div className="min-h-screen bg-background font-sans">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
@@ -73,7 +73,7 @@ export default function Programs() {
         <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 px-4">
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
-              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500" />
+              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
             </div>
           </div>
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">
@@ -84,12 +84,12 @@ export default function Programs() {
             <strong>kids to professionals</strong> — covering coding, robotics, AI, data science,
             UI/UX, and more.
           </p>
-          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none" />
+          <div className="w-20 h-1 bg-primary mx-auto rounded-none" />
         </div>
 
         {/* Summer School Banner */}
         <div className="bg-card border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-none -translate-y-32 translate-x-32 blur-3xl" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-none -translate-y-32 translate-x-32 blur-3xl" />
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
               <div className="flex-1 text-foreground mb-6 lg:mb-0">
@@ -143,8 +143,8 @@ export default function Programs() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {nigerianStats.map((stat, i) => (
               <div key={i} className="text-center group">
-                <div className="w-12 h-12 bg-background border border-border rounded-none flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-orange-500 shadow-sm">
-                  <div className="text-muted-foreground group-hover:text-orange-500 transition-colors">{stat.icon}</div>
+                <div className="w-12 h-12 bg-background border border-border rounded-none flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-primary shadow-sm">
+                  <div className="text-muted-foreground group-hover:text-primary transition-colors">{stat.icon}</div>
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter italic">{stat.number}</div>
                 <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
@@ -160,10 +160,10 @@ export default function Programs() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, i) => (
-              <div key={i} className="bg-background rounded-none p-8 border border-border hover:border-orange-500 transition-all group shadow-sm">
+              <div key={i} className="bg-background rounded-none p-8 border border-border hover:border-primary transition-all group shadow-sm">
                 <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{story.image}</div>
                 <h3 className="text-lg font-black text-foreground mb-1 uppercase tracking-tight">{story.name}</h3>
-                <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-4">{story.location}</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{story.location}</p>
                 <p className="text-sm text-muted-foreground mb-6 font-medium italic leading-relaxed">"{story.story}"</p>
                 <div className="bg-card border border-border px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground inline-block shadow-sm">
                   {story.achievement}
@@ -175,19 +175,19 @@ export default function Programs() {
 
         {/* Search & Filter */}
         <div className="bg-card border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 max-w-md w-full">
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Search Programs:</p>
               <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
                   placeholder="SEARCH PROGRAMS..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-orange-500 transition-all shadow-inner"
+                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary transition-all shadow-inner"
                 />
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function Programs() {
                 <select
                   value={selectedLevel}
                   onChange={e => setSelectedLevel(e.target.value)}
-                  className="w-full pl-6 pr-10 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none shadow-sm"
+                  className="w-full pl-6 pr-10 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer appearance-none shadow-sm"
                 >
                   {levels.map(l => (
                     <option key={l.value} value={l.value}>{l.name.toUpperCase()}</option>
@@ -239,11 +239,11 @@ export default function Programs() {
 
                   {/* Header */}
                   <div className="p-8 bg-background border-b border-border relative overflow-hidden flex-shrink-0">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-none -translate-y-16 translate-x-16 rotate-45" />
                     <div className="relative z-10">
                       <div className="flex items-start justify-between mb-6">
-                        <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center shadow-sm group-hover:border-orange-500 transition-all">
-                          <BookOpen className="w-6 h-6 text-orange-500" />
+                        <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center shadow-sm group-hover:border-primary transition-all">
+                          <BookOpen className="w-6 h-6 text-primary" />
                         </div>
                         <div className="text-right">
                           {program.price > 0 ? (
@@ -286,7 +286,7 @@ export default function Programs() {
                     <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-6">
                       {program.duration_weeks && (
                         <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-orange-500" />
+                          <Clock className="w-3.5 h-3.5 text-primary" />
                           <span>{program.duration_weeks} weeks</span>
                         </div>
                       )}
@@ -302,13 +302,13 @@ export default function Programs() {
                     <div className="mt-auto space-y-3">
                       <button
                         onClick={() => toggle(program.id)}
-                        className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all shadow-sm"
+                        className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm"
                       >
                         {isExpanded ? "CLOSE COURSE LIST" : "VIEW COURSES"}
                       </button>
                       <Link
                         href="/student-registration"
-                        className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 hover:border-orange-500 transition-all shadow-sm"
+                        className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-primary hover:border-primary transition-all shadow-sm"
                       >
                         JOIN PROGRAM
                       </Link>
@@ -318,7 +318,7 @@ export default function Programs() {
                     {isExpanded && (
                       <div className="mt-8 space-y-3 pt-8 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
                         <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                          <BookOpen className="w-3.5 h-3.5 text-orange-500" />
+                          <BookOpen className="w-3.5 h-3.5 text-primary" />
                           Courses in This Program
                         </h4>
                         {activeCourses.length === 0 ? (
@@ -329,7 +329,7 @@ export default function Programs() {
                           <div className="space-y-2">
                             {activeCourses.map((course: any, idx: number) => (
                               <div key={course.id} className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                                <span className="w-5 h-5 flex-shrink-0 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black flex items-center justify-center rounded-none">
+                                <span className="w-5 h-5 flex-shrink-0 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black flex items-center justify-center rounded-none">
                                   {idx + 1}
                                 </span>
                                 <span className="capitalize italic">{course.title}</span>
@@ -339,7 +339,7 @@ export default function Programs() {
                         )}
                         <Link
                           href={`/programs/${program.id}`}
-                          className="flex items-center gap-1.5 text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest mt-4 transition-colors"
+                          className="flex items-center gap-1.5 text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest mt-4 transition-colors"
                         >
                           Full Program Details <ArrowRight className="w-3 h-3" />
                         </Link>
@@ -353,10 +353,10 @@ export default function Programs() {
         )}
 
         {/* CTA */}
-        <div className="bg-card border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none" />
+        <div className="bg-card border border-border border-t-4 border-t-primary rounded-none p-12 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
           <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">
-            Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span>
+            Ready to Start Your <span className="text-primary italic">Tech Journey?</span>
           </h2>
           <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground">
             Join thousands of Nigerian students already building their future with technology.
@@ -365,7 +365,7 @@ export default function Programs() {
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               href="/contact"
-              className="px-12 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
+              className="px-12 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20"
             >
               Contact Us
             </Link>

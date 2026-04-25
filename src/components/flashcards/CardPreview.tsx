@@ -103,7 +103,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
         </button>
 
         <button type="button" onClick={() => setShowAnswer(v => !v)}
-          className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl transition-colors">
+          className="flex-1 py-2 bg-primary hover:bg-primary text-white text-xs font-black rounded-xl transition-colors">
           {showAnswer ? 'Show Question' : 'Show Answer'}
         </button>
 
@@ -117,7 +117,7 @@ export default function CardPreview({ cards, template, device }: CardPreviewProp
       <div className="flex justify-center gap-1 shrink-0">
         {cards.map((_, i) => (
           <button type="button" key={i} onClick={() => { setCurrentIndex(i); setShowAnswer(false); }}
-            className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'bg-orange-500 w-5' : 'bg-muted w-1.5 hover:bg-muted-foreground/40'}`}
+            className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'bg-primary w-5' : 'bg-muted w-1.5 hover:bg-muted-foreground/40'}`}
           />
         ))}
       </div>

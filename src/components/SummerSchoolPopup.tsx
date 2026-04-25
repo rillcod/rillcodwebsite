@@ -66,12 +66,12 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
   if (!isOpen) return null;
 
-  const inputCls = "w-full bg-background border border-border px-5 py-4 text-foreground text-sm font-medium focus:outline-none focus:border-orange-500 transition-all placeholder:text-muted-foreground/40";
+  const inputCls = "w-full bg-background border border-border px-5 py-4 text-foreground text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/40";
   const labelCls = "block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2";
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-card border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-orange-500">
+      <div className="bg-card border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-primary">
 
         <button
           onClick={onClose}
@@ -82,21 +82,21 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
         {/* Header */}
         <div className="relative p-8 sm:p-12 border-b border-border">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
 
           <div className="flex items-center gap-3 mb-6">
-            <div className="px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-black uppercase tracking-widest">
+            <div className="px-3 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
               Summer School 2026
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Now Enrolling</span>
             </div>
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-black text-foreground tracking-tighter leading-[0.9] mb-5 uppercase">
             LEVEL UP <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-400">THIS SUMMER.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary">THIS SUMMER.</span>
           </h1>
 
           <p className="max-w-xl text-muted-foreground font-medium text-sm sm:text-base leading-relaxed">
@@ -110,7 +110,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               { icon: Clock,    text: "6 Weeks",         sub: "Intensive Programme" },
             ].map((item, i) => (
               <div key={i} className="p-5 bg-muted/30 border border-border">
-                <item.icon className="w-4 h-4 text-orange-500 mb-3" />
+                <item.icon className="w-4 h-4 text-primary mb-3" />
                 <div className="text-[10px] font-black text-foreground uppercase tracking-widest">{item.text}</div>
                 <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{item.sub}</div>
               </div>
@@ -122,7 +122,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           {/* Programme Highlights */}
           <div>
             <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-5 flex items-center gap-3">
-              <div className="w-6 h-px bg-orange-500" />
+              <div className="w-6 h-px bg-primary" />
               Programme Highlights
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -133,7 +133,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 { title: "Certificate Award",       desc: "Recognised certificate on programme completion." },
               ].map((mod, i) => (
                 <div key={i} className="p-5 border border-border bg-muted/20 flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-orange-500 mt-1.5 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 bg-primary mt-1.5 flex-shrink-0" />
                   <div>
                     <h4 className="text-[11px] font-black text-foreground uppercase tracking-widest mb-1">{mod.title}</h4>
                     <p className="text-[10px] text-muted-foreground leading-relaxed">{mod.desc}</p>
@@ -146,7 +146,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           {/* Registration Form */}
           <div className="bg-muted/20 border border-border p-7 sm:p-10">
             <div className="flex items-center gap-3 mb-8">
-              <Sparkles className="w-5 h-5 text-orange-500" />
+              <Sparkles className="w-5 h-5 text-primary" />
               <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Register Your Child</h3>
             </div>
 
@@ -245,7 +245,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-5 bg-orange-500 text-white font-black text-sm uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-white font-black text-sm uppercase tracking-widest hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
               >
                 {loading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
@@ -260,11 +260,11 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-foreground">
-                <Phone className="w-3.5 h-3.5 text-orange-500" />
+                <Phone className="w-3.5 h-3.5 text-primary" />
                 <span className="uppercase tracking-widest">+234 811 660 0091</span>
               </div>
               <div className="flex items-center gap-2 text-foreground">
-                <Mail className="w-3.5 h-3.5 text-orange-500" />
+                <Mail className="w-3.5 h-3.5 text-primary" />
                 <span className="uppercase tracking-widest">support@rillcod.com</span>
               </div>
             </div>

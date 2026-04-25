@@ -149,10 +149,10 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
           </button>
         )}
         <div className="flex gap-1">
-          <button onClick={() => setTab('chat')} className={`px-3 py-1.5 text-xs font-bold rounded-none transition-colors flex items-center gap-1.5 ${tab === 'chat' ? 'bg-orange-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+          <button onClick={() => setTab('chat')} className={`px-3 py-1.5 text-xs font-bold rounded-none transition-colors flex items-center gap-1.5 ${tab === 'chat' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
             <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" /> Chat
           </button>
-          <button onClick={() => setTab('code')} className={`px-3 py-1.5 text-xs font-bold rounded-none transition-colors flex items-center gap-1.5 ${tab === 'code' ? 'bg-orange-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+          <button onClick={() => setTab('code')} className={`px-3 py-1.5 text-xs font-bold rounded-none transition-colors flex items-center gap-1.5 ${tab === 'code' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
             <CodeBracketIcon className="w-3.5 h-3.5" /> Code Pad
           </button>
         </div>
@@ -166,7 +166,7 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
               const isOwn = msg.sender_id === profile?.id;
               return (
                 <div key={msg.id} className={`flex gap-2 group/msg ${isOwn ? 'flex-row-reverse' : ''}`}>
-                  <div className="w-7 h-7 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                     {(msg.portal_users?.full_name ?? '?')[0]}
                   </div>
                   <div className={`max-w-[70%] space-y-1 ${isOwn ? 'flex flex-col items-end' : ''}`}>
@@ -174,12 +174,12 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
                       <p className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                         {msg.portal_users?.full_name}
                         {['teacher', 'admin', 'school'].includes(msg.portal_users?.role ?? '') && (
-                          <span className="bg-orange-500/10 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-none border border-orange-500/20">STAFF</span>
+                          <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-none border border-primary/20">STAFF</span>
                         )}
                       </p>
                     )}
                     <div className="flex items-center gap-2">
-                      <div className={`px-3 py-2 rounded-none text-sm ${isOwn ? 'bg-orange-600/90 text-white' : 'bg-card border border-border text-foreground'}`}>
+                      <div className={`px-3 py-2 rounded-none text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-card border border-border text-foreground'}`}>
                         {msg.content}
                       </div>
                       {isModerator && (
@@ -208,12 +208,12 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               placeholder={isModerator ? "Post as moderator…" : "Type a message…"}
-              className="flex-1 bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-orange-500"
+              className="flex-1 bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || sending}
-              className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-none transition-colors"
+              className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-none transition-colors"
             >
               <PaperAirplaneIcon className="w-4 h-4" />
             </button>
@@ -223,14 +223,14 @@ export default function StudyGroupChatPage({ params }: { params: Promise<{ id: s
         /* Code Pad */
         <div className="flex-1 flex flex-col">
           <div className="bg-[#0d1117] border-b border-border px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
-            <CodeBracketIcon className="w-3.5 h-3.5 text-orange-400" />
+            <CodeBracketIcon className="w-3.5 h-3.5 text-primary" />
             Shared Code Pad — Syncs in real time with all members
           </div>
           <textarea
             value={codepad}
             onChange={e => handleCodeChange(e.target.value)}
             spellCheck={false}
-            className="flex-1 bg-[#0d1117] text-orange-400 font-mono text-sm p-4 focus:outline-none resize-none border-0"
+            className="flex-1 bg-[#0d1117] text-primary font-mono text-sm p-4 focus:outline-none resize-none border-0"
             placeholder="// Paste logic or notes here for everyone to see…"
           />
         </div>

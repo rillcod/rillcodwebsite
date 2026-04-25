@@ -722,7 +722,7 @@ export default function CertificateManagement() {
             {viewingCert && (
                 <div className="fixed inset-0 z-[110] flex items-start justify-center p-3 sm:p-6 bg-black/95 backdrop-blur-xl animate-fade-in overflow-y-auto">
                     <div className="bg-[#111113] border border-white/[0.1] w-full max-w-5xl shadow-2xl relative mt-4 sm:mt-10 mb-10 overflow-hidden">
-                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-orange-600 to-indigo-600" />
+                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-primary to-indigo-600" />
                         <div className="p-4 sm:p-8">
                             <button
                                 onClick={() => setViewingCert(null)}

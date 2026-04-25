@@ -82,7 +82,7 @@ const GRADING_MODES = [
         label: 'Manual Grading',
         icon: PencilSquareIcon,
         desc: 'You review and grade each submission — full control over score and feedback',
-        color: 'border-orange-500/40 bg-orange-500/10 text-orange-300',
+        color: 'border-primary/40 bg-primary/10 text-primary',
     },
     {
         key: 'auto',

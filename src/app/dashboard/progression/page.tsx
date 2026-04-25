@@ -279,7 +279,7 @@ export default function ProgressionPage() {
             title="Filter by program"
             value={filterProgram}
             onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-orange-500"
+            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary"
           >
             <option value="">— All Programs —</option>
             {programs.map(p => <option key={p.id} value={p.id}>{p.name || p.title}</option>)}
@@ -292,7 +292,7 @@ export default function ProgressionPage() {
             value={filterCourse}
             onChange={e => setFilterCourse(e.target.value)}
             disabled={!filterProgram}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-orange-500 disabled:opacity-40"
+            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary disabled:opacity-40"
           >
             <option value="">— All Courses —</option>
             {availableCourses.map((c: any) => (
@@ -306,7 +306,7 @@ export default function ProgressionPage() {
             title="Filter by term"
             value={filterTerm}
             onChange={e => setFilterTerm(e.target.value)}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-orange-500"
+            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary"
           >
             {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -418,7 +418,7 @@ export default function ProgressionPage() {
                   {canPromote && student?.id && (
                     <Link
                       href={`/dashboard/reports/builder?student_id=${student.id}`}
-                      className="flex items-center gap-1 px-2.5 py-1.5 border border-orange-500/30 bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase tracking-wider hover:bg-orange-500/20 transition-colors rounded"
+                      className="flex items-center gap-1 px-2.5 py-1.5 border border-primary/30 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/20 transition-colors rounded"
                     >
                       <DocumentChartBarIcon className="w-3 h-3" />
                       Report

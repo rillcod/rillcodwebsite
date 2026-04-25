@@ -53,7 +53,7 @@ const CONTENT_TYPES = [
     key: 'project' as const,
     label: 'Project',
     icon: RocketLaunchIcon,
-    active: 'text-orange-400 border-orange-500/40 bg-orange-500/10 ring-1 ring-orange-500/40',
+    active: 'text-primary border-primary/40 bg-primary/10 ring-1 ring-primary/40',
     idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
     desc: 'Hands-on project with deliverables — saved to Assignments as project type',
   },
@@ -175,8 +175,8 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
   skipped: { label: 'Skipped', color: 'text-muted-foreground', icon: ExclamationTriangleIcon },
 };
 
-const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
-const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500';
+const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
+const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
 const GRADE_LEVEL_OPTIONS = ['Nursery', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
 const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 
@@ -1327,7 +1327,7 @@ export default function CurriculumPage() {
           {showGenerateAction && (
             <button
               onClick={openGenerateModal}
-              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-primary/40 text-primary hover:bg-primary/10"
             >
               Generate for this context
             </button>
@@ -1400,7 +1400,7 @@ export default function CurriculumPage() {
                         key={course.id}
                         type="button"
                         onClick={() => selectCourse(prog, course)}
-                        className="text-left border border-border bg-card hover:border-orange-500/40 hover:bg-muted/20 p-4 space-y-1.5 transition-colors"
+                        className="text-left border border-border bg-card hover:border-primary/40 hover:bg-muted/20 p-4 space-y-1.5 transition-colors"
                       >
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">{prog.name}</p>
                         <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
@@ -1413,7 +1413,7 @@ export default function CurriculumPage() {
             </div>
           ) : loadingCurr ? (
             <div className="flex items-center justify-center h-64">
-              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : loadError ? (
             <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
@@ -1427,14 +1427,14 @@ export default function CurriculumPage() {
                 <p className="font-bold text-sm">{selectedCourse.title}</p>
                 <p className="text-muted-foreground text-sm mt-1">Syllabus not published yet — check back soon.</p>
               </div>
-              <button onClick={() => setSelectedCourse(null)} className="text-xs text-orange-400 border border-orange-500/30 px-3 py-1.5 hover:bg-orange-500/10">← Back to courses</button>
+              <button onClick={() => setSelectedCourse(null)} className="text-xs text-primary border border-primary/30 px-3 py-1.5 hover:bg-primary/10">← Back to courses</button>
             </div>
           ) : (
             <div className="space-y-5">
               <div className="flex items-center gap-2">
                 <button onClick={() => { setSelectedCourse(null); setCurriculum(null); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Courses</button>
                 <span className="text-muted-foreground/40">›</span>
-                <span className="text-xs font-bold text-orange-400">{selectedCourse.title}</span>
+                <span className="text-xs font-bold text-primary">{selectedCourse.title}</span>
               </div>
               <SyllabusPreview
                 content={curriculum.content as unknown as SyllabusContent}
@@ -1462,7 +1462,7 @@ export default function CurriculumPage() {
           <button
             type="button"
             onClick={() => setShowHelp(h => !h)}
-            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors"
+            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
           >
             {showHelp ? 'Hide guide' : '? How to use'}
           </button>
@@ -1473,7 +1473,7 @@ export default function CurriculumPage() {
                 value={catalogQuery}
                 onChange={(e) => setCatalogQuery(e.target.value)}
                 placeholder="Filter programmes & courses…"
-                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 aria-label="Filter programmes and courses"
               />
             </div>
@@ -1496,7 +1496,7 @@ export default function CurriculumPage() {
             <select
               value={curriculum?.id ?? ''}
               onChange={(e) => { void selectCurriculumVersion(e.target.value); }}
-              className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+              className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">Choose a syllabus copy…</option>
               {curriculumList.map((c) => {
@@ -1541,24 +1541,24 @@ export default function CurriculumPage() {
 
       {/* ── How to use guide ── */}
       {showHelp && (
-        <div className="shrink-0 border-b border-orange-500/20 bg-orange-500/5 px-4 py-4">
+        <div className="shrink-0 border-b border-primary/20 bg-primary/5 px-4 py-4">
           <div className="max-w-[1800px] mx-auto space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">How to build a syllabus — step by step</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-orange-400">Step 1 — Pick a course</p>
+                <p className="font-black text-primary">Step 1 — Pick a course</p>
                 <p className="text-muted-foreground">Click any course in the left panel. If you don't see any, go to Programs → Courses and create one first.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-orange-400">Step 2 — Generate the syllabus</p>
+                <p className="font-black text-primary">Step 2 — Generate the syllabus</p>
                 <p className="text-muted-foreground">On the Syllabus tab, click "Generate Syllabus". The AI will create a full term-by-term week plan. You can regenerate as many times as you like.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-orange-400">Step 3 — Generate lesson plans</p>
+                <p className="font-black text-primary">Step 3 — Generate lesson plans</p>
                 <p className="text-muted-foreground">Go to Lesson Plans in the sidebar. Link this course and syllabus, pick a class and term, then generate week-by-week lesson plans from it.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-orange-400">Step 4 — Track delivery</p>
+                <p className="font-black text-primary">Step 4 — Track delivery</p>
                 <p className="text-muted-foreground">As you teach each week, mark it as "In Progress" or "Completed" on the Syllabus tab. This feeds the Delivery Progress report.</p>
               </div>
             </div>
@@ -1596,7 +1596,7 @@ export default function CurriculumPage() {
                   {selectedCourse && (
                     <>
                       <span className="text-muted-foreground/40 mx-1">›</span>
-                      <span className="text-orange-400">{selectedCourse.title}</span>
+                      <span className="text-primary">{selectedCourse.title}</span>
                     </>
                   )}
                 </p>
@@ -1622,7 +1622,7 @@ export default function CurriculumPage() {
               )}
               <button
                 onClick={() => setMobileSidebarOpen(v => !v)}
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-orange-500/30 px-2 py-1.5"
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-primary/30 px-2 py-1.5"
               >
                 <BookOpenIcon className="w-3.5 h-3.5" />
                 {mobileSidebarOpen ? 'Close' : 'Browse'}
@@ -1639,7 +1639,7 @@ export default function CurriculumPage() {
                     key={t.term}
                     onClick={() => setActiveTerm(t.term)}
                     className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${active
-                        ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                        ? 'bg-primary/15 border-primary/40 text-primary'
                         : 'bg-muted/20 border-border text-muted-foreground'
                       }`}
                   >
@@ -1660,7 +1660,7 @@ export default function CurriculumPage() {
       `}>
           <div className="px-4 py-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <SparklesIcon className="w-4 h-4 text-orange-400" />
+              <SparklesIcon className="w-4 h-4 text-primary" />
               <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Catalog</h2>
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -1682,7 +1682,7 @@ export default function CurriculumPage() {
                 <button
                   type="button"
                   onClick={() => setCatalogQuery('')}
-                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-orange-500/30 px-2 py-1"
+                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-primary/30 px-2 py-1"
                 >
                   Clear search
                 </button>
@@ -1701,7 +1701,7 @@ export default function CurriculumPage() {
                     className={`w-full flex items-center gap-2 px-4 py-4 text-left transition-all ${isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20'}`}
                   >
                     {isExpanded
-                      ? <ChevronDownIcon className="w-4 h-4 text-orange-500 shrink-0" />
+                      ? <ChevronDownIcon className="w-4 h-4 text-primary shrink-0" />
                       : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
                     <span className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground truncate">{prog.name || (prog as any).title}</span>
                     <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground shrink-0">{activeCourses.length}</span>
@@ -1722,11 +1722,11 @@ export default function CurriculumPage() {
                               key={course.id}
                               onClick={() => selectCourse(prog, course)}
                               className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${isSelected
-                                  ? 'text-orange-500 bg-orange-500/5'
+                                  ? 'text-primary bg-primary/5'
                                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                                 }`}
                             >
-                              {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600" />}
+                              {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
                               <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
                             </button>
                           );
@@ -1755,7 +1755,7 @@ export default function CurriculumPage() {
                 aria-selected={activeTab === 'syllabus'}
                 onClick={() => setActiveTab('syllabus')}
                 className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'syllabus'
-                    ? 'border-orange-500 text-orange-400'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                   }`}
               >
@@ -1769,7 +1769,7 @@ export default function CurriculumPage() {
                   aria-selected={activeTab === 'generate'}
                   onClick={() => setActiveTab('generate')}
                   className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'generate'
-                      ? 'border-orange-500 text-orange-400'
+                      ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                     }`}
                 >
@@ -1851,8 +1851,8 @@ export default function CurriculumPage() {
           {activeTab === 'generate' && selectedCourse && (
             <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-10">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center shrink-0">
-                  <SparklesIcon className="w-5 h-5 text-orange-400" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <h1 className="text-xl font-black text-foreground">Generate Content</h1>
@@ -1864,7 +1864,7 @@ export default function CurriculumPage() {
 
               {/* Week selector */}
               <div className="bg-card border border-border">
-                <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
+                <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
                   <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 1 — Choose a Week</p>
                 </div>
                 <div className="p-5 space-y-3">
@@ -1920,7 +1920,7 @@ export default function CurriculumPage() {
               {/* Content type */}
               {genWeek && curriculum && (
                 <div className="bg-card border border-border">
-                  <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-orange-500/5 to-transparent">
+                  <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 2 — What to Create</p>
                   </div>
                   <div className="p-5 space-y-4">
@@ -1962,7 +1962,7 @@ export default function CurriculumPage() {
                   type="button"
                   onClick={handleGenerate}
                   disabled={genGenerating}
-                  className="w-full min-h-[52px] py-4 px-4 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
+                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
                 >
                   {genGenerating ? (
                     <>
@@ -1990,7 +1990,7 @@ export default function CurriculumPage() {
                   <div className="max-w-5xl mx-auto space-y-5">
                     {/* Continue editing — shown while auto-restore is in flight or as manual fallback */}
                     {lastVisited && (
-                      <div className="bg-orange-500/5 border border-orange-500/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="bg-primary/5 border border-primary/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-0.5">Continue where you left off</p>
                           <p className="text-sm font-bold text-foreground truncate">{lastVisited.courseTitle}</p>
@@ -2006,7 +2006,7 @@ export default function CurriculumPage() {
                             setSelectedCourse({ id: lastVisited.courseId, title: lastVisited.courseTitle, is_active: true });
                             loadCurriculum(lastVisited.courseId);
                           }}
-                          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-colors"
+                          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-colors"
                         >
                           <ArrowRightIcon className="w-3.5 h-3.5" /> Open syllabus
                         </button>
@@ -2040,13 +2040,13 @@ export default function CurriculumPage() {
                             key={course.id}
                             type="button"
                             onClick={() => selectCourse(prog, course)}
-                            className="text-left border border-border bg-background hover:border-orange-500/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
+                            className="text-left border border-border bg-background hover:border-primary/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
                           >
                             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
                               {prog.name}
                             </p>
                             <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                               Open syllabus
                             </p>
                           </button>
@@ -2062,7 +2062,7 @@ export default function CurriculumPage() {
                 </div>
               ) : loadingCurr ? (
                 <div className="flex items-center justify-center h-64">
-                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : loadError ? (
                 <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
@@ -2086,7 +2086,7 @@ export default function CurriculumPage() {
                     {canGenerate && (
                       <button
                         onClick={openGenerateModal}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition-colors shrink-0"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm transition-colors shrink-0"
                       >
                         <SparklesIcon className="w-4 h-4" /> Generate Syllabus
                       </button>
@@ -2102,16 +2102,16 @@ export default function CurriculumPage() {
                           <button
                             key={c.id}
                             onClick={() => { void selectCurriculumVersion(c.id); }}
-                            className="text-left bg-card border border-border hover:border-orange-500/40 p-4 space-y-2 transition-colors"
+                            className="text-left bg-card border border-border hover:border-primary/40 p-4 space-y-2 transition-colors"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
-                              <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">v{c.version}</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-primary">v{c.version}</span>
                             </div>
                             <p className="text-[11px] text-muted-foreground">
                               {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
                             </p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Open this syllabus →</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Open this syllabus →</p>
                           </button>
                         );
                       })}
@@ -2130,7 +2130,7 @@ export default function CurriculumPage() {
                         {allWeeks.length > 0 && (
                           <span className="ml-2 text-emerald-400 font-bold">{progressPct}% delivered</span>
                         )}
-                        {' · '}<span className="text-orange-400 font-bold">{scopeLabel}</span>
+                        {' · '}<span className="text-primary font-bold">{scopeLabel}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -2221,9 +2221,9 @@ export default function CurriculumPage() {
 
                       <Link
                         href="/dashboard/curriculum/progress"
-                        className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-orange-500/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-primary/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
                       >
-                        <ChartBarIcon className="w-3.5 h-3.5 text-orange-400" /> Progress Dashboard
+                        <ChartBarIcon className="w-3.5 h-3.5 text-primary" /> Progress Dashboard
                       </Link>
                       {canGenerate && (
                         <>
@@ -2237,9 +2237,9 @@ export default function CurriculumPage() {
                           <button
                             type="button"
                             onClick={openGenerateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/50 text-sm font-bold transition-all shrink-0"
+                            className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/50 text-sm font-bold transition-all shrink-0"
                           >
-                            <ArrowPathIcon className="w-4 h-4 text-orange-400" /> Regenerate
+                            <ArrowPathIcon className="w-4 h-4 text-primary" /> Regenerate
                           </button>
                         </>
                       )}
@@ -2258,7 +2258,7 @@ export default function CurriculumPage() {
                                 key={term.term}
                                 onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
                                 className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${activeTerm === term.term
-                                    ? 'bg-orange-600 text-white'
+                                    ? 'bg-primary text-white'
                                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                                   }`}
                               >
@@ -2302,7 +2302,7 @@ export default function CurriculumPage() {
                             return (
                               <div
                                 key={week.week}
-                                className={`border transition-all ${isActive ? 'border-orange-500 bg-orange-500/5' : 'border-border bg-card'}`}
+                                className={`border transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
                               >
                                 {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
                                   <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
@@ -2312,19 +2312,19 @@ export default function CurriculumPage() {
                                       value={editWeekTopic}
                                       onChange={e => setEditWeekTopic(e.target.value)}
                                       placeholder="Week topic"
-                                      className="w-full px-2 py-1.5 text-sm bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-orange-500/50"
+                                      className="w-full px-2 py-1.5 text-sm bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
                                     />
                                     <input
                                       value={editWeekSubtopics}
                                       onChange={e => setEditWeekSubtopics(e.target.value)}
                                       placeholder="Subtopics, comma-separated"
-                                      className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-orange-500/50"
+                                      className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
                                     />
                                     <div className="flex gap-2 pt-1">
                                       <button
                                         onClick={saveWeekEdit}
                                         disabled={savingWeek}
-                                        className="flex-1 py-1.5 text-xs font-black bg-orange-500 hover:bg-orange-400 text-white rounded transition-colors disabled:opacity-50"
+                                        className="flex-1 py-1.5 text-xs font-black bg-primary hover:bg-primary text-white rounded transition-colors disabled:opacity-50"
                                       >
                                         {savingWeek ? '…' : 'Save'}
                                       </button>
@@ -2377,7 +2377,7 @@ export default function CurriculumPage() {
                                       setEditWeekSubtopics((week.subtopics ?? []).join(', '));
                                       setActiveWeek(null);
                                     }}
-                                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-muted-foreground/50 hover:text-orange-400 hover:bg-orange-500/5 transition-colors border-t border-border"
+                                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-colors border-t border-border"
                                     title="Edit week topic"
                                   >
                                     <PencilIcon className="w-3 h-3" /> Edit topic
@@ -2394,11 +2394,11 @@ export default function CurriculumPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {curriculum.content.materials_required?.length > 0 && (
                             <div className="bg-card border border-border p-4">
-                              <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Materials Required</h3>
+                              <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Materials Required</h3>
                               <ul className="space-y-1">
                                 {curriculum.content.materials_required.map((m, i) => (
                                   <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                                    <span className="text-orange-500">•</span>{m}
+                                    <span className="text-primary">•</span>{m}
                                   </li>
                                 ))}
                               </ul>
@@ -2406,11 +2406,11 @@ export default function CurriculumPage() {
                           )}
                           {curriculum.content.recommended_tools?.length > 0 && (
                             <div className="bg-card border border-border p-4">
-                              <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-3">Recommended Tools</h3>
+                              <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Recommended Tools</h3>
                               <ul className="space-y-1">
                                 {curriculum.content.recommended_tools.map((t, i) => (
                                   <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                                    <span className="text-orange-500">•</span>{t}
+                                    <span className="text-primary">•</span>{t}
                                   </li>
                                 ))}
                               </ul>
@@ -2503,7 +2503,7 @@ export default function CurriculumPage() {
                       {/* Course Overview */}
                       {curriculum.content.overview && (
                         <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
                           <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-4 flex items-center gap-2">
                             <InformationCircleIcon className="w-3 h-3" />
                             Course Overview
@@ -2515,11 +2515,11 @@ export default function CurriculumPage() {
                       {/* Learning outcomes */}
                       {curriculum.content.learning_outcomes?.length > 0 && (
                         <div className="bg-card border border-border p-6 rounded-xl">
-                          <h3 className="text-[11px] font-black uppercase tracking-widest text-orange-400 mb-4">Learning Outcomes</h3>
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-4">Learning Outcomes</h3>
                           <ul className="space-y-2">
                             {curriculum.content.learning_outcomes.map((o, i) => (
                               <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                                <span className="text-orange-500 font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
+                                <span className="text-primary font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
                                 <span>{o}</span>
                               </li>
                             ))}
@@ -2615,7 +2615,7 @@ export default function CurriculumPage() {
                                             type="button"
                                             disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
                                             onClick={() => void saveQaClassGradeMode('compulsory')}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-orange-500/40 bg-orange-500/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
                                           >Compulsory</button>
                                           {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
                                         </div>
@@ -2640,7 +2640,7 @@ export default function CurriculumPage() {
                                           type="button"
                                           onClick={() => void applyQaSpine()}
                                           disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 disabled:opacity-50 transition-colors"
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-orange-200 hover:bg-primary/20 disabled:opacity-50 transition-colors"
                                         >
                                           {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
                                           Apply to syllabus
@@ -2882,7 +2882,7 @@ export default function CurriculumPage() {
                   )}
                 </div>
                 {getTracking(activeTerm, activeWeek.week)?.teacher_notes && (
-                  <p className="text-[11px] text-muted-foreground italic border-l-2 border-orange-500/40 pl-2">
+                  <p className="text-[11px] text-muted-foreground italic border-l-2 border-primary/40 pl-2">
                     "{getTracking(activeTerm, activeWeek.week)?.teacher_notes}"
                   </p>
                 )}
@@ -2899,7 +2899,7 @@ export default function CurriculumPage() {
             <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
               <div>
                 <h2 className="font-black flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-orange-400" />
+                  <SparklesIcon className="w-4 h-4 text-primary" />
                   {curriculum ? 'Regenerate' : 'Generate'} Syllabus
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{selectedCourse?.title}</p>
@@ -3014,7 +3014,7 @@ export default function CurriculumPage() {
               <button
                 onClick={generate}
                 disabled={generating}
-                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold text-sm transition-colors min-h-[44px]"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white font-bold text-sm transition-colors min-h-[44px]"
               >
                 {generating ? 'Generating…' : curriculum ? 'Regenerate' : 'Generate Syllabus'}
               </button>
@@ -3102,7 +3102,7 @@ export default function CurriculumPage() {
                   disabled={publishing}
                   className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
                       ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
-                      : 'border-orange-500/50 text-orange-300 hover:bg-orange-500/10'
+                      : 'border-primary/50 text-primary hover:bg-primary/10'
                     }`}
                 >
                   {publishing
@@ -3142,7 +3142,7 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
     <div className="space-y-6 text-sm min-w-0">
       {/* Duration badge */}
       <div className="inline-flex items-center gap-3 px-4 py-2 bg-muted/30 border border-border max-w-full">
-        <ClockIcon className="w-4 h-4 text-orange-400 shrink-0" />
+        <ClockIcon className="w-4 h-4 text-primary shrink-0" />
         <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest truncate">{plan.duration_minutes} Minute Session</span>
       </div>
 
@@ -3164,11 +3164,11 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
       {(plan.teacher_activities?.length > 0 || plan.student_activities?.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {plan.teacher_activities?.length > 0 && (
-            <Section label="Teacher Protocol" color="text-orange-400" icon={UserGroupIcon}>
+            <Section label="Teacher Protocol" color="text-primary" icon={UserGroupIcon}>
               <ol className="space-y-3">
                 {plan.teacher_activities.map((a, i) => (
                   <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                    <span className="text-orange-400 font-black shrink-0 w-4">{i + 1}.</span>
+                    <span className="text-primary font-black shrink-0 w-4">{i + 1}.</span>
                     <span>{a}</span>
                   </li>
                 ))}

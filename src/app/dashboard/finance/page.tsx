@@ -342,19 +342,19 @@ function InvoiceProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUp
 
   if (!open) return (
     <button onClick={() => setOpen(true)}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg transition-all">
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-lg transition-all">
       <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Upload Proof
     </button>
   );
 
   return (
-    <div className="mt-2 border border-orange-500/20 rounded-xl p-3 bg-orange-500/5 space-y-2">
+    <div className="mt-2 border border-primary/20 rounded-xl p-3 bg-primary/5 space-y-2">
       <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Upload Payment Evidence</p>
       <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
         placeholder="Optional: bank reference, transfer narration, or note for admin…"
-        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-orange-500/50 resize-none" />
+        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 resize-none" />
       <div className="flex items-center gap-2">
-        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+        <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${uploading ? 'bg-muted text-muted-foreground' : 'bg-primary hover:bg-primary text-white'}`}>
           <PaperClipIcon className="w-3.5 h-3.5" />
           {uploading ? 'Uploading…' : 'Choose File'}
           <input type="file" accept="image/*,.pdf" onChange={handleFile} disabled={uploading} className="hidden" />

@@ -209,7 +209,7 @@ export default function PopupNotificationContainer() {
                   </motion.div>
                 )}
               </div>
-              <span className="text-xs font-medium text-foreground group-hover:text-orange-500 transition-colors">
+              <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
                 {stats.unread} new
               </span>
             </div>

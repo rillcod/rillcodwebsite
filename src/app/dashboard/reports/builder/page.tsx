@@ -206,7 +206,7 @@ function getMilestoneSuggestions(courseName: string): string[] {
     return MILESTONE_SUGGESTIONS.default;
 }
 
-const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors';
+const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
@@ -234,7 +234,7 @@ export default function ReportBuilderPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
         }>
             <ReportBuilderInner />
@@ -1184,7 +1184,7 @@ function ReportBuilderInner() {
     // ── Guards ────────────────────────────────────────────────────────────────
     if (authLoading || profileLoading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -1195,9 +1195,9 @@ function ReportBuilderInner() {
             <h1 className="text-xl font-bold text-foreground mb-2">Access Restricted</h1>
             <p className="text-muted-foreground text-sm text-center max-w-md">
                 You do not have permission to create or edit progress reports.
-                Please visit the <Link href="/dashboard/results" className="text-orange-400 font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
+                Please visit the <Link href="/dashboard/results" className="text-primary font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
             </p>
-            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none transition-all shadow-lg shadow-orange-900/20">
+            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-none transition-all shadow-lg shadow-orange-900/20">
                 <EyeIcon className="w-4 h-4" /> Go to Results Centre
             </Link>
         </div>
@@ -1210,9 +1210,9 @@ function ReportBuilderInner() {
                 onClick={() => setSessionExpanded(e => !e)}
                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-card shadow-sm transition-colors"
             >
-                <Cog6ToothIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                <Cog6ToothIcon className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 text-left min-w-0">
-                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">Session Settings</p>
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Session Settings</p>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {sessionConfig.report_term}
                         {sessionConfig.school_name && ` · ${sessionConfig.school_name}`}
@@ -1337,19 +1337,19 @@ function ReportBuilderInner() {
                         <div className="flex items-center justify-between mb-2">
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 Learning Milestones
-                                <span className="ml-1.5 text-[9px] text-orange-400/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
+                                <span className="ml-1.5 text-[9px] text-primary/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
                             </label>
                             <button type="button" onClick={() => setShowMilestoneSuggestions(v => !v)}
-                                className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all">
+                                className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
                                 <SparklesIcon className="w-3 h-3" /> Suggest from Course
                             </button>
                         </div>
 
                         {/* AI-based milestone suggestions dropdown */}
                         {showMilestoneSuggestions && (
-                            <div className="mb-3 bg-[#0d0d18] border border-orange-500/20 p-3">
-                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-2">
-                                    Suggested milestones for <strong className="text-orange-400">{sessionConfig.course_name || 'your course'}</strong>
+                            <div className="mb-3 bg-[#0d0d18] border border-primary/20 p-3">
+                                <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest mb-2">
+                                    Suggested milestones for <strong className="text-primary">{sessionConfig.course_name || 'your course'}</strong>
                                     <span className="text-white/20 ml-1">· click to add</span>
                                 </p>
                                 <div className="space-y-1">
@@ -1360,10 +1360,10 @@ function ReportBuilderInner() {
                                                 onClick={() => {
                                                     if (!alreadyAdded) setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sug] }));
                                                 }}
-                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-white/[0.02] border-white/[0.06] text-white/50 hover:border-orange-500/30 hover:bg-orange-500/5 hover:text-white/80'}`}>
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-white/[0.02] border-white/[0.06] text-white/50 hover:border-primary/30 hover:bg-primary/5 hover:text-white/80'}`}>
                                                 {alreadyAdded
                                                     ? <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                                                    : <PlusIcon className="w-3.5 h-3.5 flex-shrink-0 text-orange-400/50" />
+                                                    : <PlusIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/50" />
                                                 }
                                                 {sug}
                                             </button>
@@ -1393,18 +1393,18 @@ function ReportBuilderInner() {
                                     setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
                                     setMilestoneInput('');
                                 }}
-                                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0">
+                                className="px-4 py-2 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0">
                                 Add
                             </button>
                         </div>
                         {sessionConfig.learning_milestones.length > 0 ? (
                             <div className="space-y-1">
                                 {sessionConfig.learning_milestones.map((m, i) => (
-                                    <div key={i} className="flex items-start gap-2 bg-orange-600/10 border border-orange-500/20 px-3 py-2 text-[11px] text-orange-300 font-semibold">
+                                    <div key={i} className="flex items-start gap-2 bg-primary/10 border border-primary/20 px-3 py-2 text-[11px] text-primary font-semibold">
                                         <span className="flex-1 leading-snug">{m}</span>
                                         <button type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                            className="text-orange-500/40 hover:text-rose-400 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove milestone">
+                                            className="text-primary/40 hover:text-rose-400 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove milestone">
                                             <XMarkIcon className="w-3 h-3" />
                                         </button>
                                     </div>
@@ -1432,7 +1432,7 @@ function ReportBuilderInner() {
                         <button
                             type="button"
                             onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
-                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
+                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
                         >
                             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
@@ -1444,7 +1444,7 @@ function ReportBuilderInner() {
 
                     <div className="flex justify-end">
                         <button onClick={() => setSessionExpanded(false)}
-                            className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-bold rounded-none transition-colors">
+                            className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-xs font-bold rounded-none transition-colors">
                             <CheckIcon className="w-3.5 h-3.5 inline mr-1" /> Done — Collapse
                         </button>
                     </div>
@@ -1477,21 +1477,21 @@ function ReportBuilderInner() {
                                     disabled={!done}
                                     className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-b-2 ${
                                         active
-                                            ? 'border-orange-500 bg-orange-500/10'
+                                            ? 'border-primary bg-primary/10'
                                             : done
                                             ? 'border-emerald-500/50 bg-emerald-500/5 cursor-pointer hover:bg-emerald-500/10'
                                             : 'border-border bg-card cursor-default opacity-50'
                                     }`}
                                 >
                                     <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
-                                        active ? 'bg-orange-500 text-white'
+                                        active ? 'bg-primary text-white'
                                         : done ? 'bg-emerald-500 text-white'
                                         : 'bg-muted text-muted-foreground'
                                     }`}>
                                         {done ? '✓' : s.num}
                                     </span>
                                     <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate ${
-                                        active ? 'text-orange-400' : done ? 'text-emerald-400' : 'text-muted-foreground'
+                                        active ? 'text-primary' : done ? 'text-emerald-400' : 'text-muted-foreground'
                                     }`}>
                                         <span className="hidden sm:inline">{s.label}</span>
                                         <span className="sm:hidden">Step {s.num}</span>
@@ -1506,8 +1506,8 @@ function ReportBuilderInner() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <DocumentTextIcon className="w-4 h-4 text-orange-400" />
-                            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Report Builder</span>
+                            <DocumentTextIcon className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-bold text-primary uppercase tracking-widest">Report Builder</span>
                         </div>
                         <h1 className="text-xl sm:text-3xl font-extrabold">Progress Reports</h1>
                         <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">Create and publish branded progress reports for each student</p>
@@ -1524,7 +1524,7 @@ function ReportBuilderInner() {
                                     <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
                                 <Link href={`/dashboard/results?student=${selectedStudent.id}`}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 text-xs font-bold rounded-none transition-colors">
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-none transition-colors">
                                     <EyeIcon className="w-3.5 h-3.5" /> View Result
                                 </Link>
                             </>
@@ -1539,9 +1539,9 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'session' && (
                     <div className="space-y-4">
-                        <div className="bg-orange-600/10 border border-orange-500/20 rounded-none px-5 py-4">
-                            <p className="text-orange-500 font-bold text-sm">Step 1 of 3 — Session Setup</p>
-                            <p className="text-orange-500/60 text-xs mt-0.5">
+                        <div className="bg-primary/10 border border-primary/20 rounded-none px-5 py-4">
+                            <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
+                            <p className="text-primary/60 text-xs mt-0.5">
                                 Enter details that are shared for ALL students in this grading session.
                                 These will be locked when you move to individual student grading.
                             </p>
@@ -1560,7 +1560,7 @@ function ReportBuilderInner() {
                                     {(['school', 'bootcamp', 'online'] as const).map(type => (
                                         <button key={type} type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, school_section: type }))}
-                                            className={`flex-1 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-orange-600 border-orange-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                                            className={`flex-1 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
                                             {type === 'school' ? '🏫 School' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
                                         </button>
                                     ))}
@@ -1680,7 +1680,7 @@ function ReportBuilderInner() {
                                     <button
                                         type="button"
                                         onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
-                                        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
+                                        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-primary' : 'bg-muted'}`}
                                     >
                                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </button>
@@ -1791,7 +1791,7 @@ function ReportBuilderInner() {
                                         setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
                                         setMilestoneInput('');
                                     }}
-                                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
+                                    className="px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
                                 >
                                     + Add
                                 </button>
@@ -1799,12 +1799,12 @@ function ReportBuilderInner() {
                             {sessionConfig.learning_milestones.length > 0 ? (
                                 <div className="flex flex-wrap gap-2 pt-1">
                                     {sessionConfig.learning_milestones.map((m, i) => (
-                                        <div key={i} className="flex items-center gap-1.5 bg-orange-600/10 border border-orange-500/20 px-3 py-1.5 text-[11px] text-orange-300 font-semibold">
+                                        <div key={i} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 text-[11px] text-primary font-semibold">
                                             <span>{m}</span>
                                             <button
                                                 type="button"
                                                 onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                                className="text-orange-500/40 hover:text-rose-400 transition-colors"
+                                                className="text-primary/40 hover:text-rose-400 transition-colors"
                                                 aria-label="Remove"
                                             >
                                                 <XMarkIcon className="w-3 h-3" />
@@ -1824,7 +1824,7 @@ function ReportBuilderInner() {
                                 setClassFilter(sessionConfig.section_class); // pre-filter by selected class
                                 setStep('pick');
                             }}
-                            className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-base rounded-none transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
+                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-none transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
                             <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
                         </button>
                     </div>
@@ -1835,9 +1835,9 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'pick' && (
                     <div className="space-y-4">
-                        <div className="bg-orange-600/10 border border-orange-500/20 rounded-none px-5 py-3">
-                            <p className="text-orange-500 font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
-                            <p className="text-orange-500/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
+                        <div className="bg-primary/10 border border-primary/20 rounded-none px-5 py-3">
+                            <p className="text-primary font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
+                            <p className="text-primary/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
                         </div>
 
                         {/* Collapsible session summary */}
@@ -1847,14 +1847,14 @@ function ReportBuilderInner() {
                         <div className="bg-card shadow-sm border border-border rounded-none p-5">
                             <div className="flex items-center gap-3 mb-4 flex-wrap">
                                 <h2 className="font-bold text-foreground flex items-center gap-2">
-                                    <UserGroupIcon className="w-5 h-5 text-orange-400" /> Students
+                                    <UserGroupIcon className="w-5 h-5 text-primary" /> Students
                                 </h2>
                                 <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} shown / {students.length} loaded</span>
                                 {filteredStudents.length > 0 && (
                                     <button
                                         onClick={handleBulkBuild}
                                         disabled={isBulkBuilding}
-                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-lg shadow-orange-900/20 group"
+                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-lg shadow-orange-900/20 group"
                                     >
                                         {isBulkBuilding ? (
                                             <>
@@ -1876,7 +1876,7 @@ function ReportBuilderInner() {
                                 <input
                                     type="search" placeholder="Search student by name or email… (2+ chars shows all matching)"
                                     value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
+                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
 
                                 {/* Override toggle + Manual entry */}
                                 <div className="flex items-center gap-3 flex-wrap">
@@ -1895,7 +1895,7 @@ function ReportBuilderInner() {
                                     <div className="flex flex-wrap gap-1.5">
                                         <button
                                             onClick={() => setClassFilter('')}
-                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                         >
                                             All ({filteredStudents.length})
                                         </button>
@@ -1904,7 +1904,7 @@ function ReportBuilderInner() {
                                             return (
                                                 <button key={c}
                                                     onClick={() => setClassFilter(classFilter === c ? '' : c)}
-                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-orange-600 text-foreground border-orange-500' : isTeacherClass ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-primary text-foreground border-primary' : isTeacherClass ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                                     title={isTeacherClass ? 'Teacher-created class' : undefined}
                                                 >
                                                     {isTeacherClass && <span className="mr-1">🏫</span>}{c}
@@ -1928,14 +1928,14 @@ function ReportBuilderInner() {
                                                     value={manualName}
                                                     onChange={e => setManualName(e.target.value)}
                                                     placeholder="Enter student full name manually…"
-                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
+                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
                                                 <button
                                                     disabled={!manualName.trim()}
                                                     onClick={() => {
                                                         const fake = { id: `manual-${Date.now()}`, full_name: manualName.trim(), email: '', school_name: sessionConfig.school_name, school_id: sessionConfig.school_id, role: 'student' } as any;
                                                         selectStudent(fake as PortalUser, -1);
                                                     }}
-                                                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground text-xs font-bold rounded-none transition-all">
+                                                    className="w-full py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground text-xs font-bold rounded-none transition-all">
                                                     Continue with Manual Entry →
                                                 </button>
                                             </div>
@@ -1961,16 +1961,16 @@ function ReportBuilderInner() {
                                         {sortedGroups.map(([groupName, items]) => (
                                             <div key={groupName}>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-[10px] font-black text-orange-400/80 uppercase tracking-widest">{groupName}</span>
+                                                    <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest">{groupName}</span>
                                                     <span className="text-[9px] text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
                                                     <div className="flex-1 h-px bg-card shadow-sm" />
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {(items as any[]).map(({ s, idx }) => (
                                                         <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
-                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-orange-500/50 hover:bg-orange-600/10 rounded-none transition-all">
+                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-none transition-all">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                                     {s.full_name ? s.full_name[0] : '?'}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
@@ -2031,7 +2031,7 @@ function ReportBuilderInner() {
                                 <ArrowLeftIcon className="w-3.5 h-3.5" />
                             </button>
                             <div className="flex-1 flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                     {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
                                 </div>
                                 <div className="min-w-0">
@@ -2058,7 +2058,7 @@ function ReportBuilderInner() {
                         {!fetchingStats && (
                             <div className="bg-[#0d1526] border border-border px-5 py-3 space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
+                                    <span className="text-[10px] font-black text-primary/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
                                     <span className="text-[9px] text-muted-foreground">auto-suggested when score is 0</span>
                                 </div>
                                 <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
@@ -2128,15 +2128,15 @@ function ReportBuilderInner() {
                                     <div className="flex flex-col gap-4">
                                         <div className="flex bg-white/5 border border-white/10 p-1 rounded-none overflow-hidden">
                                             <button onClick={() => setReportStyle('standard')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
                                                 Standard
                                             </button>
                                             <button onClick={() => setReportStyle('modern')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
                                                 Modern
                                             </button>
                                             <button onClick={() => setReportStyle('printable')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
                                                 Printable
                                             </button>
                                         </div>
@@ -2144,7 +2144,7 @@ function ReportBuilderInner() {
                                         {reportStyle === 'modern' && (
                                             <div className="grid grid-cols-3 gap-2">
                                                 {[
-                                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-orange-500' },
+                                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-primary' },
                                                     { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
                                                     { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
                                                 ].map((t) => (
@@ -2154,7 +2154,7 @@ function ReportBuilderInner() {
                                                         onClick={() => setModernTemplateId(t.id as any)}
                                                         className={cn(
                                                             "group relative flex flex-col items-center justify-center py-3 border transition-all overflow-hidden",
-                                                            modernTemplateId === t.id ? "border-orange-500 bg-orange-600/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-white/5 bg-white/5 hover:bg-white/10"
+                                                            modernTemplateId === t.id ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-white/5 bg-white/5 hover:bg-white/10"
                                                         )}
                                                     >
                                                         <div className={cn("w-8 h-8 mb-1 relative overflow-hidden", t.color)}>
@@ -2163,7 +2163,7 @@ function ReportBuilderInner() {
                                                         <span className="text-[8px] font-black uppercase tracking-tighter text-foreground">{t.name}</span>
                                                         {modernTemplateId === t.id && (
                                                             <div className="absolute top-1 right-1">
-                                                                <CheckCircleIcon className="w-3 h-3 text-orange-500" />
+                                                                <CheckCircleIcon className="w-3 h-3 text-primary" />
                                                             </div>
                                                         )}
                                                     </button>
@@ -2177,7 +2177,7 @@ function ReportBuilderInner() {
                                 <Section title="Student Identity" icon="👤">
                                     <div className="flex flex-col sm:flex-row items-start gap-6">
                                         <div className="relative group">
-                                            <div className="w-28 h-28 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-orange-500/50">
+                                            <div className="w-28 h-28 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-primary/50">
                                                 {form.photo_url ? (
                                                     <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" />
                                                 ) : (
@@ -2189,7 +2189,7 @@ function ReportBuilderInner() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <label className="absolute -bottom-2 -right-2 bg-orange-600 hover:bg-orange-500 p-2 rounded-none border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
+                                            <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-none border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
                                                 <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                                 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                                             </label>
@@ -2271,7 +2271,7 @@ function ReportBuilderInner() {
                                                             <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
                                                             <input type="number" min="0" max="100" value={String(form[key])}
                                                                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-orange-500" />
+                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
                                                             <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
                                                             <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
                                                         </div>
@@ -2292,9 +2292,9 @@ function ReportBuilderInner() {
                                                     <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
                                                     <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
                                                 </div>
-                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-orange-500/40 bg-orange-500/10 text-orange-400">
+                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-primary/40 bg-primary/10 text-primary">
                                                     <span className="text-base leading-none">{waecCode}</span>
-                                                    <span className="text-[7px] text-orange-400/60 font-bold">{overallGradeLetter}</span>
+                                                    <span className="text-[7px] text-primary/60 font-bold">{overallGradeLetter}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2315,7 +2315,7 @@ function ReportBuilderInner() {
                                                     <div className="flex items-center justify-between mb-2">
                                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
                                                         <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all">
+                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all">
                                                             {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                                             AI Draft
                                                         </button>
@@ -2327,8 +2327,8 @@ function ReportBuilderInner() {
                                                                 onClick={() => setForm(f => ({ ...f, [key]: p }))}
                                                                 className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${
                                                                     val === p
-                                                                        ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
-                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-orange-500/30 hover:text-foreground/80'
+                                                                        ? 'bg-primary/20 border-primary/50 text-primary'
+                                                                        : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground/80'
                                                                 }`}>
                                                                 {p}
                                                             </button>
@@ -2367,7 +2367,7 @@ function ReportBuilderInner() {
                                                 className={`py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-none ${
                                                     form.proficiency_level === p
                                                         ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-white'
-                                                            : p === 'intermediate' ? 'bg-orange-600 border-orange-500 text-white'
+                                                            : p === 'intermediate' ? 'bg-primary border-primary text-white'
                                                             : 'bg-slate-600 border-slate-500 text-white'
                                                         : 'bg-card border-border text-muted-foreground hover:bg-muted'
                                                 }`}
@@ -2376,7 +2376,7 @@ function ReportBuilderInner() {
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground mt-1">Overall score is {overallScore}% — auto-suggestion: <span className="text-orange-400 font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Overall score is {overallScore}% — auto-suggestion: <span className="text-primary font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
                                 </Section>
 
                                 {/* Evaluation */}
@@ -2392,7 +2392,7 @@ function ReportBuilderInner() {
                                                     <div className="flex items-center justify-between mb-2">
                                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[field]}</label>
                                                         <button onClick={() => handleAIGenerate(field)} disabled={!!generating}
-                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all hover:translate-x-1">
                                                             {generating === field
                                                                 ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
                                                                 : <SparklesIcon className="w-3 h-3" />}
@@ -2441,21 +2441,21 @@ function ReportBuilderInner() {
                                     {publishing ? 'Publishing…' : 'Publish'}
                                 </button>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] sm:text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
                                     <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
                                 </button>
 
                                 <div className="ml-auto flex-shrink-0">
                                     {currentStudentIdx < filteredStudents.length - 1 ? (
                                         <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             <span className="hidden sm:inline">Next Student</span>
                                             <span className="sm:hidden">Next</span>
                                             <ChevronRightIcon className="w-4 h-4" />
                                         </button>
                                     ) : (
                                         <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             <span className="hidden sm:inline">Finish All</span>
                                             <span className="sm:hidden">Done</span>
                                             <CheckCircleIcon className="w-4 h-4" />
@@ -2499,7 +2499,7 @@ function ReportBuilderInner() {
                                                 </div>
                                             )}
                                         </div>
-                                        <label className="absolute -bottom-2 -right-2 bg-orange-600 hover:bg-orange-500 p-2 rounded-none border border-border cursor-pointer transition-colors shadow-lg">
+                                        <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-none border border-border cursor-pointer transition-colors shadow-lg">
                                             <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                                 const file = e.target.files?.[0];
@@ -2575,7 +2575,7 @@ function ReportBuilderInner() {
                                     } finally {
                                         setSaving(false);
                                     }
-                                }} className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
+                                }} className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
                                     <CheckIcon className="w-4 h-4" /> Save Branding
                                 </button>
                             </div>
@@ -2597,15 +2597,15 @@ function ReportBuilderInner() {
                         </div>
                         <div className="flex bg-white/5 border border-white/10 mr-4 p-1">
                             <button onClick={() => setReportStyle('standard')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
                                 Standard
                             </button>
                             <button onClick={() => setReportStyle('modern')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
                                 Modern
                             </button>
                             <button onClick={() => setReportStyle('printable')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
                                 Printable
                             </button>
                         </div>
@@ -2613,7 +2613,7 @@ function ReportBuilderInner() {
                         {reportStyle === 'modern' && (
                             <div className="flex bg-white/5 border border-white/10 p-1 mr-4 gap-1">
                                 {[
-                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-orange-500' },
+                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-primary' },
                                     { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
                                     { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
                                 ].map((t) => (
@@ -2622,7 +2622,7 @@ function ReportBuilderInner() {
                                         onClick={() => setModernTemplateId(t.id as any)}
                                         className={cn(
                                             "group relative w-20 h-10 flex flex-col items-center justify-center transition-all overflow-hidden",
-                                            modernTemplateId === t.id ? "ring-2 ring-orange-500 ring-offset-2 ring-offset-[#0a0a14]" : "opacity-40 hover:opacity-100"
+                                            modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-2 ring-offset-[#0a0a14]" : "opacity-40 hover:opacity-100"
                                         )}
                                     >
                                         <div className={cn("absolute inset-0", t.color)} />
@@ -2632,7 +2632,7 @@ function ReportBuilderInner() {
                                             t.id === 'executive' ? "text-foreground" : "text-white"
                                         )}>{t.name}</span>
                                         {modernTemplateId === t.id && (
-                                            <div className="absolute top-0 right-0 bg-orange-500 text-white p-0.5">
+                                            <div className="absolute top-0 right-0 bg-primary text-white p-0.5">
                                                 <CheckIcon className="w-2 h-2" />
                                             </div>
                                         )}
@@ -2641,7 +2641,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>

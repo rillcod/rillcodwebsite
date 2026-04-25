@@ -357,7 +357,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
     // ── Main form ─────────────────────────────────────────────────────────────
     const content = (
-        <div className={`relative w-full bg-background border border-border border-t-4 border-t-orange-600 rounded-none shadow-2xl overflow-hidden flex flex-col ${inline ? '' : 'max-w-lg max-h-[90vh]'}`}>
+        <div className={`relative w-full bg-background border border-border border-t-4 border-t-primary rounded-none shadow-2xl overflow-hidden flex flex-col ${inline ? '' : 'max-w-lg max-h-[90vh]'}`}>
 
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
@@ -414,7 +414,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     {/* School */}
                     <Field label="School" required={!initialData}>
                         <div className="relative group">
-                            <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors z-10" />
+                            <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
                             {profile?.role === 'school' ? (
                                 <div className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground flex items-center gap-2">
                                     <span className="flex-1 truncate">{form.school_name || 'Your school'}</span>
@@ -433,7 +433,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                         }
                                     }}
                                     required={!initialData}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors appearance-none cursor-pointer">
+                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
                                     <option value="" className="bg-background">Select school…</option>
                                     {schools.map(s => <option key={s.id} value={s.name} className="bg-background">{s.name}</option>)}
                                     <option value="__other__" className="bg-background">Other (type below)</option>
@@ -442,7 +442,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                 <div className="flex gap-1">
                                     <input name="school_name" type="text" placeholder="School name" value={form.school_name}
                                         onChange={handleChange} required={!initialData}
-                                        className="flex-1 pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                                        className="flex-1 pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" />
                                     {schools.length > 0 && (
                                         <button type="button" onClick={() => { setCustomSchool(false); setForm(prev => ({ ...prev, school_name: '' })); }}
                                             className="px-3 py-2.5 bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-all rounded-none">
@@ -458,9 +458,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Field label="Grade / Level">
                             <div className="relative group">
-                                <BookOpenIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors z-10" />
+                                <BookOpenIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
                                 <select name="grade_level" value={form.grade_level} onChange={handleChange}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors appearance-none cursor-pointer">
+                                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
                                     <option value="" className="bg-background">Select grade…</option>
                                     {GRADE_LEVELS.map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
                                 </select>
@@ -476,11 +476,11 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Field label="City">
                             <input name="city" type="text" placeholder="City" value={form.city} onChange={handleChange}
-                                className="w-full px-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                                className="w-full px-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" />
                         </Field>
                         <Field label="State">
                             <input name="state" type="text" placeholder="State" value={form.state} onChange={handleChange}
-                                className="w-full px-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                                className="w-full px-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" />
                         </Field>
                     </div>
                 </div>
@@ -494,7 +494,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         </button>
                     )}
                     <button type="submit" disabled={loading}
-                        className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] rounded-none">
+                        className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-primary hover:bg-primary text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] rounded-none">
                         {loading
                             ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
                             : <><CheckIcon className="w-4 h-4" /> {initialData ? 'Save Changes' : 'Register Student'}</>}
@@ -519,7 +519,7 @@ function Field({ label, children, required }: { label: string; children: React.R
     return (
         <div className="space-y-1.5">
             <label className="block text-xs text-muted-foreground font-semibold">
-                {label}{required && <span className="text-orange-500 ml-1">*</span>}
+                {label}{required && <span className="text-primary ml-1">*</span>}
             </label>
             {children}
         </div>
@@ -532,10 +532,10 @@ function IconInput({ icon: Icon, name, type, placeholder, value, onChange, requi
 }) {
     return (
         <div className="relative group">
-            <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors z-10" />
+            <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
             <input name={name} type={type} placeholder={placeholder} value={value}
                 onChange={onChange} required={required}
-                className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" />
         </div>
     );
 }

@@ -101,9 +101,9 @@ function ProofUpload({ invoiceId }: { invoiceId: string }) {
         placeholder="Optional note (e.g. paid on 12 Apr, used child's name as ref)"
         value={note}
         onChange={e => setNote(e.target.value)}
-        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
       />
-      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-orange-500/50'}`}>
+      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
         {uploading
           ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</>
           : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload Screenshot / PDF</>
@@ -185,7 +185,7 @@ function PayModal({
                 </div>
               )}
               <button onClick={initiate} disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all disabled:opacity-50">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all disabled:opacity-50">
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -198,9 +198,9 @@ function PayModal({
             <div className="space-y-4">
               {/* Paystack Option */}
               {paystackUrl && (
-                <div className="border border-orange-500/30 rounded-none overflow-hidden">
-                  <div className="bg-orange-500/10 px-4 py-2.5 flex items-center gap-2">
-                    <BanknotesIcon className="w-4 h-4 text-orange-500" />
+                <div className="border border-primary/30 rounded-none overflow-hidden">
+                  <div className="bg-primary/10 px-4 py-2.5 flex items-center gap-2">
+                    <BanknotesIcon className="w-4 h-4 text-primary" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Pay Online with Paystack</span>
                   </div>
                   <div className="p-4">
@@ -208,7 +208,7 @@ function PayModal({
                       Pay securely with card, bank transfer, or USSD via Paystack. You will be redirected to a secure payment page.
                     </p>
                     <a href={paystackUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all">
+                      className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all">
                       Pay {formatCurrency(invoice.amount, invoice.currency)} via Paystack
                       <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                     </a>
@@ -252,7 +252,7 @@ function PayModal({
                                 <span className="text-xs font-black text-foreground">{value}</span>
                                 {(label === 'Account Number' || label === 'Account Name') && (
                                   <button onClick={() => copyToClipboard(value, `${acc.id}-${label}`)}
-                                    className="text-[9px] font-black uppercase tracking-wider text-orange-500 hover:text-orange-400 px-1.5 py-0.5 border border-orange-500/30 rounded-none">
+                                    className="text-[9px] font-black uppercase tracking-wider text-primary hover:text-primary px-1.5 py-0.5 border border-primary/30 rounded-none">
                                     {copied === `${acc.id}-${label}` ? '✓' : 'Copy'}
                                   </button>
                                 )}
@@ -387,8 +387,8 @@ function ParentInvoicesContent() {
               onClick={() => setSelectedId(child.id)}
               className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
                 selectedId === child.id
-                  ? 'bg-orange-600 border-orange-600 text-white'
-                  : 'bg-card border-border text-muted-foreground hover:border-orange-500/50'
+                  ? 'bg-primary border-primary text-white'
+                  : 'bg-card border-border text-muted-foreground hover:border-primary/50'
               }`}>
               {child.full_name}
             </button>
@@ -428,7 +428,7 @@ function ParentInvoicesContent() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-5 py-2.5 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
                   activeTab === tab
-                    ? 'border-orange-500 text-orange-500'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}>
                 {tab === 'invoices' ? `Invoices (${invoices.length})` : `Payments (${payments.length})`}
@@ -508,7 +508,7 @@ function ParentInvoicesContent() {
                         {isPayable && (
                           <div className="mt-4 flex flex-col sm:flex-row gap-2">
                             <button onClick={() => setPayingInvoice(inv)}
-                              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all">
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all">
                               <BanknotesIcon className="w-4 h-4" />
                               Pay {formatCurrency(inv.amount, inv.currency)}
                             </button>

@@ -61,9 +61,9 @@ const typeConfig = {
   },
   streak: {
     icon: FireIcon,
-    color: 'text-orange-400',
-    bgColor: 'bg-orange-500/10',
-    borderColor: 'border-orange-500/30',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
+    borderColor: 'border-primary/30',
     emoji: '🔥'
   },
   celebration: {
@@ -268,7 +268,7 @@ export default function NotificationsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -284,8 +284,8 @@ export default function NotificationsPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <BellIcon className="w-5 h-5 text-orange-400" />
-                <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">
+                <BellIcon className="w-5 h-5 text-primary" />
+                <span className="text-xs font-bold text-primary uppercase tracking-widest">
                   Notification Center
                 </span>
               </div>
@@ -301,7 +301,7 @@ export default function NotificationsPage() {
             <div className="grid grid-cols-3 gap-6">
               {[
                 { label: 'Total Logs', value: stats.total, color: 'text-foreground' },
-                { label: 'Pending', value: stats.unread, color: 'text-orange-400' },
+                { label: 'Pending', value: stats.unread, color: 'text-primary' },
                 { label: 'Cleared', value: stats.read, color: 'text-emerald-400' },
               ].map(stat => (
                 <div key={stat.label} className="text-center group">
@@ -320,7 +320,7 @@ export default function NotificationsPage() {
         <div className="bg-card/40 backdrop-blur-xl border border-border/40 p-6 mb-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.22em]">Alert Sound</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.22em]">Alert Sound</p>
               <h2 className="text-lg font-black text-foreground mt-1">Notification sound controls</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Choose how loud notification previews should sound on this device.
@@ -332,7 +332,7 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={() => setSoundEnabled((prev) => !prev)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${soundEnabled ? 'bg-orange-500' : 'bg-muted'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${soundEnabled ? 'bg-primary' : 'bg-muted'}`}
                 >
                   <span className={`inline-block h-4 w-4 rounded-full bg-card transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -350,7 +350,7 @@ export default function NotificationsPage() {
                   value={soundLevel}
                   onChange={(e) => setSoundLevel(Number(e.target.value))}
                   disabled={!soundEnabled}
-                  className="w-full accent-orange-500"
+                  className="w-full accent-primary"
                 />
               </label>
               <div className="flex flex-wrap gap-2">
@@ -360,7 +360,7 @@ export default function NotificationsPage() {
                     saveSoundPreferences();
                     if (soundEnabled) playPreviewTone(soundLevel);
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-500/20"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/20"
                 >
                   Preview sound
                 </button>
@@ -381,13 +381,13 @@ export default function NotificationsPage() {
           {/* Search */}
           <div className="relative group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="w-5 h-5 text-muted-foreground group-focus-within:text-orange-400 transition-colors" />
+              <MagnifyingGlassIcon className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="SCAN ARCHIVE..."
-              className="w-full bg-background/50 border border-border/40 pl-12 pr-4 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-orange-500/60 transition-all italic tracking-tight"
+              className="w-full bg-background/50 border border-border/40 pl-12 pr-4 py-4 text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60 transition-all italic tracking-tight"
             />
           </div>
 
@@ -399,7 +399,7 @@ export default function NotificationsPage() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
-                className="bg-background border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:border-orange-500"
+                className="bg-background border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
               >
                 <option value="all">All Notifications</option>
                 <option value="unread">Unread Only</option>
@@ -411,7 +411,7 @@ export default function NotificationsPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-background border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:border-orange-500"
+              className="bg-background border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
             >
               <option value="all">All Types</option>
               {Object.entries(typeConfig).map(([type, config]) => (
@@ -477,9 +477,9 @@ export default function NotificationsPage() {
                     transition={{ delay: index * 0.03 }}
                     className={`
                       relative bg-card/30 backdrop-blur-sm border transition-all duration-300 group
-                      ${notification.is_read ? 'border-border/30 opacity-60' : 'border-orange-500/40 shadow-[0_0_20px_rgba(249,115,22,0.05)]'}
-                      ${isSelected ? 'border-orange-500 ring-1 ring-orange-500/20' : ''}
-                      hover:bg-card/50 hover:border-orange-500/50
+                      ${notification.is_read ? 'border-border/30 opacity-60' : 'border-primary/40 shadow-[0_0_20px_rgba(249,115,22,0.05)]'}
+                      ${isSelected ? 'border-primary ring-1 ring-primary/20' : ''}
+                      hover:bg-card/50 hover:border-primary/50
                     `}
                     onClick={() => toggleSelection(notification.id)}
                   >
@@ -491,7 +491,7 @@ export default function NotificationsPage() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelection(notification.id)}
-                            className="w-4 h-4 text-orange-600 bg-background border-border rounded focus:ring-orange-500"
+                            className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
                           />
                         </div>
 
@@ -561,7 +561,7 @@ export default function NotificationsPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-xs font-medium text-orange-500 hover:text-orange-400 transition-colors"
+                                className="text-xs font-medium text-primary hover:text-primary transition-colors"
                               >
                                 View Details →
                               </a>
@@ -573,7 +573,7 @@ export default function NotificationsPage() {
 
                     {/* Unread indicator */}
                     {!notification.is_read && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                     )}
                   </motion.div>
                 );

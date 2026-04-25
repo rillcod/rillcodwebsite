@@ -28,7 +28,7 @@ function ScoreSlider({
   const color = pct >= 75 ? 'emerald' : pct >= 60 ? 'blue' : pct >= 50 ? 'amber' : pct >= 40 ? 'orange' : 'rose';
   const colorMap: Record<string, string> = {
     emerald: 'accent-emerald-500', blue: 'accent-blue-500',
-    amber: 'accent-amber-500', orange: 'accent-orange-500', rose: 'accent-rose-500',
+    amber: 'accent-amber-500', orange: 'accent-primary', rose: 'accent-rose-500',
   };
   return (
     <div className="space-y-1.5">
@@ -39,7 +39,7 @@ function ScoreSlider({
         </div>
         <div className={`text-lg font-black ${
           pct >= 75 ? 'text-emerald-400' : pct >= 60 ? 'text-blue-400' :
-          pct >= 50 ? 'text-amber-400' : pct >= 40 ? 'text-orange-400' : 'text-rose-400'
+          pct >= 50 ? 'text-amber-400' : pct >= 40 ? 'text-primary' : 'text-rose-400'
         }`}>{pct}</div>
       </div>
       <input
@@ -98,9 +98,9 @@ export default function WAECGradingPage() {
         </div>
         <Link
           href="/dashboard/grades"
-          className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-orange-500/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"
         >
-          <ChartBarIcon className="w-4 h-4 text-orange-400" /> Grading Queue
+          <ChartBarIcon className="w-4 h-4 text-primary" /> Grading Queue
         </Link>
       </div>
 
@@ -117,7 +117,7 @@ export default function WAECGradingPage() {
             onClick={() => setActiveTab(t.id)}
             className={`px-4 py-2 text-xs font-bold transition-colors ${
               activeTab === t.id
-                ? 'bg-orange-600 text-white'
+                ? 'bg-primary text-white'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
@@ -131,7 +131,7 @@ export default function WAECGradingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Sliders */}
           <div className="lg:col-span-3 bg-card border border-border p-6 space-y-5">
-            <h2 className="text-xs font-black uppercase tracking-widest text-orange-400">Enter Component Scores</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-primary">Enter Component Scores</h2>
 
             {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => (
               <ScoreSlider
@@ -157,7 +157,7 @@ export default function WAECGradingPage() {
               <input
                 type="range" min={0} max={100} value={assignmentPct}
                 onChange={e => setAssignmentPct(Number(e.target.value))}
-                className="w-full h-2 rounded-full cursor-pointer accent-orange-500"
+                className="w-full h-2 rounded-full cursor-pointer accent-primary"
               />
             </div>
           </div>
@@ -165,7 +165,7 @@ export default function WAECGradingPage() {
           {/* Result */}
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-card border border-border p-6 space-y-4">
-              <h2 className="text-xs font-black uppercase tracking-widest text-orange-400">Result</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-primary">Result</h2>
 
               <div className="text-center space-y-3 py-2">
                 <div className={`text-6xl font-black ${result.grade.color}`}>{result.capped}</div>
@@ -216,7 +216,7 @@ export default function WAECGradingPage() {
                     <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-bold truncate">{COMPONENT_LABELS[key]}</div>
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-orange-500 rounded-full"
+                        className="h-full bg-primary rounded-full"
                         style={{ width: `${scores[key]}%` }}
                       />
                     </div>
@@ -232,7 +232,7 @@ export default function WAECGradingPage() {
       {/* ── Grade Scale ── */}
       {activeTab === 'scale' && (
         <div className="bg-card border border-border p-6 space-y-4">
-          <h2 className="text-xs font-black uppercase tracking-widest text-orange-400 mb-4">WAEC/NECO Grade Scale (Nigeria)</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-primary mb-4">WAEC/NECO Grade Scale (Nigeria)</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -272,13 +272,13 @@ export default function WAECGradingPage() {
 
           {/* Weight table */}
           <div className="border-t border-border pt-6 space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-orange-400">Score Component Weights</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest text-primary">Score Component Weights</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {(Object.keys(SCORE_WEIGHTS) as (keyof ScoreComponents)[]).map(key => (
                 <div key={key} className="bg-muted/40 border border-border p-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">{COMPONENT_LABELS[key]}</span>
-                    <span className="text-sm font-black text-orange-400">{Math.round(SCORE_WEIGHTS[key] * 100)}%</span>
+                    <span className="text-sm font-black text-primary">{Math.round(SCORE_WEIGHTS[key] * 100)}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">{COMPONENT_DESCRIPTIONS[key]}</p>
                 </div>
@@ -292,7 +292,7 @@ export default function WAECGradingPage() {
       {activeTab === 'activity' && (
         <div className="space-y-4">
           <div className="bg-card border border-border p-6 space-y-4">
-            <h2 className="text-xs font-black uppercase tracking-widest text-orange-400">Assignment Activity Enforcement</h2>
+            <h2 className="text-xs font-black uppercase tracking-widest text-primary">Assignment Activity Enforcement</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Students must be consistently active to earn top WAEC grades. The more assignments submitted, the higher the grade ceiling.
               This drives students to engage every week, not just during exams.
@@ -348,7 +348,7 @@ export default function WAECGradingPage() {
           <div className="bg-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2">
               <BoltIcon className="w-4 h-4 text-yellow-400" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-orange-400">XP Events — How Students Earn Points</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-primary">XP Events — How Students Earn Points</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {XP_EVENTS.map(event => (
@@ -367,7 +367,7 @@ export default function WAECGradingPage() {
           <div className="bg-card border border-border p-6 space-y-4">
             <div className="flex items-center gap-2">
               <TrophyIcon className="w-4 h-4 text-amber-400" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-orange-400">Achievement Badges</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-primary">Achievement Badges</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {BADGES.map(badge => (

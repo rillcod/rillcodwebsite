@@ -276,7 +276,7 @@ export default function BulkEnrollPage() {
 
   if (authLoading || profileLoading || !profile || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!canAccess) return (
@@ -292,7 +292,7 @@ export default function BulkEnrollPage() {
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
-            <AcademicCapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400 flex-shrink-0" />
+            <AcademicCapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
             Bulk Enrol Students
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">Select students → pick or create a class → enrol</p>
@@ -332,7 +332,7 @@ export default function BulkEnrollPage() {
           className="w-full flex items-center justify-between px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <BookOpenIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+            <BookOpenIcon className="w-4 h-4 text-primary flex-shrink-0" />
             <span className="text-foreground font-bold text-sm">Enrolment Settings</span>
             {selectedClass && <span className="text-cyan-300 text-xs bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold">{selectedClass.name}</span>}
             {classMode === 'create' && (newClass.grade_level || newClass.name) && (
@@ -350,7 +350,7 @@ export default function BulkEnrollPage() {
             <div className="px-4 sm:px-5 pt-4 pb-3 flex gap-2">
               <button
                 onClick={() => setClassMode('pick')}
-                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${classMode === 'pick' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${classMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 Pick Existing Class
               </button>
@@ -371,7 +371,7 @@ export default function BulkEnrollPage() {
                       <BookOpenIcon className="w-3.5 h-3.5" />
                       Filter by Programme
                       {programId && (
-                        <button onClick={() => { setProgramId(''); setClassId(''); }} className="ml-auto text-[10px] text-orange-400 hover:text-orange-300 font-bold normal-case tracking-normal flex items-center gap-0.5">
+                        <button onClick={() => { setProgramId(''); setClassId(''); }} className="ml-auto text-[10px] text-primary hover:text-primary font-bold normal-case tracking-normal flex items-center gap-0.5">
                           <XMarkIcon className="w-3 h-3" /> Clear
                         </button>
                       )}
@@ -379,13 +379,13 @@ export default function BulkEnrollPage() {
                     <select
                       value={programId}
                       onChange={e => { setProgramId(e.target.value); setClassId(''); }}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                     >
                       <option value="">— All programmes (show all classes) —</option>
                       {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                     {programId && (
-                      <p className="text-[10px] text-orange-400/70 mt-1.5 flex items-center gap-1">
+                      <p className="text-[10px] text-primary/70 mt-1.5 flex items-center gap-1">
                         <CheckCircleIcon className="w-3 h-3" />
                         Showing only classes in this programme. Students will also be enrolled in it.
                       </p>
@@ -409,7 +409,7 @@ export default function BulkEnrollPage() {
                         </p>
                         <div className="flex items-center justify-center gap-3">
                           {programId && (
-                            <button onClick={() => { setProgramId(''); setClassId(''); }} className="text-xs font-bold text-orange-400 hover:text-orange-300 transition-colors">
+                            <button onClick={() => { setProgramId(''); setClassId(''); }} className="text-xs font-bold text-primary hover:text-primary transition-colors">
                               Show all classes →
                             </button>
                           )}
@@ -430,15 +430,15 @@ export default function BulkEnrollPage() {
                                 <div
                                   key={c.id}
                                   onClick={() => setClassId(c.id)}
-                                  className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all ${classId === c.id ? 'bg-orange-600/15 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
+                                  className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all ${classId === c.id ? 'bg-primary/15 border-primary/40' : 'bg-card shadow-sm border-border hover:border-primary/20 hover:bg-white/[0.07]'}`}
                                 >
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${classId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${classId === c.id ? 'border-primary bg-primary' : 'border-border'}`}>
                                     {classId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-card" />}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
                                     {c.programs?.name ? (
-                                      <p className="text-[9px] text-orange-400/70 mt-0.5 flex items-center gap-0.5">
+                                      <p className="text-[9px] text-primary/70 mt-0.5 flex items-center gap-0.5">
                                         <BookOpenIcon className="w-2.5 h-2.5 flex-shrink-0" /> {c.programs.name}
                                       </p>
                                     ) : (
@@ -554,13 +554,13 @@ export default function BulkEnrollPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
-            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
           {allClasses.length > 0 && (
             <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors">
+              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors">
               <option value="">All classes</option>
               {allClasses.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -577,7 +577,7 @@ export default function BulkEnrollPage() {
       {schools.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           <button onClick={() => setSchoolFilter('')}
-            className={`px-3 py-1.5 rounded-none text-xs font-bold border transition-all ${!schoolFilter ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:text-foreground hover:bg-muted'}`}>
+            className={`px-3 py-1.5 rounded-none text-xs font-bold border transition-all ${!schoolFilter ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:text-foreground hover:bg-muted'}`}>
             All Schools
           </button>
           {schools.map(sc => {
@@ -597,10 +597,10 @@ export default function BulkEnrollPage() {
 
       {/* Selection action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-orange-500/10 border border-orange-500/30 rounded-none gap-3 flex-wrap">
+        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-primary/10 border border-primary/30 rounded-none gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
-            <UserGroupIcon className="w-4 h-4 text-orange-400" />
-            <span className="text-orange-500 font-bold">{selected.size} selected</span>
+            <UserGroupIcon className="w-4 h-4 text-primary" />
+            <span className="text-primary font-bold">{selected.size} selected</span>
             <button onClick={() => setSelected(new Set())} className="text-muted-foreground hover:text-foreground text-xs underline">Clear</button>
           </div>
           {classMode === 'pick' && !classId ? (
@@ -622,7 +622,7 @@ export default function BulkEnrollPage() {
             <button
               onClick={handleEnroll}
               disabled={enrolling || creatingClass}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground font-bold rounded-none text-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-foreground font-bold rounded-none text-sm transition-colors"
             >
               <AcademicCapIcon className="w-4 h-4" />
               <span>
@@ -641,7 +641,7 @@ export default function BulkEnrollPage() {
       <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -657,7 +657,7 @@ export default function BulkEnrollPage() {
                     <th className="px-2 sm:px-4 py-3 w-12">
                       <label className="flex items-center justify-center w-10 h-10 cursor-pointer mx-auto">
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll}
-                          className="w-4 h-4 rounded border-border accent-orange-500 cursor-pointer" />
+                          className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
                       </label>
                     </th>
                     <th className="text-left px-3 py-3">Name</th>
@@ -683,7 +683,7 @@ export default function BulkEnrollPage() {
                                 else enrollable.forEach(s => next.add(s.id));
                                 setSelected(next);
                               }}
-                              className="w-4 h-4 rounded border-border accent-orange-500 cursor-pointer" />
+                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
                             </label>
                           </td>
                           <td colSpan={3} className="px-3 py-2">
@@ -702,18 +702,18 @@ export default function BulkEnrollPage() {
                           return (
                             <tr key={s.id}
                               onClick={() => !isEnrolled && toggleOne(s.id)}
-                              className={`border-b border-border transition-colors ${isEnrolled ? 'opacity-60' : isSel ? 'bg-orange-500/10 hover:bg-orange-500/15 cursor-pointer' : 'hover:bg-white/[0.02] cursor-pointer'}`}>
+                              className={`border-b border-border transition-colors ${isEnrolled ? 'opacity-60' : isSel ? 'bg-primary/10 hover:bg-primary/15 cursor-pointer' : 'hover:bg-white/[0.02] cursor-pointer'}`}>
                               <td className="px-2 sm:px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
                                 {isEnrolled
                                   ? <CheckCircleIcon className="w-5 h-5 text-emerald-400 mx-auto" />
                                   : <label className="flex items-center justify-center w-10 h-10 cursor-pointer mx-auto">
                                       <input type="checkbox" checked={isSel} onChange={() => toggleOne(s.id)}
-                                        className="w-4 h-4 rounded border-border accent-orange-500 cursor-pointer" />
+                                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
                                     </label>}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`font-medium ${isEnrolled ? 'text-muted-foreground' : isSel ? 'text-orange-500' : 'text-foreground'}`}>{s.full_name}</span>
+                                  <span className={`font-medium ${isEnrolled ? 'text-muted-foreground' : isSel ? 'text-primary' : 'text-foreground'}`}>{s.full_name}</span>
                                   {isEnrolled && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
                                       <CheckCircleIcon className="w-2.5 h-2.5" /> Enrolled
@@ -739,7 +739,7 @@ export default function BulkEnrollPage() {
             </div>
             <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{filtered.length} shown · {students.length} total</span>
-              {selected.size > 0 && <span className="text-orange-400 font-bold">{selected.size} selected</span>}
+              {selected.size > 0 && <span className="text-primary font-bold">{selected.size} selected</span>}
             </div>
           </>
         )}

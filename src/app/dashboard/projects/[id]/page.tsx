@@ -20,7 +20,7 @@ import {
 
 const IntegratedCodeRunner = dynamic(
     () => import('@/components/studio/IntegratedCodeRunner'),
-    { ssr: false, loading: () => <div className="flex-1 bg-black/40 flex items-center justify-center"><ArrowPathIcon className="w-6 h-6 text-orange-400 animate-spin" /></div> }
+    { ssr: false, loading: () => <div className="flex-1 bg-black/40 flex items-center justify-center"><ArrowPathIcon className="w-6 h-6 text-primary animate-spin" /></div> }
 );
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ function autoGradeSubmission(answers: any, submissionText: string, fileUrl: stri
 }
 
 const LABEL = 'block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1.5';
-const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500 transition-colors';
+const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors';
 const TEXTAREA = `${INPUT} resize-none`;
 
 function StatusBadge({ status, grade }: { status: string; grade?: number | null }) {
@@ -165,7 +165,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                 </button>
                 <div className="h-5 w-px bg-white/10 flex-shrink-0" />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-white flex-shrink-0">
                         {(sub.portal_users?.full_name ?? '?')[0]}
                     </div>
                     <div className="min-w-0">
@@ -187,7 +187,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                 {/* LEFT: Activity brief (desktop only) */}
                 <div className="hidden md:flex flex-col w-2/5 border-r border-white/8 overflow-y-auto bg-[#161628]">
                     <div className="p-5 border-b border-white/8">
-                        <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project</span>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">Project</span>
                         <h2 className="text-base font-extrabold text-white mt-1 leading-snug">{activity?.title}</h2>
                         <div className="flex items-center gap-3 mt-2 text-xs text-white/30">
                             <span>{max} pts max</span>
@@ -205,7 +205,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
                             {deliverables.map((d, i) => (
                                 <div key={i} className="flex items-start gap-2 text-xs text-white/60">
-                                    <span className="text-orange-400 font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
+                                    <span className="text-primary font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
                                     <span>{d}</span>
                                 </div>
                             ))}
@@ -235,7 +235,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         <button onClick={() => setBriefOpen(o => !o)}
                             className="w-full flex items-center justify-between px-4 py-3 bg-white/3 hover:bg-white/5 transition-colors text-left">
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project Brief</span>
+                                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Project Brief</span>
                                 <span className="text-[10px] text-white/30">— {briefOpen ? 'hide' : 'view'}</span>
                             </div>
                             <ChevronDownIcon className={`w-4 h-4 text-white/30 flex-shrink-0 transition-transform ${briefOpen ? 'rotate-180' : ''}`} />
@@ -250,7 +250,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Deliverables</p>
                                         {deliverables.map((d, i) => (
-                                            <p key={i} className="text-xs text-white/55"><span className="text-orange-400 font-bold">{i+1}.</span> {d}</p>
+                                            <p key={i} className="text-xs text-white/55"><span className="text-primary font-bold">{i+1}.</span> {d}</p>
                                         ))}
                                     </div>
                                 )}
@@ -300,7 +300,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                             <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(screenshotUrl)}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={screenshotUrl} alt="Screenshot"
-                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-orange-500/40 transition-colors" />
+                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-primary/40 transition-colors" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
                                     <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
                                 </div>
@@ -315,7 +315,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                             <div className="relative inline-block cursor-zoom-in group" onClick={() => setLightbox(sub.file_url)}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={sub.file_url} alt="Submission"
-                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-orange-500/40 transition-colors" />
+                                    className="h-36 w-auto max-w-full object-cover rounded-xl border border-white/10 group-hover:border-primary/40 transition-colors" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 rounded-xl transition-all">
                                     <span className="opacity-0 group-hover:opacity-100 text-[10px] font-black text-white uppercase tracking-widest transition-opacity">Click to enlarge</span>
                                 </div>
@@ -635,13 +635,13 @@ export default function ProjectBuilderPage() {
 
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
-            <ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" />
+            <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
         </div>
     );
     if (!activity) return (
         <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-3">
             <p className="text-white/30">Activity not found.</p>
-            <Link href="/dashboard/projects" className="text-orange-400 text-sm font-bold hover:underline">← Back to Projects</Link>
+            <Link href="/dashboard/projects" className="text-primary text-sm font-bold hover:underline">← Back to Projects</Link>
         </div>
     );
 
@@ -674,7 +674,7 @@ export default function ProjectBuilderPage() {
             {/* ── Compact Hero ─────────────────────────────────────────────── */}
             <div className="relative bg-[#0a0a12] border-b border-white/[0.06] flex-shrink-0">
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    <div className="absolute -top-16 -left-16 w-72 h-72 bg-orange-500/6 rounded-full blur-3xl" />
+                    <div className="absolute -top-16 -left-16 w-72 h-72 bg-primary/6 rounded-full blur-3xl" />
                     <div className="absolute top-0 right-0 w-56 h-56 bg-amber-500/4 rounded-full blur-3xl" />
                 </div>
                 <div className="relative px-4 md:px-8 py-4">
@@ -685,13 +685,13 @@ export default function ProjectBuilderPage() {
                                 <ArrowLeftIcon className="w-3.5 h-3.5" /> Projects
                             </Link>
                             <div className="w-px h-4 bg-white/10" />
-                            <div className="w-8 h-8 bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-                                <RocketLaunchIcon className="w-4 h-4 text-orange-400" />
+                            <div className="w-8 h-8 bg-primary/15 border border-primary/25 flex items-center justify-center flex-shrink-0">
+                                <RocketLaunchIcon className="w-4 h-4 text-primary" />
                             </div>
                             <div className="min-w-0">
                                 <h1 className="text-sm font-black text-white uppercase tracking-tight truncate">{activity.title}</h1>
                                 <div className="flex items-center gap-3 mt-0.5">
-                                    <span className="text-[9px] text-orange-400/60 font-bold uppercase tracking-widest">{category}</span>
+                                    <span className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">{category}</span>
                                     {dueDate && (
                                         <span className={`text-[9px] flex items-center gap-1 ${isOverdue ? 'text-rose-400' : 'text-white/25'}`}>
                                             <ClockIcon className="w-2.5 h-2.5" />
@@ -709,7 +709,7 @@ export default function ProjectBuilderPage() {
                                     <span className="text-emerald-400 font-bold">{gradedCount} graded</span>
                                     {pendingCount > 0 && <span className="text-amber-400 font-bold">{pendingCount} pending</span>}
                                     <button onClick={openEdit}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] hover:border-orange-500/40 hover:bg-orange-500/10 text-white/60 hover:text-orange-400 transition-all font-black uppercase tracking-widest">
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] hover:border-primary/40 hover:bg-primary/10 text-white/60 hover:text-primary transition-all font-black uppercase tracking-widest">
                                         <PencilSquareIcon className="w-3 h-3" /> Edit
                                     </button>
                                 </div>
@@ -717,7 +717,7 @@ export default function ProjectBuilderPage() {
                         </div>
                     </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
             </div>
 
             {/* ── Alerts ──────────────────────────────────────────────────── */}
@@ -749,13 +749,13 @@ export default function ProjectBuilderPage() {
                         className="fixed inset-0 z-50 flex items-center justify-center p-4"
                         style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}>
                         <motion.div initial={{ scale: 0.96, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 16 }}
-                            className="w-full max-w-xl bg-[#0d0d18] border border-orange-500/20 overflow-hidden"
+                            className="w-full max-w-xl bg-[#0d0d18] border border-primary/20 overflow-hidden"
                             style={{ boxShadow: '0 0 60px rgba(249,115,22,0.12)' }}>
                             {/* Header */}
                             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]"
                                 style={{ background: 'rgba(249,115,22,0.06)' }}>
                                 <div className="flex items-center gap-3">
-                                    <PencilSquareIcon className="w-4 h-4 text-orange-400" />
+                                    <PencilSquareIcon className="w-4 h-4 text-primary" />
                                     <p className="text-xs font-black text-white uppercase tracking-widest">Edit Activity</p>
                                 </div>
                                 <button onClick={() => setEditMode(false)} className="text-white/30 hover:text-white text-lg leading-none">✕</button>
@@ -797,7 +797,7 @@ export default function ProjectBuilderPage() {
                                     Cancel
                                 </button>
                                 <button onClick={saveEdit} disabled={savingEdit || !editTitle.trim()}
-                                    className="flex items-center gap-2 px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                                    className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                     {savingEdit ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
                                     {savingEdit ? 'Saving…' : 'Save Changes'}
                                 </button>
@@ -814,7 +814,7 @@ export default function ProjectBuilderPage() {
                         <button key={tab} onClick={() => setActiveTab(tab)}
                             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                                 activeTab === tab
-                                    ? 'text-orange-400 border-b-2 border-orange-500'
+                                    ? 'text-primary border-b-2 border-primary'
                                     : 'text-white/30 hover:text-white/60'
                             }`}>
                             {tab === 'code' ? '💻 Code' : tab === 'preview' ? '👁 Preview' : '📤 Submit'}
@@ -833,8 +833,8 @@ export default function ProjectBuilderPage() {
                             <button
                                 onClick={() => setBriefOpen(o => !o)}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors">
-                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-orange-400/70 flex-shrink-0" />
-                                <span className="text-[9px] font-black text-orange-400/70 uppercase tracking-widest flex-1 text-left">
+                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-primary/70 flex-shrink-0" />
+                                <span className="text-[9px] font-black text-primary/70 uppercase tracking-widest flex-1 text-left">
                                     📋 Project Brief{myGroup ? ` · ${myGroup.name}` : ''}
                                 </span>
                                 {briefOpen
@@ -864,9 +864,9 @@ export default function ProjectBuilderPage() {
                                                     const isMe = m.student_id === profile?.id;
                                                     const name = m.portal_users?.full_name || 'Unknown';
                                                     return (
-                                                        <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-orange-500/[0.06]' : ''}`}>
+                                                        <div key={m.id} className={`px-3 py-2.5 ${isMe ? 'bg-primary/[0.06]' : ''}`}>
                                                             <div className="flex items-center gap-2 mb-0.5">
-                                                                <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/40'}`}>
+                                                                <div className={`w-4 h-4 flex items-center justify-center text-[8px] font-black flex-shrink-0 ${isMe ? 'bg-primary text-white' : 'bg-white/10 text-white/40'}`}>
                                                                     {name[0].toUpperCase()}
                                                                 </div>
                                                                 <p className={`text-[10px] font-bold flex-1 ${isMe ? 'text-white' : 'text-white/50'}`}>
@@ -877,7 +877,7 @@ export default function ProjectBuilderPage() {
                                                                 )}
                                                             </div>
                                                             {m.task_description && (
-                                                                <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-orange-300/70' : 'text-white/25'}`}>{m.task_description}</p>
+                                                                <p className={`text-[9px] leading-relaxed pl-6 ${isMe ? 'text-primary/70' : 'text-white/25'}`}>{m.task_description}</p>
                                                             )}
                                                             {isMe && m.individual_feedback && (
                                                                 <p className="text-[9px] pl-6 mt-1 text-emerald-400/70 italic">"{m.individual_feedback}"</p>
@@ -908,7 +908,7 @@ export default function ProjectBuilderPage() {
                                 <button key={tab} onClick={() => setActiveTab(tab)}
                                     className={`px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                                         activeTab === tab
-                                            ? 'text-orange-400 border-b-2 border-orange-500 bg-orange-500/5'
+                                            ? 'text-primary border-b-2 border-primary bg-primary/5'
                                             : 'text-white/30 hover:text-white/60'
                                     }`}>
                                     {tab === 'code' ? '💻 Code Editor' : tab === 'preview' ? '👁 Live Preview' : '📤 Submit Work'}
@@ -960,7 +960,7 @@ export default function ProjectBuilderPage() {
                                                     <EyeIcon className="w-10 h-10 text-white/10 mx-auto" />
                                                     <p className="text-white/30 text-sm">Switch to Code Editor to run {editorLang} code</p>
                                                     <button onClick={() => setActiveTab('code')}
-                                                        className="text-[10px] font-black text-orange-400 uppercase tracking-widest px-4 py-2 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
+                                                        className="text-[10px] font-black text-primary uppercase tracking-widest px-4 py-2 border border-primary/30 hover:bg-primary/10 transition-all">
                                                         Open Code Editor
                                                     </button>
                                                 </div>
@@ -972,7 +972,7 @@ export default function ProjectBuilderPage() {
                                         <EyeIcon className="w-12 h-12 text-white/10" />
                                         <p className="text-white/30 text-sm">No code yet — write some in the Code Editor tab to see a preview</p>
                                         <button onClick={() => setActiveTab('code')}
-                                            className="flex items-center gap-2 text-[10px] font-black text-orange-400 uppercase tracking-widest px-5 py-2.5 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-all">
+                                            className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest px-5 py-2.5 bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-all">
                                             Open Code Editor
                                         </button>
                                     </div>
@@ -1006,7 +1006,7 @@ export default function ProjectBuilderPage() {
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[9px] text-white/30">{editorCode.split('\n').length} lines</span>
                                                 <button onClick={() => setActiveTab('code')}
-                                                    className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2 py-0.5 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 transition-all">
+                                                    className="text-[9px] font-black text-primary uppercase tracking-widest px-2 py-0.5 bg-primary/15 border border-primary/25 hover:bg-primary/25 transition-all">
                                                     Edit Code
                                                 </button>
                                             </div>
@@ -1039,7 +1039,7 @@ export default function ProjectBuilderPage() {
                                                 </div>
                                             ))}
                                             <button type="button" onClick={() => setLinks(ls => [...ls, ''])}
-                                                className="text-[10px] text-orange-400 hover:text-orange-300 font-bold uppercase tracking-widest">
+                                                className="text-[10px] text-primary hover:text-primary font-bold uppercase tracking-widest">
                                                 + Add link
                                             </button>
                                         </div>
@@ -1091,7 +1091,7 @@ export default function ProjectBuilderPage() {
                                     )}
 
                                     <button type="submit" disabled={submitting}
-                                        className="flex items-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white text-sm font-black uppercase tracking-widest transition-all disabled:opacity-50 w-full justify-center">
+                                        className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary text-white text-sm font-black uppercase tracking-widest transition-all disabled:opacity-50 w-full justify-center">
                                         {submitting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                                         {submitting ? 'Submitting...' : mySubmission ? 'Update Submission' : 'Submit Project Work'}
                                     </button>
@@ -1107,10 +1107,10 @@ export default function ProjectBuilderPage() {
                     {/* Instructions — structured step-by-step view */}
                     {activity.instructions && (
                         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                            className="bg-orange-500/5 border border-orange-500/20 p-5">
+                            className="bg-primary/5 border border-primary/20 p-5">
                             <div className="flex items-center gap-2 mb-4">
-                                <ClipboardDocumentListIcon className="w-4 h-4 text-orange-400" />
-                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project Instructions</p>
+                                <ClipboardDocumentListIcon className="w-4 h-4 text-primary" />
+                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">Project Instructions</p>
                             </div>
                             <ActivityInstructions
                                 instructions={activity.instructions}
@@ -1233,11 +1233,11 @@ export default function ProjectBuilderPage() {
                             return (
                                 <motion.div key={sub.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: idx * 0.04 }}
-                                    className="bg-[#0d0d18] border border-white/[0.06] hover:border-orange-500/20 transition-all">
+                                    className="bg-[#0d0d18] border border-white/[0.06] hover:border-primary/20 transition-all">
                                     <button onClick={() => setExpandedSub(isExpanded ? null : sub.id)}
                                         className="w-full flex items-center gap-4 px-5 py-4 text-left">
-                                        <div className="w-9 h-9 bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-sm font-black text-orange-300">{studentName[0].toUpperCase()}</span>
+                                        <div className="w-9 h-9 bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-sm font-black text-primary">{studentName[0].toUpperCase()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
@@ -1258,7 +1258,7 @@ export default function ProjectBuilderPage() {
                                             </p>
                                         </div>
                                         <StatusBadge status={sub.status || 'not_submitted'} grade={sub.grade} />
-                                        {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-orange-400" /> : <ChevronDownIcon className="w-4 h-4 text-white/20" />}
+                                        {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary" /> : <ChevronDownIcon className="w-4 h-4 text-white/20" />}
                                     </button>
 
                                     <AnimatePresence>
@@ -1311,7 +1311,7 @@ export default function ProjectBuilderPage() {
 
                                                     <button
                                                         onClick={() => setGradingSubmission(sub)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">
+                                                        className="flex items-center gap-2 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">
                                                         <PencilSquareIcon className="w-3.5 h-3.5" />
                                                         {sub.status === 'graded' ? 'Edit Grade' : 'Grade Submission'}
                                                     </button>

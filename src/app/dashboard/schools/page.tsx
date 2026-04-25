@@ -638,7 +638,7 @@ export default function SchoolsPage() {
                         <span className="font-bold text-foreground leading-snug">{s.name}</span>
                         <StatusBadge status={s.status ?? 'pending'} />
                         {s.portal_users?.length > 0 && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase tracking-tighter rounded-full border border-orange-500/20">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-tighter rounded-full border border-primary/20">
                             <ShieldCheckIcon className="w-3 h-3" /> Account
                           </span>
                         )}
@@ -659,7 +659,7 @@ export default function SchoolsPage() {
                             <span key={t} className="text-[10px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
                           ))}
                           {s.program_interest?.map((p: string) => (
-                            <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full">{p}</span>
+                            <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full">{p}</span>
                           ))}
                         </div>
                       )}
@@ -742,7 +742,7 @@ export default function SchoolsPage() {
               <div className="flex gap-1 p-3 border-b border-border bg-white/[0.02] flex-shrink-0">
                 {(['info', 'teachers', 'account'] as const).map(t => (
                   <button key={t} onClick={() => setAssignTab(t)}
-                    className={`flex-1 py-2 rounded-none text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
+                    className={`flex-1 py-2 rounded-none text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
                       }`}>
                     {t === 'teachers' ? `Teachers (${assignedTeachers.length})` : t === 'account' ? 'Portal Account' : 'School Info'}
                   </button>
@@ -794,7 +794,7 @@ export default function SchoolsPage() {
                             const t = ts.portal_users ?? ts;
                             return (
                               <div key={ts.id} className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-none px-4 py-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                   {(t.full_name ?? '?')[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -820,7 +820,7 @@ export default function SchoolsPage() {
                           .filter(t => !assignedTeachers.some((ts: any) => ts.teacher_id === t.id))
                           .map(t => (
                             <div key={t.id} className="flex items-center gap-3 bg-card shadow-sm border border-border rounded-none px-4 py-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                 {(t.full_name ?? '?')[0]}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1048,9 +1048,9 @@ export default function SchoolsPage() {
                   </div>
                 </div>
 
-                <div className="bg-orange-600/5 border border-orange-500/10 rounded-none p-4">
+                <div className="bg-primary/5 border border-primary/10 rounded-none p-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <ChartBarIcon className="w-4 h-4 text-orange-400" />
+                    <ChartBarIcon className="w-4 h-4 text-primary" />
                     <span className="text-xs font-extrabold text-foreground uppercase tracking-widest">Financial & Quota terms</span>
                   </div>
                   <div>
@@ -1066,7 +1066,7 @@ export default function SchoolsPage() {
                         type="number"
                         value={createForm.rillcodQuotaPercent}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, rillcodQuotaPercent: e.target.value }))}
-                        className="w-20 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                        className="w-20 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-2 italic">The percentage of fees collected by the school that belongs to Rillcod Technologies.</p>
@@ -1210,7 +1210,7 @@ function SchoolSelfView() {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -1228,13 +1228,13 @@ function SchoolSelfView() {
         {/* Header */}
         <div className="bg-background border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-5 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-orange-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-primary opacity-20 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
-            <span className="inline-block px-3 py-1 bg-orange-600/80 text-foreground text-xs font-bold uppercase tracking-wider rounded-full mb-3">
+            <span className="inline-block px-3 py-1 bg-primary/80 text-foreground text-xs font-bold uppercase tracking-wider rounded-full mb-3">
               School Portal
             </span>
             <h1 className="text-3xl font-extrabold text-foreground">{profile?.school_name ?? 'My School'}</h1>
-            <p className="text-orange-500 text-sm mt-2">
+            <p className="text-primary text-sm mt-2">
               {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
             </p>
           </div>
@@ -1243,10 +1243,10 @@ function SchoolSelfView() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Registered Students', value: stats.students, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-            { label: 'Assigned Teachers', value: stats.teachers, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
-            { label: 'Avg Performance', value: `${stats.avgScore}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-            { label: 'Graded Submissions', value: stats.submissions, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+            { label: 'Registered Students', value: stats.students, icon: UserGroupIcon, gradient: 'from-primary to-primary from-primary to-primary' },
+            { label: 'Assigned Teachers', value: stats.teachers, icon: AcademicCapIcon, gradient: 'from-primary to-primary' },
+            { label: 'Avg Performance', value: `${stats.avgScore}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary from-primary to-primary' },
+            { label: 'Graded Submissions', value: stats.submissions, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary from-primary to-primary' },
           ].map(({ label, value, icon: Icon, gradient }) => (
             <div key={label} className="bg-card shadow-sm border border-border rounded-none p-6 hover:bg-white/8 hover:border-border transition-all">
               <div className={`w-11 h-11 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg`}>
@@ -1267,9 +1267,9 @@ function SchoolSelfView() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {quickActions.map(({ name, href, icon: Icon, desc }) => (
                   <Link key={name} href={href}
-                    className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
-                    <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500/25 transition-colors">
-                      <Icon className="h-5 w-5 text-orange-400" />
+                    className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
+                    <div className="w-10 h-10 rounded-none bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                      <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                       <p className="font-semibold text-foreground text-sm">{name}</p>
@@ -1292,7 +1292,7 @@ function SchoolSelfView() {
                 <div className="text-center py-8">
                   <UserGroupIcon className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
                   <p className="text-white/25 text-sm">No students registered yet</p>
-                  <Link href="/dashboard/students/import" className="inline-flex items-center gap-1.5 mt-3 text-xs text-orange-400 hover:text-orange-500 transition-colors">
+                  <Link href="/dashboard/students/import" className="inline-flex items-center gap-1.5 mt-3 text-xs text-primary hover:text-primary transition-colors">
                     <PlusIcon className="w-3.5 h-3.5" /> Import Students
                   </Link>
                 </div>
@@ -1321,9 +1321,9 @@ function SchoolSelfView() {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            <div className="bg-gradient-to-br from-orange-600/20 from-orange-600 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
+            <div className="bg-gradient-to-br from-primary/20 from-primary to-primary/20 border border-primary/20 rounded-none p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
+                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                   {(profile?.school_name ?? 'S')[0].toUpperCase()}
                 </div>
                 <div>
@@ -1331,7 +1331,7 @@ function SchoolSelfView() {
                   <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                 </div>
               </div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-orange-500/20 text-orange-400 border-orange-500/30">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-primary/20 text-primary border-primary/30">
                 School Partner
               </span>
               <div className="mt-4 pt-4 border-t border-border space-y-2">
@@ -1353,7 +1353,7 @@ function SchoolSelfView() {
                 ].map(({ label, href, icon: Icon }) => (
                   <Link key={label} href={href}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
-                    <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
+                    <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
                     {label}
                     <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                   </Link>

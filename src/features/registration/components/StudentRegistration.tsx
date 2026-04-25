@@ -24,8 +24,8 @@ const ENROLLMENT_TYPES = [
     icon: Sun,
     title: 'Summer Bootcamp',
     desc: 'Intensive seasonal programme — no school affiliation required',
-    color: 'border-orange-500 bg-orange-500/10',
-    dot: 'bg-orange-400',
+    color: 'border-primary bg-primary/10',
+    dot: 'bg-primary',
   },
   {
     id: 'online',
@@ -67,7 +67,7 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
     <div className="space-y-2">
       <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
       <div className="relative group">
-        {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
+        {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" />}
         {children}
       </div>
     </div>
@@ -75,10 +75,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all appearance-none cursor-pointer`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -267,7 +267,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     <div className="w-full relative py-12">
         {/* Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-none text-primary text-[10px] font-black uppercase tracking-widest mb-6">
             <GraduationCap className="w-4 h-4" /> Student Enrolment
           </div>
           <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
@@ -305,13 +305,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </div>
 
         {/* Form Matrix */}
-        <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+        <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
           
           {/* Progress Strip */}
           <div className="flex items-center justify-between mb-12 border-b border-border pb-8">
              {STEPS.map((s, i) => (
                 <div key={i} className="flex items-center gap-3">
-                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-border text-muted-foreground/30'}`}>
+                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground/30'}`}>
                       {i < step ? <Check className="w-4 h-4" /> : i + 1}
                    </div>
                    <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-foreground' : 'text-muted-foreground/30'}`}>{s.label}</span>
@@ -440,16 +440,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    </Field>
 
                    {et && (
-                     <div className="p-8 bg-orange-500/5 border border-border rounded-none italic text-xs font-bold text-muted-foreground leading-relaxed">
-                        Programme Fee: <span className="text-orange-500 text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
+                     <div className="p-8 bg-primary/5 border border-border rounded-none italic text-xs font-bold text-muted-foreground leading-relaxed">
+                        Programme Fee: <span className="text-primary text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
                         <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">Payment processed securely via Paystack.</p>
                      </div>
                    )}
 
                    <div className="flex items-start gap-4 p-6 bg-muted/20 border border-border rounded-none shadow-inner">
-                      <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
+                      <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
                       <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
-                                 I confirm all details provided are accurate and agree to the <span className="text-orange-500 underline">Terms & Conditions</span>.
+                                 I confirm all details provided are accurate and agree to the <span className="text-primary underline">Terms & Conditions</span>.
                       </label>
                    </div>
                    {err && <p className="text-rose-500 text-xs font-black uppercase tracking-widest">{err}</p>}
@@ -466,7 +466,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    {step === 0 ? <Home className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
                    {step === 0 ? 'Home' : 'Back'}
                 </button>
-                <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50">
+                <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50">
                    {loading ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
                    ) : step < STEPS.length - 1 ? (

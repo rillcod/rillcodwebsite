@@ -1553,13 +1553,13 @@ export default function MissionsPage() {
   if (authLoading || !profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-orange-500/30">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
       <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
         {/* Back Button */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
@@ -1570,12 +1570,12 @@ export default function MissionsPage() {
         </motion.div>
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 sm:gap-5 mb-10">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
             <RocketLaunchIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-0.5 sm:mb-1 uppercase">Missions</h1>
-            <p className="text-[9px] sm:text-[10px] text-orange-400 font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
+            <p className="text-[9px] sm:text-[10px] text-primary font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
           </div>
         </motion.div>
 
@@ -1598,9 +1598,9 @@ export default function MissionsPage() {
             <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{totalXP}</p>
           </div>
           <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
-            <div className="absolute inset-0 bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <TrophyIcon className="w-4 h-4 text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+              <TrophyIcon className="w-4 h-4 text-primary drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
               <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Level</span>
             </div>
             <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{level}</p>
@@ -1617,14 +1617,14 @@ export default function MissionsPage() {
 
         {/* XP Progress bar */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl mb-8 relative overflow-hidden">
-          <div className="absolute -right-24 -top-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl" />
+          <div className="absolute -right-24 -top-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
           <div className="flex items-center justify-between mb-3 relative z-10">
             <span className="text-xs font-black text-white/60 uppercase tracking-widest">Level {level} Progress</span>
-            <span className="text-xs text-orange-400 font-black tracking-widest uppercase">{totalXP % XP_PER_LEVEL} <span className="text-white/30">/ {XP_PER_LEVEL} XP</span></span>
+            <span className="text-xs text-primary font-black tracking-widest uppercase">{totalXP % XP_PER_LEVEL} <span className="text-white/30">/ {XP_PER_LEVEL} XP</span></span>
           </div>
           <div className="h-2.5 bg-black/50 rounded-full overflow-hidden shadow-inner relative z-10">
             <div
-              className="absolute left-0 top-0 h-full bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(249,115,22,0.5)]"
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary via-amber-500 to-rose-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(249,115,22,0.5)]"
               style={{ width: `${Math.min(100, ((totalXP % XP_PER_LEVEL) / XP_PER_LEVEL) * 100)}%` }}
             />
           </div>
@@ -1649,7 +1649,7 @@ export default function MissionsPage() {
                 onClick={() => setLangFilter(value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                   langFilter === value
-                    ? 'bg-gradient-to-r from-rose-500 to-orange-500 border-transparent text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                    ? 'bg-gradient-to-r from-rose-500 to-primary border-transparent text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]'
                     : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
@@ -1664,7 +1664,7 @@ export default function MissionsPage() {
               <input
                 type="text"
                 placeholder="Search missions..."
-                className="w-full pl-11 pr-4 py-3 bg-muted/30 border border-border rounded-xl text-sm focus:outline-none focus:border-orange-500/50 focus:bg-muted/50 text-foreground placeholder:text-muted-foreground transition-all font-medium"
+                className="w-full pl-11 pr-4 py-3 bg-muted/30 border border-border rounded-xl text-sm focus:outline-none focus:border-primary/50 focus:bg-muted/50 text-foreground placeholder:text-muted-foreground transition-all font-medium"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1677,7 +1677,7 @@ export default function MissionsPage() {
                     onClick={() => setFilter(f)}
                     className={`px-4 py-2 text-[11px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                       filter === f
-                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 border-transparent text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
+                        ? 'bg-gradient-to-r from-primary to-amber-500 border-transparent text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
                         : 'bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
@@ -1714,13 +1714,13 @@ export default function MissionsPage() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2, delay: idx * 0.03 }}
                   className={`bg-white/[0.02] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 border ${
-                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-orange-500/50 shadow-[0_0_30px_rgba(26,58,143,0.15)] ring-2 ring-brand-red-600/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
+                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-primary/50 shadow-[0_0_30px_rgba(26,58,143,0.15)] ring-2 ring-brand-red-600/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
                   } ${isActive ? 'md:col-span-2' : ''}`}
                 >
                   {/* Mission card header */}
                   <div className="p-6 lg:p-8 relative overflow-hidden">
                     {/* Background glow if active */}
-                    {isActive && <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/20 rounded-full blur-[80px] -z-10 pointer-events-none translate-x-1/3 -translate-y-1/3" />}
+                    {isActive && <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -z-10 pointer-events-none translate-x-1/3 -translate-y-1/3" />}
                     
                     <div className="flex items-start gap-4">
                       <div className="flex-1 min-w-0">
@@ -1767,7 +1767,7 @@ export default function MissionsPage() {
                         className={`flex items-center justify-center min-w-[140px] gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${
                           isActive
                             ? 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
-                            : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] hover:-translate-y-0.5'
+                            : 'bg-gradient-to-r from-primary to-amber-600 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] hover:-translate-y-0.5'
                         }`}
                       >
                         {isActive ? (
@@ -1796,9 +1796,9 @@ export default function MissionsPage() {
                     {isActive && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-white/10 bg-black/50">
                         {/* Instructions */}
-                        <div className="px-8 py-6 bg-orange-500/5 border-b border-orange-500/10 relative overflow-hidden">
-                          <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-                          <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <div className="px-8 py-6 bg-primary/5 border-b border-primary/10 relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
                             <RocketLaunchIcon className="w-4 h-4" /> Mission Briefing
                           </p>
                           <p className="text-[15px] text-white/80 leading-relaxed font-medium">{mission.instructions}</p>

@@ -96,7 +96,7 @@ export default function NewCoursePage() {
 
   if (authLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -117,8 +117,8 @@ export default function NewCoursePage() {
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <BookOpenIcon className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">New Course</span>
+            <BookOpenIcon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">New Course</span>
           </div>
           <h1 className="text-3xl font-extrabold">Add Course</h1>
           <p className="text-muted-foreground text-sm mt-1">Create a new course within a programme</p>
@@ -141,7 +141,7 @@ export default function NewCoursePage() {
             <input type="text" required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Introduction to Python Variables"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
 
           {/* Programme */}
@@ -151,7 +151,7 @@ export default function NewCoursePage() {
             </label>
             <select required value={form.program_id}
               onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 cursor-pointer">
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
               <option value="">Select a programme…</option>
               {programs.map(p => (
                 <option key={p.id} value={p.id}>{p.name} — {p.difficulty_level}</option>
@@ -166,7 +166,7 @@ export default function NewCoursePage() {
               <input type="number" min="1" value={form.duration_hours}
                 onChange={e => setForm(f => ({ ...f, duration_hours: e.target.value }))}
                 placeholder="e.g. 8"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
             </div>
             {/* Order */}
             <div>
@@ -174,7 +174,7 @@ export default function NewCoursePage() {
               <input type="number" min="1" value={form.order_index}
                 onChange={e => setForm(f => ({ ...f, order_index: e.target.value }))}
                 placeholder="e.g. 1"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
             </div>
           </div>
 
@@ -186,7 +186,7 @@ export default function NewCoursePage() {
             <input type="text" value={form.subject}
               onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
               placeholder="e.g. Computer Science, Robotics, Digital Literacy"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
 
           {/* Grade / class targeting — mobile-first chip grid */}
@@ -207,8 +207,8 @@ export default function NewCoursePage() {
                     onClick={() => toggleGrade(g)}
                     className={`px-2.5 py-1 text-[11px] font-black uppercase tracking-wider border transition ${
                       active
-                        ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
-                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'
+                        ? 'bg-primary/15 border-primary/40 text-primary'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
                     }`}
                   >
                     {g}
@@ -218,7 +218,7 @@ export default function NewCoursePage() {
             </div>
             {form.grade_levels.length > 0 && (
               <p className="mt-2 text-[10px] text-muted-foreground">
-                Selected: <span className="text-orange-400 font-bold">{form.grade_levels.join(', ')}</span>
+                Selected: <span className="text-primary font-bold">{form.grade_levels.join(', ')}</span>
               </p>
             )}
           </div>
@@ -229,7 +229,7 @@ export default function NewCoursePage() {
             <textarea rows={3} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="What will students learn in this course?"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none" />
           </div>
 
           {/* Content/Notes */}
@@ -238,7 +238,7 @@ export default function NewCoursePage() {
             <textarea rows={5} value={form.content}
               onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
               placeholder="Course topics, outline, or resources…"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none" />
           </div>
 
           <div className="flex items-center gap-3 pt-2">
@@ -247,7 +247,7 @@ export default function NewCoursePage() {
               Cancel
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : 'Create Course'}
             </button>

@@ -276,7 +276,7 @@ export default function SettingsPage() {
 
   if (authLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin" />
     </div>
   );
   if (!profile) return null;
@@ -288,8 +288,8 @@ export default function SettingsPage() {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <CogIcon className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Account Settings</span>
+            <CogIcon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">Account Settings</span>
           </div>
           <h1 className="text-3xl font-extrabold">Settings</h1>
           <p className="text-muted-foreground text-sm mt-1">Manage your account preferences and security</p>
@@ -316,7 +316,7 @@ export default function SettingsPage() {
             {/* Avatar card */}
             <div className="bg-card shadow-sm border border-border rounded-none p-5 text-center">
               <div className="relative inline-block mb-4">
-                <div className="w-20 h-20 rounded-none bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-2xl font-black text-foreground mx-auto">
+                <div className="w-20 h-20 rounded-none bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground mx-auto">
                   {(profile.full_name ?? 'U')[0].toUpperCase()}
                 </div>
                 <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-background border border-border rounded-none flex items-center justify-center hover:bg-muted transition-colors">
@@ -336,7 +336,7 @@ export default function SettingsPage() {
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-none text-sm font-bold transition-all
-                    ${tab === t.id ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-600/20' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'}`}>
+                    ${tab === t.id ? 'bg-primary text-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'}`}>
                   <t.icon className="w-4 h-4" />
                   {t.label}
                 </button>
@@ -367,7 +367,7 @@ export default function SettingsPage() {
                         Cancel
                       </button>
                       <button onClick={saveProfile} disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-colors disabled:opacity-50">
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-colors disabled:opacity-50">
                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
                         Save
                       </button>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
                     {editing ? (
                       <input type="text" value={profileData.full_name}
                         onChange={e => setProfileData(p => ({ ...p, full_name: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     ) : (
                       <p className="text-foreground font-semibold">{profileData.full_name || '—'}</p>
                     )}
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                         <input type="tel" value={profileData.phone}
                           onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))}
                           placeholder="+234 800 000 0000"
-                          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground" />
+                          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                       </div>
                     ) : (
                       <p className="text-foreground font-semibold">{profileData.phone || <span className="text-muted-foreground">Not set</span>}</p>
@@ -421,7 +421,7 @@ export default function SettingsPage() {
                       <textarea value={profileData.bio} rows={3}
                         onChange={e => setProfileData(p => ({ ...p, bio: e.target.value }))}
                         placeholder="Tell us a little about yourself…"
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none placeholder-muted-foreground" />
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none placeholder-muted-foreground" />
                     ) : (
                       <p className="text-muted-foreground text-sm leading-relaxed">{profileData.bio || <span className="text-muted-foreground">No bio yet</span>}</p>
                     )}
@@ -446,8 +446,8 @@ export default function SettingsPage() {
                 <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                   <div className="p-6 border-b border-border">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-500/20 rounded-none flex items-center justify-center">
-                        <KeyIcon className="w-5 h-5 text-orange-400" />
+                      <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center">
+                        <KeyIcon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
                         <h2 className="font-bold text-foreground">Change Password</h2>
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                             required
                             minLength={8}
                             placeholder="Minimum 8 characters"
-                            className="w-full pl-4 pr-10 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
+                            className="w-full pl-4 pr-10 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                           />
                           <button type="button" onClick={() => setShowPw(v => !v)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors">
@@ -491,7 +491,7 @@ export default function SettingsPage() {
                     </div>
 
                     <button type="submit" disabled={saving || pwData.newPw !== pwData.confirm || pwData.newPw.length < 8}
-                      className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all disabled:opacity-50">
+                      className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all disabled:opacity-50">
                       {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
                       Update Password
                     </button>
@@ -510,7 +510,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Role</span>
-                      <span className="capitalize font-bold text-orange-400">{profile.role}</span>
+                      <span className="capitalize font-bold text-primary">{profile.role}</span>
                     </div>
                     <div className="flex items-center justify-between py-2">
                       <span className="text-muted-foreground">Account Status</span>
@@ -546,7 +546,7 @@ export default function SettingsPage() {
                         </p>
                       </div>
                       <button onClick={() => setNotifs(p => ({ ...p, [key]: !val }))}
-                        className={`relative w-11 h-6 rounded-full transition-all ${val ? 'bg-orange-600' : 'bg-muted'}`}>
+                        className={`relative w-11 h-6 rounded-full transition-all ${val ? 'bg-primary' : 'bg-muted'}`}>
                         <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${val ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
                       </button>
                     </div>
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                         showToast('Failed to save preferences', false);
                       }
                     }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all mt-4">
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all mt-4">
                     <CheckIcon className="w-4 h-4" /> Save Preferences
                   </button>
                   
@@ -576,7 +576,7 @@ export default function SettingsPage() {
                     </p>
                     {pushState !== 'granted' && pushState !== 'denied' && (
                       <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-none text-xs font-bold transition-all">
-                        <BellIcon className="w-4 h-4 text-orange-400" /> Enable Push on this Device
+                        <BellIcon className="w-4 h-4 text-primary" /> Enable Push on this Device
                       </button>
                     )}
                     {pushState === 'granted' && (
@@ -591,7 +591,7 @@ export default function SettingsPage() {
                             console.error('Push test details:', data);
                           }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600/10 border border-orange-600/20 hover:bg-orange-600/20 text-orange-400 rounded-none text-xs font-bold transition-all mt-2">
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary rounded-none text-xs font-bold transition-all mt-2">
                         <BellIcon className="w-4 h-4" /> Send Test Notification
                       </button>
                     )}

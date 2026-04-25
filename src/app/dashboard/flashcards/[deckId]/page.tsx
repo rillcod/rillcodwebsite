@@ -230,7 +230,7 @@ export default function FlashcardDeckPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!deck) {
@@ -248,7 +248,7 @@ export default function FlashcardDeckPage() {
                 setLoading(true);
                 loadDeck().finally(() => setLoading(false));
               }}
-              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors"
+              className="flex-1 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors"
             >
               Retry
             </button>
@@ -303,7 +303,7 @@ export default function FlashcardDeckPage() {
             )}
             {profile?.role === 'student' && cards.length > 0 && (
               <Link href={`/dashboard/flashcards/${deckId}/review`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors">
                 <PlayIcon className="w-3.5 h-3.5" /> Study
               </Link>
             )}
@@ -312,7 +312,7 @@ export default function FlashcardDeckPage() {
 
         {/* Progress bar */}
         <div className="h-1 bg-white/5 shrink-0">
-          <motion.div className="h-full bg-gradient-to-r from-orange-500 to-amber-400"
+          <motion.div className="h-full bg-gradient-to-r from-primary to-amber-400"
             animate={{ width: `${progress}%` }} transition={{ duration: 0.4 }} />
         </div>
 
@@ -325,7 +325,7 @@ export default function FlashcardDeckPage() {
               <p className="text-white/50 font-bold">No cards in this deck</p>
               {isTeacher && (
                 <button onClick={() => { setViewMode('grid'); setShowBuilder(true); }}
-                  className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl transition-colors">
+                  className="px-6 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-colors">
                   Add Cards
                 </button>
               )}
@@ -343,13 +343,13 @@ export default function FlashcardDeckPage() {
               <div>
                 <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Question (Front)</label>
                 <textarea value={presEditForm.front} onChange={e => setPresEditForm(p => ({ ...p, front: e.target.value }))}
-                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors placeholder:text-white/20"
+                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                   placeholder="Enter the question…" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2">Answer (Back)</label>
                 <textarea value={presEditForm.back} onChange={e => setPresEditForm(p => ({ ...p, back: e.target.value }))}
-                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors placeholder:text-white/20"
+                  rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                   placeholder="Enter the answer…" />
               </div>
               <div className="flex gap-3">
@@ -413,7 +413,7 @@ export default function FlashcardDeckPage() {
               <div className="flex gap-1.5 flex-wrap justify-center max-w-xs">
                 {cards.map((_, i) => (
                   <button key={i} onClick={() => { setPresIndex(i); setPresFlipped(false); }}
-                    className={`h-1.5 rounded-full transition-all ${i === presIndex ? 'bg-orange-500 w-6' : 'bg-white/20 w-1.5 hover:bg-white/40'}`}
+                    className={`h-1.5 rounded-full transition-all ${i === presIndex ? 'bg-primary w-6' : 'bg-white/20 w-1.5 hover:bg-white/40'}`}
                   />
                 ))}
               </div>
@@ -431,7 +431,7 @@ export default function FlashcardDeckPage() {
             </button>
 
             <button onClick={() => setPresFlipped(v => !v)}
-              className="px-6 sm:px-10 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl transition-colors text-sm shadow-lg shadow-orange-900/30">
+              className="px-6 sm:px-10 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl transition-colors text-sm shadow-lg shadow-orange-900/30">
               {presFlipped ? 'Show Question' : 'Reveal Answer'}
             </button>
 
@@ -494,7 +494,7 @@ export default function FlashcardDeckPage() {
             {/* Student: study button */}
             {profile?.role === 'student' && cards.length > 0 && (
               <Link href={`/dashboard/flashcards/${deckId}/review`}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl transition-colors shadow-lg shadow-orange-900/20">
+                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-xs font-black rounded-xl transition-colors shadow-lg shadow-orange-900/20">
                 <PlayIcon className="w-4 h-4" /> Start Review
               </Link>
             )}
@@ -542,7 +542,7 @@ export default function FlashcardDeckPage() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
-                  className="bg-card border border-border rounded-2xl overflow-hidden hover:border-orange-500/30 hover:shadow-md transition-all"
+                  className="bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all"
                 >
                   {editingCard?.id === card.id ? (
                     /* Inline edit */
@@ -556,12 +556,12 @@ export default function FlashcardDeckPage() {
                       <div>
                         <label className="block text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Question</label>
                         <textarea value={editForm.front} onChange={e => setEditForm(p => ({ ...p, front: e.target.value }))}
-                          rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors" />
+                          rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary transition-colors" />
                       </div>
                       <div>
                         <label className="block text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Answer</label>
                         <textarea value={editForm.back} onChange={e => setEditForm(p => ({ ...p, back: e.target.value }))}
-                          rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 transition-colors" />
+                          rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary transition-colors" />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setEditingCard(null)} className="flex-1 py-2 bg-muted text-muted-foreground text-xs font-black rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>

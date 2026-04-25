@@ -272,14 +272,14 @@ export default function CourseDetailPage() {
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (error || !course) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <p className="text-rose-400 font-semibold">{error ?? 'Course not found'}</p>
-      <Link href="/dashboard/courses" className="text-sm text-orange-400 hover:underline">← Back to Courses</Link>
+      <Link href="/dashboard/courses" className="text-sm text-primary hover:underline">← Back to Courses</Link>
     </div>
   );
 
@@ -298,8 +298,8 @@ export default function CourseDetailPage() {
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Course</span>
+              <BookOpenIcon className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Course</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold">{course.title}</h1>
           </div>
@@ -343,8 +343,8 @@ export default function CourseDetailPage() {
               <div className="bg-card shadow-sm border border-border rounded-none p-6">
                 <h2 className="font-bold text-foreground mb-3">Programme</h2>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-none bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                    <AcademicCapIcon className="w-5 h-5 text-orange-400" />
+                  <div className="w-10 h-10 rounded-none bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <AcademicCapIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -422,8 +422,8 @@ export default function CourseDetailPage() {
                     const isJoinable = session.status === 'live' || session.status === 'scheduled';
                     return (
                       <div key={session.id} className="flex items-center gap-4 px-5 py-4 hover:bg-card shadow-sm transition-colors">
-                        <div className="w-8 h-8 rounded-none bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                          <CalendarIcon className="w-4 h-4 text-orange-400" />
+                        <div className="w-8 h-8 rounded-none bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <CalendarIcon className="w-4 h-4 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{session.title}</p>
@@ -441,7 +441,7 @@ export default function CourseDetailPage() {
                         {canEdit && (
                           <button
                             onClick={() => loadSessionManagement(session.id)}
-                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${managedSessionId === session.id ? 'text-orange-500 bg-orange-500/20' : 'text-orange-400 bg-orange-500/10 hover:bg-orange-500/20'}`}
+                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${managedSessionId === session.id ? 'text-primary bg-primary/20' : 'text-primary bg-primary/10 hover:bg-primary/20'}`}
                           >
                             Manage
                           </button>
@@ -590,7 +590,7 @@ export default function CourseDetailPage() {
                           </div>
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-orange-500/20 text-orange-500 border border-orange-500/30 hover:bg-orange-500/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
                           >
                             Create Poll
                           </button>
@@ -603,7 +603,7 @@ export default function CourseDetailPage() {
               {canEdit && (
                 <form onSubmit={handleScheduleSession} className="p-5 border-t border-border space-y-4">
                   <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-orange-400" />
+                    <CalendarIcon className="w-4 h-4 text-primary" />
                     <p className="text-sm font-bold text-foreground">Schedule a session</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -687,7 +687,7 @@ export default function CourseDetailPage() {
                     <button
                       type="submit"
                       disabled={sessionSaving}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold bg-orange-500/20 text-orange-500 border border-orange-500/30 hover:bg-orange-500/30 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-50"
                     >
                       {sessionSaving ? 'Scheduling...' : 'Schedule Session'}
                     </button>
@@ -740,7 +740,7 @@ export default function CourseDetailPage() {
                   <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
                     {enrollments.map((enr: any) => (
                       <div key={enr.id} className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                           {(enr.portal_users?.full_name ?? '?')[0]}
                         </div>
                         <div className="flex-1 min-w-0">

@@ -129,7 +129,7 @@ export default function CustomerBookPage() {
             <option value="">Choose target record…</option>
             {rows.map((r) => <option key={`t-${r.id}`} value={r.id}>{r.full_name || r.phone || r.email || r.id}</option>)}
           </select>
-          <button onClick={runMerge} className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-bold text-orange-300">
+          <button onClick={runMerge} className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary">
             <Merge className="h-4 w-4" /> Merge Basic
           </button>
         </div>

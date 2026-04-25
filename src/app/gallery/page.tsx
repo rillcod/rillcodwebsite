@@ -149,7 +149,7 @@ const stats = [
   { number: "1000+", label: "Photos", icon: <ImageIcon className="w-8 h-8" />, color: "text-blue-600" },
   { number: "50+", label: "Events Captured", icon: <Camera className="w-8 h-8" />, color: "text-green-600" },
   { number: "500+", label: "Students Featured", icon: <Users className="w-8 h-8" />, color: "text-purple-600" },
-  { number: "20+", label: "Awards & Achievements", icon: <Award className="w-8 h-8" />, color: "text-orange-600" }
+  { number: "20+", label: "Awards & Achievements", icon: <Award className="w-8 h-8" />, color: "text-primary" }
 ];
 
 const categories = [

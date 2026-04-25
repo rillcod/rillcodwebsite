@@ -256,7 +256,7 @@ export default function GradeSessionPage() {
                         <button
                             onClick={handleAiGrade}
                             disabled={aiGrading || saving}
-                            className="flex items-center justify-center gap-2 px-6 py-4 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-400 hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all disabled:opacity-50 group"
+                            className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/20 hover:bg-primary border border-primary/50 text-primary hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all disabled:opacity-50 group"
                         >
                             {aiGrading ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
                             {aiGrading ? 'AI Evaluating...' : 'Magic Auto-Grade'}
@@ -374,12 +374,12 @@ export default function GradeSessionPage() {
                         return (
                             <div key={q.id} className="relative group">
                                 {/* Decorative line */}
-                                <div className="absolute -left-4 top-0 bottom-0 w-[2px] bg-gradient-to-b from-orange-600 to-orange-400/50 to-transparent group-hover:from-orange-600 to-orange-400 transition-all" />
+                                <div className="absolute -left-4 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary to-primary/50 to-transparent group-hover:from-primary to-primary transition-all" />
                                 
                                 <div className="bg-white/[0.03] border border-border rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
-                                    <div className="p-8 border-b border-border bg-gradient-to-r from-orange-600 to-orange-400/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="p-8 border-b border-border bg-gradient-to-r from-primary to-primary/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
                                         <div className="flex items-start gap-6">
-                                            <div className="w-14 h-14 rounded-none bg-gradient-to-br from-orange-600 to-orange-400/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
+                                            <div className="w-14 h-14 rounded-none bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
                                                 {i + 1}
                                             </div>
                                             <div>

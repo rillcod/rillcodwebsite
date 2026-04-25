@@ -43,7 +43,7 @@ const WAEC_TIERS = [
     { codes: ['B2', 'B3'],   label: 'B2/B3', bar: 'from-green-500/80   to-green-400/40',   text: 'text-green-400'   },
     { codes: ['C4','C5','C6'],label: 'C',    bar: 'from-blue-500/80    to-blue-400/40',    text: 'text-blue-400'    },
     { codes: ['D7'],         label: 'D7',    bar: 'from-amber-500/80   to-amber-400/40',   text: 'text-amber-400'   },
-    { codes: ['E8'],         label: 'E8',    bar: 'from-orange-500/80  to-orange-400/40',  text: 'text-orange-400'  },
+    { codes: ['E8'],         label: 'E8',    bar: 'from-primary/80  to-primary/40',  text: 'text-primary'  },
     { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
 ];
 
@@ -734,7 +734,7 @@ tbody tr:hover{background:#f3f4f6}
     // ── Loading screen ─────────────────────────────────────────────────────────
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -774,7 +774,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isEditor && (
                             <Link
                                 href="/dashboard/reports/builder"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-600/20 border border-orange-500/30 hover:bg-orange-600/30 text-orange-400 font-bold text-sm rounded-none transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 text-primary font-bold text-sm rounded-none transition-all"
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
@@ -844,7 +844,7 @@ tbody tr:hover{background:#f3f4f6}
                                     placeholder="Search students…"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
 
@@ -853,7 +853,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterSchool}
                                         onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); }}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
                                     >
                                         <option value="">All Schools</option>
                                         {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
@@ -861,7 +861,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterStatus}
                                         onChange={e => setFilterStatus(e.target.value as 'all' | 'published' | 'draft' | 'none')}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
                                     >
                                         <option value="all">All Status</option>
                                         <option value="published">Published</option>
@@ -874,14 +874,14 @@ tbody tr:hover{background:#f3f4f6}
                                     <div className="flex flex-wrap gap-1.5 pt-1">
                                         <button
                                             onClick={() => setFilterClass('')}
-                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                         >
                                             All
                                         </button>
                                         {distinctClasses.map(c => (
                                             <button key={c}
                                                 onClick={() => setFilterClass(filterClass === c ? '' : c)}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                             >
                                                 {c}
                                             </button>
@@ -899,7 +899,7 @@ tbody tr:hover{background:#f3f4f6}
                                     onClick={toggleSelectAll}
                                     className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-orange-600 border-orange-500' : 'border-border hover:border-orange-400'}`}>
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
                                         {selectedIds.size === filtered.length && filtered.length > 0 && (
                                             <CheckIcon className="w-3 h-3 text-foreground" />
                                         )}
@@ -925,18 +925,18 @@ tbody tr:hover{background:#f3f4f6}
                                         <div
                                             key={s.id}
                                             onClick={() => loadStudentReport(s)}
-                                            className={`flex items-center gap-2.5 p-3 rounded-none border cursor-pointer transition-all ${isActive ? 'bg-orange-600/20 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
+                                            className={`flex items-center gap-2.5 p-3 rounded-none border cursor-pointer transition-all ${isActive ? 'bg-primary/20 border-primary/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
                                         >
                                             {/* Checkbox */}
                                             <button
                                                 onClick={e => toggleSelect(s.id, e)}
-                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-orange-600 border-orange-500' : 'border-border hover:border-orange-400'}`}
+                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}
                                             >
                                                 {isChecked && <CheckIcon className="w-3 h-3 text-foreground" />}
                                             </button>
 
                                             {/* Avatar */}
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                                 {s.full_name ? s.full_name[0].toUpperCase() : '?'}
                                             </div>
 
@@ -989,7 +989,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     Students
                                                 </button>
                                             )}
-                                            <DocumentTextIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                                            <DocumentTextIcon className="w-4 h-4 text-primary flex-shrink-0" />
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-foreground truncate">
                                                     {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
@@ -1034,19 +1034,19 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
                                                 <button
                                                   onClick={() => setTemplate('standard')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Standard
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('modern')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Modern
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('printable')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Printable
                                                 </button>
@@ -1055,7 +1055,7 @@ tbody tr:hover{background:#f3f4f6}
                                             {template === 'modern' && (
                                                 <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0 items-center gap-1.5 px-2">
                                                     {[
-                                                        { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-orange-500' },
+                                                        { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-primary' },
                                                         { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
                                                         { id: 'futuristic', name: 'Fut.', color: 'bg-[#050510]', border: 'border-cyan-500' }
                                                     ].map((t) => (
@@ -1065,7 +1065,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             title={t.name}
                                                             className={cn(
                                                                 "relative w-7 h-5 flex items-center justify-center transition-all overflow-hidden border border-white/10",
-                                                                modernTemplateId === t.id ? "ring-2 ring-orange-500 ring-offset-1 ring-offset-card scale-110" : "opacity-40 hover:opacity-100"
+                                                                modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110" : "opacity-40 hover:opacity-100"
                                                             )}
                                                         >
                                                             <div className={cn("absolute inset-0", t.color)} />
@@ -1080,7 +1080,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 {isEditor && selectedStudent && (
                                                     <Link
                                                         href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-orange-600/10 hover:bg-orange-600/20 rounded-none border border-orange-500/20 transition-all"
+                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-none border border-primary/20 transition-all"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                                                     </Link>
@@ -1120,7 +1120,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
                                                             title="Download PDF"
-                                                            className="w-8 h-8 flex items-center justify-center bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-orange-900/40"
+                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-orange-900/40"
                                                         >
                                                             {isDownloadingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1169,7 +1169,7 @@ tbody tr:hover{background:#f3f4f6}
                                     {/* Report body */}
                                     {loadingReport ? (
                                         <div className="flex items-center justify-center h-72 bg-white/[0.02]">
-                                            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
                                          <div className="overflow-auto bg-muted p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
@@ -1196,7 +1196,7 @@ tbody tr:hover{background:#f3f4f6}
                                     {isEditor && selectedStudent && (
                                         <Link
                                             href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600/20 text-orange-400 text-sm font-bold rounded-none border border-orange-500/30 hover:bg-orange-600/30 transition-colors"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-none border border-primary/30 hover:bg-primary/30 transition-colors"
                                         >
                                             <PencilSquareIcon className="w-4 h-4" /> Create Report
                                         </Link>
@@ -1216,7 +1216,7 @@ tbody tr:hover{background:#f3f4f6}
                                 {isEditor && (
                                     <Link
                                         href="/dashboard/reports/builder"
-                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600/20 text-orange-400 text-sm font-bold rounded-none border border-orange-500/30 hover:bg-orange-600/30 transition-colors"
+                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-none border border-primary/30 hover:bg-primary/30 transition-colors"
                                     >
                                         <PencilSquareIcon className="w-4 h-4" /> Create First Report
                                     </Link>
@@ -1403,7 +1403,7 @@ tbody tr:hover{background:#f3f4f6}
                                     value={editCourseName}
                                     onChange={e => setEditCourseName(e.target.value)}
                                     placeholder="e.g. Web Development, Python Basics"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                             <div>
@@ -1413,7 +1413,7 @@ tbody tr:hover{background:#f3f4f6}
                                     value={editTerm}
                                     onChange={e => setEditTerm(e.target.value)}
                                     placeholder="e.g. First Term 2025/2026"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                         </div>
@@ -1428,7 +1428,7 @@ tbody tr:hover{background:#f3f4f6}
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={isSavingEdit || !editCourseName.trim()}
-                                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-none text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
+                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-none text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>
@@ -1446,7 +1446,7 @@ export default function ResultsPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
         }>
             <ResultsPageInner />

@@ -70,7 +70,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
 
       {/* School Billing Records */}
       <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
@@ -78,7 +78,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
             </div>
             <Link href="/dashboard/payments?view=billing"
-              className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-orange-500/40 rounded-none transition-all flex items-center gap-1.5">
+              className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 rounded-none transition-all flex items-center gap-1.5">
               <BanknotesIcon className="w-3.5 h-3.5" /> Full Billing View
             </Link>
           </div>
@@ -157,12 +157,12 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quickActions.map(({ name, href, icon: Icon, desc }) => (
                 <Link key={name} href={href}
-                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
-                  <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500/25 transition-colors">
-                    <Icon className="h-5 w-5 text-orange-400" />
+                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
+                  <div className="w-10 h-10 rounded-none bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                    <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground text-sm group-hover:text-orange-500 transition-colors">{name}</p>
+                    <p className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">{name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                   </div>
                 </Link>
@@ -208,7 +208,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
                       <a.icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-orange-500 transition-colors uppercase leading-none mt-1">{a.title}</p>
+                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-primary transition-colors uppercase leading-none mt-1">{a.title}</p>
                       <p className="text-xs text-muted-foreground mt-2 font-medium truncate">{a.desc}</p>
                     </div>
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap mt-1 bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">
@@ -223,9 +223,9 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
 
         {/* Right Sidebar */}
         <div className="space-y-5">
-          <div className="bg-gradient-to-br from-orange-600/20 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
+          <div className="bg-gradient-to-br from-primary/20 to-primary/20 border border-primary/20 rounded-none p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
+              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                 {(profile.full_name ?? 'A')[0].toUpperCase()}
               </div>
               <div>
@@ -255,7 +255,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
+                  <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>

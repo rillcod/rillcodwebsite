@@ -128,7 +128,7 @@ export default function CodeVisualizer({
       case 'physics': return <Zap className="w-4 h-4 text-purple-400" />;
       case 'turtle': return <Sparkles className="w-4 h-4 text-lime-400" />;
       case 'loops': return <Layers className="w-4 h-4 text-pink-400" />;
-      case 'stateMachine': return <CircleDot className="w-4 h-4 text-orange-400" />;
+      case 'stateMachine': return <CircleDot className="w-4 h-4 text-primary" />;
       default: return null;
     }
   };

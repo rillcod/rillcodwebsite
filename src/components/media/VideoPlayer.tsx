@@ -215,7 +215,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
             {/* Loading */}
             {loading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0a0a12] z-20 pointer-events-none">
-                    <div className="w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Loading video</span>
                 </div>
             )}
@@ -247,7 +247,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
             {/* Big play button when paused */}
             {!playing && !loading && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="w-16 h-16 rounded-full bg-orange-600/90 backdrop-blur flex items-center justify-center shadow-2xl shadow-orange-900/50">
+                    <div className="w-16 h-16 rounded-full bg-primary/90 backdrop-blur flex items-center justify-center shadow-2xl shadow-orange-900/50">
                         <PlayIcon className="w-7 h-7 text-white ml-1" />
                     </div>
                 </div>
@@ -276,23 +276,23 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
                         {/* Buffered */}
                         <div className="absolute inset-y-0 left-0 bg-white/20 transition-all" style={{ width: `${buffered}%` }} />
                         {/* Played */}
-                        <div className="absolute inset-y-0 left-0 bg-orange-500 transition-all" style={{ width: `${progress}%` }} />
+                        <div className="absolute inset-y-0 left-0 bg-primary transition-all" style={{ width: `${progress}%` }} />
                         {/* Thumb */}
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-orange-400 shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity"
+                            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity"
                             style={{ left: `calc(${progress}% - 6px)` }}
                         />
                     </div>
 
                     {/* Buttons row */}
                     <div className="flex items-center gap-3">
-                        <button onClick={togglePlay} className="text-white hover:text-orange-400 transition-colors">
+                        <button onClick={togglePlay} className="text-white hover:text-primary transition-colors">
                             {playing
                                 ? <PauseIcon className="w-5 h-5" />
                                 : <PlayIcon className="w-5 h-5" />}
                         </button>
 
-                        <button onClick={toggleMute} className="text-white hover:text-orange-400 transition-colors">
+                        <button onClick={toggleMute} className="text-white hover:text-primary transition-colors">
                             {muted ? <MuteIcon className="w-4 h-4" /> : <VolumeIcon className="w-4 h-4" />}
                         </button>
 
@@ -303,11 +303,11 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
                         <div className="flex-1" />
 
                         {/* R2 badge */}
-                        <span className="px-2 py-0.5 bg-orange-600/80 text-[8px] font-black uppercase tracking-widest text-white">
+                        <span className="px-2 py-0.5 bg-primary/80 text-[8px] font-black uppercase tracking-widest text-white">
                             Rillcod
                         </span>
 
-                        <button onClick={toggleFullscreen} className="text-white hover:text-orange-400 transition-colors">
+                        <button onClick={toggleFullscreen} className="text-white hover:text-primary transition-colors">
                             {fullscreen
                                 ? <ExitFullscreenIcon className="w-4 h-4" />
                                 : <FullscreenIcon className="w-4 h-4" />}

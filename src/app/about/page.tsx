@@ -8,7 +8,7 @@ const values = [
     icon: <Lightbulb className="w-12 h-12 text-yellow-500" />,
     title: "Innovation",
     description: "We foster creativity and innovative thinking in all our programs, encouraging students to think outside the box.",
-    color: "from-yellow-400 to-orange-500"
+    color: "from-yellow-400 to-primary"
   },
   {
     icon: <Shield className="w-12 h-12 text-green-500" />,
@@ -65,7 +65,7 @@ const stats = [
   { number: "500+", label: "Students Enrolled", icon: <Users className="w-8 h-8" />, color: "text-blue-600" },
   { number: "12", label: "Years Curriculum", icon: <BookOpen className="w-8 h-8" />, color: "text-green-600" },
   { number: "95%", label: "Success Rate", icon: <Award className="w-8 h-8" />, color: "text-purple-600" },
-  { number: "50+", label: "Partner Schools", icon: <Target className="w-8 h-8" />, color: "text-orange-600" }
+  { number: "50+", label: "Partner Schools", icon: <Target className="w-8 h-8" />, color: "text-primary" }
 ];
 
 const achievements = [
@@ -106,19 +106,19 @@ export default function About() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-[#1a1a1a] border border-border rounded-none shadow-lg mb-16 px-4 border-t-4 border-t-orange-500">
+        <div className="text-center py-16 bg-[#1a1a1a] border border-border rounded-none shadow-lg mb-16 px-4 border-t-4 border-t-primary">
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">About RILLCOD Academy</h1>
           <p className="text-sm sm:text-lg text-slate-400 max-w-3xl mx-auto mb-8 font-medium italic">
             Empowering the next generation of world-class professionals through innovative, AI-integrated STEM education.
           </p>
-          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none"></div>
+          <div className="w-20 h-1 bg-primary mx-auto rounded-none"></div>
         </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 text-center hover:border-orange-500 transition-all border-b-2 border-b-transparent">
-              <div className={`flex justify-center mb-6 text-orange-500`}>
+            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 text-center hover:border-primary transition-all border-b-2 border-b-transparent">
+              <div className={`flex justify-center mb-6 text-primary`}>
                 {stat.icon}
               </div>
               <div className="text-2xl sm:text-3xl font-black text-white mb-1 tracking-tighter">{stat.number}</div>
@@ -131,7 +131,7 @@ export default function About() {
         <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none blur-[100px] pointer-events-none"></div>
           <div className="space-y-16 relative z-10">
-            <div className="text-left border-l-2 border-orange-500 pl-8">
+            <div className="text-left border-l-2 border-primary pl-8">
               <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Mission</h2>
               <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
                 To transform Nigeria&apos;s educational landscape by shifting from memory-based learning to a system that fosters critical thinking, creativity, and global competitiveness in AI, robotics, and digital skills.
@@ -159,7 +159,7 @@ export default function About() {
           <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Core Values</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => (
-              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 hover:border-orange-500 transition-all border-b-2 border-b-transparent group">
+              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-8 hover:border-primary transition-all border-b-2 border-b-transparent group">
                 <div className={`w-12 h-12 bg-white/5 rounded-none flex items-center justify-center mb-8 group-hover:scale-110 transition-transform`}>
                   {value.icon}
                 </div>
@@ -171,7 +171,7 @@ export default function About() {
       </div>
 
         {/* Executive Summary */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl border-t-4 border-t-orange-500">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl border-t-4 border-t-primary">
         <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest text-left">Executive Summary</h2>
           <p className="text-sm sm:text-base text-slate-400 mb-12 italic font-medium leading-relaxed max-w-4xl">
             Transform your school into a premier AI and technology powerhouse with RILLCOD TECHNOLOGIES&apos;s 12-year, session-based program. This revolutionary curriculum blends traditional programming with cutting-edge artificial intelligence and robotics, preparing students for the Fourth Industrial Revolution while generating substantial revenue for your institution.
@@ -217,15 +217,15 @@ export default function About() {
           <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Achievements</h2>
           <div className="space-y-4">
             {achievements.map((achievement, index) => (
-              <div key={index} className="flex items-center gap-8 p-8 bg-[#121212] border border-border rounded-none hover:border-orange-500 transition-all group">
-                <div className="w-16 h-16 bg-white/5 border border-border rounded-none flex items-center justify-center text-orange-500 font-black text-xl group-hover:bg-orange-500 group-hover:text-white transition-all shrink-0">
+              <div key={index} className="flex items-center gap-8 p-8 bg-[#121212] border border-border rounded-none hover:border-primary transition-all group">
+                <div className="w-16 h-16 bg-white/5 border border-border rounded-none flex items-center justify-center text-primary font-black text-xl group-hover:bg-primary group-hover:text-white transition-all shrink-0">
                   {achievement.year.slice(-2)}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-black text-white uppercase tracking-widest mb-1">{achievement.title}</h3>
                   <p className="text-xs text-slate-500 font-bold italic">{achievement.description}</p>
                 </div>
-                <div className="text-white/20 group-hover:text-orange-500 transition-colors">
+                <div className="text-white/20 group-hover:text-primary transition-colors">
                   {achievement.icon}
                 </div>
               </div>
@@ -238,23 +238,23 @@ export default function About() {
           <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Leadership Cadre</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, index) => (
-              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none overflow-hidden hover:border-orange-500 transition-all flex flex-col">
+              <div key={index} className="bg-[#1a1a1a] border border-border rounded-none overflow-hidden hover:border-primary transition-all flex flex-col">
                 <div className="h-48 bg-[#121212] flex items-center justify-center relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-orange-500/5 rotate-45 translate-x-12 translate-y-12 rounded-none"></div>
+                  <div className="absolute inset-0 bg-primary/5 rotate-45 translate-x-12 translate-y-12 rounded-none"></div>
                   <div className="z-10 text-center">
-                    <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center mx-auto mb-4 group-hover:border-orange-500 transition-all">
+                    <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center mx-auto mb-4 group-hover:border-primary transition-all">
                       <span className="text-white font-black text-2xl tracking-tighter italic">{member.name.split(' ').map(n => n[0]).join('')}</span>
                     </div>
                   </div>
                 </div>
                 <div className="p-8 flex-1 flex flex-col">
-                  <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.3em] mb-1">{member.role}</p>
+                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mb-1">{member.role}</p>
                   <h3 className="text-lg font-black text-white uppercase tracking-tight mb-4">{member.name}</h3>
                   <p className="text-xs text-slate-500 font-bold mb-8 italic flex-1 leading-relaxed">{member.bio}</p>
                   
                   <button
                     onClick={() => toggleTeamMember(member.name)}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-[#121212] border border-border text-[9px] font-black text-white uppercase tracking-widest hover:border-orange-500 transition-all"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-[#121212] border border-border text-[9px] font-black text-white uppercase tracking-widest hover:border-primary transition-all"
                   >
                     {selectedTeamMember === member.name ? 'CLOSE LOGS' : 'SPECIFICATIONS'}
                   </button>
@@ -269,7 +269,7 @@ export default function About() {
                           </span>
                         ))}
                       </div>
-                      <a href={`mailto:${member.email}`} className="flex items-center gap-3 text-[10px] font-black text-orange-500 uppercase tracking-widest hover:text-white transition-colors">
+                      <a href={`mailto:${member.email}`} className="flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors">
                         <Mail className="w-3.5 h-3.5" />
                         UPLINK
                       </a>
@@ -282,16 +282,16 @@ export default function About() {
         </div>
 
         {/* CTA Section */}
-        <div className="text-center bg-[#1a1a1a] border border-border border-t-4 border-t-orange-500 rounded-none p-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Ready to Transform <span className="text-orange-500 italic">Education?</span></h2>
+        <div className="text-center bg-[#1a1a1a] border border-border border-t-4 border-t-primary rounded-none p-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Ready to Transform <span className="text-primary italic">Education?</span></h2>
           <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
             Join us in revolutionizing technology education and preparing students for the future of work.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               href="/school-registration"
-              className="inline-flex items-center justify-center px-12 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
+              className="inline-flex items-center justify-center px-12 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20"
             >
               <Building className="w-4 h-4 mr-4" />
               Partner Now

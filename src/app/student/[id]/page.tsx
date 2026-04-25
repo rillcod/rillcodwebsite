@@ -71,7 +71,7 @@ export default function PublicStudentProfilePage() {
       />
 
       {/* Glow effects */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-violet-500/5 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Header */}
@@ -79,7 +79,7 @@ export default function PublicStudentProfilePage() {
         <Link href="/" className="inline-flex items-center gap-3 group">
           <img src="/logo.png" alt="Rillcod" className="w-8 h-8 opacity-80 group-hover:opacity-100 transition-opacity" />
           <span className="text-xl font-black text-white/90 tracking-tight uppercase">
-            RILLCOD <span className="text-orange-500">TECHNOLOGIES</span>
+            RILLCOD <span className="text-primary">TECHNOLOGIES</span>
           </span>
         </Link>
         <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
@@ -91,7 +91,7 @@ export default function PublicStudentProfilePage() {
       <div className="w-full max-w-sm relative z-10">
         {status === 'loading' && (
           <div className="bg-white/[0.03] border border-white/10 backdrop-blur-sm flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Verifying identity…</p>
           </div>
         )}
@@ -117,7 +117,7 @@ export default function PublicStudentProfilePage() {
         {status === 'found' && student && (
           <div className="bg-white/[0.03] border border-white/10 backdrop-blur-sm overflow-hidden">
             {/* Top accent */}
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500" />
+            <div className="h-1.5 bg-gradient-to-r from-primary via-primary to-amber-500" />
 
             {/* Verified Banner */}
             <div className={`flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest ${
@@ -141,8 +141,8 @@ export default function PublicStudentProfilePage() {
                   className="w-20 h-20 rounded-full object-cover ring-4 ring-white/5 ring-offset-2 ring-offset-[#0a0a14]"
                 />
               ) : (
-                <div className="w-20 h-20 bg-gradient-to-br from-orange-500/20 to-amber-500/10 flex items-center justify-center ring-4 ring-white/5 ring-offset-2 ring-offset-[#0a0a14]">
-                  <UserCircleIcon className="w-12 h-12 text-orange-400/60" />
+                <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-amber-500/10 flex items-center justify-center ring-4 ring-white/5 ring-offset-2 ring-offset-[#0a0a14]">
+                  <UserCircleIcon className="w-12 h-12 text-primary/60" />
                 </div>
               )}
 
@@ -151,7 +151,7 @@ export default function PublicStudentProfilePage() {
                 <h1 className="text-white font-black text-xl leading-tight uppercase tracking-tight">
                   {student.full_name}
                 </h1>
-                <p className="text-orange-400 font-mono font-bold text-sm mt-1.5 tracking-wider">
+                <p className="text-primary font-mono font-bold text-sm mt-1.5 tracking-wider">
                   {studentCode}
                 </p>
               </div>
@@ -190,7 +190,7 @@ export default function PublicStudentProfilePage() {
             {/* Footer */}
             <div className="border-t border-white/5 px-6 py-3 bg-white/[0.01] flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <CheckBadgeIcon className="w-3.5 h-3.5 text-orange-400" />
+                <CheckBadgeIcon className="w-3.5 h-3.5 text-primary" />
                 <span className="text-white/25 text-[9px] font-bold uppercase tracking-widest">Verified by Rillcod</span>
               </div>
               <span className="text-white/15 text-[9px] font-mono">{student.id.slice(0, 8)}</span>

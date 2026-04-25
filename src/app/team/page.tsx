@@ -152,7 +152,7 @@ const values = [
     title: "Innovation",
     description: "We constantly push boundaries in technology education",
     icon: <Lightbulb className="w-8 h-8" />,
-    color: "from-yellow-500 to-orange-500"
+    color: "from-yellow-500 to-primary"
   },
   {
     title: "Excellence",
@@ -259,7 +259,7 @@ export default function Team() {
             </div>
             <div className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-primary to-red-500 rounded-full flex items-center justify-center">
                   <Globe className="w-8 h-8 text-white" />
                 </div>
               </div>

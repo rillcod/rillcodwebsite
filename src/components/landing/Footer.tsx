@@ -25,7 +25,7 @@ export default function Footer() {
   return (
     <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans">
       {/* Sharp Accent Line */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-orange-500 to-transparent opacity-50 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-primary to-transparent opacity-50 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 pt-20 pb-12 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-16 lg:gap-24 mb-20">
@@ -37,8 +37,8 @@ export default function Footer() {
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" />
               </div>
               <div className="leading-none">
-                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
-                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-orange-500">TECHNOLOGIES</span>
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-foreground">RILLCOD<span className="text-primary not-italic">.</span></span>
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-primary">TECHNOLOGIES</span>
               </div>
             </Link>
             
@@ -48,7 +48,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-3">
                {footerSocialLinks.map((s) => (
-                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-none hover:bg-muted hover:border-orange-500 transition-all text-muted-foreground hover:text-orange-500 shadow-sm">
+                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-none hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
                     <s.icon className="w-4 h-4" />
                  </Link>
                ))}
@@ -57,11 +57,11 @@ export default function Footer() {
 
           {/* Links Grid */}
           <div className="lg:col-span-3 space-y-6">
-              <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em] opacity-60">Main Hub</h4>
+              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Main Hub</h4>
               <ul className="space-y-4">
                 {quickLinks.map((l) => (
                    <li key={l.name}>
-                     <Link href={l.href} className="text-xs text-muted-foreground hover:text-orange-500 transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
+                     <Link href={l.href} className="text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
                    </li>
                 ))}
               </ul>
@@ -69,15 +69,15 @@ export default function Footer() {
 
           {/* Contact Detail */}
           <div className="lg:col-span-4 space-y-6">
-              <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em] opacity-60">Communications</h4>
+              <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Communications</h4>
               <div className="space-y-5">
                  <div className="flex items-start gap-4 group">
-                    <div className="w-9 h-9 border border-orange-500/10 flex items-center justify-center bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors rounded-none shadow-sm">
-                       <Phone className="w-4 h-4 text-orange-500" />
+                    <div className="w-9 h-9 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors rounded-none shadow-sm">
+                       <Phone className="w-4 h-4 text-primary" />
                     </div>
                     <div>
                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Direct Line</p>
-                       <p className="text-sm font-bold text-foreground group-hover:text-orange-500 transition-colors">{contactInfo.phone}</p>
+                       <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{contactInfo.phone}</p>
                     </div>
                  </div>
                  <div className="flex items-start gap-4 group">
@@ -100,14 +100,14 @@ export default function Footer() {
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                  © {year} RILLCOD TECHNOLOGIES. ALL RIGHTS RESERVED.
               </p>
-              <span className="hidden md:block w-1.5 h-1.5 bg-orange-500/20 rounded-none shadow-sm" />
+              <span className="hidden md:block w-1.5 h-1.5 bg-primary/20 rounded-none shadow-sm" />
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                  Built with <Heart className="w-3 h-3 text-rose-500" /> in Benin City @ 2026
               </p>
            </div>
            
            <div className="flex items-center gap-6 px-6 py-2 bg-muted border border-border rounded-none shadow-sm">
-              <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
               <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official Verified Node</span>
            </div>
         </div>

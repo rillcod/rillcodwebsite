@@ -152,7 +152,7 @@ export default function BulkDeletePage() {
     <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-4">
       <ShieldExclamationIcon className="w-12 h-12 text-rose-500/40" />
       <p className="text-muted-foreground font-bold">Admin access only.</p>
-      <Link href="/dashboard/students" className="text-orange-400 text-sm hover:underline">← Back to Students</Link>
+      <Link href="/dashboard/students" className="text-primary text-sm hover:underline">← Back to Students</Link>
     </div>
   );
 
@@ -213,7 +213,7 @@ export default function BulkDeletePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
-            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
@@ -221,7 +221,7 @@ export default function BulkDeletePage() {
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
             >
               <option value="">All classes</option>
               {allClasses.map((c) => <option key={c} value={c}>{c}</option>)}

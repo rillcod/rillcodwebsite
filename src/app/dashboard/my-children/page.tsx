@@ -92,9 +92,9 @@ export default function MyChildrenPage() {
     <div className="space-y-6">
       {/* Welcome hero */}
       <div className="relative bg-card border border-border overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
         <div className="relative px-6 py-6 flex items-start gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0 shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0 shadow-lg">
             <HeartIcon className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -160,11 +160,11 @@ export default function MyChildrenPage() {
             const age = calcAge(child.date_of_birth);
 
             return (
-              <div key={child.id} className="bg-card border border-border overflow-hidden hover:border-orange-500/30 transition-all group">
+              <div key={child.id} className="bg-card border border-border overflow-hidden hover:border-primary/30 transition-all group">
 
                 {/* Card header */}
                 <div className="px-6 py-5 flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0">
                     <AcademicCapIcon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -195,7 +195,7 @@ export default function MyChildrenPage() {
                         </span>
                       )}
                       {child.parent_relationship && (
-                        <span className="text-xs text-orange-400 font-bold">{child.parent_relationship}</span>
+                        <span className="text-xs text-primary font-bold">{child.parent_relationship}</span>
                       )}
                       {s?.teacherName && (
                         <span className="text-xs text-violet-400 flex items-center gap-1" title={s.teacherPhone ?? undefined}>
@@ -286,7 +286,7 @@ export default function MyChildrenPage() {
       {!loading && children.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>Not seeing a child?</span>
-          <Link href="/dashboard/messages" className="text-orange-400 hover:text-orange-300 font-bold underline underline-offset-2">
+          <Link href="/dashboard/messages" className="text-primary hover:text-primary font-bold underline underline-offset-2">
             Message the admin
           </Link>
           <span>to link their account to yours.</span>

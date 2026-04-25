@@ -348,7 +348,7 @@ export default function ProjectsPage() {
     }
 
     if (authLoading || profileLoading || (!isStudent && !isStaff)) {
-        return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>;
+        return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
     }
 
     // ── Shared tab bar ────────────────────────────────────────────────────────
@@ -374,10 +374,10 @@ export default function ProjectsPage() {
                         const badge  = (t.id === 'activities' && isStaff && activities.length > 0 && !actLoading) ? activities.length : null;
                         return (
                             <button key={t.id} onClick={() => setTab(t.id)}
-                                className={`flex items-center gap-2 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${active ? 'border-orange-500 text-orange-400' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                                className={`flex items-center gap-2 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                                 <Icon className="w-3.5 h-3.5" />
                                 {t.label}
-                                {badge && <span className="ml-1 text-[8px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full font-black">{badge}</span>}
+                                {badge && <span className="ml-1 text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-black">{badge}</span>}
                             </button>
                         );
                     })}
@@ -419,7 +419,7 @@ export default function ProjectsPage() {
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                         </Link>
-                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                             <RocketLaunchIcon className="w-4 h-4" /> Projects
                         </span>
                         <Link href="/dashboard/cbt"
@@ -431,15 +431,15 @@ export default function ProjectsPage() {
                 {/* Hero */}
                 <div className="relative overflow-hidden bg-card border-b border-border">
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-orange-600/5 rounded-full blur-[100px] pointer-events-none" />
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
                     <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
                             <div className="flex items-center gap-3 sm:gap-5">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center flex-shrink-0">
-                                    <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400" />
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                                    <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                                 </div>
                                 <div>
-                                    <p className="text-[9px] sm:text-[10px] font-black text-orange-400/70 uppercase tracking-[0.3em] mb-1">Academic Score · 20% of Final Grade</p>
+                                    <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Academic Score · 20% of Final Grade</p>
                                     <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
                                     <p className="text-xs sm:text-sm text-white/40 font-semibold mt-1">Lab work & portfolio · teacher activities</p>
                                 </div>
@@ -448,13 +448,13 @@ export default function ProjectsPage() {
                             {/* Score card */}
                             <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-white/[0.03] border border-white/[0.07] px-4 sm:px-6 py-4 w-full md:w-auto">
                                 <div className="text-center">
-                                    <p className="text-[9px] font-black text-orange-400/70 uppercase tracking-[0.3em] mb-1">Your Score</p>
+                                    <p className="text-[9px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Your Score</p>
                                     <p className="text-4xl sm:text-5xl font-black text-foreground">{pct}<span className="text-xl sm:text-2xl text-muted-foreground">%</span></p>
                                     <ScoreBadge pct={pct} />
                                 </div>
                                 <div className="hidden sm:block w-px h-14 bg-white/10" />
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500" /><span className="text-[11px] text-white/50">{myLab.length} Lab Project{myLab.length !== 1 ? 's' : ''}</span></div>
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[11px] text-white/50">{myLab.length} Lab Project{myLab.length !== 1 ? 's' : ''}</span></div>
                                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[11px] text-white/50">{myPortfolio.length} Portfolio Project{myPortfolio.length !== 1 ? 's' : ''}</span></div>
                                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[11px] text-white/50">{total} / 3 target</span></div>
                                 </div>
@@ -463,7 +463,7 @@ export default function ProjectsPage() {
                         <div className="mt-4 flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">How it's calculated:</span>
                             <span className="text-[10px] font-bold text-white/40">Every 3 projects (lab + portfolio) = 100% engagement score</span>
-                            <span className="text-[10px] text-orange-400 font-black">· counts 20pts toward your final report</span>
+                            <span className="text-[10px] text-primary font-black">· counts 20pts toward your final report</span>
                         </div>
                     </div>
                 </div>
@@ -473,7 +473,7 @@ export default function ProjectsPage() {
                 {/* MY WORK TAB */}
                 {tab === 'work' && (
                     loading ? (
-                        <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                        <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                     ) : (
                         <div className="px-6 md:px-10 py-8 space-y-10">
                             {/* Lab */}
@@ -519,16 +519,16 @@ export default function ProjectsPage() {
                             <section>
                                 <div className="flex items-center justify-between mb-5">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center"><StarIcon className="w-4 h-4 text-orange-400" /></div>
+                                        <div className="w-8 h-8 bg-primary/10 border border-primary/20 flex items-center justify-center"><StarIcon className="w-4 h-4 text-primary" /></div>
                                         <div><h2 className="text-sm font-black text-foreground uppercase tracking-widest">Portfolio Projects</h2><p className="text-[10px] text-muted-foreground">Showcased in My Portfolio</p></div>
                                     </div>
-                                    <Link href="/dashboard/portfolio" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:text-orange-300 transition-colors flex items-center gap-1">My Portfolio <ArrowRightIcon className="w-3 h-3" /></Link>
+                                    <Link href="/dashboard/portfolio" className="text-[10px] font-black text-primary uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">My Portfolio <ArrowRightIcon className="w-3 h-3" /></Link>
                                 </div>
                                 {myPortfolio.length === 0 ? (
                                     <div className="border border-dashed border-white/10 p-10 text-center">
                                         <StarIcon className="w-10 h-10 text-white/10 mx-auto mb-3" />
                                         <p className="text-white/30 text-sm font-semibold">No portfolio projects yet</p>
-                                        <Link href="/dashboard/portfolio" className="inline-block mt-4 px-4 py-2 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">Go to Portfolio</Link>
+                                        <Link href="/dashboard/portfolio" className="inline-block mt-4 px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">Go to Portfolio</Link>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -536,11 +536,11 @@ export default function ProjectsPage() {
                                             const cat   = (p.category || 'other').toLowerCase();
                                             const color = CAT_COLOR[cat] || CAT_COLOR.other;
                                             return (
-                                                <div key={p.id} className="bg-card border border-border hover:border-orange-500/30 transition-all group">
+                                                <div key={p.id} className="bg-card border border-border hover:border-primary/30 transition-all group">
                                                     <div className="h-1.5" style={{ backgroundColor: color }} />
                                                     <div className="p-5">
                                                         <div className="flex items-start justify-between gap-2 mb-2">
-                                                            <h3 className="text-sm font-black text-foreground group-hover:text-orange-300 transition-colors line-clamp-2 leading-tight">{p.title}</h3>
+                                                            <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{p.title}</h3>
                                                             <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: `${color}22`, color }}>{p.category}</span>
                                                         </div>
                                                         {p.description && <p className="text-[11px] text-white/40 line-clamp-2 mb-3">{p.description}</p>}
@@ -564,11 +564,11 @@ export default function ProjectsPage() {
                 {tab === 'groups' && (
                     <div className="px-4 sm:px-6 md:px-10 py-8">
                         {groupsLoading ? (
-                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                         ) : groupsError ? (
                             <div className="text-center py-20">
                                 <p className="text-rose-400 text-sm mb-4">{groupsError}</p>
-                                <button onClick={loadGroups} className="px-4 py-2 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">Try Again</button>
+                                <button onClick={loadGroups} className="px-4 py-2 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">Try Again</button>
                             </div>
                         ) : groups.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-16 text-center">
@@ -589,15 +589,15 @@ export default function ProjectsPage() {
                                     return (
                                         <div key={group.id} className="bg-card border border-border rounded-2xl overflow-hidden">
                                             {/* Group header */}
-                                            <div className="bg-orange-500/10 border-b border-orange-500/20 px-6 py-4 flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0 rounded-xl">
-                                                    <UsersIcon className="w-5 h-5 text-orange-400" />
+                                            <div className="bg-primary/10 border-b border-primary/20 px-6 py-4 flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 rounded-xl">
+                                                    <UsersIcon className="w-5 h-5 text-primary" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="text-base font-black text-foreground truncate">{group.name}</h3>
                                                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                                                         {group.class_name && <span className="text-[10px] text-white/40 font-semibold">{group.class_name}</span>}
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-orange-500/20 text-orange-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/20 text-primary' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                                             {isGroupEval ? 'Group Score' : 'Individual Score'}
                                                         </span>
                                                         {group.is_graded && <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Graded</span>}
@@ -614,13 +614,13 @@ export default function ProjectsPage() {
                                             <div className="p-6 space-y-5">
                                                 {/* My assigned task — shown prominently if set */}
                                                 {myMember?.task_description && (
-                                                    <div className="bg-orange-500/8 border border-orange-500/30 rounded-xl px-5 py-4">
-                                                        <p className="text-[9px] font-black text-orange-400 uppercase tracking-[0.25em] mb-2 flex items-center gap-1.5">
+                                                    <div className="bg-primary/8 border border-primary/30 rounded-xl px-5 py-4">
+                                                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em] mb-2 flex items-center gap-1.5">
                                                             <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Your Assigned Task
                                                         </p>
                                                         <p className="text-sm font-bold text-foreground leading-relaxed">{myMember.task_description}</p>
                                                         {assignment && (
-                                                            <p className="text-[10px] text-white/40 mt-2">Part of: <span className="text-orange-300/70">{assignment.title}</span></p>
+                                                            <p className="text-[10px] text-white/40 mt-2">Part of: <span className="text-primary/70">{assignment.title}</span></p>
                                                         )}
                                                     </div>
                                                 )}
@@ -639,7 +639,7 @@ export default function ProjectsPage() {
                                                         )}
                                                         {assignment.id && (
                                                             <Link href={`/dashboard/projects/${assignment.id}`}
-                                                                className="inline-flex items-center gap-1 mt-2 text-[10px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-widest transition-colors">
+                                                                className="inline-flex items-center gap-1 mt-2 text-[10px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
                                                                 Submit My Work <ArrowRightIcon className="w-3 h-3" />
                                                             </Link>
                                                         )}
@@ -655,12 +655,12 @@ export default function ProjectsPage() {
                                                             const name = m.portal_users?.full_name || 'Unknown';
                                                             const memberScore = isGroupEval ? group.group_score : m.individual_score;
                                                             return (
-                                                                <div key={m.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${isMe ? 'bg-orange-500/10 border-orange-500/30' : 'bg-white/[0.03] border-border'}`}>
-                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isMe ? 'bg-orange-500/30 text-orange-300' : 'bg-white/10 text-white/50'}`}>
+                                                                <div key={m.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${isMe ? 'bg-primary/10 border-primary/30' : 'bg-white/[0.03] border-border'}`}>
+                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isMe ? 'bg-primary/30 text-primary' : 'bg-white/10 text-white/50'}`}>
                                                                         {(name || '?')[0].toUpperCase()}
                                                                     </div>
                                                                     <div className="min-w-0">
-                                                                        <p className={`text-[11px] font-bold truncate ${isMe ? 'text-orange-300' : 'text-white/70'}`}>{name}{isMe && ' (You)'}</p>
+                                                                        <p className={`text-[11px] font-bold truncate ${isMe ? 'text-primary' : 'text-white/70'}`}>{name}{isMe && ' (You)'}</p>
                                                                         {m.task_description && <p className="text-[9px] text-white/40 truncate italic">{m.task_description}</p>}
                                                                         {group.is_graded && memberScore != null && (
                                                                             <p className="text-[10px] text-emerald-400 font-black">{memberScore} pts</p>
@@ -704,7 +704,7 @@ export default function ProjectsPage() {
                             <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
                                 <AcademicCapIcon className="w-3 h-3" /> Written Exams
                             </Link>
-                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-orange-400 bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20 transition-all">
+                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <ChartBarIcon className="w-3 h-3" /> CBT / Evaluation
                             </Link>
                             <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
@@ -712,7 +712,7 @@ export default function ProjectsPage() {
                             </Link>
                         </div>
                         {actLoading ? (
-                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                         ) : (
                             <>
                                 {/* Stats bar */}
@@ -752,7 +752,7 @@ export default function ProjectsPage() {
                                             { key: 'graded',    label: 'Graded' },
                                         ] as const).map(f => (
                                             <button key={f.key} onClick={() => setStudentActFilter(f.key)}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-400' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                                 {f.label}
                                             </button>
                                         ))}
@@ -790,7 +790,7 @@ export default function ProjectsPage() {
 
                                                 return (
                                                     <Link key={act.id} href={`/dashboard/projects/${act.id}`}
-                                                        className="bg-card border border-border hover:border-orange-500/30 transition-all group block relative overflow-hidden">
+                                                        className="bg-card border border-border hover:border-primary/30 transition-all group block relative overflow-hidden">
 
                                                         {/* Overdue banner */}
                                                         {dl.overdue && status === 'pending' && (
@@ -809,7 +809,7 @@ export default function ProjectsPage() {
                                                                     <div className="w-7 h-7 flex items-center justify-center flex-shrink-0" style={{ backgroundColor: catInfo.color + '20' }}>
                                                                         <CatIcon className="w-3.5 h-3.5" style={{ color: catInfo.color }} />
                                                                     </div>
-                                                                    <h3 className="text-sm font-black text-foreground group-hover:text-orange-300 transition-colors line-clamp-2 leading-tight">{act.title}</h3>
+                                                                    <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{act.title}</h3>
                                                                 </div>
                                                                 <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border flex-shrink-0 ${statusStyle}`}>
                                                                     {status === 'graded' ? 'Graded' : status === 'submitted' ? 'Submitted' : 'To Do'}
@@ -858,7 +858,7 @@ export default function ProjectsPage() {
                                                             )}
 
                                                             {/* CTA */}
-                                                            <div className="flex items-center gap-1.5 text-orange-400 group-hover:text-orange-300 transition-colors">
+                                                            <div className="flex items-center gap-1.5 text-primary group-hover:text-primary transition-colors">
                                                                 <span className="text-[10px] font-black uppercase tracking-widest">
                                                                     {status === 'graded' ? 'View Feedback' : status === 'submitted' ? 'View Submission' : 'Start & Submit'}
                                                                 </span>
@@ -944,7 +944,7 @@ export default function ProjectsPage() {
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                     </Link>
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                         <RocketLaunchIcon className="w-4 h-4" /> Projects
                     </span>
                     <Link href="/dashboard/cbt"
@@ -956,15 +956,15 @@ export default function ProjectsPage() {
             {/* Hero */}
             <div className="relative overflow-hidden bg-card border-b border-border">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />
-                <div className="absolute top-0 right-0 w-96 h-96 bg-orange-600/5 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
                 <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
                         <div className="flex items-center gap-3 sm:gap-5">
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center flex-shrink-0">
-                                <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400" />
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                                <RocketLaunchIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                             </div>
                             <div>
-                                <p className="text-[9px] sm:text-[10px] font-black text-orange-400/70 uppercase tracking-[0.3em] mb-1">Score Category · 20% of Final Grade</p>
+                                <p className="text-[9px] sm:text-[10px] font-black text-primary/70 uppercase tracking-[0.3em] mb-1">Score Category · 20% of Final Grade</p>
 
                                 <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight italic leading-none">Project Engagement</h1>
                                 <p className="text-xs sm:text-sm text-white/40 font-semibold mt-1">Lab + portfolio projects and teacher-assigned activities</p>
@@ -974,7 +974,7 @@ export default function ProjectsPage() {
                             <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full sm:w-auto">
                                 {[
                                     { label: 'Students', value: students.length, color: 'text-white' },
-                                    { label: 'Active',   value: totalWithProjects, color: 'text-orange-400' },
+                                    { label: 'Active',   value: totalWithProjects, color: 'text-primary' },
                                     { label: 'Avg Score',value: `${avgScore}%`, color: 'text-emerald-400' },
                                 ].map(s => (
                                     <div key={s.label} className="bg-white/[0.03] border border-white/[0.07] px-3 sm:px-4 py-2 sm:py-3 text-center">
@@ -984,7 +984,7 @@ export default function ProjectsPage() {
                                 ))}
                             </div>
                             <Link href="/dashboard/projects/new"
-                                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-orange-600 hover:bg-orange-500transition-colors text-white text-xs font-black uppercase tracking-widest flex-shrink-0 w-full sm:w-auto justify-center">
+                                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primarytransition-colors text-white text-xs font-black uppercase tracking-widest flex-shrink-0 w-full sm:w-auto justify-center">
                                 <PlusIcon className="w-4 h-4" /> New Activity
                             </Link>
                         </div>
@@ -1001,11 +1001,11 @@ export default function ProjectsPage() {
                         <div className="relative max-w-md">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <input type="text" placeholder="Search student or school..." value={search} onChange={e => setSearch(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                         </div>
                     </div>
                     {loading ? (
-                        <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                        <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                     ) : (
                         <div className="px-6 md:px-10 py-6 space-y-6">
                             {filteredStudents.length === 0 && <div className="text-center py-20 text-white/30 text-sm">No students found.</div>}
@@ -1025,17 +1025,17 @@ export default function ProjectsPage() {
                                                 if (next.has(schoolName)) next.delete(schoolName); else next.add(schoolName);
                                                 return next;
                                             })}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 bg-white/[0.025] border border-border hover:border-orange-500/20 transition-all text-left"
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 bg-white/[0.025] border border-border hover:border-primary/20 transition-all text-left"
                                         >
-                                            <div className="w-7 h-7 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-                                                <UserGroupIcon className="w-3.5 h-3.5 text-orange-400" />
+                                            <div className="w-7 h-7 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                                                <UserGroupIcon className="w-3.5 h-3.5 text-primary" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-black text-foreground uppercase tracking-widest truncate">{schoolName}</p>
                                                 <p className="text-[9px] text-muted-foreground">{schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''} · {schoolActive} active · avg {schoolAvg}%</p>
                                             </div>
                                             <ScoreBadge pct={schoolAvg} />
-                                            {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5 text-white/30 flex-shrink-0" /> : <ChevronUpIcon className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />}
+                                            {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5 text-white/30 flex-shrink-0" /> : <ChevronUpIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                                         </button>
 
                                         {/* Students in this school */}
@@ -1047,34 +1047,34 @@ export default function ProjectsPage() {
                                                     const pct   = projectScore(labs.length, port.length);
                                                     const isExp = expandedStudent === student.id;
                                                     return (
-                                                        <div key={student.id} className="bg-card border border-border hover:border-orange-500/20 transition-all">
+                                                        <div key={student.id} className="bg-card border border-border hover:border-primary/20 transition-all">
                                                             <button onClick={() => setExpandedStudent(isExp ? null : student.id)} className="w-full flex items-center gap-4 px-5 py-3.5 text-left">
-                                                                <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0">
-                                                                    <span className="text-[11px] font-black text-orange-300">{(student.full_name || '?')[0].toUpperCase()}</span>
+                                                                <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                                                                    <span className="text-[11px] font-black text-primary">{(student.full_name || '?')[0].toUpperCase()}</span>
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-sm font-black text-foreground truncate">{student.full_name || '—'}</p>
                                                                     <div className="flex items-center gap-2 mt-0.5 sm:hidden">
                                                                         <span className="text-[9px] text-indigo-400">{labs.length} Lab</span>
                                                                         <span className="text-white/10">·</span>
-                                                                        <span className="text-[9px] text-orange-400">{port.length} Portfolio</span>
+                                                                        <span className="text-[9px] text-primary">{port.length} Portfolio</span>
                                                                         <span className="text-white/10">·</span>
                                                                         <span className={`text-[9px] font-black ${pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}%</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
                                                                     <div className="text-center"><p className="text-base font-black text-indigo-400">{labs.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Lab</p></div>
-                                                                    <div className="text-center"><p className="text-base font-black text-orange-400">{port.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Portfolio</p></div>
+                                                                    <div className="text-center"><p className="text-base font-black text-primary">{port.length}</p><p className="text-[9px] text-muted-foreground uppercase tracking-widest">Portfolio</p></div>
                                                                     <div className="w-px h-8 bg-white/10" />
                                                                     <ScoreBadge pct={pct} />
                                                                 </div>
                                                                 {role !== 'school' && (
                                                                     <Link href={`/dashboard/reports/builder?student=${student.id}`} onClick={e => e.stopPropagation()}
-                                                                        className="hidden md:flex items-center gap-1 text-[9px] font-black text-orange-400/60 uppercase tracking-widest hover:text-orange-400 transition-colors px-2 py-1 border border-orange-500/20 hover:border-orange-500/40 flex-shrink-0">
+                                                                        className="hidden md:flex items-center gap-1 text-[9px] font-black text-primary/60 uppercase tracking-widest hover:text-primary transition-colors px-2 py-1 border border-primary/20 hover:border-primary/40 flex-shrink-0">
                                                                         <EyeIcon className="w-3 h-3" /> Report
                                                                     </Link>
                                                                 )}
-                                                                {isExp ? <ChevronUpIcon className="w-4 h-4 text-orange-400 flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                                                                {isExp ? <ChevronUpIcon className="w-4 h-4 text-primary flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
                                                             </button>
                                                             {isExp && (
                                                                 <div className="border-t border-border px-5 py-5 space-y-5 bg-black/20">
@@ -1093,7 +1093,7 @@ export default function ProjectsPage() {
                                                                         )}
                                                                     </div>
                                                                     <div>
-                                                                        <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-orange-400" /><span className="text-xs font-black text-orange-400 uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
+                                                                        <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-primary" /><span className="text-xs font-black text-primary uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
                                                                         {port.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No portfolio projects added yet</p> : (
                                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
                                                                                 {port.map(p => { const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
@@ -1106,15 +1106,15 @@ export default function ProjectsPage() {
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                    <div className="flex items-center gap-3 bg-orange-500/5 border border-orange-500/20 px-4 py-3">
-                                                                        <div className="w-8 h-8 bg-orange-500/20 flex items-center justify-center flex-shrink-0"><RocketLaunchIcon className="w-4 h-4 text-orange-400" /></div>
+                                                                    <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 px-4 py-3">
+                                                                        <div className="w-8 h-8 bg-primary/20 flex items-center justify-center flex-shrink-0"><RocketLaunchIcon className="w-4 h-4 text-primary" /></div>
                                                                         <div className="flex-1">
-                                                                            <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Project Engagement Score</p>
-                                                                            <p className="text-xs text-white/40 mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-orange-300 font-black">{pct}%</span></p>
+                                                                            <p className="text-[10px] font-black text-primary uppercase tracking-widest">Project Engagement Score</p>
+                                                                            <p className="text-xs text-white/40 mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-primary font-black">{pct}%</span></p>
                                                                         </div>
                                                                         {role !== 'school' && (
                                                                             <Link href={`/dashboard/reports/builder?student=${student.id}`}
-                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all flex-shrink-0">
+                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/30 transition-all flex-shrink-0">
                                                                                 <EyeIcon className="w-3.5 h-3.5" /> Build Report
                                                                             </Link>
                                                                         )}
@@ -1149,7 +1149,7 @@ export default function ProjectsPage() {
                                 <p className="text-[11px] text-muted-foreground mt-0.5">{groups.length} group{groups.length !== 1 ? 's' : ''} · assign students from the same class</p>
                             </div>
                             <button onClick={() => { setShowCreateGroup(true); setGroupsError(null); }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500transition-colors text-white text-xs font-black uppercase tracking-widest">
+                                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primarytransition-colors text-white text-xs font-black uppercase tracking-widest">
                                 <PlusIcon className="w-4 h-4" /> Create Group
                             </button>
                         </div>
@@ -1170,12 +1170,12 @@ export default function ProjectsPage() {
                                         <div>
                                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Group Name *</label>
                                             <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="e.g. Team Alpha"
-                                                className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                                className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Class</label>
                                             <select value={newGroupClass} onChange={e => { setNewGroupClass(e.target.value); setNewGroupStudents([]); }}
-                                                className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors">
+                                                className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors">
                                                 <option value="">All Classes</option>
                                                 {classOptions.map((c: string) => <option key={c} value={c}>{c}</option>)}
                                             </select>
@@ -1188,7 +1188,7 @@ export default function ProjectsPage() {
                                         <div className="flex gap-3">
                                             {(['group', 'individual'] as const).map(et => (
                                                 <button key={et} onClick={() => setNewGroupEval(et)}
-                                                    className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest border rounded-xl transition-all ${newGroupEval === et ? 'bg-orange-500/20 border-orange-500/40 text-orange-400' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                                    className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest border rounded-xl transition-all ${newGroupEval === et ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                                     {et === 'group' ? 'One Score for All' : 'Score Each Member'}
                                                 </button>
                                             ))}
@@ -1202,7 +1202,7 @@ export default function ProjectsPage() {
                                     <div>
                                         <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 block">
                                             Select Students * ({newGroupStudents.length} selected — minimum 2)
-                                            {newGroupClass && <span className="ml-2 text-orange-400">· Class: {newGroupClass}</span>}
+                                            {newGroupClass && <span className="ml-2 text-primary">· Class: {newGroupClass}</span>}
                                         </label>
                                         {classFiltered.length === 0 ? (
                                             <p className="text-muted-foreground text-xs italic">No students in this class</p>
@@ -1214,11 +1214,11 @@ export default function ProjectsPage() {
                                                         <button key={s.id} onClick={() => setNewGroupStudents(prev =>
                                                             sel ? prev.filter(id => id !== s.id) : [...prev, s.id]
                                                         )}
-                                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${sel ? 'bg-orange-500/20 border-orange-500/40' : 'bg-white/[0.03] border-border hover:border-orange-500/20'}`}>
-                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-black ${sel ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/50'}`}>
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${sel ? 'bg-primary/20 border-primary/40' : 'bg-white/[0.03] border-border hover:border-primary/20'}`}>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-black ${sel ? 'bg-primary text-white' : 'bg-white/10 text-white/50'}`}>
                                                                 {sel ? <CheckIcon className="w-3 h-3" /> : (s.full_name || '?')[0].toUpperCase()}
                                                             </div>
-                                                            <span className={`text-[11px] font-bold truncate ${sel ? 'text-orange-300' : 'text-muted-foreground'}`}>{s.full_name}</span>
+                                                            <span className={`text-[11px] font-bold truncate ${sel ? 'text-primary' : 'text-muted-foreground'}`}>{s.full_name}</span>
                                                         </button>
                                                     );
                                                 })}
@@ -1230,7 +1230,7 @@ export default function ProjectsPage() {
                                     {newGroupStudents.length >= 2 && (
                                         <div>
                                             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 block flex items-center gap-1.5">
-                                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-orange-400" />
+                                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-primary" />
                                                 Assign Tasks to Each Member
                                                 <span className="text-muted-foreground normal-case font-normal text-[9px]">(optional — student will see this)</span>
                                             </label>
@@ -1240,7 +1240,7 @@ export default function ProjectsPage() {
                                                     if (!s) return null;
                                                     return (
                                                         <div key={sid} className="flex items-center gap-3 bg-white/[0.02] border border-border rounded-xl px-4 py-2.5">
-                                                            <div className="w-7 h-7 bg-orange-500/20 border border-orange-500/30 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black text-orange-300">
+                                                            <div className="w-7 h-7 bg-primary/20 border border-primary/30 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black text-primary">
                                                                 {(s.full_name || '?')[0].toUpperCase()}
                                                             </div>
                                                             <span className="text-xs font-bold text-foreground w-28 flex-shrink-0 truncate">{s.full_name}</span>
@@ -1248,7 +1248,7 @@ export default function ProjectsPage() {
                                                                 value={newGroupMemberTasks[sid] || ''}
                                                                 onChange={e => setNewGroupMemberTasks(prev => ({ ...prev, [sid]: e.target.value }))}
                                                                 placeholder="e.g. Design the UI wireframe…"
-                                                                className="flex-1 px-3 py-1.5 bg-white/5 border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                                                                className="flex-1 px-3 py-1.5 bg-white/5 border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
                                                             />
                                                         </div>
                                                     );
@@ -1265,7 +1265,7 @@ export default function ProjectsPage() {
                                     )}
                                     <div className="flex items-center gap-3 pt-2">
                                         <button onClick={handleCreateGroup} disabled={savingGroup}
-                                            className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-black uppercase tracking-widest rounded-xl">
+                                            className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-black uppercase tracking-widest rounded-xl">
                                             {savingGroup ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <UsersIcon className="w-4 h-4" />}
                                             {savingGroup ? 'Creating...' : 'Create Group'}
                                         </button>
@@ -1278,7 +1278,7 @@ export default function ProjectsPage() {
                         {/* Groups list */}
                         <div className="px-6 md:px-10 py-6 space-y-4">
                             {groupsLoading ? (
-                                <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                                <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                             ) : groups.length === 0 ? (
                                 <div className="border border-dashed border-border p-16 text-center rounded-2xl">
                                     <UsersIcon className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
@@ -1296,19 +1296,19 @@ export default function ProjectsPage() {
                                         <div key={group.id} className="bg-card border border-border rounded-2xl overflow-hidden">
                                             {/* Group header */}
                                             <div className="px-6 py-4 flex items-center gap-4 flex-wrap">
-                                                <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center flex-shrink-0 rounded-xl">
-                                                    <UsersIcon className="w-5 h-5 text-orange-400" />
+                                                <div className="w-10 h-10 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0 rounded-xl">
+                                                    <UsersIcon className="w-5 h-5 text-primary" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <h3 className="text-sm font-black text-foreground">{group.name}</h3>
                                                         {group.class_name && <span className="text-[9px] font-bold text-muted-foreground bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{group.class_name}</span>}
-                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-orange-500/15 text-orange-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${isGroupEval ? 'bg-primary/15 text-primary' : 'bg-emerald-500/15 text-emerald-400'}`}>
                                                             {isGroupEval ? 'Group Score' : 'Individual'}
                                                         </span>
                                                         {group.is_graded
                                                             ? <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircleIcon className="w-3 h-3" /> Graded</span>
-                                                            : <span className="text-[9px] font-black text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" /> Active</span>
+                                                            : <span className="text-[9px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" /> Active</span>
                                                         }
                                                     </div>
                                                     {assignment && <p className="text-[10px] text-muted-foreground mt-0.5">Activity: {assignment.title}</p>}
@@ -1326,7 +1326,7 @@ export default function ProjectsPage() {
                                                             });
                                                             setIndividualScores(initScores);
                                                         }}
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all rounded-lg">
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/30 transition-all rounded-lg">
                                                             <AcademicCapIcon className="w-3.5 h-3.5" /> {group.is_graded ? 'Re-grade' : 'Grade'}
                                                         </button>
                                                     )}
@@ -1354,7 +1354,7 @@ export default function ProjectsPage() {
                                                         return (
                                                             <div key={m.id} className="flex items-start gap-3 bg-white/[0.02] border border-border rounded-xl px-4 py-3">
                                                                 {/* Avatar */}
-                                                                <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0 text-[10px] font-black text-orange-300">
+                                                                <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 text-[10px] font-black text-primary">
                                                                     {(m.portal_users?.full_name || '?')[0].toUpperCase()}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
@@ -1379,11 +1379,11 @@ export default function ProjectsPage() {
                                                                             value={editingTasks[m.student_id] ?? (m.task_description || '')}
                                                                             onChange={e => setEditingTasks(prev => ({ ...prev, [m.student_id]: e.target.value }))}
                                                                             placeholder="Enter task for this member…"
-                                                                            className="mt-1.5 w-full px-3 py-1.5 bg-white/5 border border-orange-500/30 rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/60 transition-colors"
+                                                                            className="mt-1.5 w-full px-3 py-1.5 bg-white/5 border border-primary/30 rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 transition-colors"
                                                                         />
                                                                     ) : m.task_description ? (
-                                                                        <p className="mt-1 text-[11px] text-orange-300/80 italic flex items-start gap-1">
-                                                                            <ClipboardDocumentListIcon className="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-400/60" />
+                                                                        <p className="mt-1 text-[11px] text-primary/80 italic flex items-start gap-1">
+                                                                            <ClipboardDocumentListIcon className="w-3 h-3 mt-0.5 flex-shrink-0 text-primary/60" />
                                                                             {m.task_description}
                                                                         </p>
                                                                     ) : (
@@ -1407,7 +1407,7 @@ export default function ProjectsPage() {
                                                     {editingTasksGroupId === group.id ? (
                                                         <>
                                                             <button onClick={() => saveGroupTasks(group.id)} disabled={savingTasks}
-                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
                                                                 {savingTasks ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <CheckIcon className="w-3 h-3" />}
                                                                 Save Tasks
                                                             </button>
@@ -1421,7 +1421,7 @@ export default function ProjectsPage() {
                                                             members.forEach((m: any) => { init[m.student_id] = m.task_description || ''; });
                                                             setEditingTasks(init);
                                                         }}
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-border hover:border-orange-500/30 text-muted-foreground hover:text-orange-400 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-border hover:border-primary/30 text-muted-foreground hover:text-primary text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
                                                             <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Edit Tasks
                                                         </button>
                                                     )}
@@ -1555,8 +1555,8 @@ export default function ProjectsPage() {
 
                                             {/* Grading panel */}
                                             {isGrading && (
-                                                <div className="border-t border-orange-500/20 bg-orange-500/5 px-6 py-5 space-y-4">
-                                                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Grade: {group.name}</p>
+                                                <div className="border-t border-primary/20 bg-primary/5 px-6 py-5 space-y-4">
+                                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Grade: {group.name}</p>
 
                                                     {isGroupEval ? (
                                                         /* Group score */
@@ -1564,13 +1564,13 @@ export default function ProjectsPage() {
                                                             <div>
                                                                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Group Score (0–100)</label>
                                                                 <input type="number" min={0} max={100} value={gradeScore} onChange={e => setGradeScore(e.target.value)} placeholder="e.g. 85"
-                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                                                                 <p className="text-[10px] text-muted-foreground mt-1">This score applies to all {members.length} members</p>
                                                             </div>
                                                             <div>
                                                                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Feedback (optional)</label>
                                                                 <textarea value={gradeFeedback} onChange={e => setGradeFeedback(e.target.value)} rows={2} placeholder="Comments for the group..."
-                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors resize-none" />
+                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors resize-none" />
                                                             </div>
                                                         </div>
                                                     ) : (
@@ -1585,10 +1585,10 @@ export default function ProjectsPage() {
                                                                     <div key={key} className="bg-white/[0.02] border border-border rounded-xl px-4 py-3 space-y-3">
                                                                         {/* Member name + task + submission */}
                                                                         <div className="flex items-start gap-2">
-                                                                            <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black text-orange-300 flex-shrink-0">{(name)[0].toUpperCase()}</div>
+                                                                            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-black text-primary flex-shrink-0">{(name)[0].toUpperCase()}</div>
                                                                             <div className="flex-1 min-w-0">
                                                                                 <p className="text-[11px] font-bold text-foreground">{name}</p>
-                                                                                {m.task_description && <p className="text-[10px] text-orange-300/70 italic mt-0.5">{m.task_description}</p>}
+                                                                                {m.task_description && <p className="text-[10px] text-primary/70 italic mt-0.5">{m.task_description}</p>}
                                                                                 {sub?.submission_text && (
                                                                                     <p className="mt-1 text-[10px] text-white/50 bg-white/[0.03] border border-border rounded-lg px-2 py-1 line-clamp-3">{sub.submission_text}</p>
                                                                                 )}
@@ -1601,11 +1601,11 @@ export default function ProjectsPage() {
                                                                             <input type="number" min={0} max={100} value={individualScores[key]?.score || ''}
                                                                                 onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], score: e.target.value } }))}
                                                                                 placeholder="Score (0–100)"
-                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                                                                             <input value={individualScores[key]?.feedback || ''}
                                                                                 onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], feedback: e.target.value } }))}
                                                                                 placeholder="Feedback (optional)"
-                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -1676,7 +1676,7 @@ export default function ProjectsPage() {
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0 mr-1">Activity Hub:</span>
                             {[
                                 { label: 'Written Exams',  href: '/dashboard/exams',       color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20',    Icon: AcademicCapIcon },
-                                { label: 'CBT / Evaluation', href: '/dashboard/cbt',       color: 'text-orange-400 bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20', Icon: ChartBarIcon },
+                                { label: 'CBT / Evaluation', href: '/dashboard/cbt',       color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ChartBarIcon },
                                 { label: 'Assignments',    href: '/dashboard/assignments',  color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', Icon: ClipboardDocumentListIcon },
                                 { label: 'Projects',       href: '#',                       color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',                 Icon: RocketLaunchIcon, active: true },
                             ].map(({ label, href, color, Icon }) => (
@@ -1693,7 +1693,7 @@ export default function ProjectsPage() {
                                 { label: 'Total Activities', value: actStats.total,        Icon: ClipboardDocumentListIcon, color: 'text-foreground'   },
                                 { label: 'Active',           value: actStats.active,        Icon: CheckCircleIcon,           color: 'text-emerald-400'  },
                                 { label: 'Need Grading',     value: actStats.pendingGrade,  Icon: PencilSquareIcon,          color: actStats.pendingGrade > 0 ? 'text-amber-400' : 'text-muted-foreground' },
-                                { label: 'Total Subs',       value: actStats.totalSubs,     Icon: RocketLaunchIcon,          color: 'text-orange-400'   },
+                                { label: 'Total Subs',       value: actStats.totalSubs,     Icon: RocketLaunchIcon,          color: 'text-primary'   },
                                 { label: 'Graded',           value: actStats.graded,        Icon: TrophyIcon,                color: 'text-cyan-400'     },
                             ].map(s => {
                                 const Icon = s.Icon;
@@ -1729,7 +1729,7 @@ export default function ProjectsPage() {
                                 { key: 'draft',          label: 'Drafts' },
                             ] as const).map(f => (
                                 <button key={f.key} onClick={() => setActFilter(f.key)}
-                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${actFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-400' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${actFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                     {f.label}
                                 </button>
                             ))}
@@ -1737,10 +1737,10 @@ export default function ProjectsPage() {
                         <div className="relative flex-1 max-w-sm ml-auto">
                             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                             <input value={actSearch} onChange={e => setActSearch(e.target.value)} placeholder="Search activities..."
-                                className="w-full pl-8 pr-3 py-2 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
+                                className="w-full pl-8 pr-3 py-2 bg-white/5 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                         </div>
                         <Link href="/dashboard/projects/new"
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500transition-colors text-white text-xs font-black uppercase tracking-widest flex-shrink-0">
+                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primarytransition-colors text-white text-xs font-black uppercase tracking-widest flex-shrink-0">
                             <PlusIcon className="w-3.5 h-3.5" /> Create
                         </Link>
                     </div>
@@ -1749,7 +1749,7 @@ export default function ProjectsPage() {
                     {activities.length > 0 && (
                         <div className="px-6 md:px-10 py-3 border-b border-border bg-card flex items-center gap-2 overflow-x-auto">
                             <button onClick={() => setSelectedCat('all')}
-                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${selectedCat === 'all' ? 'bg-orange-500/20 border-orange-500/40 text-orange-400' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${selectedCat === 'all' ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                 All ({filteredActs.length})
                             </button>
                             {Object.entries(CAT_META).map(([key, meta]) => {
@@ -1771,14 +1771,14 @@ export default function ProjectsPage() {
                     {/* Activity sections by category */}
                     <div className="px-6 md:px-10 py-6 space-y-10">
                         {actLoading ? (
-                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-orange-400 animate-spin" /></div>
+                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-primary animate-spin" /></div>
                         ) : activities.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-16 text-center">
                                 <ClipboardDocumentListIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
                                 <p className="text-white/30 text-base font-semibold">No project activities yet</p>
                                 <p className="text-white/20 text-xs mt-1 mb-5">Create activities to assign project work — individual or group</p>
                                 <Link href="/dashboard/projects/new"
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all">
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 border border-primary/30 text-primary text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all">
                                     <PlusIcon className="w-3.5 h-3.5" /> Create First Activity
                                 </Link>
                             </div>
@@ -1820,7 +1820,7 @@ export default function ProjectsPage() {
 
                                     return (
                                         <Link key={act.id} href={`/dashboard/projects/${act.id}`}
-                                            className="bg-card border border-border hover:border-orange-500/30 transition-all group block relative overflow-hidden">
+                                            className="bg-card border border-border hover:border-primary/30 transition-all group block relative overflow-hidden">
 
                                             {/* Urgent banner */}
                                             {pendingCount > 0 && (
@@ -1840,7 +1840,7 @@ export default function ProjectsPage() {
                                                         <CatIcon className="w-4.5 h-4.5" style={{ color: catInfo.color }} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="text-sm font-black text-foreground group-hover:text-orange-300 transition-colors line-clamp-2 leading-tight">{act.title}</h3>
+                                                        <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{act.title}</h3>
                                                         {act.description && <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{act.description}</p>}
                                                     </div>
                                                     {isDraft && <span className="text-[8px] font-black text-white/30 border border-white/10 px-1.5 py-0.5 uppercase tracking-widest flex-shrink-0">Draft</span>}
@@ -1852,7 +1852,7 @@ export default function ProjectsPage() {
                                                     {diff && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[8px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
                                                     {meta.group_activity && <span className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
                                                     {meta.grading_mode === 'auto'   && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
-                                                    {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-orange-400 bg-orange-500/10 px-1.5 py-0.5">📋 Rubric</span>}
+                                                    {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5">📋 Rubric</span>}
                                                     {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-white/30 border border-white/10 px-1 py-0.5">{t}</span>)}
                                                 </div>
 
@@ -1863,7 +1863,7 @@ export default function ProjectsPage() {
                                                         <span className="text-[10px] font-black text-foreground">{gradedCount} / {subs.length} graded</span>
                                                     </div>
                                                     <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                                                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-orange-500'}`} style={{ width: `${pct}%` }} />
+                                                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
                                                     </div>
                                                     <div className="flex items-center justify-between mt-2">
                                                         <div className="flex items-center gap-3">
@@ -1881,7 +1881,7 @@ export default function ProjectsPage() {
                                                 </div>
 
                                                 {/* CTA */}
-                                                <div className="flex items-center gap-1.5 text-orange-400 group-hover:text-orange-300 transition-colors">
+                                                <div className="flex items-center gap-1.5 text-primary group-hover:text-primary transition-colors">
                                                     <span className="text-[10px] font-black uppercase tracking-widest">
                                                         {pendingCount > 0 ? `Grade ${pendingCount} submission${pendingCount !== 1 ? 's' : ''}` : subs.length > 0 ? 'View Activity' : 'View & Share'}
                                                     </span>

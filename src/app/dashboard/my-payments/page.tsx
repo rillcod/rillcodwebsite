@@ -82,7 +82,7 @@ function ProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUploaded:
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 rounded-lg transition-all">
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-lg transition-all">
         <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Upload Proof
       </button>
     );
@@ -93,9 +93,9 @@ function ProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUploaded:
       <p className="text-xs font-bold text-card-foreground/60 uppercase tracking-wider">Upload Payment Evidence</p>
       <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
         placeholder="Optional: add your bank reference, transfer note, or any message for the admin…"
-        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-orange-500/50 resize-none" />
+        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 resize-none" />
       <div className="flex items-center gap-2">
-        <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition-all ${uploading ? 'bg-white/5 text-card-foreground/40' : 'bg-orange-500 hover:bg-orange-400 text-white'}`}>
+        <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition-all ${uploading ? 'bg-white/5 text-card-foreground/40' : 'bg-primary hover:bg-primary text-white'}`}>
           <PaperClipIcon className="w-4 h-4" />
           {uploading ? 'Uploading…' : 'Choose File'}
           <input type="file" accept="image/*,.pdf" onChange={handleFile} disabled={uploading} className="hidden" />
@@ -151,7 +151,7 @@ export default function MyPaymentsPage() {
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -188,8 +188,8 @@ export default function MyPaymentsPage() {
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-          <BanknotesIcon className="w-5 h-5 text-orange-400" />
+        <div className="w-10 h-10 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0">
+          <BanknotesIcon className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-black text-card-foreground">My Payments</h1>
@@ -224,7 +224,7 @@ export default function MyPaymentsPage() {
           ['pay',      'How to Pay', CreditCardIcon],
         ] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === key ? 'bg-orange-500 text-white shadow-lg' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === key ? 'bg-primary text-white shadow-lg' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -232,7 +232,7 @@ export default function MyPaymentsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <>
@@ -305,7 +305,7 @@ export default function MyPaymentsPage() {
                         {/* Paystack link if available */}
                         {inv.payment_link && (
                           <a href={inv.payment_link} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-orange-500 hover:bg-orange-400 text-white font-bold text-sm rounded-xl transition-all">
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all">
                             <ArrowTopRightOnSquareIcon className="w-4 h-4" /> Pay Online Now
                           </a>
                         )}
@@ -354,8 +354,8 @@ export default function MyPaymentsPage() {
               {/* Paystack option */}
               <div className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center">
-                    <CreditCardIcon className="w-4 h-4 text-orange-400" />
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <CreditCardIcon className="w-4 h-4 text-primary" />
                   </div>
                   <h3 className="font-black text-card-foreground">Online Payment (Paystack)</h3>
                 </div>
@@ -394,7 +394,7 @@ export default function MyPaymentsPage() {
                         <div className="flex items-center gap-2 mt-0.5">
                           <p className="font-black text-card-foreground text-lg font-mono tracking-widest">{acct.account_number}</p>
                           <button onClick={() => { navigator.clipboard?.writeText(acct.account_number); toast.success('Copied!'); }}
-                            className="text-[10px] font-bold text-orange-400 hover:text-orange-300 px-2 py-0.5 bg-orange-500/10 rounded">
+                            className="text-[10px] font-bold text-primary hover:text-primary px-2 py-0.5 bg-primary/10 rounded">
                             Copy
                           </button>
                         </div>

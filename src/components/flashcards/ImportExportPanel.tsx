@@ -174,7 +174,7 @@ export default function ImportExportPanel({
                   onClick={() => setFormat(fmt as typeof format)}
                   className={`py-2 px-4 text-sm font-bold rounded border transition-colors ${
                     format === fmt
-                      ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                      ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border hover:border-muted-foreground'
                   }`}
                 >
@@ -201,7 +201,7 @@ export default function ImportExportPanel({
                       : 'Question\tAnswer'
                   }
                   rows={10}
-                  className="w-full bg-background border border-border px-4 py-3 text-sm font-mono resize-none focus:outline-none focus:border-orange-500 rounded"
+                  className="w-full bg-background border border-border px-4 py-3 text-sm font-mono resize-none focus:outline-none focus:border-primary rounded"
                 />
               </div>
 

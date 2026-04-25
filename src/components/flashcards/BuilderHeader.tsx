@@ -74,7 +74,7 @@ export default function BuilderHeader({
             onClick={onTogglePreview}
             className={`flex items-center gap-1.5 px-2 py-2 text-xs font-bold transition-colors rounded-lg ${
               showPreview
-                ? 'bg-orange-600 hover:bg-orange-500 text-white'
+                ? 'bg-primary hover:bg-primary text-white'
                 : 'bg-muted hover:bg-muted/80 text-foreground'
             }`}
           >
@@ -157,7 +157,7 @@ export default function BuilderHeader({
           onClick={onTogglePreview}
           className={`flex items-center gap-1.5 px-2 sm:px-4 py-2 text-sm font-bold transition-colors rounded-lg ${
             showPreview
-              ? 'bg-orange-600 hover:bg-orange-500 text-white'
+              ? 'bg-primary hover:bg-primary text-white'
               : 'bg-muted hover:bg-muted/80 text-foreground'
           }`}
         >

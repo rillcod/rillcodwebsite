@@ -5,8 +5,8 @@ import { RocketLaunchIcon, LinkIcon, CalendarIcon } from '@/lib/icons';
 interface Props { params: Promise<{ token: string }> }
 
 const CATEGORIES: Record<string, string> = {
-  Coding: 'bg-orange-500/20 text-orange-400',
-  Robotics: 'bg-orange-500/20 text-orange-400',
+  Coding: 'bg-primary/20 text-primary',
+  Robotics: 'bg-primary/20 text-primary',
   'Web Design': 'bg-blue-500/20 text-blue-400',
   'AI/ML': 'bg-emerald-500/20 text-emerald-400',
   IoT: 'bg-yellow-500/20 text-yellow-400',
@@ -28,7 +28,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <RocketLaunchIcon className="w-16 h-16 text-orange-400/30 mx-auto mb-4" />
+          <RocketLaunchIcon className="w-16 h-16 text-primary/30 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-white mb-2">Link Expired or Not Found</h1>
           <p className="text-gray-400 text-sm">This portfolio link has expired or does not exist. Ask the student to generate a new one.</p>
         </div>
@@ -44,7 +44,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <RocketLaunchIcon className="w-16 h-16 text-orange-400/30 mx-auto mb-4" />
+          <RocketLaunchIcon className="w-16 h-16 text-primary/30 mx-auto mb-4" />
           <h1 className="text-2xl font-black text-white mb-2">This Link Has Expired</h1>
           <p className="text-gray-400 text-sm">This portfolio share link expired on {expiry?.toLocaleDateString()}. Ask the student to generate a new share link.</p>
         </div>
@@ -65,7 +65,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
         {/* Header */}
         <div className="border-b border-white/10 pb-8">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Rillcod Academy</span>
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">Rillcod Academy</span>
           </div>
           <h1 className="text-4xl font-black mb-1">{student.full_name}'s Portfolio</h1>
           {student.school_name && (
@@ -85,7 +85,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map((p: any) => (
-              <div key={p.id} className="bg-white/5 border border-white/10 rounded-none overflow-hidden hover:border-orange-500/30 transition-colors">
+              <div key={p.id} className="bg-white/5 border border-white/10 rounded-none overflow-hidden hover:border-primary/30 transition-colors">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.title} className="w-full h-40 object-cover" />
                 ) : (
@@ -110,7 +110,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
                       {new Date(p.created_at).toLocaleDateString()}
                     </span>
                     {p.project_url && (
-                      <a href={p.project_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-orange-400 text-xs hover:text-orange-300 transition-colors">
+                      <a href={p.project_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary text-xs hover:text-primary transition-colors">
                         <LinkIcon className="w-3.5 h-3.5" /> View
                       </a>
                     )}

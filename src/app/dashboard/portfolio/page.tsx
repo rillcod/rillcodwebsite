@@ -51,8 +51,8 @@ type FormData = {
 
 const CATEGORIES = ['All', 'Coding', 'Robotics', 'Web Design', 'AI/ML', 'IoT', 'Game Dev', 'Art'];
 const CAT_COLORS: Record<string, string> = {
-  Coding: 'bg-orange-500/20 text-orange-400',
-  Robotics: 'bg-orange-500/20 text-orange-400',
+  Coding: 'bg-primary/20 text-primary',
+  Robotics: 'bg-primary/20 text-primary',
   'Web Design': 'bg-blue-500/20 text-blue-400',
   'AI/ML': 'bg-emerald-500/20 text-emerald-400',
   IoT: 'bg-yellow-500/20 text-yellow-400',
@@ -164,7 +164,7 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
 
   if (loading) return (
     <div className="bg-card/30 border border-border/50 p-12 flex items-center justify-center">
-      <ArrowPathIcon className="w-6 h-6 text-orange-500 animate-spin opacity-50" />
+      <ArrowPathIcon className="w-6 h-6 text-primary animate-spin opacity-50" />
     </div>
   );
 
@@ -179,24 +179,24 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
 
   return (
     <div className="bg-card/50 border border-border p-6 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/50 to-transparent" />
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <SparklesIcon className="w-4 h-4 text-orange-400" />
+            <SparklesIcon className="w-4 h-4 text-primary" />
             <h3 className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em]">Ready for Archive</h3>
           </div>
           <p className="text-muted-foreground text-[11px]">Deploy your achievements to your public showcase.</p>
         </div>
-        <div className="bg-orange-500/10 border border-orange-500/20 px-3 py-1">
-          <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">{completedWork.length} Available</span>
+        <div className="bg-primary/10 border border-primary/20 px-3 py-1">
+          <span className="text-[10px] font-black text-primary uppercase tracking-widest">{completedWork.length} Available</span>
         </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
         {completedWork.map(work => (
-          <div key={`${work.type}-${work.id}`} className="group relative bg-background/50 border border-border p-4 hover:border-orange-500/30 transition-all">
+          <div key={`${work.type}-${work.id}`} className="group relative bg-background/50 border border-border p-4 hover:border-primary/30 transition-all">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -216,7 +216,7 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
               <button
                 onClick={() => transferToPortfolio(work)}
                 disabled={transferring === work.id}
-                className="ml-4 p-2 bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white transition-all disabled:opacity-50"
+                className="ml-4 p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all disabled:opacity-50"
               >
                 {transferring === work.id ? (
                   <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -335,7 +335,7 @@ function DrawingCanvas() {
             <span className="text-[9px] font-black text-muted-foreground uppercase mr-1">Brush</span>
             {BRUSHES.map(b => (
               <button key={b} onClick={() => setBrush(b)}
-                className={`rounded-none transition-all ${brush === b ? 'bg-orange-500 scale-110' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
+                className={`rounded-none transition-all ${brush === b ? 'bg-primary scale-110' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
                 style={{ width: 8 + (b / 4), height: 8 + (b / 4) }} />
             ))}
           </div>
@@ -425,7 +425,7 @@ function ImageUpload({ value, onChange, userId }: {
           placeholder="Paste image URL…"
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 bg-card shadow-sm border border-border text-foreground px-3 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-xs"
+          className="flex-1 bg-card shadow-sm border border-border text-foreground px-3 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-xs"
         />
         <button
           type="button"
@@ -494,7 +494,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="e.g. Line-following Robot"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -505,7 +505,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={3}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm resize-none"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm resize-none"
             />
           </div>
 
@@ -514,7 +514,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
             <select
               value={form.category}
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-primary text-sm"
             >
               {CATEGORIES.slice(1).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -526,7 +526,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="python, arduino, sensor"
               value={form.tags}
               onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -536,7 +536,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="https://github.com/… or demo link"
               value={form.project_url}
               onChange={e => setForm(f => ({ ...f, project_url: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -546,7 +546,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="https://github.com/username/repo"
               value={form.github_url}
               onChange={e => setForm(f => ({ ...f, github_url: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -564,7 +564,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
           <button
             onClick={handleSave}
             disabled={!form.title.trim() || saving}
-            className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-colors text-sm"
+            className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground font-bold rounded-none transition-colors text-sm"
           >
             {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Project'}
           </button>
@@ -590,18 +590,18 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
     <div className={`group relative bg-[#090e1a]/80 border transition-all duration-300 ${
       project.is_featured 
         ? 'border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
-        : 'border-border hover:border-orange-500/30'
+        : 'border-border hover:border-primary/30'
     }`}>
       {/* Visual Identity Strip */}
       <div className={`absolute top-0 left-0 w-full h-[2px] ${
-        project.is_featured ? 'bg-amber-500' : 'bg-orange-500 opacity-0 group-hover:opacity-100'
+        project.is_featured ? 'bg-amber-500' : 'bg-primary opacity-0 group-hover:opacity-100'
       } transition-opacity duration-300`} />
 
       <div className="h-44 bg-[#0d1526] flex items-center justify-center relative overflow-hidden">
         {project.image_url ? (
           <img src={project.image_url} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent flex items-center justify-center">
              <RocketLaunchIcon className="w-16 h-16 text-white/5 rotate-12" />
           </div>
         )}
@@ -648,7 +648,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
         </div>
 
         <div>
-          <h3 className="text-sm font-black text-foreground/90 leading-tight uppercase tracking-tight italic line-clamp-1 mb-1 group-hover:text-orange-400 transition-colors">
+          <h3 className="text-sm font-black text-foreground/90 leading-tight uppercase tracking-tight italic line-clamp-1 mb-1 group-hover:text-primary transition-colors">
             {project.title}
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 h-8">
@@ -658,12 +658,12 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
 
         <div className="flex items-center justify-between pt-4 border-t border-border/50">
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold font-mono">
-            <CalendarIcon className="w-3 h-3 text-orange-500/50" />
+            <CalendarIcon className="w-3 h-3 text-primary/50" />
             {date}
           </div>
           <div className="flex gap-4">
             {project.project_url && (
-              <a href={project.project_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-orange-400 transition-colors">
+              <a href={project.project_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-primary transition-colors">
                 <LinkIcon className="w-4 h-4" />
               </a>
             )}
@@ -733,13 +733,13 @@ function StaffPortfolioView() {
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Search Header */}
       <div className="relative max-w-xl mx-auto">
-        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-500/50" />
+        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary/50" />
         <input
           type="text"
           placeholder="Search for student missions..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-card/50 backdrop-blur-md border border-border hover:border-orange-500/30 transition-all text-sm text-foreground focus:outline-none focus:border-orange-500 shadow-xl"
+          className="w-full pl-12 pr-4 py-4 bg-card/50 backdrop-blur-md border border-border hover:border-primary/30 transition-all text-sm text-foreground focus:outline-none focus:border-primary shadow-xl"
         />
         
         {/* Dropdown results */}
@@ -751,8 +751,8 @@ function StaffPortfolioView() {
             {loading && <div className="p-4 text-center text-xs text-muted-foreground animate-pulse">Scanning Neural Network...</div>}
             {students.map(s => (
               <button key={s.id} onClick={() => selectStudent(s)}
-                className="w-full flex items-center gap-4 px-4 py-3 hover:bg-orange-500/10 transition-all text-left">
-                <div className="w-10 h-10 bg-orange-600/20 border border-orange-500/20 flex items-center justify-center text-sm font-black text-orange-400">
+                className="w-full flex items-center gap-4 px-4 py-3 hover:bg-primary/10 transition-all text-left">
+                <div className="w-10 h-10 bg-primary/20 border border-primary/20 flex items-center justify-center text-sm font-black text-primary">
                   {(s.full_name ?? '?')[0]}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -769,8 +769,8 @@ function StaffPortfolioView() {
       {selectedStudent ? (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-4 p-6 bg-card/30 border border-border relative">
-             <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-             <div className="w-16 h-16 bg-gradient-to-br from-orange-600 to-orange-400 border border-orange-500/40 flex items-center justify-center text-xl font-black text-white shrink-0">
+             <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+             <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary border border-primary/40 flex items-center justify-center text-xl font-black text-white shrink-0">
                {(selectedStudent.full_name ?? '?')[0]}
              </div>
              <div className="min-w-0 flex-1">
@@ -950,7 +950,7 @@ export default function PortfolioPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#020817]">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -973,8 +973,8 @@ export default function PortfolioPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <RocketLaunchIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Portfolio</span>
+              <RocketLaunchIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Portfolio</span>
             </div>
             <h1 className="text-3xl font-extrabold">
               {isStaff && tab === 'browse' ? 'Student Portfolios' : 'My Portfolio'}
@@ -999,7 +999,7 @@ export default function PortfolioPage() {
             {tab === 'projects' && (
               <button
                 onClick={() => { setEditing(null); setShowForm(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors shadow-lg shadow-orange-900/30"
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors shadow-lg shadow-orange-900/30"
               >
                 <PlusIcon className="w-4 h-4" /> Add Project
               </button>
@@ -1011,7 +1011,7 @@ export default function PortfolioPage() {
         {tab !== 'browse' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Deployed Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-orange-400', bg: 'bg-orange-400/5' },
+              { label: 'Deployed Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-primary', bg: 'bg-primary/5' },
               { label: 'Priority Assets', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400', bg: 'bg-amber-400/5' },
               { label: 'External Links', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-400', bg: 'bg-emerald-400/5' },
             ].map(s => (
@@ -1114,7 +1114,7 @@ export default function PortfolioPage() {
             <div className="flex gap-2 flex-wrap">
               {CATEGORIES.map(c => (
                 <button type="button" key={c} onClick={() => setCatFilter(c)}
-                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all border border-transparent ${catFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'}`}>
+                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all border border-transparent ${catFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'}`}>
                   {c} {c !== 'All' && projects.filter(p => p.category === c).length > 0 && (
                     <span className="ml-1 opacity-60">{projects.filter(p => p.category === c).length}</span>
                   )}
@@ -1147,7 +1147,7 @@ export default function PortfolioPage() {
                       Every great coder started with project #1 🚀
                     </p>
                     <button onClick={() => { setEditing(null); setShowForm(true); }}
-                      className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none transition-colors">
+                      className="px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-none transition-colors">
                       Add My First Project
                     </button>
                   </>
@@ -1169,7 +1169,7 @@ export default function PortfolioPage() {
                   { emoji: '📊', title: 'Data Dashboard', desc: 'Visualize data with charts' },
                 ].map(idea => (
                   <div key={idea.title}
-                    className="bg-muted/30 border border-border rounded-none p-4 cursor-pointer hover:border-orange-500/30 hover:bg-orange-500/10 transition-all"
+                    className="bg-muted/30 border border-border rounded-none p-4 cursor-pointer hover:border-primary/30 hover:bg-primary/10 transition-all"
                     onClick={() => { setEditing(null); setShowForm(true); }}>
                     <div className="text-2xl mb-2">{idea.emoji}</div>
                     <p className="text-foreground text-xs font-bold">{idea.title}</p>

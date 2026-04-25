@@ -685,7 +685,7 @@ function LessonPlansPageInner() {
       {/* Header */}
       <div className="bg-card border border-white/[0.08] rounded-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
@@ -837,7 +837,7 @@ function LessonPlansPageInner() {
             )}
             <Link
               href="/dashboard/curriculum"
-              className="text-orange-400 text-sm font-bold hover:underline px-3 py-1.5 border border-orange-500/30 rounded-lg"
+              className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg"
             >
               ← Step 1 · Syllabus
             </Link>

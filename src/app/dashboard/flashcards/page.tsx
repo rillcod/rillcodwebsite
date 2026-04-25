@@ -161,8 +161,8 @@ export default function FlashcardsPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <AcademicCapIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Spaced Repetition Learning</span>
+              <AcademicCapIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Spaced Repetition Learning</span>
             </div>
             <h1 className="text-3xl lg:text-4xl font-black text-foreground">Flashcard Studio</h1>
             <p className="text-muted-foreground mt-2">Create, customize, and deploy AI-powered flashcards with advanced templates</p>
@@ -172,7 +172,7 @@ export default function FlashcardsPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button 
                 onClick={() => setShowCreate(true)} 
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors shadow-lg"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors shadow-lg"
               >
                 <PlusIcon className="w-4 h-4" /> Create Deck
               </button>
@@ -186,11 +186,11 @@ export default function FlashcardsPage() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-none p-6 hover:border-orange-500/30 transition-all"
+              className="bg-card border border-border rounded-none p-6 hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center">
-                  <BookOpenIcon className="w-5 h-5 text-orange-400" />
+                <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
+                  <BookOpenIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-black text-foreground">{decks.length}</p>
@@ -261,7 +261,7 @@ export default function FlashcardsPage() {
         {/* Decks Grid */}
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : decks.length === 0 ? (
           <motion.div 
@@ -269,8 +269,8 @@ export default function FlashcardsPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-20 bg-card border border-border rounded-none"
           >
-            <div className="w-16 h-16 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mx-auto mb-4">
-              <AcademicCapIcon className="w-8 h-8 text-orange-400" />
+            <div className="w-16 h-16 bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-4">
+              <AcademicCapIcon className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">No Flashcard Decks Yet</h3>
             <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
@@ -281,7 +281,7 @@ export default function FlashcardsPage() {
             {isTeacher && (
               <button 
                 onClick={() => setShowCreate(true)}
-                className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-none transition-colors"
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-none transition-colors"
               >
                 Create First Deck
               </button>
@@ -298,13 +298,13 @@ export default function FlashcardsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="bg-card border border-border rounded-none overflow-hidden hover:border-orange-500/30 transition-all duration-200 group"
+                    className="bg-card border border-border rounded-none overflow-hidden hover:border-primary/30 transition-all duration-200 group"
                   >
                     
                     {/* Card Header */}
                     <div className="p-6 pb-4">
                       <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-bold text-foreground text-lg leading-tight group-hover:text-orange-400 transition-colors">
+                        <h3 className="font-bold text-foreground text-lg leading-tight group-hover:text-primary transition-colors">
                           {deck.title}
                         </h3>
                         {isTeacher && (
@@ -353,7 +353,7 @@ export default function FlashcardsPage() {
                         {profile?.role === 'student' && cardCount > 0 && (
                           <Link 
                             href={`/dashboard/flashcards/${deck.id}/review`}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors"
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors"
                           >
                             <ArrowPathIcon className="w-4 h-4" />
                             Start Review
@@ -417,10 +417,10 @@ export default function FlashcardsPage() {
 
                 {/* Curriculum context banner */}
                 {(courseIdParam || lessonIdParam || topicParam) && (
-                  <div className="flex items-start gap-3 p-3 bg-orange-500/5 border border-orange-500/20 rounded-xl">
+                  <div className="flex items-start gap-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
                     <span className="text-lg shrink-0">📚</span>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5">From Curriculum</p>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-0.5">From Curriculum</p>
                       {topicParam && <p className="text-sm font-bold text-foreground truncate">{topicParam}</p>}
                       {courseIdParam && <p className="text-[10px] text-muted-foreground">Linked to course · AI will auto-generate cards</p>}
                     </div>
@@ -434,13 +434,13 @@ export default function FlashcardsPage() {
                       value={newTitle}
                       onChange={e => setNewTitle(e.target.value)}
                       placeholder={topicParam ? `e.g., ${topicParam} Flashcards` : 'e.g., Python Fundamentals, World History…'}
-                      className="w-full bg-background border border-border text-foreground px-4 py-3 rounded-xl focus:outline-none focus:border-orange-500 text-sm transition-colors"
+                      className="w-full bg-background border border-border text-foreground px-4 py-3 rounded-xl focus:outline-none focus:border-primary text-sm transition-colors"
                       onKeyDown={e => e.key === 'Enter' && createDeck()}
                       autoFocus
                     />
                     {topicParam && !newTitle && (
                       <button onClick={() => setNewTitle(topicParam)}
-                        className="mt-1.5 text-[10px] text-orange-400 hover:text-orange-300 font-bold transition-colors">
+                        className="mt-1.5 text-[10px] text-primary hover:text-primary font-bold transition-colors">
                         ↑ Use "{topicParam}" as title
                       </button>
                     )}
@@ -457,7 +457,7 @@ export default function FlashcardsPage() {
                   <button 
                     onClick={createDeck} 
                     disabled={!newTitle.trim() || creating} 
-                    className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-none text-sm transition-colors"
+                    className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-none text-sm transition-colors"
                   >
                     {creating ? 'Creating...' : 'Create & Build'}
                   </button>

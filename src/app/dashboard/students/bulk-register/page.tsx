@@ -1053,7 +1053,7 @@ export default function BulkRegisterPage() {
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-none animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-none animate-spin" />
     </div>
   );
   if (!canAccess) return (
@@ -1074,7 +1074,7 @@ export default function BulkRegisterPage() {
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
 
   // Shared input class
-  const inp = 'w-full bg-transparent border border-border rounded-none px-2 py-1.5 text-foreground text-xs focus:outline-none focus:border-orange-500/50 focus:bg-orange-500/5 transition-colors placeholder-muted-foreground';
+  const inp = 'w-full bg-transparent border border-border rounded-none px-2 py-1.5 text-foreground text-xs focus:outline-none focus:border-primary/50 focus:bg-primary/5 transition-colors placeholder-muted-foreground';
 
   return (
     <>
@@ -1083,7 +1083,7 @@ export default function BulkRegisterPage() {
         {/* Page Header */}
         <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform flex-shrink-0">
+            <div className="w-10 h-10 bg-primary flex items-center justify-center rotate-3 border border-primary/20 shadow-xl shadow-primary/10 hover:rotate-6 transition-transform flex-shrink-0">
               <SparklesIcon className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -1093,7 +1093,7 @@ export default function BulkRegisterPage() {
           </div>
           <Link
             href="/dashboard/card-studio?mode=issuance&type=student"
-            className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-[9px] font-black uppercase tracking-[0.2em] transition-all"
+            className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-[9px] font-black uppercase tracking-[0.2em] transition-all"
           >
             <RectangleGroupIcon className="w-4 h-4" />
             Card Studio
@@ -1106,19 +1106,19 @@ export default function BulkRegisterPage() {
             <div className="flex bg-card p-1.5 border border-border w-full sm:w-fit min-w-max">
               <button
                 onClick={() => { setActiveTab('register'); setStep('input'); setIsSingleModalOpen(false); }}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step !== 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step !== 'single' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Bulk Import
               </button>
               <button
                 onClick={() => { setActiveTab('register'); setStep('single'); setIsSingleModalOpen(false); }}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step === 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step === 'single' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Single Student
               </button>
               <button
                 onClick={() => { setActiveTab('vault'); fetchHistory(); }}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 History
               </button>
@@ -1145,7 +1145,7 @@ export default function BulkRegisterPage() {
                     const isDone = sIdx < currentIdx;
                     return (
                       <div key={s.key} className="flex items-center flex-1 min-w-0">
-                        <div className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-y border-l ${i === arr.length - 1 ? 'border-r' : ''} transition-all flex-shrink-0 ${isActive ? 'bg-orange-600 text-white border-orange-600' : isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card text-muted-foreground border-border'}`}>
+                        <div className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-y border-l ${i === arr.length - 1 ? 'border-r' : ''} transition-all flex-shrink-0 ${isActive ? 'bg-primary text-white border-primary' : isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card text-muted-foreground border-border'}`}>
                           <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${isActive ? 'bg-white/20' : isDone ? 'bg-emerald-500/30' : 'bg-muted'}`}>
                             {isDone ? '✓' : i + 1}
                           </span>
@@ -1177,10 +1177,10 @@ export default function BulkRegisterPage() {
                     className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
                   >
                     <div className="flex items-center gap-2 font-bold text-sm">
-                      <BuildingOffice2Icon className="w-4 h-4 text-orange-400" />
+                      <BuildingOffice2Icon className="w-4 h-4 text-primary" />
                       <span className="text-foreground">Setup</span>
                       <span className="text-muted-foreground font-normal text-xs ml-1">— choose school, class &amp; programme</span>
-                      <span className="px-2 py-0.5 text-[9px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full uppercase tracking-widest ml-2">Required first</span>
+                      <span className="px-2 py-0.5 text-[9px] font-black bg-primary/10 text-primary border border-primary/20 rounded-full uppercase tracking-widest ml-2">Required first</span>
                     </div>
                     <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -1196,7 +1196,7 @@ export default function BulkRegisterPage() {
                           <div>
                             <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                               <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
-                              {!isAdmin && <span className="text-orange-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
+                              {!isAdmin && <span className="text-primary/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
                             </label>
                             <select
                               value={selectedSchoolId}
@@ -1205,7 +1205,7 @@ export default function BulkRegisterPage() {
                                 setSelectedSchoolId(e.target.value);
                                 setSelectedSchoolName(e.target.value ? opt.text : '');
                               }}
-                              className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                              className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                             >
                               <option value="">— Select a school —</option>
                               {schools.map((s) => (
@@ -1226,7 +1226,7 @@ export default function BulkRegisterPage() {
                           <select
                             value={selectedProgramId}
                             onChange={(e) => setSelectedProgramId(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No auto-enrolment —</option>
                             {programmes.map((p) => (
@@ -1256,7 +1256,7 @@ export default function BulkRegisterPage() {
                             </label>
                             <Link
                               href="/dashboard/classes/add"
-                              className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-none text-orange-400 text-[10px] font-bold transition-colors"
+                              className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-none text-primary text-[10px] font-bold transition-colors"
                               title="Create a new class"
                             >
                               <PlusIcon className="w-3 h-3" /> New Class
@@ -1270,7 +1270,7 @@ export default function BulkRegisterPage() {
                               value={selectedRegistryClass}
                               onChange={(e) => setSelectedRegistryClass(e.target.value)}
                               disabled={!selectedSchoolId}
-                              className="w-full px-3 py-2.5 bg-card border border-orange-500/20 rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <option value="">— No class selected —</option>
                               {filteredRegistryClasses.map((c) => (
@@ -1287,7 +1287,7 @@ export default function BulkRegisterPage() {
                           {selectedRegistryClass && (() => {
                             const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
                             return rc ? (
-                              <p className="text-orange-400/70 text-[11px] mt-1.5">
+                              <p className="text-primary/70 text-[11px] mt-1.5">
                                 Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
                               </p>
                             ) : null;
@@ -1306,7 +1306,7 @@ export default function BulkRegisterPage() {
                           <select
                             value={defaultClass}
                             onChange={(e) => setDefaultClass(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No default code —</option>
                             <optgroup label="Primary School">
@@ -1341,7 +1341,7 @@ export default function BulkRegisterPage() {
                       {effectiveClassCode && (
                         <div className="flex items-center gap-2 text-xs">
                           <span className="text-muted-foreground">Students without inline class will be tagged:</span>
-                          <span className="px-2 py-0.5 bg-orange-500/15 text-foreground font-mono font-bold rounded-none border border-orange-500/20">
+                          <span className="px-2 py-0.5 bg-primary/15 text-foreground font-mono font-bold rounded-none border border-primary/20">
                             {effectiveClassCode}
                           </span>
                         </div>
@@ -1377,7 +1377,7 @@ Tolu Adesanya
 
 Ngozi Okonkwo JSS3B
 Yusuf Ibrahim SS1A`}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-orange-500/50 transition-colors font-mono leading-relaxed"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-primary/50 transition-colors font-mono leading-relaxed"
                   />
                   <p className="text-muted-foreground text-xs mt-2">
                     You can correct any mistakes in the next step — every field is editable before you register.
@@ -1385,27 +1385,27 @@ Yusuf Ibrahim SS1A`}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
-                    <h3 className="text-orange-500 font-bold text-sm mb-3 flex items-center gap-2">
+                  <div className="bg-primary/10 border border-primary/20 rounded-none p-5">
+                    <h3 className="text-primary font-bold text-sm mb-3 flex items-center gap-2">
                       <ClipboardDocumentListIcon className="w-4 h-4" /> How names work
                     </h3>
-                    <ul className="space-y-1.5 text-orange-500/70 text-xs list-disc list-inside">
-                      <li>With space: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe</span></li>
-                      <li>Joined: <span className="font-mono bg-orange-500/20 px-1 rounded">JohnDoe</span></li>
-                      <li>CamelCase: <span className="font-mono bg-orange-500/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
-                      <li>First name → <span className="font-mono bg-orange-500/20 px-1 rounded">firstname@rillcod.com</span></li>
+                    <ul className="space-y-1.5 text-primary/70 text-xs list-disc list-inside">
+                      <li>With space: <span className="font-mono bg-primary/20 px-1 rounded">John Doe</span></li>
+                      <li>Joined: <span className="font-mono bg-primary/20 px-1 rounded">JohnDoe</span></li>
+                      <li>CamelCase: <span className="font-mono bg-primary/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
+                      <li>First name → <span className="font-mono bg-primary/20 px-1 rounded">firstname@rillcod.com</span></li>
                       <li>Edit anything in the next step before registering</li>
                     </ul>
                   </div>
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
+                  <div className="bg-primary/10 border border-primary/20 rounded-none p-5">
                     <h3 className="text-foreground font-bold text-sm mb-3 flex items-center gap-2">
                       <AcademicCapIcon className="w-4 h-4" /> How classes work
                     </h3>
                     <ul className="space-y-1.5 text-muted-foreground text-xs list-disc list-inside">
-                      <li>Header line: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A</span> — applies to names below</li>
-                      <li>Inline: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe SS2B</span></li>
-                      <li>Supported: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
-                      <li>Section letters OK: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A · SS1C</span></li>
+                      <li>Header line: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A</span> — applies to names below</li>
+                      <li>Inline: <span className="font-mono bg-primary/20 px-1 rounded">John Doe SS2B</span></li>
+                      <li>Supported: <span className="font-mono bg-primary/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
+                      <li>Section letters OK: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A · SS1C</span></li>
                       <li>Fallback: use the <em>Default Class</em> setting above</li>
                     </ul>
                   </div>
@@ -1414,7 +1414,7 @@ Yusuf Ibrahim SS1A`}
                 <button
                   onClick={handlePreview}
                   disabled={!namesText.trim()}
-                  className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
+                  className="w-full py-3.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
                 >
                   Continue to Review →
                 </button>
@@ -1429,7 +1429,7 @@ Yusuf Ibrahim SS1A`}
                 {(selectedSchoolId || selectedProgramId || defaultClass) && (
                   <div className="flex flex-wrap gap-2 text-xs">
                     {selectedSchoolId && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none text-primary">
                         <BuildingOffice2Icon className="w-3.5 h-3.5" />
                         {selectedSchoolName || 'Selected school'}
                       </span>
@@ -1441,7 +1441,7 @@ Yusuf Ibrahim SS1A`}
                       </span>
                     )}
                     {effectiveClassCode && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-foreground font-mono">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none text-foreground font-mono">
                         <AcademicCapIcon className="w-3.5 h-3.5" />
                         Class: {effectiveClassCode}
                       </span>
@@ -1452,13 +1452,13 @@ Yusuf Ibrahim SS1A`}
                 {/* Stats bar */}
                 <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-none border border-border text-sm">
-                    <UserGroupIcon className="w-4 h-4 text-orange-400" />
+                    <UserGroupIcon className="w-4 h-4 text-primary" />
                     <span className="text-foreground font-bold">{preview.length}</span>
                     <span className="text-muted-foreground">students</span>
                   </div>
                   {previewClasses.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 rounded-none border border-orange-500/20 text-sm">
-                      <AcademicCapIcon className="w-4 h-4 text-orange-400" />
+                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-none border border-primary/20 text-sm">
+                      <AcademicCapIcon className="w-4 h-4 text-primary" />
                       <span className="text-foreground font-bold">{previewClasses.length}</span>
                       <span className="text-muted-foreground text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
                       <span className="text-foreground font-mono text-xs">{previewClasses.join(' · ')}</span>
@@ -1573,7 +1573,7 @@ Yusuf Ibrahim SS1A`}
                               <td className="px-2 py-1.5 align-middle">
                                 <div className="relative">
                                   <input
-                                    className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`}
+                                    className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-primary'}`}
                                     value={s.email}
                                     onChange={(e) => updateField(s.id, 'email', e.target.value)}
                                     placeholder="email@rillcod.com"
@@ -1622,7 +1622,7 @@ Yusuf Ibrahim SS1A`}
                               <div className="flex gap-2">
                                 <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
                                 <div className="relative flex-1">
-                                  <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
+                                  <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-primary'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
                                   {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
                                 </div>
                               </div>
@@ -1641,7 +1641,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-3 flex-wrap">
                     <button
                       onClick={addRow}
-                      className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-500 font-bold transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-primary hover:text-primary font-bold transition-colors"
                     >
                       <PlusIcon className="w-4 h-4" /> Add student
                     </button>
@@ -1703,7 +1703,7 @@ Yusuf Ibrahim SS1A`}
                   </div>
                 )}
 
-                <div className="bg-gradient-to-b from-orange-600 to-orange-400/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
+                <div className="bg-gradient-to-b from-primary to-primary/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
                   <div className="relative z-10">
                     <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
@@ -1728,7 +1728,7 @@ Yusuf Ibrahim SS1A`}
                 <div className="flex flex-wrap gap-4 justify-center">
                   {/* Card Export Group */}
                   <div className="flex bg-card border border-border p-1">
-                    <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                    <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
                       <DocumentArrowDownIcon className="w-4 h-4" /> Cards PDF
                     </button>
                     <button onClick={() => handleMassPrint(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
@@ -1738,7 +1738,7 @@ Yusuf Ibrahim SS1A`}
 
                   {/* Roster Export Group */}
                   <div className="flex bg-card border border-border p-1">
-                    <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                    <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-primary hover:bg-primary text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
                       <DocumentArrowDownIcon className="w-4 h-4" /> Roster PDF
                     </button>
                     <button onClick={() => handleMassPrintReport(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
@@ -1747,7 +1747,7 @@ Yusuf Ibrahim SS1A`}
                   </div>
 
                   {/* Utility Group */}
-                  <button onClick={downloadCSV} className="flex items-center gap-2 px-8 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-bold border border-orange-500/20 text-[10px] uppercase tracking-widest">
+                  <button onClick={downloadCSV} className="flex items-center gap-2 px-8 py-4 bg-primary/10 hover:bg-primary/20 text-primary font-bold border border-primary/20 text-[10px] uppercase tracking-widest">
                     <DocumentArrowDownIcon className="w-4 h-4" /> CSV
                   </button>
 
@@ -1767,7 +1767,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="px-6 py-5 border-b border-border bg-white/[0.02] flex items-center justify-between">
                     <div>
                       <h3 className="text-foreground font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
-                        <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
+                        <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
                         Session results
                       </h3>
                       <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
@@ -1791,22 +1791,22 @@ Yusuf Ibrahim SS1A`}
                           <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : r.status === 'skipped' ? 'bg-amber-500/5' : 'hover:bg-white/[0.01]'}`}>
                             <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
                             <td className="px-4 py-4">
-                              <span className="font-mono font-black text-orange-400 text-[10px] tracking-wide">
+                              <span className="font-mono font-black text-primary text-[10px] tracking-wide">
                                 {r.portal_user_id ? `RC-${r.portal_user_id.slice(0, 8).toUpperCase()}` : '—'}
                               </span>
                             </td>
                             <td className="px-4 py-4">
-                              <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.full_name} onChange={(e) => {
+                              <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-primary rounded p-1" value={r.full_name} onChange={(e) => {
                                 const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
                               }} />
                             </td>
                             <td className="px-4 py-4">
-                              <input className="bg-transparent border-none text-orange-400 text-[10px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.class_name || ''} onChange={(e) => {
+                              <input className="bg-transparent border-none text-primary text-[10px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-primary rounded p-1" value={r.class_name || ''} onChange={(e) => {
                                 const newResults = [...results]; newResults[i].class_name = e.target.value; setResults(newResults);
                               }} />
                             </td>
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
-                            <td className="px-4 py-4 font-mono font-bold text-orange-400 text-[11px]">{r.password || '—'}</td>
+                            <td className="px-4 py-4 font-mono font-bold text-primary text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
                               <span className={`inline-block px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                 {r.status}
@@ -1867,13 +1867,13 @@ Yusuf Ibrahim SS1A`}
         {activeTab === 'vault' && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             {/* Vault Header (Refined) */}
-            <div className="bg-card border border-orange-500/20 p-3 sm:p-6 relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/20 to-transparent" />
+            <div className="bg-card border border-primary/20 p-3 sm:p-6 relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-12">
                 <div className="max-w-xl">
                   <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
-                    <span className="text-[8px] sm:text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">Registration Archive</span>
+                    <div className="w-2 h-2 bg-primary rounded-none animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
+                    <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Registration Archive</span>
                   </div>
                   <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
                   <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A record of all student registration sessions.</p>
@@ -1886,9 +1886,9 @@ Yusuf Ibrahim SS1A`}
                   <button
                     onClick={fetchHistory}
                     disabled={loadingHistory}
-                    className="w-14 h-14 sm:w-20 sm:h-20 bg-orange-600/10 border border-orange-500/20 flex items-center justify-center hover:bg-orange-600/20 transition-all group active:scale-95 shadow-xl shadow-orange-600/10"
+                    className="w-14 h-14 sm:w-20 sm:h-20 bg-primary/10 border border-primary/20 flex items-center justify-center hover:bg-primary/20 transition-all group active:scale-95 shadow-xl shadow-primary/10"
                   >
-                    <ArrowPathIcon className={`w-7 h-7 sm:w-10 h-10 text-orange-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                    <ArrowPathIcon className={`w-7 h-7 sm:w-10 h-10 text-primary ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
                   </button>
                 </div>
               </div>
@@ -1901,7 +1901,7 @@ Yusuf Ibrahim SS1A`}
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-10">
                 {history.map((batch) => (
-                  <div key={batch.id} className="group bg-card border border-border p-3 sm:p-6 transition-all hover:bg-card/80 hover:border-orange-500/20 hover:shadow-latest relative overflow-hidden">
+                  <div key={batch.id} className="group bg-card border border-border p-3 sm:p-6 transition-all hover:bg-card/80 hover:border-primary/20 hover:shadow-latest relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-card rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
 
                     <div className="relative z-10">
@@ -1910,7 +1910,7 @@ Yusuf Ibrahim SS1A`}
                           {editingBatchId === batch.id ? (
                             <input
                               autoFocus
-                              className="bg-black/60 border border-orange-500/50 px-4 py-2 sm:px-6 sm:py-4 text-foreground font-black text-xl sm:text-3xl w-full italic outline-none focus:ring-1 focus:ring-orange-500/30 transition-all"
+                              className="bg-black/60 border border-primary/50 px-4 py-2 sm:px-6 sm:py-4 text-foreground font-black text-xl sm:text-3xl w-full italic outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                               defaultValue={batch.class_name || 'General Batch'}
                               onBlur={async (e) => {
                                 await fetch('/api/students/bulk-register', {
@@ -1924,7 +1924,7 @@ Yusuf Ibrahim SS1A`}
                               }}
                             />
                           ) : (
-                            <h3 className="text-2xl sm:text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-orange-400 cursor-pointer transition-colors"
+                            <h3 className="text-2xl sm:text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-primary cursor-pointer transition-colors"
                               onDoubleClick={() => setEditingBatchId(batch.id)}>
                               {batch.class_name || 'General Batch'}
                             </h3>
@@ -1957,7 +1957,7 @@ Yusuf Ibrahim SS1A`}
                               setLoadingHistory(false);
                             }
                           }}
-                          className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${selectedBatchId === batch.id ? 'bg-orange-600 text-foreground border-orange-400 shadow-xl shadow-orange-600/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
+                          className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${selectedBatchId === batch.id ? 'bg-primary text-foreground border-primary shadow-xl shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
                             }`}
                         >
                           {selectedBatchId === batch.id ? 'Hide Students' : 'View Students'}
@@ -1970,7 +1970,7 @@ Yusuf Ibrahim SS1A`}
                               if (data) handleExportRosterPDF(data);
                               setLoadingHistory(false);
                             }}
-                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[9px] font-black uppercase tracking-widest transition-all"
                           >
                             Export List (PDF)
                           </button>
@@ -1981,7 +1981,7 @@ Yusuf Ibrahim SS1A`}
                               if (data) handleExportCardsPDF(data);
                               setLoadingHistory(false);
                             }}
-                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[9px] font-black uppercase tracking-widest transition-all"
                           >
                             Export Cards (PDF)
                           </button>
@@ -1992,7 +1992,7 @@ Yusuf Ibrahim SS1A`}
                               if (data) handleMassPrintReport(data);
                               setLoadingHistory(false);
                             }}
-                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[9px] font-black uppercase tracking-widest transition-all"
                           >
                             Print List
                           </button>
@@ -2003,7 +2003,7 @@ Yusuf Ibrahim SS1A`}
                               if (data) handleMassPrint(data);
                               setLoadingHistory(false);
                             }}
-                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[9px] font-black uppercase tracking-widest transition-all"
                           >
                             Print Cards
                           </button>
@@ -2020,7 +2020,7 @@ Yusuf Ibrahim SS1A`}
                               <label className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border cursor-pointer">
                                 <input
                                   type="checkbox"
-                                  className="w-4 h-4 bg-transparent border-orange-500/50 rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                  className="w-4 h-4 bg-transparent border-primary/50 rounded-none text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                   checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
                                   onChange={(e) => {
                                     if (e.target.checked) setSelectedResultIds(batchResults.map(r => r.id));
@@ -2034,25 +2034,25 @@ Yusuf Ibrahim SS1A`}
                               <div className="flex flex-wrap gap-1 animate-in fade-in zoom-in-95 duration-200">
                                 <button
                                   onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                  className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest transition-all border border-primary/30"
                                 >
                                   Export List
                                 </button>
                                 <button
                                   onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                  className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest transition-all border border-primary/30"
                                 >
                                   Export Cards
                                 </button>
                                 <button
                                   onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                  className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest transition-all border border-primary/30"
                                 >
                                   Print List
                                 </button>
                                 <button
                                   onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                  className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase tracking-widest transition-all border border-primary/30"
                                 >
                                   Print Cards
                                 </button>
@@ -2069,19 +2069,19 @@ Yusuf Ibrahim SS1A`}
                           </div>
                           <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
                             {batchResults.map((r, ri) => (
-                              <div key={r.id} className={`flex items-center justify-between p-2 sm:p-3 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-orange-500/5 border-orange-500/30' : 'bg-white/[0.02] border-border hover:border-orange-500/20 hover:bg-white/[0.04]'}`}>
+                              <div key={r.id} className={`flex items-center justify-between p-2 sm:p-3 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-primary/5 border-primary/30' : 'bg-white/[0.02] border-border hover:border-primary/20 hover:bg-white/[0.04]'}`}>
                                 <div className="flex items-center gap-3 sm:gap-6 overflow-hidden">
                                   <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                     <input
                                       type="checkbox"
-                                      className="w-4 h-4 bg-black/40 border-border rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                      className="w-4 h-4 bg-black/40 border-border rounded-none text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                       checked={selectedResultIds.includes(r.id)}
                                       onChange={(e) => {
                                         if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
                                         else setSelectedResultIds(prev => prev.filter(id => id !== r.id));
                                       }}
                                     />
-                                    <div className="w-8 h-8 bg-black/40 flex items-center justify-center text-[9px] font-black italic text-muted-foreground border border-border group-hover/it:text-orange-400 group-hover/it:border-orange-500/40 transition-all">
+                                    <div className="w-8 h-8 bg-black/40 flex items-center justify-center text-[9px] font-black italic text-muted-foreground border border-border group-hover/it:text-primary group-hover/it:border-primary/40 transition-all">
                                       {String(ri + 1).padStart(2, '0')}
                                     </div>
                                   </div>
@@ -2092,12 +2092,12 @@ Yusuf Ibrahim SS1A`}
                                           id={`edit-name-${r.id}`}
                                           autoFocus
                                           defaultValue={r.full_name}
-                                          className="bg-black/80 border border-orange-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
+                                          className="bg-black/80 border border-primary/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
                                         />
                                         <input
                                           id={`edit-class-${r.id}`}
                                           defaultValue={r.class_name || ''}
-                                          className="bg-black/80 border border-orange-500/50 px-4 py-2 text-orange-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
+                                          className="bg-black/80 border border-primary/50 px-4 py-2 text-primary font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
                                         />
                                         <button
                                           onClick={async () => {
@@ -2113,14 +2113,14 @@ Yusuf Ibrahim SS1A`}
                                             if (data) setBatchResults(data);
                                             toast.success('Identity node updated.');
                                           }}
-                                          className="bg-orange-600 hover:bg-orange-500 text-white px-4 flex items-center justify-center transition-all"
+                                          className="bg-primary hover:bg-primary text-white px-4 flex items-center justify-center transition-all"
                                         >
                                           <CheckCircleIcon className="w-4 h-4" />
                                         </button>
                                       </div>
                                     ) : (
                                       <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
-                                        <p className="text-[12px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-orange-400 transition-colors">{r.full_name}</p>
+                                        <p className="text-[12px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-primary transition-colors">{r.full_name}</p>
                                         <p className="text-[8.5px] text-muted-foreground font-mono tracking-tighter truncate mt-0.5">{r.email}</p>
                                       </div>
                                     )}
@@ -2129,21 +2129,21 @@ Yusuf Ibrahim SS1A`}
                                 <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                   {editingResultId !== r.id && (
                                     <>
-                                      <span className="text-[9px] font-black text-orange-400/80 bg-orange-400/10 px-2 py-1 sm:px-3 sm:py-1.5 border border-orange-400/20 uppercase tracking-widest hidden sm:block italic">
+                                      <span className="text-[9px] font-black text-primary/80 bg-primary/10 px-2 py-1 sm:px-3 sm:py-1.5 border border-primary/20 uppercase tracking-widest hidden sm:block italic">
                                         {r.class_name || '...'}
                                       </span>
                                       {/* Always visible on mobile, hover-reveal on desktop */}
                                       <div className="flex gap-1 sm:opacity-0 sm:group-hover/it:opacity-100 transition-opacity">
                                         <button
                                           onClick={() => setEditingResultId(r.id)}
-                                          className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-primary/20 text-primary sm:text-primary/60 hover:text-primary transition-all border border-border"
                                           title="Edit"
                                         >
                                           <PencilIcon className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                           onClick={() => handleMassPrint([r])}
-                                          className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-primary/20 text-primary sm:text-primary/60 hover:text-primary transition-all border border-border"
                                           title="Print Card"
                                         >
                                           <PrinterIcon className="w-3.5 h-3.5" />

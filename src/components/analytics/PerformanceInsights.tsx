@@ -75,13 +75,13 @@ export function PerformanceInsights() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-lg shadow-orange-500/5 bg-card dark:bg-slate-900">
+                <Card className="border-none shadow-lg shadow-primary/5 bg-card dark:bg-slate-900">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-orange-50 rounded-2xl">
-                                <TrendingUp className="w-5 h-5 text-orange-600" />
+                                <TrendingUp className="w-5 h-5 text-primary" />
                             </div>
-                            <Badge variant="outline" className="text-orange-600 bg-orange-50 border-orange-100">Steak: 12d</Badge>
+                            <Badge variant="outline" className="text-primary bg-orange-50 border-orange-100">Steak: 12d</Badge>
                         </div>
                         <div className="mt-4">
                             <p className="text-2xl font-black text-foreground dark:text-slate-100">Gold</p>
@@ -162,10 +162,10 @@ export function PerformanceInsights() {
                         </div>
 
                         <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-2xl mt-8">
-                            <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
+                            <AlertCircle className="w-5 h-5 text-primary shrink-0" />
                             <div className="text-[11px] leading-snug">
                                 <p className="font-bold text-orange-800 dark:text-orange-200 uppercase tracking-tighter">Instructor Insight</p>
-                                <p className="text-orange-700 dark:text-orange-400 font-medium mt-0.5">Focus on "Data Structures" module. Suggested review time: 45 minutes.</p>
+                                <p className="text-orange-700 dark:text-primary font-medium mt-0.5">Focus on "Data Structures" module. Suggested review time: 45 minutes.</p>
                             </div>
                         </div>
                     </CardContent>

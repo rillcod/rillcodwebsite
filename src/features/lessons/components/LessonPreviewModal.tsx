@@ -178,7 +178,7 @@ export default function LessonPreviewModal({
                 className="space-y-3 pb-5 border-b border-border"
               >
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-violet-500" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-primary to-violet-500" />
                   Lesson
                 </div>
                 <h1 className="text-2xl sm:text-4xl font-black text-foreground leading-[1.1] tracking-tight">
@@ -188,7 +188,7 @@ export default function LessonPreviewModal({
                 </h1>
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
                   {lessonType && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 font-bold uppercase tracking-widest">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold uppercase tracking-widest">
                       <Layout className="w-3 h-3" /> {lessonType}
                     </span>
                   )}
@@ -235,7 +235,7 @@ export default function LessonPreviewModal({
               {totalBlocks > 0 && (
                 <section className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Layout className="w-4 h-4 text-orange-400" />
+                    <Layout className="w-4 h-4 text-primary" />
                     <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
                       Lesson Flow · {totalBlocks} section{totalBlocks === 1 ? '' : 's'}
                     </h2>
@@ -423,11 +423,11 @@ function LessonPreviewBlock({ index, block, showType }: { index: number; block: 
   if (block.type === 'heading') {
     return (
       <div className="relative group pt-4">
-        <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-orange-500 via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-primary via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text">
           {content || title || 'Untitled section'}
         </h2>
-        <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-orange-500/50 via-violet-500/30 to-transparent transition-all duration-500" />
+        <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-primary/50 via-violet-500/30 to-transparent transition-all duration-500" />
       </div>
     );
   }
@@ -583,7 +583,7 @@ function LessonPreviewBlock({ index, block, showType }: { index: number; block: 
       'diagram':          { label: 'Diagram',          color: 'from-blue-500/20 to-indigo-900/30 border-blue-500/25' },
       'lottie':           { label: 'Animation',        color: 'from-purple-500/20 to-violet-900/30 border-purple-500/25' },
       'blockly':          { label: 'Blockly Workspace',color: 'from-yellow-500/20 to-orange-900/30 border-yellow-500/25' },
-      'scratch':          { label: 'Scratch Blocks',   color: 'from-orange-500/20 to-amber-900/30 border-orange-500/25' },
+      'scratch':          { label: 'Scratch Blocks',   color: 'from-primary/20 to-amber-900/30 border-primary/25' },
     };
     const info = widgetLabel[block.type];
     return (
