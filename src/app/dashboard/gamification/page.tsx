@@ -261,7 +261,7 @@ export default function GamificationPage() {
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {filteredLeader.map((entry, idx) => (
-                  <tr key={entry.portal_user_id} className={`hover:bg-white/[0.02] transition-colors ${idx < 3 ? 'bg-yellow-500/[0.02]' : ''}`}>
+                  <tr key={entry.portal_user_id} className={`hover:bg-white/[0.02] transition-colors ${idx < 3 ? 'bg-brand-red-500/5' : ''}`}>
                     <td className="px-4 py-3">
                       <span className={`text-xl ${idx === 0 ? '' : idx === 1 ? '' : idx === 2 ? '' : 'text-card-foreground/40 text-sm font-bold'}`}>
                         {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}

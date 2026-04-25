@@ -160,7 +160,7 @@ export default function ProtocolPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-900/20 via-background to-background text-foreground overflow-hidden selection:bg-orange-500/30">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden selection:bg-orange-500/30">
       
       {/* Background Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
