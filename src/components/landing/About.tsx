@@ -48,13 +48,13 @@ const About: React.FC = () => {
               <span className="text-foreground/40 italic">STEM EDUCATION.</span>
             </h2>
             
-            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-12 font-medium italic border-l-2 border-orange-500 pl-6">
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-12 font-medium italic border-l-2 border-brand-red-600 pl-6">
               At Rillcod, we don't just teach kids how to use technology — we teach them how to build it. Our mission is to transform Nigerian schools into excellent tech hubs.
             </p>
 
             <div className="grid sm:grid-cols-3 gap-6">
               {pillars.map((p) => (
-                <div key={p.title} className="group p-6 bg-card border border-border rounded-none hover:bg-muted transition-all border-b-2 border-b-transparent hover:border-b-orange-500 shadow-sm">
+                <div key={p.title} className="group p-6 bg-card border border-border rounded-none hover:bg-muted transition-all border-b-2 border-b-transparent hover:border-b-brand-red-600 shadow-sm">
                   <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-none flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-inner`}>
                     <p.icon className="w-6 h-6" />
                   </div>
@@ -73,9 +73,9 @@ const About: React.FC = () => {
                 <div className="space-y-12 relative z-10">
                    <div>
                       <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">25+</p>
-                      <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em]">Partner Schools</p>
+                      <p className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Partner Schools</p>
                       <div className="w-full h-1 bg-muted rounded-none mt-4 overflow-hidden">
-                         <div className="w-[85%] h-full bg-orange-500 rounded-none shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
+                         <div className="w-[85%] h-full bg-orange-500 rounded-none shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
                       </div>
                    </div>
                    <div>
