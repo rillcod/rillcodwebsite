@@ -59,14 +59,14 @@ const programs = [
     description: 'Diving deep into data science, artificial intelligence, and automation.',
     icon: BrainCircuit,
     color: 'violet',
-    features: ['Python Syntax', 'Data Analysis', 'Intro to ML', 'Backend Dev'],
+    features: ['Python Syntax', 'Data Analysis', 'Intro to AI', 'Backend Dev'],
     gradient: 'from-violet-400 to-violet-600',
     bg: 'bg-violet-500/10',
     border: 'border-violet-500/20'
   },
   {
     id: 'robotics',
-    title: 'Robotics & IoT',
+    title: 'Robotics & Smart Devices',
     age: 'Ages 9-18',
     description: 'Bridging the gap between software and the physical world through hardware.',
     icon: Cpu,
@@ -232,7 +232,7 @@ const ProgramExplorer: React.FC = () => {
            </div>
            <div className="flex items-center gap-2">
               <BrainCircuit className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-widest text-foreground">AI Integrated</span>
+              <span className="text-xs font-black uppercase tracking-widest text-foreground">AI Powered</span>
            </div>
         </div>
       </div>

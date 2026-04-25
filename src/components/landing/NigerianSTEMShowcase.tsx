@@ -24,7 +24,7 @@ const achievements = [
   { id: 3, title: 'Science Fair Excellence', description: 'Port Harcourt Academy students presented groundbreaking environmental research.', icon: Beaker, badge: 'Excellence', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   { id: 4, title: 'Mobile App Development', description: 'Kids created apps solving local community problems like waste management and navigation.', icon: Monitor, badge: 'Community', color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
   { id: 5, title: '3D Printing Workshop', description: 'Students designed and printed prototypes for local businesses — hands-on engineering.', icon: Rocket, badge: 'Skills Dev', color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-  { id: 6, title: 'AI & Machine Learning', description: 'Introduction to artificial intelligence with practical, real-world applications.', icon: Lightbulb, badge: 'Future Ready', color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
+  { id: 6, title: 'AI & Smart Systems', description: 'Introduction to artificial intelligence with practical, real-world applications.', icon: Lightbulb, badge: 'Future Ready', color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
 ]
 
 const testimonials = [
@@ -56,7 +56,7 @@ export default function NigerianSTEMShowcase() {
             </h3>
           </div>
           <p className="text-muted-foreground text-lg font-medium leading-relaxed max-w-sm italic border-l-2 border-orange-500 pl-6">
-             Our methodology isn't just about code — it's about producing world-class talent right here in Nigeria.
+             Our approach isn't just about code — it's about producing excellent talent right here in Nigeria.
           </p>
         </div>
 

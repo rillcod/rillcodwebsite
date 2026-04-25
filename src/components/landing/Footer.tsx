@@ -43,7 +43,7 @@ export default function Footer() {
             </Link>
             
             <p className="text-muted-foreground text-sm leading-relaxed max-w-sm italic border-l border-border pl-5">
-              Deploying elite STEM infrastructure and curriculum across partner schools in Nigeria. From first lines of code to advanced robotics engineering.
+              Delivering elite STEM programs and curriculum across partner schools in Nigeria. From first lines of code to advanced robotics engineering.
             </p>
 
             <div className="flex items-center gap-3">

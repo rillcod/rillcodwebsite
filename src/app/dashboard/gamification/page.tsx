@@ -181,7 +181,7 @@ export default function GamificationPage() {
       <div className="flex gap-2 bg-white/[0.03] border border-white/[0.08] rounded-xl p-1 w-fit">
         {([['badges', 'Badges', CheckBadgeIcon], ['points', 'Points Leaderboard', BoltIcon]] as const).map(([t, label, Icon]) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === t ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === t ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20 ring-2 ring-brand-red-600/30' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
