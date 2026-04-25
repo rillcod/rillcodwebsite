@@ -17,7 +17,7 @@ const SIGNAL_CONFIG: Record<AtRiskSignal, { label: string; className: string }> 
   },
   overdue_assignments: {
     label: 'Overdue Work',
-    className: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+    className: 'bg-primary/20 text-primary border border-primary/30',
   },
 };
 

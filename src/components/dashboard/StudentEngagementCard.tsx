@@ -89,10 +89,10 @@ export default function StudentEngagementCard({ studentId }: Props) {
   return (
     <div className="bg-card border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-orange-500/5 to-violet-500/5">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/5 to-violet-500/5">
         <div className="flex items-center gap-2">
-          <BoltIcon className="w-4 h-4 text-orange-400" />
-          <span className="text-xs font-black uppercase tracking-widest text-orange-400">My Engagement</span>
+          <BoltIcon className="w-4 h-4 text-primary" />
+          <span className="text-xs font-black uppercase tracking-widest text-primary">My Engagement</span>
         </div>
         <Link href="/dashboard/showcase" className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors">
           Showcase <ArrowRightIcon className="w-3 h-3" />
@@ -104,8 +104,8 @@ export default function StudentEngagementCard({ studentId }: Props) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-                <span className="text-sm font-black text-orange-400">{level}</span>
+              <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+                <span className="text-sm font-black text-primary">{level}</span>
               </div>
               <div>
                 <p className="text-xs font-black text-foreground">Level {level}</p>
@@ -114,12 +114,12 @@ export default function StudentEngagementCard({ studentId }: Props) {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-muted-foreground font-bold">{xpNeeded} XP to level up</p>
-              <p className="text-[10px] text-orange-400 font-bold">This term: +{xp?.this_term_xp ?? 0}</p>
+              <p className="text-[10px] text-primary font-bold">This term: +{xp?.this_term_xp ?? 0}</p>
             </div>
           </div>
           <div className="h-2.5 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-700 rounded-full"
+              className="h-full bg-gradient-to-r from-primary to-amber-400 transition-all duration-700 rounded-full"
               style={{ width: `${levelPct}%` }}
             />
           </div>
@@ -134,14 +134,14 @@ export default function StudentEngagementCard({ studentId }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <div className={`p-3 border space-y-1 ${
             currentStreak >= 3
-              ? 'border-orange-500/30 bg-orange-500/5'
+              ? 'border-primary/30 bg-primary/5'
               : 'border-border bg-muted/20'
           }`}>
             <div className="flex items-center gap-1.5">
-              <FireIcon className={`w-4 h-4 ${currentStreak >= 3 ? 'text-orange-400' : 'text-muted-foreground'}`} />
+              <FireIcon className={`w-4 h-4 ${currentStreak >= 3 ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Streak</span>
             </div>
-            <p className={`text-2xl font-black ${currentStreak >= 3 ? 'text-orange-400' : 'text-foreground'}`}>
+            <p className={`text-2xl font-black ${currentStreak >= 3 ? 'text-primary' : 'text-foreground'}`}>
               {currentStreak}
               <span className="text-xs font-bold text-muted-foreground ml-1">week{currentStreak !== 1 ? 's' : ''}</span>
             </p>
@@ -225,7 +225,7 @@ export default function StudentEngagementCard({ studentId }: Props) {
               <div key={i} className="flex items-center justify-between text-xs">
                 <span className="text-foreground/70 truncate">{entry.event_label}</span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-orange-400 font-black">+{entry.xp}</span>
+                  <span className="text-primary font-black">+{entry.xp}</span>
                   <span className="text-muted-foreground text-[10px]">{relativeTime(entry.created_at)}</span>
                 </div>
               </div>

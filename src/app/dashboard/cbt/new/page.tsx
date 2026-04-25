@@ -510,10 +510,10 @@ ${questionRows}
             {questions.some(q => q.question_text.trim()) && (
               <div className="flex items-center gap-1">
                 {/* Question type filter for print */}
-                <div className="flex border border-orange-500/30 rounded-none overflow-hidden">
+                <div className="flex border border-primary/30 rounded-none overflow-hidden">
                   {(['all', 'mcq', 'theory'] as const).map(f => (
                     <button key={f} type="button" onClick={() => setPrintFilter(f)}
-                      className={`px-2.5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${printFilter === f ? 'bg-orange-500/30 text-orange-400' : 'bg-orange-600/10 text-orange-400/50 hover:bg-orange-500/20 hover:text-orange-400'}`}>
+                      className={`px-2.5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${printFilter === f ? 'bg-primary/30 text-primary' : 'bg-primary/10 text-primary/50 hover:bg-primary/20 hover:text-primary'}`}>
                       {f === 'all' ? 'All' : f === 'mcq' ? 'Obj' : 'Theory'}
                     </button>
                   ))}
@@ -521,7 +521,7 @@ ${questionRows}
                 <button
                   type="button"
                   onClick={handlePrintExam}
-                  className="flex items-center gap-2 px-5 py-3 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-400 font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all"
                 >
                   Print Exam
                 </button>
@@ -542,17 +542,17 @@ ${questionRows}
         )}
 
         {/* Premium AI Exam Engine Panel */}
-        <div className="p-8 bg-gradient-to-br from-orange-600/20 to-orange-900/10 border border-orange-500/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
-            <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] group-hover:bg-orange-500/20 transition-all duration-1000" />
+        <div className="p-8 bg-gradient-to-br from-primary/20 to-orange-900/10 border border-primary/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000" />
             
             <div className="flex items-center justify-between relative">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30">
+                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30">
                         <SparklesIcon className="w-7 h-7 text-white" />
                     </div>
                     <div>
                         <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Exam Engine</h3>
-                        <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">High-Precision Assessment Synthesis</p>
+                        <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">High-Precision Assessment Synthesis</p>
                     </div>
                 </div>
                 <button 
@@ -572,7 +572,7 @@ ${questionRows}
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
                           placeholder="e.g. Fundamental Concepts of Quantum Computing"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                       />
                   </div>
 
@@ -586,7 +586,7 @@ ${questionRows}
                             type="number" min="0" max="50"
                             value={aiMcqCount}
                             onChange={e => setAiMcqCount(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 transition-all"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
                       <div className="space-y-1">
@@ -597,13 +597,13 @@ ${questionRows}
                             type="number" min="0" max="50"
                             value={aiTheoryCount}
                             onChange={e => setAiTheoryCount(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 transition-all"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"
                           />
                       </div>
                       {/* Total display */}
                       <div className="flex flex-col items-center justify-center h-full py-2 gap-0.5 border border-white/10 rounded-2xl bg-white/5">
                           <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Total Questions</span>
-                          <span className="text-3xl font-black text-orange-400 leading-none">
+                          <span className="text-3xl font-black text-primary leading-none">
                             {(parseInt(aiMcqCount) || 0) + (parseInt(aiTheoryCount) || 0)}
                           </span>
                           <span className="text-[8px] text-white/20 uppercase">
@@ -614,7 +614,7 @@ ${questionRows}
                           type="button"
                           onClick={handleAiGenerate}
                           disabled={aiGenerating}
-                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-orange-600 hover:bg-orange-500 rounded-[1.5rem] transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
                       >
                           <div className="text-[10px] font-black text-white uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
                           <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
@@ -623,8 +623,8 @@ ${questionRows}
 
                   {aiError && <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
                   {aiGenerating && (
-                      <div className="flex items-center gap-3 text-orange-400 animate-pulse pl-2 border-l-2 border-orange-500">
-                          <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="flex items-center gap-3 text-primary animate-pulse pl-2 border-l-2 border-primary">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           <span className="text-[10px] font-black uppercase tracking-widest">Accessing OpenRouter Neural Clusters...</span>
                       </div>
                   )}

@@ -27,8 +27,8 @@ const LEVELS = [
   { min: 0, max: 99, label: 'Beginner', emoji: '🌱', color: 'text-green-400 bg-green-400/10' },
   { min: 100, max: 299, label: 'Explorer', emoji: '🔍', color: 'text-blue-400 bg-blue-400/10' },
   { min: 300, max: 599, label: 'Builder', emoji: '🔨', color: 'text-yellow-400 bg-yellow-400/10' },
-  { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-orange-400 bg-orange-400/10' },
-  { min: 1000, max: 1999, label: 'Innovator', emoji: '🚀', color: 'text-orange-400 bg-orange-400/10' },
+  { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-primary bg-primary/10' },
+  { min: 1000, max: 1999, label: 'Innovator', emoji: '🚀', color: 'text-primary bg-primary/10' },
   { min: 2000, max: 9999, label: 'Champion', emoji: '🏆', color: 'text-rose-400 bg-rose-400/10' },
 ];
 
@@ -43,7 +43,7 @@ function XPBar({ xp, level }: { xp: number; level: typeof LEVELS[0] }) {
   const pct = next.min === level.min ? 100 : Math.min(100, ((xp - level.min) / (next.min - level.min)) * 100);
   return (
     <div className="w-full bg-card shadow-sm rounded-full h-1.5 overflow-hidden">
-      <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-pink-500 transition-all duration-700"
+      <div className="h-full rounded-full bg-gradient-to-r from-primary to-pink-500 transition-all duration-700"
         style={{ width: `${pct}%` }} />
     </div>
   );
@@ -160,7 +160,7 @@ export default function LeaderboardPage() {
 
       {/* My Card (if student) */}
       {profile?.role === 'student' && myEntry && (
-        <div className="bg-gradient-to-r from-orange-600/20 to-pink-600/20 border border-orange-500/30 rounded-none p-5 mb-6 flex items-center gap-4 flex-wrap">
+        <div className="bg-gradient-to-r from-primary/20 to-pink-600/20 border border-primary/30 rounded-none p-5 mb-6 flex items-center gap-4 flex-wrap">
           <div className="text-3xl">{myEntry.badge}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -225,7 +225,7 @@ export default function LeaderboardPage() {
                 </div>
                 <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name?.split(' ')?.[0] ?? 'User'}</p>
                 <p className="text-yellow-400 text-xs font-black">{e.xp} XP</p>
-                <div className={`w-20 ${heightMap[idx]} flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20 border-t-2 border-yellow-500/40' : idx === 1 ? 'bg-slate-400/10 border-t-2 border-slate-400/30' : 'bg-orange-500/10 border-t-2 border-orange-500/30'}`}>
+                <div className={`w-20 ${heightMap[idx]} flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20 border-t-2 border-yellow-500/40' : idx === 1 ? 'bg-slate-400/10 border-t-2 border-slate-400/30' : 'bg-primary/10 border-t-2 border-primary/30'}`}>
                   <span className="text-2xl font-black text-muted-foreground">{idx + 1}</span>
                 </div>
               </div>
@@ -246,9 +246,9 @@ export default function LeaderboardPage() {
             return (
               <div key={e.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${
                 i === 0 ? 'bg-brand-red-600/5 border-l-2 border-brand-red-600' :
-                i === 1 ? 'bg-orange-500/5 border-l-2 border-orange-400' :
-                i === 2 ? 'bg-orange-500/5 border-l-2 border-orange-300' :
-                isMe ? 'bg-orange-500/10 border-l-2 border-orange-500' : 'hover:bg-muted'
+                i === 1 ? 'bg-primary/5 border-l-2 border-primary' :
+                i === 2 ? 'bg-primary/5 border-l-2 border-primary' :
+                isMe ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted'
               }`}>
                 {/* Rank */}
                 <div className="w-8 text-center flex-shrink-0">
@@ -315,7 +315,7 @@ export default function LeaderboardPage() {
             { icon: TrophyIcon, label: 'Complete a course', xp: '+100 XP' },
           ].map(item => (
             <div key={item.label} className="flex items-center gap-2 bg-white/3 rounded-none p-3">
-              <item.icon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+              <item.icon className="w-4 h-4 text-primary flex-shrink-0" />
               <div>
                 <p className="text-foreground text-xs font-semibold leading-tight">{item.label}</p>
                 <p className="text-yellow-400 text-[10px] font-bold">{item.xp}</p>

@@ -110,7 +110,7 @@ const PLATFORM_CONFIG: Record<LiveSession['platform'] | 'jitsi', {
   google_meet: { label: 'Google Meet', textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/30', dot: 'bg-emerald-400' },
   teams:       { label: 'Teams',       textClass: 'text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/30',  dot: 'bg-purple-400' },
   discord:     { label: 'Discord',     textClass: 'text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/30',  dot: 'bg-indigo-400' },
-  jitsi:       { label: 'In-App',      textClass: 'text-orange-400',  bgClass: 'bg-orange-500/10',  borderClass: 'border-orange-500/30',  dot: 'bg-orange-400' },
+  jitsi:       { label: 'In-App',      textClass: 'text-primary',  bgClass: 'bg-primary/10',  borderClass: 'border-primary/30',  dot: 'bg-primary' },
   other:       { label: 'Other',       textClass: 'text-white/40',    bgClass: 'bg-white/5',        borderClass: 'border-white/10',       dot: 'bg-white/30' },
 };
 const STATUS_CONFIG: Record<LiveSession['status'], {
@@ -218,7 +218,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <ChartBarIcon className="w-5 h-5 text-orange-400" />
+            <ChartBarIcon className="w-5 h-5 text-primary" />
             <div>
               <p className="text-sm font-black text-white uppercase tracking-widest">Session Polls</p>
               <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
@@ -232,7 +232,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {loading ? (
             <div className="flex justify-center py-10">
-              <div className="w-7 h-7 border-4 border-orange-600 border-t-transparent animate-spin" />
+              <div className="w-7 h-7 border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : polls.length === 0 && !creating ? (
             <div className="text-center py-12 space-y-2">
@@ -290,7 +290,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                         disabled={!canVote || !!submitting}
                         onClick={() => canVote && vote(poll.id, opt.id)}
                         className={`w-full text-left relative overflow-hidden border transition-all py-3 px-4
-                          ${isMyVote ? 'border-orange-500/50 bg-orange-500/10' : 'border-white/[0.06] hover:border-white/20 hover:bg-white/[0.03]'}
+                          ${isMyVote ? 'border-primary/50 bg-primary/10' : 'border-white/[0.06] hover:border-white/20 hover:bg-white/[0.03]'}
                           ${!canVote ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         {(hasVoted || canManage) && (
@@ -323,12 +323,12 @@ function PollsModal({ session, canManage, userId, onClose }: {
                 value={form.question}
                 onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
                 placeholder="Ask a question…"
-                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all"
+                className="w-full px-4 py-2.5 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
               />
               <select
                 value={form.type}
                 onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
-                className="px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white/60 focus:outline-none focus:border-orange-500"
+                className="px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white/60 focus:outline-none focus:border-primary"
               >
                 <option value="poll" className="bg-[#0d0d0d]">Poll</option>
                 <option value="quiz" className="bg-[#0d0d0d]">Quiz</option>
@@ -340,7 +340,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                     value={opt}
                     onChange={e => setForm(f => { const o = [...f.options]; o[i] = e.target.value; return { ...f, options: o }; })}
                     placeholder={`Option ${i + 1}${i < 2 ? ' *' : ''}`}
-                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all"
+                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
                   />
                 ))}
               </div>
@@ -349,7 +349,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
                 <button
                   onClick={createPoll}
                   disabled={!!submitting}
-                  className="flex-1 py-2.5 text-xs font-black bg-orange-600 hover:bg-orange-500 text-white transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 text-xs font-black bg-primary hover:bg-primary text-white transition-all disabled:opacity-50"
                 >
                   {submitting === 'create' ? 'Creating…' : 'Create Poll'}
                 </button>
@@ -362,7 +362,7 @@ function PollsModal({ session, canManage, userId, onClose }: {
           <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
             <button
               onClick={() => setCreating(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all"
             >
               <PlusIcon className="w-4 h-4" /> Create Poll
             </button>
@@ -696,7 +696,7 @@ function QAModal({ session, canManage, userId, onClose }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <ChatBubbleLeftEllipsisIcon className="w-5 h-5 text-orange-400" />
+            <ChatBubbleLeftEllipsisIcon className="w-5 h-5 text-primary" />
             <div>
               <p className="text-sm font-black text-white uppercase tracking-widest">Live Q&A</p>
               <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
@@ -711,7 +711,7 @@ function QAModal({ session, canManage, userId, onClose }: {
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {loading ? (
             <div className="flex justify-center py-10">
-              <div className="w-7 h-7 border-4 border-orange-600 border-t-transparent animate-spin" />
+              <div className="w-7 h-7 border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : questions.length === 0 ? (
             <div className="text-center py-12 space-y-2">
@@ -739,7 +739,7 @@ function QAModal({ session, canManage, userId, onClose }: {
                     {/* Upvote */}
                     <button
                       onClick={() => upvote(q.id)}
-                      className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-orange-600/20 border border-white/10 hover:border-orange-500/30 text-white/30 hover:text-orange-400 transition-all"
+                      className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/30 text-white/30 hover:text-primary transition-all"
                     >
                       <span className="text-[10px] font-black">▲</span>
                       <span className="text-[10px] font-black">{q.upvotes ?? 0}</span>
@@ -803,12 +803,12 @@ function QAModal({ session, canManage, userId, onClose }: {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submit()}
               placeholder={canManage ? 'Post an announcement or comment…' : 'Ask a question…'}
-              className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-orange-500 transition-all"
+              className="flex-1 px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary transition-all"
             />
             <button
               onClick={submit}
               disabled={sending || !input.trim()}
-              className="px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+              className="px-5 py-3 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
             >
               {sending ? '…' : 'Send'}
             </button>
@@ -960,7 +960,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-black text-white uppercase tracking-tight leading-tight group-hover:text-orange-500 transition-colors duration-300">{session.title}</h3>
+          <h3 className="text-lg font-black text-white uppercase tracking-tight leading-tight group-hover:text-primary transition-colors duration-300">{session.title}</h3>
           {session.description && (
             <p className="text-xs text-white/40 font-medium leading-relaxed line-clamp-2 italic border-l border-white/10 pl-3">{session.description}</p>
           )}
@@ -968,14 +968,14 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
 
         <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-white/5 pt-5">
           <div className="flex items-center gap-3 text-white/30 group/meta">
-            <div className="p-1.5 bg-orange-600/5 border border-orange-600/20 group-hover/meta:border-orange-600/40 transition-colors">
-              <CalendarDaysIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+            <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
+              <CalendarDaysIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{formatDateTime(session.scheduled_at).split(',')[0]}</span>
           </div>
           <div className="flex items-center gap-3 text-white/30 group/meta">
-            <div className="p-1.5 bg-orange-600/5 border border-orange-600/20 group-hover/meta:border-orange-600/40 transition-colors">
-              <ClockIcon className="w-4 h-4 text-orange-600 flex-shrink-0" />
+            <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
+              <ClockIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{session.duration_minutes}m</span>
           </div>
@@ -1028,7 +1028,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
                 className={`flex-1 flex items-center justify-center gap-3 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm ${
                   isLive
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/30'
-                    : 'bg-orange-600 hover:bg-orange-500 text-white'
+                    : 'bg-primary hover:bg-primary text-white'
                 }`}
               >
                 {isInApp ? <VideoCameraIcon className="w-4 h-4" /> : isLive ? <SignalIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
@@ -1048,12 +1048,12 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
         )}
         <div className="flex border-t border-white/[0.04] bg-white/[0.01]">
           <button onClick={() => onPolls(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-orange-400 hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
             <ChartBarIcon className="w-4 h-4" /> Polls
           </button>
           <div className="w-[1px] bg-white/[0.04]" />
           <button onClick={() => onQA(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-orange-400 hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
             <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Q&A
           </button>
           <div className="w-[1px] bg-white/[0.04]" />
@@ -1086,23 +1086,23 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
   const [form, setForm] = useState<SessionForm>(initial);
   const set = (k: keyof SessionForm, v: string | number) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white font-medium focus:outline-none focus:border-orange-500/60 placeholder:text-white/20 transition-all";
+  const fieldCls = "w-full px-4 py-3 bg-white/[0.03] border border-white/10 text-sm text-white font-medium focus:outline-none focus:border-primary/60 placeholder:text-white/20 transition-all";
   const labelCls = "block text-[9px] font-black text-white/30 uppercase tracking-[0.35em] mb-2";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-      <div className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-orange-600 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+      <div className="bg-[#0a0a0a] border border-white/10 border-t-4 border-t-primary w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]">
         <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-white/[0.015] flex-shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-orange-600/10 border border-orange-500/20 flex items-center justify-center">
-              <VideoCameraIcon className="w-5 h-5 text-orange-400" />
+            <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <VideoCameraIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="text-sm font-black text-white uppercase tracking-widest">{isEdit ? 'Edit Session' : 'Schedule Live Session'}</h2>
               <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mt-0.5">Broadcast Uplink</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:text-orange-500 transition-all text-white/40">
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 hover:text-primary transition-all text-white/40">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
@@ -1115,7 +1115,7 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
           )}
 
           <div>
-            <label className={labelCls}>Session Title <span className="text-orange-500">*</span></label>
+            <label className={labelCls}>Session Title <span className="text-primary">*</span></label>
             <input type="text" value={form.title} onChange={e => set('title', e.target.value)}
               placeholder="e.g. Introduction to Algorithms — Week 3" className={fieldCls} />
           </div>
@@ -1156,7 +1156,7 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
                 <label className={labelCls}>
                   Google Meet Link
                   {!form.session_url && (
-                    <span className="ml-2 text-orange-500/70 normal-case font-bold tracking-normal">
+                    <span className="ml-2 text-primary/70 normal-case font-bold tracking-normal">
                       — paste after generating below
                     </span>
                   )}
@@ -1227,12 +1227,12 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className={labelCls}>Date <span className="text-orange-500">*</span></label>
+              <label className={labelCls}>Date <span className="text-primary">*</span></label>
               <input type="date" value={form.scheduled_date} onChange={e => set('scheduled_date', e.target.value)}
                 className={`${fieldCls} [color-scheme:dark]`} />
             </div>
             <div>
-              <label className={labelCls}>Time <span className="text-orange-500">*</span></label>
+              <label className={labelCls}>Time <span className="text-primary">*</span></label>
               <input type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)}
                 className={`${fieldCls} [color-scheme:dark]`} />
             </div>
@@ -1317,7 +1317,7 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
           <button
             onClick={() => onSave(form)}
             disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time}
-            className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-3"
+            className="px-8 py-3 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-3"
           >
             {saving
               ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1405,7 +1405,7 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
       {canManage && (
         <button
           onClick={onAdd}
-          className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+          className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all"
         >
           <PlusIcon className="w-4 h-4" /> Schedule Session
         </button>
@@ -1667,7 +1667,7 @@ export default function LiveSessionsPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-orange-600 border-t-transparent animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
@@ -1683,17 +1683,17 @@ export default function LiveSessionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-orange-600/30">
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-primary/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Header ── */}
         <div className="relative bg-card/10 border border-white/10 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-orange-600/15 transition-all duration-1000" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/15 transition-all duration-1000" />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             <div className="flex flex-wrap items-center gap-4">
-              <div className="px-4 py-1.5 bg-orange-600/10 border border-orange-600/20 text-orange-500 text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
+              <div className="px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-[9px] font-black uppercase tracking-[0.4em] flex items-center gap-3">
                 <SignalIcon className="w-3 h-3" /> Sector: Broadcast Uplink
               </div>
               {liveSessions.length > 0 && (
@@ -1711,10 +1711,10 @@ export default function LiveSessionsPage() {
             <div>
               <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase">
                 Virtual<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500">Hall.</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary to-amber-500">Hall.</span>
                 <span className="text-white/10 ml-4 not-italic font-black opacity-20 hidden md:inline">01</span>
               </h1>
-              <p className="text-sm text-white/40 font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-orange-600/30 pl-6">
+              <p className="text-sm text-white/40 font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-primary/30 pl-6">
                 {canManage
                   ? 'Manage broadcasts, track attendance, and engage students with live polls and breakout rooms.'
                   : 'Welcome to the broadcast lobby. Join your scheduled classes and engage in interactive sessions.'}
@@ -1737,7 +1737,7 @@ export default function LiveSessionsPage() {
             {canManage && (
               <button
                 onClick={openCreate}
-                className="group/btn flex items-center gap-4 px-10 py-5 bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-orange-600/30 relative overflow-hidden"
+                className="group/btn flex items-center gap-4 px-10 py-5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-primary/30 relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
                 <PlusIcon className="w-4 h-4 relative z-10" />
@@ -1778,7 +1778,7 @@ export default function LiveSessionsPage() {
               onClick={() => setFilter(t.key)}
               className={`flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
                 filter === t.key
-                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20'
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20'
                   : 'text-white/30 hover:text-white hover:bg-white/5'
               }`}
             >

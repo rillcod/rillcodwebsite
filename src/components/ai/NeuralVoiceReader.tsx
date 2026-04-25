@@ -81,7 +81,7 @@ export default function NeuralVoiceReader({ content, title }: NeuralVoiceReaderP
        <div className={`p-4 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4 transition-all duration-500 ${isPlaying ? 'w-[320px] sm:w-[400px]' : 'w-[180px] hover:w-[200px]'}`}>
          <button 
            onClick={togglePlay}
-           className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-gradient-to-br ${isPlaying ? 'from-orange-600 to-orange-400 border-orange-400/30' : 'from-indigo-600 to-cyan-500 border-cyan-400/30'} border shadow-xl active:scale-95`}
+           className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all bg-gradient-to-br ${isPlaying ? 'from-primary to-primary border-primary/30' : 'from-indigo-600 to-cyan-500 border-cyan-400/30'} border shadow-xl active:scale-95`}
          >
            {isPlaying && !isPaused ? (
              <PauseIcon className="w-5 h-5 text-white" />
@@ -93,7 +93,7 @@ export default function NeuralVoiceReader({ content, title }: NeuralVoiceReaderP
          <div className="flex-1 overflow-hidden">
            <div className="flex items-center justify-between mb-1.5 px-1">
              <div className="flex items-center gap-2">
-               <SparklesIcon className="w-3 h-3 text-orange-400" />
+               <SparklesIcon className="w-3 h-3 text-primary" />
                <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] truncate">
                  {isPlaying ? 'Neural Voice Sync' : 'Text-to-Speech'}
                </span>
@@ -108,7 +108,7 @@ export default function NeuralVoiceReader({ content, title }: NeuralVoiceReaderP
            {isPlaying ? (
              <div className="h-1 bg-white/5 rounded-full overflow-hidden relative">
                 <div 
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-300"
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-primary transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
              </div>

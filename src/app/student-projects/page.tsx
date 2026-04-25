@@ -181,7 +181,7 @@ export default function StudentProjectsPage() {
               <div className="text-gray-600">Partner Schools</div>
             </div>
             <div className="bg-orange-50 p-6 rounded-xl">
-              <div className="text-3xl font-bold text-orange-600 mb-2">25+</div>
+              <div className="text-3xl font-bold text-primary mb-2">25+</div>
               <div className="text-gray-600">Awards Won</div>
             </div>
           </div>

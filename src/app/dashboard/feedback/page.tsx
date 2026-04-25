@@ -70,7 +70,7 @@ export default function FeedbackPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-orange-600 to-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <ChatBubbleLeftRightIcon className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">We Value Your Feedback</h1>
@@ -82,7 +82,7 @@ export default function FeedbackPage() {
           {['type', 'rating', 'details', 'success'].map((s, idx) => (
             <div key={s} className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                step === s ? 'bg-orange-600 text-white' :
+                step === s ? 'bg-primary text-white' :
                 ['type', 'rating', 'details'].indexOf(step) > idx ? 'bg-emerald-500 text-white' :
                 'bg-muted text-muted-foreground/70'
               }`}>
@@ -106,8 +106,8 @@ export default function FeedbackPage() {
                     onClick={() => setFeedbackType(type.value as any)}
                     className={`p-6 rounded-xl border-2 transition-all text-left ${
                       feedbackType === type.value
-                        ? 'border-orange-500 bg-orange-50'
-                        : 'border-border hover:border-orange-300 hover:bg-background'
+                        ? 'border-primary bg-orange-50'
+                        : 'border-border hover:border-primary hover:bg-background'
                     }`}
                   >
                     <div className="text-4xl mb-3">{type.icon}</div>
@@ -118,7 +118,7 @@ export default function FeedbackPage() {
               </div>
               <button
                 onClick={() => setStep('rating')}
-                className="w-full mt-6 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest rounded-xl transition-all"
+                className="w-full mt-6 px-6 py-3 bg-primary hover:bg-primary text-white font-black uppercase tracking-widest rounded-xl transition-all"
               >
                 Next
               </button>
@@ -159,7 +159,7 @@ export default function FeedbackPage() {
                 <button
                   onClick={() => setStep('details')}
                   disabled={rating === 0}
-                  className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-xl transition-all"
+                  className="flex-1 px-6 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-xl transition-all"
                 >
                   Next
                 </button>
@@ -179,7 +179,7 @@ export default function FeedbackPage() {
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
                     placeholder="Brief summary..."
-                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
@@ -189,7 +189,7 @@ export default function FeedbackPage() {
                     onChange={e => setMessage(e.target.value)}
                     placeholder="Share your thoughts in detail..."
                     rows={6}
-                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-primary transition-colors resize-none"
                   />
                 </div>
               </div>
@@ -203,7 +203,7 @@ export default function FeedbackPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={!subject.trim() || !message.trim() || submitting}
-                  className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-xl transition-all"
+                  className="flex-1 px-6 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-xl transition-all"
                 >
                   {submitting ? 'Submitting...' : 'Submit'}
                 </button>
@@ -229,7 +229,7 @@ export default function FeedbackPage() {
                   setSubject('');
                   setMessage('');
                 }}
-                className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest rounded-xl transition-all"
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-black uppercase tracking-widest rounded-xl transition-all"
               >
                 Submit Another
               </button>
@@ -241,13 +241,13 @@ export default function FeedbackPage() {
         <div className="mt-8 text-center">
           <p className="text-sm text-muted-foreground mb-3">Need immediate assistance?</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="mailto:support@rillcod.com" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
+            <a href="mailto:support@rillcod.com" className="text-sm text-primary hover:text-primary font-semibold">
               📧 support@rillcod.com
             </a>
-            <a href="tel:08116600091" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
+            <a href="tel:08116600091" className="text-sm text-primary hover:text-primary font-semibold">
               📞 08116600091
             </a>
-            <a href="https://wa.me/2348116600091" target="_blank" rel="noopener noreferrer" className="text-sm text-orange-600 hover:text-orange-500 font-semibold">
+            <a href="https://wa.me/2348116600091" target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:text-primary font-semibold">
               💬 WhatsApp Us
             </a>
           </div>

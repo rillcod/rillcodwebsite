@@ -27,7 +27,7 @@ import StudioUI from './StudioUI';
 const LANGUAGES = [
   { id: 'python',     name: 'Python',      emoji: '🐍', color: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/30',    desc: 'Powerful & Readable' },
   { id: 'javascript', name: 'JavaScript',  emoji: '⚡', color: 'text-yellow-400',  bg: 'bg-yellow-500/10',  border: 'border-yellow-500/30',  desc: 'Web & Beyond' },
-  { id: 'html',       name: 'HTML/CSS',    emoji: '🌐', color: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  desc: 'UI & Web Design' },
+  { id: 'html',       name: 'HTML/CSS',    emoji: '🌐', color: 'text-primary',  bg: 'bg-primary/10',  border: 'border-primary/30',  desc: 'UI & Web Design' },
   { id: 'blockly',    name: 'Blockly',     emoji: '🧩', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', desc: 'Visual Logic' },
   { id: 'scratch',    name: 'Scratch Lab', emoji: '🎮', color: 'text-pink-400',    bg: 'bg-pink-500/10',    border: 'border-pink-500/30',    desc: 'Drag-Drop Blocks' },
   { id: 'robotics',   name: 'Robotics',    emoji: '🤖', color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',    desc: 'Simulate & Code' },
@@ -59,7 +59,7 @@ interface Leader      { portal_user_id: string; total_points: number; portal_use
 // ─── XP Toast ────────────────────────────────────────────────
 function XPToast({ xp, reason }: { xp: number; reason: string }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl shadow-xl">
+    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-500/20 to-primary/20 border border-amber-500/30 rounded-xl shadow-xl">
       <span className="text-2xl animate-bounce">⚡</span>
       <div><p className="text-xs font-black text-amber-400 uppercase tracking-widest">+{xp} XP</p><p className="text-[10px] text-amber-300/70">{reason}</p></div>
     </div>
@@ -445,7 +445,7 @@ import json; robot=Robot()`);
     if (pts >= 5000) return { label: 'Platinum', color: 'text-cyan-300',   bar: 'bg-cyan-400',   emoji: '💎', pts, pct };
     if (pts >= 2000) return { label: 'Gold',     color: 'text-amber-300',  bar: 'bg-amber-400',  emoji: '🥇', pts, pct };
     if (pts >= 500)  return { label: 'Silver',   color: 'text-slate-300',  bar: 'bg-slate-400',  emoji: '🥈', pts, pct };
-    return               { label: 'Bronze',   color: 'text-orange-300', bar: 'bg-orange-400', emoji: '🥉', pts, pct };
+    return               { label: 'Bronze',   color: 'text-primary', bar: 'bg-primary', emoji: '🥉', pts, pct };
   }, [userPoints]);
 
   const activeLang = useMemo(() => LANGUAGES.find(l => l.id === lang) || LANGUAGES[0], [lang]);
@@ -453,7 +453,7 @@ import json; robot=Robot()`);
   if (authLoading) return (
     <div className="h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">Loading Studio…</p>
       </div>
     </div>

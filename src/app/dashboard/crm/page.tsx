@@ -92,7 +92,7 @@ const INTERACTION_TYPES = [
 
 const ROLE_COLORS: Record<string, string> = {
   student:  'bg-emerald-500/20 text-emerald-400',
-  parent:   'bg-orange-500/20 text-orange-400',
+  parent:   'bg-primary/20 text-primary',
   teacher:  'bg-blue-500/20 text-blue-400',
   school:   'bg-indigo-500/20 text-indigo-400',
   admin:    'bg-violet-500/20 text-violet-400',
@@ -367,7 +367,7 @@ export default function CRMPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -454,13 +454,13 @@ export default function CRMPage() {
                 value={contactSearch}
                 onChange={e => setContactSearch(e.target.value)}
                 placeholder="Search contacts…"
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-orange-500/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-primary/50"
               />
             </div>
             <div className="flex gap-1.5 flex-wrap">
               {['all', 'student', 'parent', 'teacher', 'school', 'external'].map(r => (
                 <button key={r} onClick={() => setRoleFilter(r)}
-                  className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${roleFilter === r ? 'bg-orange-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                  className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full transition-colors ${roleFilter === r ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
                   {r}
                 </button>
               ))}
@@ -488,7 +488,7 @@ export default function CRMPage() {
           <div className="flex-1 overflow-y-auto max-h-[42vh] lg:max-h-none">
             {contactsLoading ? (
               <div className="flex justify-center p-10">
-                <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : contacts.length === 0 ? (
               <div className="text-center p-10">
@@ -504,7 +504,7 @@ export default function CRMPage() {
                     className={`px-3 py-3 cursor-pointer border-b border-white/[0.04] transition-colors group ${selectedContact?.id === c.id ? 'bg-white/[0.06]' : 'hover:bg-white/[0.03]'}`}>
                     <div className="flex items-center gap-2.5">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${
-                        c.role === 'student' ? 'bg-emerald-600' : c.role === 'parent' ? 'bg-orange-600' :
+                        c.role === 'student' ? 'bg-emerald-600' : c.role === 'parent' ? 'bg-primary' :
                         c.role === 'teacher' ? 'bg-blue-700' : c.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
                       }`}>
                         {initials(c.full_name)}
@@ -521,7 +521,7 @@ export default function CRMPage() {
                           )}
                         </div>
                       </div>
-                      <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${selectedContact?.id === c.id ? 'rotate-90 text-orange-400' : 'text-white/20 group-hover:text-white/40'}`} />
+                      <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${selectedContact?.id === c.id ? 'rotate-90 text-primary' : 'text-white/20 group-hover:text-white/40'}`} />
                     </div>
                   </div>
                 );
@@ -538,7 +538,7 @@ export default function CRMPage() {
             <div className="px-4 sm:px-5 py-4 border-b border-white/[0.06] flex flex-col sm:flex-row items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white shrink-0 ${
-                  selectedContact.role === 'student' ? 'bg-emerald-600' : selectedContact.role === 'parent' ? 'bg-orange-600' :
+                  selectedContact.role === 'student' ? 'bg-emerald-600' : selectedContact.role === 'parent' ? 'bg-primary' :
                   selectedContact.role === 'teacher' ? 'bg-blue-700' : selectedContact.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
                 }`}>
                   {initials(selectedContact.full_name)}
@@ -574,10 +574,10 @@ export default function CRMPage() {
                 { key: 'pipeline', label: 'Pipeline' },
               ].map(t => (
                 <button key={t.key} onClick={() => setPanel(t.key as any)}
-                  className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 flex items-center gap-1.5 ${panel === t.key ? 'border-orange-500 text-orange-400' : 'border-transparent text-white/40 hover:text-white/70'}`}>
+                  className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 flex items-center gap-1.5 ${panel === t.key ? 'border-primary text-primary' : 'border-transparent text-white/40 hover:text-white/70'}`}>
                   {t.label}
                   {t.count !== undefined && t.count > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${panel === t.key ? 'bg-orange-500/20 text-orange-400' : 'bg-white/10 text-white/40'}`}>{t.count}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${panel === t.key ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/40'}`}>{t.count}</span>
                   )}
                 </button>
               ))}
@@ -604,12 +604,12 @@ export default function CRMPage() {
                                     ? 'bg-emerald-500/20 text-emerald-300'
                                     : item.channel === 'inapp'
                                       ? 'bg-violet-500/20 text-violet-300'
-                                      : 'bg-orange-500/20 text-orange-300'
+                                      : 'bg-primary/20 text-primary'
                                 }`}>
                                   {item.channel}
                                 </span>
                                 <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                                  item.direction === 'inbound' ? 'bg-blue-500/15 text-blue-300' : 'bg-orange-500/15 text-orange-300'
+                                  item.direction === 'inbound' ? 'bg-blue-500/15 text-blue-300' : 'bg-primary/15 text-primary'
                                 }`}>
                                   {item.direction}
                                 </span>
@@ -627,7 +627,7 @@ export default function CRMPage() {
                   {/* Add interaction */}
                   {!showAddInteraction ? (
                     <button onClick={() => setShowAddInteraction(true)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl text-orange-400 text-sm font-bold transition-colors">
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-primary text-sm font-bold transition-colors">
                       <Plus className="w-4 h-4" /> Log Interaction
                     </button>
                   ) : (
@@ -643,7 +643,7 @@ export default function CRMPage() {
                           const Icon = t.icon;
                           return (
                             <button key={t.value} onClick={() => setInteractionType(t.value)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black transition-colors ${interactionType === t.value ? 'bg-orange-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black transition-colors ${interactionType === t.value ? 'bg-primary text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
                               <Icon className="w-3 h-3" /> {t.label}
                             </button>
                           );
@@ -664,11 +664,11 @@ export default function CRMPage() {
                         onChange={e => setInteractionContent(e.target.value)}
                         placeholder="Write notes about this interaction…"
                         rows={4}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-orange-500/50 resize-none"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-primary/50 resize-none"
                       />
 
                       <button onClick={addInteraction} disabled={savingInteraction || !interactionContent.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white text-sm font-black rounded-xl transition-colors">
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white text-sm font-black rounded-xl transition-colors">
                         {savingInteraction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         Save Log
                       </button>
@@ -677,7 +677,7 @@ export default function CRMPage() {
 
                   {/* Timeline list */}
                   {interactionsLoading ? (
-                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-400" /></div>
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                   ) : interactions.length === 0 ? (
                     <div className="text-center py-10">
                       <Clock className="w-8 h-8 text-white/10 mx-auto mb-2" />
@@ -696,7 +696,7 @@ export default function CRMPage() {
                                 i.type === 'note' ? 'bg-violet-500/20 text-violet-400' :
                                 i.type === 'call' ? 'bg-emerald-500/20 text-emerald-400' :
                                 i.type === 'email' ? 'bg-blue-500/20 text-blue-400' :
-                                i.type === 'meeting' ? 'bg-orange-500/20 text-orange-400' :
+                                i.type === 'meeting' ? 'bg-primary/20 text-primary' :
                                 'bg-emerald-900/40 text-emerald-400'
                               }`}>
                                 <TypeIcon className="w-4 h-4" />
@@ -705,7 +705,7 @@ export default function CRMPage() {
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11px] font-black text-white uppercase">{i.type}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>{i.direction}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-400'}`}>{i.direction}</span>
                                     {i.staff_name && <span className="text-[10px] text-white/30">by {i.staff_name}</span>}
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
@@ -734,12 +734,12 @@ export default function CRMPage() {
                   {/* Upload button */}
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-2 px-4 py-6 bg-white/[0.03] border-2 border-dashed border-white/10 hover:border-orange-500/40 rounded-xl cursor-pointer transition-colors group">
+                    className="flex flex-col items-center justify-center gap-2 px-4 py-6 bg-white/[0.03] border-2 border-dashed border-white/10 hover:border-primary/40 rounded-xl cursor-pointer transition-colors group">
                     {uploadingFile ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-orange-400" />
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     ) : (
                       <>
-                        <Paperclip className="w-6 h-6 text-white/20 group-hover:text-orange-400 transition-colors" />
+                        <Paperclip className="w-6 h-6 text-white/20 group-hover:text-primary transition-colors" />
                         <span className="text-sm text-white/40 group-hover:text-white/60 font-bold transition-colors">Click to attach a document</span>
                         <span className="text-[11px] text-white/20">PDF, Word, Excel, images, video — up to 25 MB</span>
                       </>
@@ -752,7 +752,7 @@ export default function CRMPage() {
 
                   {/* Attachments list */}
                   {attachmentsLoading ? (
-                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-400" /></div>
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                   ) : attachments.length === 0 ? (
                     <div className="text-center py-8">
                       <FileText className="w-8 h-8 text-white/10 mx-auto mb-2" />
@@ -815,12 +815,12 @@ export default function CRMPage() {
                       onChange={e => setPipelineNotes(e.target.value)}
                       placeholder="Reason for stage, last contact, action plan…"
                       rows={5}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-orange-500/50 resize-none"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-primary/50 resize-none"
                     />
                   </div>
 
                   <button onClick={savePipeline} disabled={savingPipeline}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black transition-colors ${pipelineSaved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white'}`}>
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black transition-colors ${pipelineSaved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-primary hover:bg-primary disabled:opacity-40 text-white'}`}>
                     {savingPipeline ? <Loader2 className="w-4 h-4 animate-spin" /> : pipelineSaved ? <CheckCircle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                     {pipelineSaved ? 'Saved!' : 'Save Pipeline Stage'}
                   </button>

@@ -315,7 +315,7 @@ export default function ProgressPage() {
           
           /* Force charts/rings to be visible but clean */
           svg { filter: grayscale(20%); }
-          .bg-orange-500 { background: #7c3aed !important; -webkit-print-color-adjust: exact; }
+          .bg-primary { background: #7c3aed !important; -webkit-print-color-adjust: exact; }
           .h-2 { border: 1px solid #e5e7eb !important; }
 
           /* Layout adjustments for A4 */
@@ -344,8 +344,8 @@ export default function ProgressPage() {
         <div className="flex items-center justify-between print:hidden">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ChartBarIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">
+              <ChartBarIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">
                 {isStaff ? 'Student Analytics' : 'My Progress'} · {role}
               </span>
             </div>
@@ -396,27 +396,27 @@ export default function ProgressPage() {
                 placeholder="Search student or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             {role === 'admin' ? (
               <select
                 value={selectedSchool}
                 onChange={(e) => setSelectedSchool(e.target.value)}
-                className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="all">All Schools</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             ) : (
-                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-none text-xs font-black text-orange-400/60 uppercase tracking-widest flex items-center gap-2">
+                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-none text-xs font-black text-primary/60 uppercase tracking-widest flex items-center gap-2">
                     <BuildingOfficeIcon className="w-3 h-3" /> {schools.find(s => s.id === profile?.school_id)?.name || profile?.school_name || 'My School'}
                 </div>
             )}
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">All Classes</option>
               {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
@@ -424,7 +424,7 @@ export default function ProgressPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
+              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">Any Status</option>
               <option value="active">Active</option>
@@ -448,7 +448,7 @@ export default function ProgressPage() {
             {/* Ring & Mastery Chart */}
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-card shadow-sm border border-border rounded-none p-6 flex flex-col items-center justify-center gap-3 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-600/5 blur-3xl -mr-12 -mt-12" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12" />
                 <div className="relative">
                   <RingProgress pct={avgScore ?? 0} size={140} stroke={12}
                     color={avgScore ? pctColor(avgScore) : '#374151'} />
@@ -502,7 +502,7 @@ export default function ProgressPage() {
                   { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                   { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
                   { label: 'Best Score', value: best != null ? `${best}%` : '—', icon: TrophyIcon, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-                  { label: 'Enrolled', value: enrollments.length, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+                  { label: 'Enrolled', value: enrollments.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
                   { label: 'Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon, color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-muted-foreground', bg: 'bg-card shadow-sm' },
                 ].map(s => (
                   <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 group hover:border-border transition-all">
@@ -516,14 +516,14 @@ export default function ProgressPage() {
               </div>
 
               {/* Weekly Trend Placeholder or Insight */}
-              <div className="bg-gradient-to-r from-orange-600/10 to-transparent border border-orange-500/20 rounded-none p-6 sm:p-8 flex items-center gap-6">
-                 <div className="shrink-0 p-4 bg-orange-500/20 rounded-none text-orange-400">
+              <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-none p-6 sm:p-8 flex items-center gap-6">
+                 <div className="shrink-0 p-4 bg-primary/20 rounded-none text-primary">
                     <ArrowTrendingUpIcon className="w-8 h-8" />
                  </div>
                  <div className="space-y-1">
                     <h4 className="text-lg font-black text-foreground italic tracking-tight">Performance Insight</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                      Based on your recent scores in <span className="text-orange-400 font-bold">Coding & Logic</span>, you are performing in the <span className="text-emerald-400 font-bold">top 15%</span> of your class. Keep up the consistent effort to reach Diamond tier!
+                      Based on your recent scores in <span className="text-primary font-bold">Coding & Logic</span>, you are performing in the <span className="text-emerald-400 font-bold">top 15%</span> of your class. Keep up the consistent effort to reach Diamond tier!
                     </p>
                  </div>
               </div>
@@ -535,7 +535,7 @@ export default function ProgressPage() {
         {isStaff && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Scoped Submissions', value: activeSubs.length, icon: ClipboardDocumentCheckIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+              { label: 'Scoped Submissions', value: activeSubs.length, icon: ClipboardDocumentCheckIcon, color: 'text-primary', bg: 'bg-primary/10' },
               { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
               { label: 'Awaiting Grade', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
               {
@@ -559,7 +559,7 @@ export default function ProgressPage() {
           <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground flex items-center gap-2">
-                <BookOpenIcon className="w-5 h-5 text-orange-400" />
+                <BookOpenIcon className="w-5 h-5 text-primary" />
                 {isStaff ? 'Program Enrollments' : 'My Enrolled Programs'}
               </h3>
             </div>
@@ -576,7 +576,7 @@ export default function ProgressPage() {
                       )}
                       <div className="flex items-center gap-2 mt-2">
                         <div className="flex-1 h-2 bg-card shadow-sm rounded-full overflow-hidden">
-                          <div style={{ width: `${pct}%` }} className="h-2 bg-orange-500 rounded-full transition-all duration-500" />
+                          <div style={{ width: `${pct}%` }} className="h-2 bg-primary rounded-full transition-all duration-500" />
                         </div>
                         <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
                       </div>
@@ -600,7 +600,7 @@ export default function ProgressPage() {
         {scoreReports.length > 0 && (
           <div className="bg-card border border-border rounded-none overflow-hidden">
             <div className="p-5 border-b border-border flex items-center gap-2">
-              <ArrowTrendingUpIcon className="w-5 h-5 text-orange-400" />
+              <ArrowTrendingUpIcon className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-foreground">
                 {isStaff ? 'Score Trends (Published Reports)' : 'My Score Trends'}
               </h3>

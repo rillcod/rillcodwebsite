@@ -14,10 +14,10 @@ const Programs: React.FC = () => {
     },
     {
       id: 'scratch-programming',
-      icon: <Cat className="w-12 h-12 text-orange-600" />,
+      icon: <Cat className="w-12 h-12 text-primary" />,
       title: "Scratch Programming",
       description: "Create Your Own Cartoons and Games! Make fun animations and games with colorful blocks.",
-      color: "from-orange-400 to-orange-600",
+      color: "from-primary to-primary",
       animation: "animate-float"
     },
     {

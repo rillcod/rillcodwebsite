@@ -391,11 +391,11 @@ export default function DashboardNavigation() {
       {/* ── Mobile Top Header ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_30px_rgba(0,0,0,0.3)]">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+          <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
           <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
-            Rillcod <span className="text-orange-500">Technologies</span>
+            Rillcod <span className="text-primary">Technologies</span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
@@ -444,8 +444,8 @@ export default function DashboardNavigation() {
       >
         {/* Logo */}
         <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-sidebar-foreground/[0.08] relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-orange-500/[0.04] to-transparent pointer-events-none" />
-          <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shadow-[0_0_24px_rgba(26,58,143,0.15)] mb-3 relative z-10">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.04] to-transparent pointer-events-none" />
+          <div className="w-11 h-11 bg-primary/10 border border-primary/25 flex items-center justify-center shadow-[0_0_24px_rgba(26,58,143,0.15)] mb-3 relative z-10">
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
           <div className="text-center leading-none relative z-10">
@@ -456,14 +456,14 @@ export default function DashboardNavigation() {
 
         {/* User badge */}
         <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-foreground/[0.08] bg-sidebar-foreground/[0.03]">
-          <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(26,58,143,0.12)]">
-            <span className="text-orange-400 text-sm font-black uppercase">
+          <div className="w-9 h-9 bg-primary/10 border border-primary/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(26,58,143,0.12)]">
+            <span className="text-primary text-sm font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[14px] font-black truncate text-sidebar-foreground/90 tracking-wide">{profile.full_name}</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-400/70 mt-0.5">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/70 mt-0.5">
               {profile.role === 'school' && profile.school_name ? profile.school_name : profile.role}
             </span>
           </div>
@@ -500,7 +500,7 @@ export default function DashboardNavigation() {
                 onClick={() => setMobileOpen(false)}
                 className={`relative flex items-center gap-3 px-3 py-2.5 text-[13px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${
                   active
-                    ? 'bg-orange-500/[0.08] text-sidebar-foreground'
+                    ? 'bg-primary/[0.08] text-sidebar-foreground'
                     : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]'
                 }`}
               >
@@ -509,7 +509,7 @@ export default function DashboardNavigation() {
                 )}
                 <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
                   active
-                    ? 'text-orange-400 drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]'
+                    ? 'text-primary drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]'
                     : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
                 }`} />
                 <span className="truncate">{name}</span>
@@ -576,10 +576,10 @@ export default function DashboardNavigation() {
             >
               <div className={`relative flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${
                 active
-                  ? 'bg-orange-500/15 shadow-[0_0_12px_rgba(26,58,143,0.25)]'
+                  ? 'bg-primary/15 shadow-[0_0_12px_rgba(26,58,143,0.25)]'
                   : ''
               }`}>
-                <Icon className={`w-5 h-5 transition-colors ${active ? 'text-orange-400' : 'text-sidebar-foreground/35'}`} />
+                <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
                 {name === 'WhatsApp Inbox' && unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-brand-red-600 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -587,7 +587,7 @@ export default function DashboardNavigation() {
                 )}
               </div>
               <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
-                active ? 'text-orange-400' : 'text-sidebar-foreground/25'
+                active ? 'text-primary' : 'text-sidebar-foreground/25'
               }`}>
                 {shortName}
               </span>
@@ -598,13 +598,13 @@ export default function DashboardNavigation() {
           onClick={() => setMobileOpen(v => !v)}
           className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all group"
         >
-          <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-orange-500/15' : ''}`}>
+          <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-primary/15' : ''}`}>
             {mobileOpen
-              ? <XMarkIcon className="w-5 h-5 text-orange-400" />
+              ? <XMarkIcon className="w-5 h-5 text-primary" />
               : <Bars3Icon className="w-5 h-5 text-sidebar-foreground/35" />
             }
           </div>
-          <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${mobileOpen ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${mobileOpen ? 'text-primary' : 'text-sidebar-foreground/25'}`}>
             Menu
           </span>
         </button>

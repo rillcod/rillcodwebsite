@@ -75,7 +75,7 @@ const Footer = () => {
   return (
     <footer className="bg-background text-foreground border-t border-border py-24 relative overflow-hidden">
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-orange-600/5 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/5 blur-[100px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
@@ -94,13 +94,13 @@ const Footer = () => {
               </div>
             </Link>
             
-            <p className="text-sm text-muted-foreground font-bold italic leading-relaxed border-l-2 border-orange-500 pl-6">
+            <p className="text-sm text-muted-foreground font-bold italic leading-relaxed border-l-2 border-primary pl-6">
               Building the next generation of African tech leaders through hands-on coding, robotics, and STEM education.
             </p>
 
             <div className="space-y-4 pt-4">
                <div className="flex items-start gap-4 group">
-                  <MapPinIcon className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                  <MapPinIcon className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-xs font-black text-muted-foreground/70 uppercase tracking-widest leading-relaxed">
                     No 26 Ogiesoba Aveune <br />
                     Off Airport Road, <br />
@@ -108,11 +108,11 @@ const Footer = () => {
                   </p>
                </div>
                <div className="flex items-center gap-4 group">
-                  <PhoneIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                  <PhoneIcon className="w-5 h-5 text-primary flex-shrink-0" />
                   <p className="text-xs font-black text-foreground uppercase tracking-widest">08116600091</p>
                </div>
                <div className="flex items-center gap-4 group">
-                  <EnvelopeIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                  <EnvelopeIcon className="w-5 h-5 text-primary flex-shrink-0" />
                   <p className="text-xs font-black text-foreground lowercase tracking-widest">support@rillcod.com</p>
                </div>
             </div>
@@ -124,8 +124,8 @@ const Footer = () => {
             <ul className="space-y-4">
               {quickLinks.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-xs font-black text-muted-foreground/70 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
-                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
+                  <Link href={link.href} className="text-xs font-black text-muted-foreground/70 hover:text-primary transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                    <span className="w-1.5 h-1.5 bg-primary rounded-none opacity-0 group-hover:opacity-100 transition-all" />
                     {link.label}
                   </Link>
                 </li>
@@ -139,8 +139,8 @@ const Footer = () => {
             <ul className="space-y-4">
               {programs.map((p) => (
                 <li key={p.label}>
-                  <Link href={p.href} className="text-xs font-black text-muted-foreground/70 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
-                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
+                  <Link href={p.href} className="text-xs font-black text-muted-foreground/70 hover:text-primary transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                    <span className="w-1.5 h-1.5 bg-primary rounded-none opacity-0 group-hover:opacity-100 transition-all" />
                     {p.label}
                   </Link>
                 </li>
@@ -154,7 +154,7 @@ const Footer = () => {
             <p className="text-xs font-bold text-muted-foreground italic mb-8">
               Stay synchronized with our latest technological deployment and curriculum updates.
             </p>
-            <Link href="/student-registration" className="block w-full py-5 bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
+            <Link href="/student-registration" className="block w-full py-5 bg-primary text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-primary/20 hover:bg-primary transition-all">
               Initialize Enrollment
             </Link>
           </div>
@@ -172,7 +172,7 @@ const Footer = () => {
             © {currentYear} RILLCOD TECHNOLOGIES. ALL SYSTEMS OPERATIONAL.
           </p>
 
-          <button onClick={scrollToTop} className="flex items-center gap-4 text-xs font-black text-orange-500 uppercase tracking-widest hover:text-foreground transition-all group">
+          <button onClick={scrollToTop} className="flex items-center gap-4 text-xs font-black text-primary uppercase tracking-widest hover:text-foreground transition-all group">
             Top <ArrowUpIcon className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />
           </button>
         </div>

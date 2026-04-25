@@ -53,7 +53,7 @@ const journeyStages = [
     age: "10–12 years", 
     grade: "Basic 5–6",
     icon: Lightbulb,
-    color: "from-yellow-500 to-orange-500",
+    color: "from-yellow-500 to-primary",
     bgColor: "bg-yellow-50",
     borderColor: "border-yellow-200",
     skills: ["Python Basics", "AI Fundamentals", "Web Concepts", "Data Visualization"],
@@ -130,7 +130,7 @@ const careerPaths = [
   {
     title: "Entrepreneurship",
     icon: Rocket,
-    color: "from-orange-600 to-red-600",
+    color: "from-primary to-red-600",
     salary: "Unlimited Potential",
     companies: ["Start Your Own", "Tech Incubators", "Venture Capital", "Innovation Labs"],
     skills: ["Business Strategy", "Fundraising", "Team Building", "Innovation"]

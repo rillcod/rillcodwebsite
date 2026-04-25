@@ -18,12 +18,12 @@ export default function PartnerSchoolScopeBanner() {
   if (FULLSCREEN_PATHS.some((p) => pathname.startsWith(p))) return null;
 
   return (
-    <div className="mb-4 rounded-none border border-orange-500/25 bg-orange-500/[0.06] px-4 py-3 flex gap-3 items-start">
-      <div className="mt-0.5 shrink-0 text-orange-400">
+    <div className="mb-4 rounded-none border border-primary/25 bg-primary/[0.06] px-4 py-3 flex gap-3 items-start">
+      <div className="mt-0.5 shrink-0 text-primary">
         <BuildingOffice2Icon className="h-5 w-5" aria-hidden />
       </div>
       <div className="text-left space-y-1">
-        <p className="text-[11px] font-black uppercase tracking-widest text-orange-400/90">School workspace</p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-primary/90">School workspace</p>
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           This portal is focused on <span className="text-foreground font-semibold">your school only</span>:
           students, classes, delivery progress, billing, schedules, and records tied to your campus. Platform-wide

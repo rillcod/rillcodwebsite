@@ -49,7 +49,7 @@ function riskLevel(submissionPct: number, streak: number): StudentEngagementRow[
 const RISK_META = {
   safe:     { label: 'Active',    color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
   watch:    { label: 'Watch',     color: 'text-amber-400',   bg: 'bg-amber-500/10   border-amber-500/20'   },
-  at_risk:  { label: 'At Risk',   color: 'text-orange-400',  bg: 'bg-orange-500/10  border-orange-500/20'  },
+  at_risk:  { label: 'At Risk',   color: 'text-primary',  bg: 'bg-primary/10  border-primary/20'  },
   critical: { label: 'Critical',  color: 'text-rose-400',    bg: 'bg-rose-500/10    border-rose-500/20'    },
 };
 
@@ -64,8 +64,8 @@ function StudentRow({ s, onNudge }: { s: StudentEngagementRow; onNudge: (s: Stud
   return (
     <div className={`bg-card border p-4 space-y-3 transition-all ${
       s.risk_level === 'critical' ? 'border-rose-500/30' :
-      s.risk_level === 'at_risk'  ? 'border-orange-500/20' :
-      'border-border hover:border-orange-500/20'
+      s.risk_level === 'at_risk'  ? 'border-primary/20' :
+      'border-border hover:border-primary/20'
     }`}>
       {/* Name + risk */}
       <div className="flex items-start justify-between gap-3">
@@ -91,7 +91,7 @@ function StudentRow({ s, onNudge }: { s: StudentEngagementRow; onNudge: (s: Stud
             className={`h-full rounded-full transition-all ${
               s.submission_pct >= 80 ? 'bg-emerald-500' :
               s.submission_pct >= 60 ? 'bg-amber-500' :
-              s.submission_pct >= 40 ? 'bg-orange-500' : 'bg-rose-500'
+              s.submission_pct >= 40 ? 'bg-primary' : 'bg-rose-500'
             }`}
             style={{ width: `${Math.min(100, s.submission_pct)}%` }}
           />
@@ -101,7 +101,7 @@ function StudentRow({ s, onNudge }: { s: StudentEngagementRow; onNudge: (s: Stud
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-muted/30 p-2">
-          <div className={`text-sm font-black ${s.current_streak >= 3 ? 'text-orange-400' : 'text-foreground'}`}>
+          <div className={`text-sm font-black ${s.current_streak >= 3 ? 'text-primary' : 'text-foreground'}`}>
             {s.current_streak}
           </div>
           <div className="text-[9px] text-muted-foreground font-bold">wk streak</div>
@@ -251,7 +251,7 @@ export default function EngagementPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <ExclamationTriangleIcon className="w-12 h-12 text-muted-foreground mb-4" />
         <p className="text-muted-foreground">Staff access only.</p>
-        <Link href="/dashboard" className="mt-4 text-orange-400 text-sm font-bold">← Back to Dashboard</Link>
+        <Link href="/dashboard" className="mt-4 text-primary text-sm font-bold">← Back to Dashboard</Link>
       </div>
     );
   }
@@ -263,7 +263,7 @@ export default function EngagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <BoltIcon className="w-4 h-4 text-orange-400" />
+            <BoltIcon className="w-4 h-4 text-primary" />
             <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Class Engagement</span>
           </div>
           <h1 className="text-2xl font-black">Student Activity Tracker</h1>
@@ -307,14 +307,14 @@ export default function EngagementPage() {
           {([
             { key: 'safe',     label: 'Active',   count: counts.safe,     color: 'text-emerald-400', bg: 'bg-emerald-500/5  border-emerald-500/20', barColor: CHART_COLORS.emerald },
             { key: 'watch',    label: 'Watch',    count: counts.watch,    color: 'text-amber-400',   bg: 'bg-amber-500/5   border-amber-500/20',   barColor: CHART_COLORS.amber   },
-            { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-orange-400',  bg: 'bg-orange-500/5  border-orange-500/20',  barColor: CHART_COLORS.orange  },
+            { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-primary',  bg: 'bg-primary/5  border-primary/20',  barColor: CHART_COLORS.orange  },
             { key: 'critical', label: 'Critical', count: counts.critical, color: 'text-rose-400',    bg: 'bg-rose-500/5    border-rose-500/20',    barColor: CHART_COLORS.rose    },
           ] as const).map(s => (
             <button
               key={s.key}
               onClick={() => setRiskFilter(riskFilter === s.key ? 'all' : s.key)}
               className={`border p-4 text-left transition-all space-y-2 ${s.bg} ${
-                riskFilter === s.key ? 'ring-2 ring-offset-1 ring-orange-500' : ''
+                riskFilter === s.key ? 'ring-2 ring-offset-1 ring-primary' : ''
               }`}
             >
               <p className={`text-3xl font-black leading-none ${s.color}`}>{s.count}</p>
@@ -352,7 +352,7 @@ export default function EngagementPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name or school…"
-            className="w-full bg-card border border-border text-foreground pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-orange-500"
+            className="w-full bg-card border border-border text-foreground pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-primary"
           />
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-bold">
@@ -363,7 +363,7 @@ export default function EngagementPage() {
       {/* Student grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
@@ -391,7 +391,7 @@ export default function EngagementPage() {
               value={nudgeMsg}
               onChange={e => setNudgeMsg(e.target.value)}
               rows={4}
-              className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-orange-500 resize-none"
+              className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm focus:outline-none focus:border-primary resize-none"
               placeholder="Write an encouraging message…"
             />
             <div className="flex gap-3">
@@ -400,7 +400,7 @@ export default function EngagementPage() {
                 Cancel
               </button>
               <button onClick={sendNudge} disabled={sending}
-                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold text-sm transition-colors">
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white font-bold text-sm transition-colors">
                 {sending ? 'Sending…' : 'Send Nudge'}
               </button>
             </div>

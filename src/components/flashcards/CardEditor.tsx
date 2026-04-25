@@ -44,7 +44,7 @@ export default function CardEditor({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="bg-card border border-border p-3 sm:p-4 rounded-lg space-y-4 hover:border-orange-500/30 transition-colors"
+            className="bg-card border border-border p-3 sm:p-4 rounded-lg space-y-4 hover:border-primary/30 transition-colors"
           >
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm">Card {index + 1}</h4>
@@ -53,7 +53,7 @@ export default function CardEditor({
                 <select
                   value={card.difficulty || 'medium'}
                   onChange={(e) => onUpdateCard(card.id, 'difficulty', e.target.value)}
-                  className="text-xs bg-background border border-border px-2 py-1 rounded focus:outline-none focus:border-orange-500"
+                  className="text-xs bg-background border border-border px-2 py-1 rounded focus:outline-none focus:border-primary"
                 >
                   <option value="easy">Easy</option>
                   <option value="medium">Medium</option>
@@ -84,14 +84,14 @@ export default function CardEditor({
                   value={card.front}
                   onChange={(e) => onUpdateCard(card.id, 'front', e.target.value)}
                   placeholder="Enter the question or prompt..."
-                  className="w-full h-24 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 rounded transition-colors"
+                  className="w-full h-24 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary rounded transition-colors"
                 />
                 <input
                   type="url"
                   value={card.frontImage || ''}
                   onChange={(e) => onUpdateCard(card.id, 'frontImage', e.target.value)}
                   placeholder="Image URL (optional)"
-                  className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-orange-500 rounded"
+                  className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-primary rounded"
                 />
               </div>
               
@@ -104,14 +104,14 @@ export default function CardEditor({
                   value={card.back}
                   onChange={(e) => onUpdateCard(card.id, 'back', e.target.value)}
                   placeholder="Enter the answer or explanation..."
-                  className="w-full h-24 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-orange-500 rounded transition-colors"
+                  className="w-full h-24 bg-background border border-border px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary rounded transition-colors"
                 />
                 <input
                   type="url"
                   value={card.backImage || ''}
                   onChange={(e) => onUpdateCard(card.id, 'backImage', e.target.value)}
                   placeholder="Image URL (optional)"
-                  className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-orange-500 rounded"
+                  className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-primary rounded"
                 />
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function CardEditor({
                   e.target.value.split(',').map(t => t.trim()).filter(Boolean)
                 )}
                 placeholder="e.g., biology, cells, mitosis"
-                className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-orange-500 rounded"
+                className="w-full bg-background border border-border px-3 py-2 text-xs focus:outline-none focus:border-primary rounded"
               />
             </div>
 
@@ -144,7 +144,7 @@ export default function CardEditor({
                 onChange={(e) => onUpdateCard(card.id, 'notes', e.target.value)}
                 placeholder="Add any additional notes or context..."
                 rows={2}
-                className="w-full bg-background border border-border px-3 py-2 text-xs resize-none focus:outline-none focus:border-orange-500 rounded"
+                className="w-full bg-background border border-border px-3 py-2 text-xs resize-none focus:outline-none focus:border-primary rounded"
               />
             </div>
           </motion.div>
@@ -155,7 +155,7 @@ export default function CardEditor({
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
           onClick={onAddCard}
-          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-muted-foreground/30 hover:border-orange-500/50 text-muted-foreground hover:text-orange-500 transition-colors rounded-lg"
+          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 text-muted-foreground hover:text-primary transition-colors rounded-lg"
         >
           <PlusIcon className="w-5 h-5" />
           Add Another Card

@@ -449,7 +449,7 @@ function AddLessonPageContent() {
 
   if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -484,8 +484,8 @@ function AddLessonPageContent() {
       {/* Page title */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <BookOpen className="w-5 h-5 text-orange-400" />
-          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">New Lesson</span>
+          <BookOpen className="w-5 h-5 text-primary" />
+          <span className="text-xs font-bold text-primary uppercase tracking-widest">New Lesson</span>
         </div>
         <h1 className="text-3xl font-extrabold text-foreground">Create Lesson</h1>
         <p className="text-muted-foreground text-sm mt-1">Fill in the details below or use the AI assistant to generate content.</p>
@@ -560,21 +560,21 @@ function AddLessonPageContent() {
       )}
 
       {/* AI Generate Panel */}
-      <div className="bg-gradient-to-br from-orange-500/10 to-orange-400/5 border border-orange-500/20 rounded-xl overflow-hidden">
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl overflow-hidden">
         <button
           type="button"
           onClick={() => setAiOpen(o => !o)}
           className="w-full flex items-center justify-between px-5 py-4 text-left"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-              <Sparkles className="w-5 h-5 text-orange-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm font-black text-foreground uppercase tracking-widest">AI Lesson Assistant</p>
               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">
                 {lastModel
-                  ? <span>Guide: <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
+                  ? <span>Guide: <span className="text-primary">{lastModel.split('/').pop()}</span></span>
                   : 'Academic · Project · Interactive modes'}
               </p>
             </div>
@@ -583,7 +583,7 @@ function AddLessonPageContent() {
         </button>
 
         {aiOpen && (
-          <div className="px-5 pb-5 space-y-4 border-t border-orange-500/20">
+          <div className="px-5 pb-5 space-y-4 border-t border-primary/20">
             {aiError && (
               <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
                 <span className="flex-shrink-0">⚠</span> {aiError}
@@ -623,7 +623,7 @@ function AddLessonPageContent() {
                   onChange={e => setAiTopic(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                   placeholder="e.g. Introduction to Python loops"
-                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
                 />
               </div>
               <div className="space-y-1">
@@ -638,7 +638,7 @@ function AddLessonPageContent() {
                 <select
                   value={aiGrade}
                   onChange={e => setAiGrade(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
                 >
                   <optgroup label="Early Years">
                     {['KG', 'KG–Basic 3'].map(g => <option key={g} value={g}>{g}</option>)}
@@ -663,7 +663,7 @@ function AddLessonPageContent() {
                   value={aiSubject}
                   onChange={e => setAiSubject(e.target.value)}
                   placeholder="e.g. Python Programming"
-                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
                 />
               </div>
               <button
@@ -761,7 +761,7 @@ function AddLessonPageContent() {
       {/* Lesson Details */}
       <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-3 pb-3 border-b border-border">
-          <Settings2 className="w-4 h-4 text-orange-400" />
+          <Settings2 className="w-4 h-4 text-primary" />
           <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Lesson Details</h2>
           <span className="text-[10px] text-muted-foreground font-medium ml-1">— core settings &amp; study notes</span>
         </div>
@@ -770,7 +770,7 @@ function AddLessonPageContent() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Title *</label>
-              <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 flex items-center gap-1 transition-colors">
+              <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary flex items-center gap-1 transition-colors">
                 <Sparkles className="w-3 h-3" /> Magic Suggest
               </button>
             </div>
@@ -778,7 +778,7 @@ function AddLessonPageContent() {
               value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })}
               placeholder="e.g. Building your first App"
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none"
             />
           </div>
           <div className="space-y-2">
@@ -791,7 +791,7 @@ function AddLessonPageContent() {
                 const cur = courses.find((c: any) => c.id === form.course_id);
                 if (cur?.program_id !== pid) setForm(prev => ({ ...prev, course_id: '' }));
               }}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none appearance-none cursor-pointer"
             >
               <option value="">All programmes</option>
               {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -808,7 +808,7 @@ function AddLessonPageContent() {
               value={form.course_id}
               onChange={e => handleCourseChange(e.target.value)}
               disabled={courseSelectDisabled}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer disabled:opacity-40"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none appearance-none cursor-pointer disabled:opacity-40"
             >
               <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
               {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
@@ -820,7 +820,7 @@ function AddLessonPageContent() {
             <select
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none cursor-pointer"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
             >
               {['draft', 'scheduled', 'active'].map(o => <option key={o} value={o}>{o.toUpperCase()}</option>)}
             </select>
@@ -833,7 +833,7 @@ function AddLessonPageContent() {
             <select
               value={form.lesson_type}
               onChange={e => setForm({ ...form, lesson_type: e.target.value })}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none cursor-pointer"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
             >
               {['lesson', 'hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading', 'quiz', 'article', 'project', 'lab', 'live', 'practice', 'robotics', 'electronics', 'ai'].map(o => (
                 <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>
@@ -846,7 +846,7 @@ function AddLessonPageContent() {
               type="number"
               value={form.duration_minutes}
               onChange={e => setForm({ ...form, duration_minutes: e.target.value })}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none"
             />
           </div>
         </div>
@@ -857,7 +857,7 @@ function AddLessonPageContent() {
             value={form.description}
             onChange={e => setForm({ ...form, description: e.target.value })}
             rows={3}
-            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none"
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none resize-none"
           />
         </div>
 
@@ -870,7 +870,7 @@ function AddLessonPageContent() {
             <button
               type="button"
               onClick={handleGenerateNotesOnly}
-              className="shrink-0 text-[9px] font-black text-orange-400 uppercase tracking-widest inline-flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50 min-h-[44px] sm:min-h-0 px-1 -mx-1 touch-manipulation"
+              className="shrink-0 text-[9px] font-black text-primary uppercase tracking-widest inline-flex items-center gap-1 hover:text-primary transition-colors disabled:opacity-50 min-h-[44px] sm:min-h-0 px-1 -mx-1 touch-manipulation"
               disabled={aiGeneratingNotes || aiGenerating}
             >
               {aiGeneratingNotes
@@ -885,7 +885,7 @@ function AddLessonPageContent() {
             value={form.lesson_notes}
             onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
             placeholder="Detailed study notes for the student..."
-            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none resize-none"
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none resize-none"
             rows={6}
           />
         </div>
@@ -896,7 +896,7 @@ function AddLessonPageContent() {
             value={form.video_url}
             onChange={e => setForm({ ...form, video_url: e.target.value })}
             placeholder="https://youtube.com/..."
-            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none"
+            className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none"
           />
         </div>
       </div>
@@ -920,7 +920,7 @@ function AddLessonPageContent() {
           type="button"
           onClick={handleSubmit}
           disabled={saving}
-          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
+          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-primary hover:bg-primary active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
         >
           {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> Creating…</> : <><Save className="w-4 h-4" aria-hidden /> Create lesson</>}
         </button>
@@ -934,7 +934,7 @@ export default function AddLessonPage() {
     <Suspense
       fallback={(
         <div className="min-h-screen bg-background flex items-center justify-center" role="status">
-          <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}
     >

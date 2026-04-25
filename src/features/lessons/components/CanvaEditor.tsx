@@ -146,7 +146,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <button
                         type="button"
                         onClick={() => setPreviewMode(p => !p)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all border ${previewMode ? 'bg-orange-500/20 border-orange-500/40 text-orange-400' : 'bg-white/5 border-border text-white/50 hover:text-white hover:bg-white/10'}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all border ${previewMode ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/5 border-border text-white/50 hover:text-white hover:bg-white/10'}`}
                     >
                         {previewMode ? <><EyeOffIcon className="w-3.5 h-3.5" /> Edit</> : <><EyeIcon className="w-3.5 h-3.5" /> Preview</>}
                     </button>
@@ -174,7 +174,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <div className="h-6 w-px bg-white/10 mx-1 self-center" />
                     {/* Learning */}
                     <ToolbarButton onClick={() => addBlock('activity')} icon={ActivityIcon} label="Activity" className="border-emerald-500/30 text-emerald-400" />
-                    <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" className="border-orange-500/30 text-orange-400" />
+                    <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" className="border-primary/30 text-primary" />
                     <ToolbarButton onClick={() => addBlock('assignment-block')} icon={TrophyIcon} label="Capstone Note" className="border-amber-500/30 text-amber-400" title="Content block only — use 'Add Assignment' in the lesson to create a real assignment" />
                     <div className="h-6 w-px bg-white/10 mx-1 self-center" />
                     {/* Advanced */}
@@ -182,7 +182,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <ToolbarButton icon={SigmaIcon} label="Math" onClick={() => addBlock('math')} className="border-indigo-500/30 text-indigo-400" />
                     <ToolbarButton onClick={() => addBlock('visualizer')} icon={ActivityIcon} label="Visualizer" className="border-cyan-500/30 text-cyan-400" />
                     <ToolbarButton onClick={() => addBlock('motion-graphics')} icon={SparklesIcon} label="Motion" className="border-indigo-500/30 text-indigo-400" />
-                    <ToolbarButton onClick={() => addBlock('d3-chart')} icon={ActivityIcon} label="Chart" className="border-orange-500/30 text-orange-400" />
+                    <ToolbarButton onClick={() => addBlock('d3-chart')} icon={ActivityIcon} label="Chart" className="border-primary/30 text-primary" />
                     <ToolbarButton onClick={() => addBlock('scratch')} icon={PuzzleIcon} label="Scratch" className="border-rose-500/30 text-rose-400" />
                     <ToolbarButton onClick={() => addBlock('illustration')} icon={SparklesIcon} label="Infographic" className="border-indigo-500/30 text-indigo-400" />
                     <ToolbarButton onClick={() => addBlock('code-map')} icon={Share2Icon} label="Architecture" className="border-cyan-500/30 text-cyan-400" />
@@ -557,12 +557,12 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                     </div>
                                 )}
                                 {block.type === 'd3-chart' && (
-                                    <div className="space-y-4 p-4 bg-orange-500/5 rounded-none border border-orange-500/10">
+                                    <div className="space-y-4 p-4 bg-primary/5 rounded-none border border-primary/10">
                                         <div className="flex gap-4">
                                             <select 
                                                 value={block.chartType} 
                                                 onChange={e => updateBlock(i, { chartType: e.target.value })}
-                                                className="bg-black/40 border border-white/10 rounded-none px-3 py-1.5 text-[10px] text-orange-400 font-bold outline-none"
+                                                className="bg-black/40 border border-white/10 rounded-none px-3 py-1.5 text-[10px] text-primary font-bold outline-none"
                                             >
                                                 {['bar', 'line', 'pie', 'area'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
                                             </select>
@@ -586,7 +586,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.title || ''}
                                             onChange={e => updateBlock(i, { title: e.target.value })}
                                             placeholder="Chart title..."
-                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-orange-500 mt-2"
+                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-primary mt-2"
                                         />
                                     </div>
                                 )}
@@ -681,13 +681,13 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                 )}
 
                                 {block.type === 'quote' && (
-                                    <div className="space-y-2 p-3 border-l-4 border-orange-500/40 bg-orange-500/5">
+                                    <div className="space-y-2 p-3 border-l-4 border-primary/40 bg-primary/5">
                                         <textarea rows={2} value={block.content || ''} onChange={e => updateBlock(i, { content: e.target.value })}
                                             placeholder="Quote text..."
                                             className="w-full bg-transparent italic text-sm text-foreground/80 focus:outline-none resize-none" />
                                         <input type="text" value={block.author || ''} onChange={e => updateBlock(i, { author: e.target.value })}
                                             placeholder="Author / source (optional)..."
-                                            className="w-full bg-transparent border-b border-white/10 text-xs text-orange-400/70 focus:outline-none" />
+                                            className="w-full bg-transparent border-b border-white/10 text-xs text-primary/70 focus:outline-none" />
                                     </div>
                                 )}
 
@@ -825,9 +825,9 @@ function PreviewBlock({ block }: { block: Block }) {
             return <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{block.content || <span className="text-muted-foreground italic">Empty text block</span>}</p>;
         case 'quote':
             return (
-                <blockquote className="border-l-4 border-orange-500 pl-4 space-y-1">
+                <blockquote className="border-l-4 border-primary pl-4 space-y-1">
                     <p className="text-base italic text-foreground/90">"{block.content}"</p>
-                    {block.author && <p className="text-xs font-bold text-orange-400">— {block.author}</p>}
+                    {block.author && <p className="text-xs font-bold text-primary">— {block.author}</p>}
                 </blockquote>
             );
         case 'callout':
@@ -912,13 +912,13 @@ function PreviewBlock({ block }: { block: Block }) {
             return block.url ? (
                 <div className="space-y-2">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">📹 Video</p>
-                    <a href={block.url} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:underline">{block.caption || block.url}</a>
+                    <a href={block.url} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">{block.caption || block.url}</a>
                 </div>
             ) : null;
         case 'quiz':
             return (
-                <div className="bg-orange-500/5 border border-orange-500/20 p-4 space-y-3">
-                    <p className="text-xs font-black uppercase tracking-widest text-orange-400">Quick Check</p>
+                <div className="bg-primary/5 border border-primary/20 p-4 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-primary">Quick Check</p>
                     <p className="text-sm font-bold text-foreground">{block.question}</p>
                     <ul className="space-y-1.5">
                         {(block.options || []).filter(Boolean).map((opt, i) => (
@@ -947,7 +947,7 @@ function PreviewBlock({ block }: { block: Block }) {
             return <p className="font-serif text-lg text-center py-3 text-foreground border border-border bg-white/3">{block.formula}</p>;
         case 'file':
             return block.url ? (
-                <a href={block.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-orange-400 hover:underline">
+                <a href={block.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
                     📎 {block.fileName || 'Download Resource'}
                 </a>
             ) : null;

@@ -29,7 +29,7 @@ interface StudentFlashcardReviewProps {
 
 const CONFIDENCE_BUTTONS = [
   { label: 'Forgot',  emoji: '😵', value: 1, color: 'bg-rose-600   hover:bg-rose-500',   key: '1' },
-  { label: 'Hard',    emoji: '😫', value: 2, color: 'bg-orange-600 hover:bg-orange-500', key: '2' },
+  { label: 'Hard',    emoji: '😫', value: 2, color: 'bg-primary hover:bg-primary', key: '2' },
   { label: 'Good',    emoji: '😃', value: 4, color: 'bg-blue-600   hover:bg-blue-500',   key: '3' },
   { label: 'Easy',    emoji: '🤩', value: 5, color: 'bg-emerald-600 hover:bg-emerald-500', key: '4' },
 ];
@@ -160,7 +160,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
     <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
       <div className="text-center space-y-4">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full mx-auto" />
+          className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
         <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Loading flashcards…</p>
       </div>
     </div>
@@ -176,7 +176,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
           <h2 className="text-xl font-black text-foreground mb-2">No Cards Available</h2>
           <p className="text-muted-foreground text-sm">This deck doesn't have any cards yet.</p>
         </div>
-        <button onClick={onExit} className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl transition-colors">
+        <button onClick={onExit} className="px-6 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-colors">
           Go Back
         </button>
       </motion.div>
@@ -194,7 +194,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
     const perfConfig = {
       excellent: { emoji: '🏆', msg: 'Outstanding! You crushed it!',    color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20' },
       good:      { emoji: '🌟', msg: 'Great job! Keep it up!',          color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20' },
-      fair:      { emoji: '💪', msg: 'Good effort! Practice more!',     color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+      fair:      { emoji: '💪', msg: 'Good effort! Practice more!',     color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
       retry:     { emoji: '📚', msg: 'Keep going — you\'ll get there!', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20' },
     }[perf];
 
@@ -220,7 +220,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
               {[
                 { label: 'Correct',   value: sessionStats.correct,   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', emoji: '✅' },
                 { label: 'Incorrect', value: sessionStats.incorrect, color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/20',       emoji: '❌' },
-                { label: 'Accuracy',  value: `${accuracy}%`,         color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20',   emoji: '🎯' },
+                { label: 'Accuracy',  value: `${accuracy}%`,         color: 'text-primary',  bg: 'bg-primary/10 border-primary/20',   emoji: '🎯' },
                 { label: 'Best Streak', value: sessionStats.maxStreak, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20',  emoji: '🔥' },
               ].map(s => (
                 <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -244,7 +244,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
 
             <div className="flex gap-3">
               <button onClick={restartSession}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-colors">
                 <ArrowPathIcon className="w-4 h-4" /> Study Again
               </button>
               <button onClick={onComplete}
@@ -279,9 +279,9 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
             <span className="text-muted-foreground/50 text-xs">✓</span>
           </div>
           {sessionStats.streak > 1 && (
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded-full">
-              <FireIcon className="w-3 h-3 text-orange-400" />
-              <span className="text-orange-400 font-black text-xs">{sessionStats.streak}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full">
+              <FireIcon className="w-3 h-3 text-primary" />
+              <span className="text-primary font-black text-xs">{sessionStats.streak}</span>
             </div>
           )}
           <div className="flex items-center gap-1">
@@ -293,7 +293,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
 
       {/* Progress bar */}
       <div className="h-1.5 bg-muted shrink-0">
-        <motion.div className="h-full bg-gradient-to-r from-orange-500 to-amber-400"
+        <motion.div className="h-full bg-gradient-to-r from-primary to-amber-400"
           animate={{ width: `${progress}%` }} transition={{ duration: 0.4 }} />
       </div>
 

@@ -15,7 +15,7 @@ import ShareToParentModal from '@/components/share/ShareToParentModal';
 
 const TYPE_BADGE: Record<string, string> = {
   quiz: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  project: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  project: 'bg-primary/20 text-primary border-primary/30',
   homework: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   exam: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   cbt: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -30,7 +30,7 @@ const TYPE_BADGE: Record<string, string> = {
 // Left accent bar colors per type
 const TYPE_ACCENT: Record<string, string> = {
   quiz: 'bg-blue-500',
-  project: 'bg-orange-500',
+  project: 'bg-primary',
   homework: 'bg-cyan-500',
   exam: 'bg-rose-500',
   cbt: 'bg-rose-500',
@@ -76,7 +76,7 @@ function Skeleton() {
     <div className="space-y-2">
       {[1, 2, 3].map(i => (
         <div key={i} className="relative bg-card border border-border overflow-hidden animate-pulse">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600/30" />
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30" />
           <div className="pl-7 pr-6 py-5 space-y-3">
             <div className="h-5 bg-muted w-1/2" />
             <div className="h-4 bg-muted w-1/3" />
@@ -206,7 +206,7 @@ export default function AssignmentsPage() {
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8 animate-pulse">
           <div className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-orange-600/30" />
+              <div className="w-14 h-14 bg-primary/30" />
               <div className="space-y-2 pt-1">
                 <div className="h-9 bg-muted w-64" />
                 <div className="h-3 bg-muted w-40" />
@@ -234,7 +234,7 @@ export default function AssignmentsPage() {
       <div className="text-center">
         <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">Please sign in to view assignments.</p>
-        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-orange-600 text-foreground text-sm font-bold">Sign In</Link>
+        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-primary text-foreground text-sm font-bold">Sign In</Link>
       </div>
     </div>
   );
@@ -272,7 +272,7 @@ export default function AssignmentsPage() {
 
         {/* ── Assignments & Exams Tab Bar ── */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
           </span>
           <Link href="/dashboard/projects"
@@ -288,19 +288,19 @@ export default function AssignmentsPage() {
         {/* ── HERO HEADER ── */}
         <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
           {/* Ambient glow */}
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
           <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
             {/* Left: icon + title */}
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+              <div className="w-14 h-14 bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
                 <ClipboardDocumentListIcon className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
                   Assignments
                 </h1>
-                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-orange-400 mt-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mt-1">
                   {isStaff ? 'Assignment Manager' : 'My Work'}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1.5">
@@ -313,7 +313,7 @@ export default function AssignmentsPage() {
             <div className="flex flex-col items-end gap-3 flex-shrink-0">
               <div className="flex gap-px border border-border">
                 {[
-                  { label: 'Total', value: totalItems, color: 'text-orange-400' },
+                  { label: 'Total', value: totalItems, color: 'text-primary' },
                   { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-blue-400' },
                   { label: 'Graded', value: gradedCount, color: 'text-emerald-400' },
                   {
@@ -337,7 +337,7 @@ export default function AssignmentsPage() {
               {isStaff && (
                 <Link
                   href="/dashboard/assignments/new"
-                  className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                  className="inline-flex items-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
                 >
                   <PlusIcon className="w-4 h-4" /> Create Assignment
                 </Link>
@@ -407,14 +407,14 @@ export default function AssignmentsPage() {
                   onClick={() => setStaffTab(tab.value)}
                   className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] border transition-colors ${
                     staffTab === tab.value
-                      ? 'bg-orange-500/20 border-orange-500/30 text-orange-400'
-                      : 'bg-card border-border text-muted-foreground hover:border-orange-500/20 hover:text-foreground'
+                      ? 'bg-primary/20 border-primary/30 text-primary'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary/20 hover:text-foreground'
                   }`}
                 >
                   {tab.label}
                   {badge != null && badge > 0 && (
                     <span className={`px-1.5 py-0.5 text-[8px] font-black rounded-sm ${
-                      staffTab === tab.value ? 'bg-orange-500/30 text-orange-300' : 'bg-rose-500/20 text-rose-400'
+                      staffTab === tab.value ? 'bg-primary/30 text-primary' : 'bg-rose-500/20 text-rose-400'
                     }`}>{badge}</span>
                   )}
                 </button>
@@ -432,7 +432,7 @@ export default function AssignmentsPage() {
               placeholder="Search assignments…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+              className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
 
@@ -445,8 +445,8 @@ export default function AssignmentsPage() {
                   onClick={() => setFilter(pill.value)}
                   className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] border transition-colors ${
                     filter === pill.value
-                      ? 'bg-orange-500/20 border-orange-500/30 text-orange-400'
-                      : 'bg-card border-border text-muted-foreground hover:border-orange-500/20 hover:text-foreground'
+                      ? 'bg-primary/20 border-primary/30 text-primary'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary/20 hover:text-foreground'
                   }`}
                 >
                   {pill.label}
@@ -459,7 +459,7 @@ export default function AssignmentsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500/50 cursor-pointer transition-colors"
+            className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-colors"
           >
             <option value="all">All Types</option>
             <option value="homework">Homework</option>
@@ -487,7 +487,7 @@ export default function AssignmentsPage() {
             {isStaff && (
               <Link
                 href="/dashboard/assignments/new"
-                className="inline-flex items-center gap-2 mt-6 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                className="inline-flex items-center gap-2 mt-6 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
               >
                 <PlusIcon className="w-4 h-4" /> Create Assignment
               </Link>
@@ -505,13 +505,13 @@ export default function AssignmentsPage() {
               const totalSubs = subs.length;
               const overdue = isOverdue(a.due_date) && a.is_active !== false;
               const isDraft = a.is_active === false;
-              const accentColor = isDraft ? 'bg-muted-foreground/40' : (TYPE_ACCENT[a.assignment_type ?? ''] ?? 'bg-orange-600');
+              const accentColor = isDraft ? 'bg-muted-foreground/40' : (TYPE_ACCENT[a.assignment_type ?? ''] ?? 'bg-primary');
 
               return (
                 <div
                   key={a.id}
                   className={`group relative bg-card border transition-all overflow-hidden ${
-                    submittedCnt > 0 ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-border hover:border-orange-500/20'
+                    submittedCnt > 0 ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-border hover:border-primary/20'
                   }`}
                 >
                   {/* Left accent bar */}
@@ -647,7 +647,7 @@ export default function AssignmentsPage() {
               return (
                 <div
                   key={sub.id}
-                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
+                  className="group relative bg-card border border-border hover:border-primary/20 transition-all overflow-hidden"
                 >
                   {/* Left accent bar */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentColor}`} />
@@ -727,7 +727,7 @@ export default function AssignmentsPage() {
                         {sub.status !== 'graded' && a.assignment_type !== 'coding' && a.assignment_type !== 'cbt' && (
                           <Link
                             href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                            className="flex items-center gap-2 bg-primary hover:bg-primary text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
                           >
                             <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Submit
                           </Link>

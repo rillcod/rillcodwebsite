@@ -76,11 +76,11 @@ export default function PWAInstaller() {
     <div className="fixed bottom-20 left-4 right-4 z-40 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-xs animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-popover border border-border/80 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden backdrop-blur-xl">
         {/* Accent stripe */}
-        <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-indigo-500 to-orange-500" />
+        <div className="h-1 w-full bg-gradient-to-r from-primary via-indigo-500 to-primary" />
 
         <div className="p-4 flex items-start gap-3">
           {/* Icon */}
-          <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
+          <div className="w-11 h-11 bg-gradient-to-br from-primary to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
             <DevicePhoneMobileIcon className="w-6 h-6 text-white" />
           </div>
 
@@ -113,7 +113,7 @@ export default function PWAInstaller() {
           </button>
           <button
             onClick={handleInstallClick}
-            className="flex-1 py-2 text-xs font-black text-white bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 rounded-lg transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-1.5 uppercase tracking-widest"
+            className="flex-1 py-2 text-xs font-black text-white bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 rounded-lg transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-1.5 uppercase tracking-widest"
           >
             <ArrowDownTrayIcon className="w-3.5 h-3.5" />
             Install

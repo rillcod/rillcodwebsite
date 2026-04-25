@@ -160,7 +160,7 @@ export default function EditInvoicePage() {
   if (authLoading || loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading invoice…</p>
       </div>
     );
@@ -175,7 +175,7 @@ export default function EditInvoicePage() {
         <CheckCircleIcon className="w-12 h-12 text-emerald-400 mx-auto" />
         <p className="text-lg font-black text-foreground">Invoice is already paid</p>
         <p className="text-sm text-muted-foreground">Paid invoices cannot be edited.</p>
-        <button onClick={() => router.back()} className="text-xs font-black uppercase tracking-widest text-orange-400 underline">Go back</button>
+        <button onClick={() => router.back()} className="text-xs font-black uppercase tracking-widest text-primary underline">Go back</button>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export default function EditInvoicePage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-black text-foreground tracking-tight">Edit Invoice</h1>
-            <span className="text-sm font-black text-orange-400">{invoice?.invoice_number}</span>
+            <span className="text-sm font-black text-primary">{invoice?.invoice_number}</span>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             {invoice?.portal_users?.full_name ?? invoice?.schools?.name ?? 'Unknown recipient'}
@@ -198,7 +198,7 @@ export default function EditInvoicePage() {
         </div>
         <button
           onClick={() => setShowPreview(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition-all ${showPreview ? 'border-orange-500/50 text-orange-400' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+          className={`flex items-center gap-2 px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition-all ${showPreview ? 'border-primary/50 text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}>
           <EyeIcon className="w-4 h-4" /> {showPreview ? 'Hide' : 'Show'} Preview
         </button>
       </div>
@@ -224,7 +224,7 @@ export default function EditInvoicePage() {
           {/* Section: Status */}
           <div className="bg-card border border-border">
             <div className="px-6 py-3 border-b border-border flex items-center gap-2">
-              <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+              <span className="w-1 h-4 bg-primary flex-shrink-0" />
               <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Invoice Status</p>
             </div>
             <div className="p-6 flex flex-wrap gap-2">
@@ -243,7 +243,7 @@ export default function EditInvoicePage() {
           {/* Section: Recipient */}
           <div className="bg-card border border-border">
             <div className="px-6 py-3 border-b border-border flex items-center gap-2">
-              <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+              <span className="w-1 h-4 bg-primary flex-shrink-0" />
               <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Recipient</p>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -259,7 +259,7 @@ export default function EditInvoicePage() {
                     title="Select student or payer"
                     value={form.portal_user_id}
                     onChange={e => setForm(f => ({ ...f, portal_user_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
+                    className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
                     <option value="">— Select student —</option>
                     {students.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.email})</option>)}
                   </select>
@@ -269,7 +269,7 @@ export default function EditInvoicePage() {
                 <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Due Date</label>
                 <input type="date" title="Due date" value={form.due_date}
                   onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
               </div>
             </div>
           </div>
@@ -278,10 +278,10 @@ export default function EditInvoicePage() {
           <div className="bg-card border border-border">
             <div className="px-6 py-3 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+                <span className="w-1 h-4 bg-primary flex-shrink-0" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Line Items</p>
               </div>
-              <span className="text-xs font-black text-orange-400">₦{totalAmount.toLocaleString()}</span>
+              <span className="text-xs font-black text-primary">₦{totalAmount.toLocaleString()}</span>
             </div>
             <div className="p-6 space-y-3">
               {/* Header row */}
@@ -294,18 +294,18 @@ export default function EditInvoicePage() {
                     value={item.description}
                     onChange={e => updateItem(idx, 'description', e.target.value)}
                     placeholder="Description"
-                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                   />
                   <input
                     type="number" min={1} title="Quantity" value={item.quantity}
                     onChange={e => updateItem(idx, 'quantity', e.target.value)}
-                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-center focus:outline-none focus:border-orange-500 transition-colors"
+                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-center focus:outline-none focus:border-primary transition-colors"
                   />
                   <input
                     type="number" min={0} step={100} title="Unit price" value={item.unit_price || ''}
                     onChange={e => updateItem(idx, 'unit_price', e.target.value)}
                     placeholder="0"
-                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-right font-mono focus:outline-none focus:border-orange-500 transition-colors"
+                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground text-right font-mono focus:outline-none focus:border-primary transition-colors"
                   />
                   <button type="button" title="Remove item" onClick={() => removeItem(idx)} disabled={form.items.length === 1}
                     className="flex items-center justify-center w-9 h-9 border border-border text-rose-400/50 hover:text-rose-400 hover:border-rose-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed">
@@ -319,7 +319,7 @@ export default function EditInvoicePage() {
                 </div>
               ))}
               <button type="button" onClick={addItem}
-                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 transition-colors pt-1">
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary transition-colors pt-1">
                 <PlusIcon className="w-3.5 h-3.5" /> Add Line Item
               </button>
               <div className="pt-3 border-t border-border flex justify-end">
@@ -334,7 +334,7 @@ export default function EditInvoicePage() {
           {/* Section: Notes */}
           <div className="bg-card border border-border">
             <div className="px-6 py-3 border-b border-border flex items-center gap-2">
-              <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+              <span className="w-1 h-4 bg-primary flex-shrink-0" />
               <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Notes</p>
             </div>
             <div className="p-6">
@@ -343,7 +343,7 @@ export default function EditInvoicePage() {
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={3}
                 placeholder="Optional notes for this invoice…"
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
               />
             </div>
           </div>
@@ -355,7 +355,7 @@ export default function EditInvoicePage() {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+              className="flex-1 px-6 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
               {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
@@ -367,9 +367,9 @@ export default function EditInvoicePage() {
           <div>
             <div className="lg:sticky lg:top-6">
               <div className="flex items-center gap-2 mb-4">
-                <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
+                <span className="w-1 h-4 bg-primary flex-shrink-0" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Preview</p>
-                <span className="text-[9px] text-orange-400/60 font-bold ml-1">— updates as you type</span>
+                <span className="text-[9px] text-primary/60 font-bold ml-1">— updates as you type</span>
               </div>
               <div className="bg-card border border-border p-4 overflow-auto max-h-[80vh]">
                 <SmartDocument type="invoice" data={previewData} />

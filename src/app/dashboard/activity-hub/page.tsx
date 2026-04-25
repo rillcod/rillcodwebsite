@@ -44,8 +44,8 @@ const TABS: TabConfig[] = [
     name: 'Social Hub',
     description: 'Connect with peers and share innovations',
     icon: UserGroupIcon,
-    color: 'text-orange-500',
-    bgColor: 'bg-orange-500/10',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
     accentColor: 'orange',
   },
   {
@@ -103,7 +103,7 @@ export default function ActivityHubPage() {
             </div>
             <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase italic leading-none">
               Activity<br />
-              <span className={`text-transparent bg-clip-text bg-gradient-to-r ${currentTab.id === 'social' ? 'from-orange-600 to-amber-500' : currentTab.id === 'vault' ? 'from-violet-600 to-purple-500' : currentTab.id === 'quests' ? 'from-emerald-600 to-teal-500' : 'from-blue-600 to-indigo-500'} transition-all duration-700`}>
+              <span className={`text-transparent bg-clip-text bg-gradient-to-r ${currentTab.id === 'social' ? 'from-primary to-amber-500' : currentTab.id === 'vault' ? 'from-violet-600 to-purple-500' : currentTab.id === 'quests' ? 'from-emerald-600 to-teal-500' : 'from-blue-600 to-indigo-500'} transition-all duration-700`}>
                 Hub.
               </span>
             </h1>

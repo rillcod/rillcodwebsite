@@ -275,7 +275,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-primary to-primary rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-100">Active Projects</p>

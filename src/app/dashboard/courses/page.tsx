@@ -15,9 +15,9 @@ import {
 import { isAlwaysPublicProgramName } from '@/lib/courses/visibility';
 
 const GRADIENTS = [
-  'from-orange-600 to-orange-400', 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
-  'from-orange-600 to-orange-400 from-orange-600 to-orange-400', 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
-  'from-orange-600 to-orange-400 from-orange-600 to-orange-400', 'from-rose-600 to-rose-400',
+  'from-primary to-primary', 'from-primary to-primary from-primary to-primary',
+  'from-primary to-primary from-primary to-primary', 'from-primary to-primary from-primary to-primary',
+  'from-primary to-primary from-primary to-primary', 'from-rose-600 to-rose-400',
 ];
 const LEVEL_BADGE: Record<string, string> = {
   beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -45,11 +45,11 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
   }
 
   return (
-    <div className={`bg-card shadow-sm border rounded-none overflow-hidden hover:border-orange-500/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
+    <div className={`bg-card shadow-sm border rounded-none overflow-hidden hover:border-primary/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
       <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-orange-400'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-primary'}`}>
             {course.programs?.name ?? 'No Program'}
           </span>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -71,7 +71,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
             </span>
           </div>
         </div>
-        <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-orange-400 transition-colors">{course.title}</h3>
+        <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">{course.title}</h3>
         {/* Subject + grade-level tags from course.metadata — surface so schools can
             pick the right course for a given class at a glance. */}
         {(() => {
@@ -121,7 +121,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
         </div>
         <div className="flex gap-2 mt-auto">
           <Link href={`/dashboard/courses/${course.id}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-none transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-none transition-colors">
             <EyeIcon className="w-3.5 h-3.5" /> View
           </Link>
           {canEdit && (
@@ -318,7 +318,7 @@ export default function CoursesPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading courses…</p>
       </div>
     </div>
@@ -332,8 +332,8 @@ export default function CoursesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">
+              <BookOpenIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">
                 {isStaff ? 'Course Library' : 'My Learning'}
               </span>
             </div>
@@ -342,7 +342,7 @@ export default function CoursesPage() {
           </div>
           {canEdit && (
             <Link href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> Add Course
             </Link>
           )}
@@ -435,12 +435,12 @@ export default function CoursesPage() {
         {/* Stats */}
         {(() => {
           const statItems = isStaff ? [
-            { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Active', value: courses.filter((c: any) => c.is_active).length, icon: BoltIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Total Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: AcademicCapIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Submissions', value: courses.reduce((s: number, c: any) => s + (c.assignment_submissions?.length ?? 0), 0), icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ] : [
-            { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'In Progress', value: courses.filter((c: any) => c.status === 'active').length, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Completed', value: courses.filter((c: any) => c.status === 'completed').length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
@@ -466,13 +466,13 @@ export default function CoursesPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input type="text" placeholder="Search courses…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           {isStaff && programs.length > 0 && (
             <select
               value={programFilter}
               onChange={e => setProgramFilter(e.target.value)}
-              className="select-premium px-4 py-3 shadow-sm text-sm focus:border-orange-500 min-w-[200px]"
+              className="select-premium px-4 py-3 shadow-sm text-sm focus:border-primary min-w-[200px]"
             >
               <option value="all">All Programs</option>
               {programs.map(p => (
@@ -498,7 +498,7 @@ export default function CoursesPage() {
               {grouped.map((group, gi) => (
                 <div key={group.programId}>
                   <div className="flex items-center gap-3 mb-4">
-                    <AcademicCapIcon className={`w-5 h-5 flex-shrink-0 ${group.programId === '__none__' ? 'text-rose-400' : 'text-orange-400'}`} />
+                    <AcademicCapIcon className={`w-5 h-5 flex-shrink-0 ${group.programId === '__none__' ? 'text-rose-400' : 'text-primary'}`} />
                     <h2 className={`text-base font-black uppercase tracking-tight ${group.programId === '__none__' ? 'text-rose-400' : 'text-foreground'}`}>{group.programName}</h2>
                     <span className="text-[10px] font-black text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">{group.courses.length} courses</span>
                     {group.programId === '__none__' && canEdit && (
@@ -558,7 +558,7 @@ export default function CoursesPage() {
                       {enr.progress_pct != null && (
                         <div className="flex items-center gap-2 mt-2">
                           <div className="flex-1 h-1.5 bg-card shadow-sm rounded-full overflow-hidden">
-                            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${enr.progress_pct}%` }} />
+                            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${enr.progress_pct}%` }} />
                           </div>
                           <span className="text-xs text-muted-foreground w-8 text-right">{enr.progress_pct}%</span>
                         </div>
@@ -569,7 +569,7 @@ export default function CoursesPage() {
                         href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-none transition-all ${enr.status === 'completed'
                           ? 'bg-muted text-muted-foreground hover:bg-muted'
-                          : 'bg-orange-600 text-foreground hover:bg-orange-500'
+                          : 'bg-primary text-foreground hover:bg-primary'
                         }`}>
                         {enr.status === 'completed' ? <><EyeIcon className="w-4 h-4" /> Review</> : <><PlayIcon className="w-4 h-4" /> Continue</>}
                       </Link>

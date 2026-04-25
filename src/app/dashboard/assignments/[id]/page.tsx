@@ -343,7 +343,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                 </button>
                 <div className="h-5 w-px bg-white/10 flex-shrink-0" />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-white flex-shrink-0">
                         {(sub.portal_users?.full_name ?? '?')[0]}
                     </div>
                     <div className="min-w-0">
@@ -1123,7 +1123,7 @@ export default function AssignmentDetailPage() {
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 <p className="text-muted-foreground text-sm">Loading assignment…</p>
             </div>
         </div>
@@ -1134,7 +1134,7 @@ export default function AssignmentDetailPage() {
             <div className="text-center">
                 <ExclamationTriangleIcon className="w-12 h-12 mx-auto text-rose-400 mb-3" />
                 <p className="text-rose-400 font-semibold">{error}</p>
-                <Link href="/dashboard/assignments" className="mt-4 inline-block text-orange-400 hover:text-orange-500 text-sm underline">
+                <Link href="/dashboard/assignments" className="mt-4 inline-block text-primary hover:text-primary text-sm underline">
                     ← Back to Assignments
                 </Link>
             </div>
@@ -1232,7 +1232,7 @@ export default function AssignmentDetailPage() {
                                     </button>
                                     <button
                                         onClick={handlePrintAssignment}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold rounded-none transition-colors border border-orange-500/20">
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-none transition-colors border border-primary/20">
                                         <PrinterIcon className="w-3.5 h-3.5" /> Print
                                     </button>
                                     <Link href={`/dashboard/assignments/${id}/edit`}
@@ -1340,7 +1340,7 @@ export default function AssignmentDetailPage() {
                 {assignment.description && (
                     <div className="bg-card shadow-sm border border-border rounded-none p-6">
                         <h2 className="font-bold text-foreground mb-2 flex items-center gap-2">
-                            <DocumentTextIcon className="w-4 h-4 text-orange-400" /> Description
+                            <DocumentTextIcon className="w-4 h-4 text-primary" /> Description
                         </h2>
                         <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
                     </div>
@@ -1769,7 +1769,7 @@ export default function AssignmentDetailPage() {
                                 return (
                                     <div key={s.id} className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors">
                                         {/* Avatar */}
-                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-white flex-shrink-0">
                                             {(s.portal_users?.full_name ?? '?')[0]}
                                         </div>
                                         {/* Name + meta */}

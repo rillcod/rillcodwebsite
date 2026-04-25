@@ -183,11 +183,11 @@ export default function TransactionsPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, email, or reference…"
-            className="w-full pl-10 pr-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0"
+            className="w-full pl-10 pr-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px] sm:min-h-0"
           />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0">
+          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px] sm:min-h-0">
           <option value="all">All Statuses</option>
           <option value="completed">Completed</option>
           <option value="pending">Pending</option>
@@ -196,7 +196,7 @@ export default function TransactionsPage() {
           <option value="refunded">Refunded</option>
         </select>
         <select value={methodFilter} onChange={e => setMethodFilter(e.target.value)}
-          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px] sm:min-h-0">
+          className="px-4 py-3 sm:py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px] sm:min-h-0">
           <option value="all">All Methods</option>
           {Object.entries(METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -258,7 +258,7 @@ export default function TransactionsPage() {
                         </span>
                       )}
                       {tx.invoice_id && (
-                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-400">
+                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary">
                           Invoice
                         </span>
                       )}

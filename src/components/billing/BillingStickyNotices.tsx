@@ -71,7 +71,7 @@ export default function BillingStickyNotices() {
     <div className="space-y-3">
       {loading ? (
         <div className="border border-border bg-card p-4 rounded-none flex items-center gap-3">
-          <ArrowPathIcon className="w-4 h-4 animate-spin text-orange-400" />
+          <ArrowPathIcon className="w-4 h-4 animate-spin text-primary" />
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Loading billing notices...</p>
         </div>
       ) : items.map((notice) => (

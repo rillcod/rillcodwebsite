@@ -116,26 +116,26 @@ function LinkParentModal({ student, onClose, onSaved }: {
             <input type="email" required value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               placeholder="parent@example.com"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name *</label>
             <input required value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
               placeholder="Parent's full name"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
             <input type="tel" value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               placeholder="+234 …"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
             <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
               {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -153,7 +153,7 @@ function LinkParentModal({ student, onClose, onSaved }: {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
               {saving ? 'Saving…' : hasParent ? 'Update' : 'Link'}
             </button>
           </div>
@@ -1054,7 +1054,7 @@ export default function StudentsPage() {
             <div className="px-6 pt-5 pb-1 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setBulkEnrolMode('pick')}
-                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 Pick Existing Class
               </button>
@@ -1099,7 +1099,7 @@ export default function StudentsPage() {
                         <p className="text-sm text-muted-foreground">
                           {classList.length === 0 ? 'No classes found.' : 'No classes match the selected students\' school.'}
                         </p>
-                        <button onClick={() => setBulkEnrolMode('create')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">
+                        <button onClick={() => setBulkEnrolMode('create')} className="text-xs font-bold text-primary hover:text-primary transition-colors">
                           Create a new class →
                         </button>
                       </div>
@@ -1116,9 +1116,9 @@ export default function StudentsPage() {
                                   <div
                                     key={c.id}
                                     onClick={() => !isFull && setBulkEnrolClassId(c.id)}
-                                    className={`flex items-center gap-3 p-3.5 border rounded-none transition-all ${isFull ? 'opacity-50 cursor-not-allowed bg-rose-500/5 border-rose-500/20' : bulkEnrolClassId === c.id ? 'cursor-pointer bg-orange-600/15 border-orange-500/40' : 'cursor-pointer bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
+                                    className={`flex items-center gap-3 p-3.5 border rounded-none transition-all ${isFull ? 'opacity-50 cursor-not-allowed bg-rose-500/5 border-rose-500/20' : bulkEnrolClassId === c.id ? 'cursor-pointer bg-primary/15 border-primary/40' : 'cursor-pointer bg-card shadow-sm border-border hover:border-primary/20 hover:bg-white/[0.07]'}`}
                                   >
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-primary bg-primary' : 'border-border'}`}>
                                       {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-card" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -1149,7 +1149,7 @@ export default function StudentsPage() {
                     <button
                       onClick={executeBulkEnrol}
                       disabled={!bulkEnrolClassId || bulkEnrolling}
-                      className="w-full py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-primary hover:bg-primary disabled:opacity-40 text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2"
                     >
                       {bulkEnrolling
                         ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Enrolling…</>
@@ -1482,7 +1482,7 @@ export default function StudentsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-primary/20 transition-all print:hidden">
                 <PlusIcon className="w-4 h-4" /> Register Student
               </button>
               <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
@@ -1497,7 +1497,7 @@ export default function StudentsPage() {
                     <PrinterIcon className="w-4 h-4" /> Print
                   </button>
                   <button onClick={handlePrintAllLoginSlips}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-primary/20 transition-all print:hidden">
                     <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
                   <button onClick={exportCSV}
@@ -1530,7 +1530,7 @@ export default function StudentsPage() {
                 { label: 'Import CSV', sub: 'Upload spreadsheet', href: '/dashboard/students/import', icon: ArrowDownTrayIcon, color: 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20', adminTeacherOnly: true },
                 { label: 'Enrol Students', sub: 'Assign to programs', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon, color: 'text-violet-400 bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20', adminTeacherOnly: true },
                 { label: 'Classes', sub: 'Manage class rosters', href: '/dashboard/classes', icon: UserGroupIcon, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20', adminTeacherOnly: true },
-                { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-orange-400 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' },
+                { label: 'Card Studio', sub: 'Design ID cards', href: '/dashboard/card-studio?mode=issuance&type=student', icon: ClipboardIcon, color: 'text-primary bg-primary/10 border-primary/30 hover:bg-primary/20' },
                 { label: 'Wipe Students', sub: 'Permanently remove', href: '/dashboard/students/bulk-delete', icon: ExclamationTriangleIcon, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20', danger: true, adminOnly: true },
               ] as { label: string; sub: string; href: string; icon: ComponentType<{ className?: string }>; color: string; danger?: boolean; adminOnly?: boolean; adminTeacherOnly?: boolean }[])).filter(item => {
                 if (item.adminOnly && profile?.role !== 'admin') return false;
@@ -1566,7 +1566,7 @@ export default function StudentsPage() {
             {([
               { label: 'Total', value: combined.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
               { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
-              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
+              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
               { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
             ]).map(s => (
               <button key={s.label} onClick={s.onClick}
@@ -1692,7 +1692,7 @@ export default function StudentsPage() {
                         {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                           <div
                             onClick={e => { e.stopPropagation(); setSelectedForEnrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
-                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-orange-600 border-orange-400' : 'border-border hover:border-orange-400'}`}>
+                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-primary border-primary' : 'border-border hover:border-primary'}`}>
                             {selectedForEnrol.has(s.id) && <CheckCircleIcon className="w-3 h-3 text-foreground" />}
                           </div>
                         )}
@@ -1707,7 +1707,7 @@ export default function StudentsPage() {
                         )}
 
                         {/* Avatar */}
-                        <div className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-orange-600 to-orange-400 to-teal-600' : 'from-orange-600 to-orange-400 to-orange-600'} flex items-center justify-center text-xs sm:text-sm font-black text-foreground flex-shrink-0 mt-0.5`}>
+                        <div className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-primary to-primary to-teal-600' : 'from-primary to-primary to-primary'} flex items-center justify-center text-xs sm:text-sm font-black text-foreground flex-shrink-0 mt-0.5`}>
                           {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
 
@@ -1715,7 +1715,7 @@ export default function StudentsPage() {
                           {/* Name + badges */}
                           <div className="flex items-center gap-1.5 flex-wrap mb-1">
                             <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[140px] sm:max-w-none">{s.full_name}</span>
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>
                             <StatusBadge status={s.status} />
@@ -1736,7 +1736,7 @@ export default function StudentsPage() {
                                   <Chip icon={BookOpenIcon} text={classMap[s.class_id]} />
                                 )}
                                 <Chip icon={EnvelopeIcon} text={s.email} />
-                                <span className="text-[9px] font-black font-mono px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 uppercase tracking-wider select-all" title="Student Access Code">
+                                <span className="text-[9px] font-black font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider select-all" title="Student Access Code">
                                   RC-{s.id.slice(0, 8).toUpperCase()}
                                 </span>
                               </>
@@ -1787,7 +1787,7 @@ export default function StudentsPage() {
                             {!isEnrolled && (
                               <button
                                 onClick={e => { e.stopPropagation(); startEdit(s); }}
-                                className="p-1.5 rounded-none bg-card shadow-sm border border-border hover:border-orange-500/30 text-muted-foreground hover:text-foreground transition-all">
+                                className="p-1.5 rounded-none bg-card shadow-sm border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground transition-all">
                                 <PencilSquareIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
@@ -1917,7 +1917,7 @@ export default function StudentsPage() {
                               </div>
                               <div className="bg-card shadow-sm rounded-none p-5 sm:p-6 border border-border shadow-2xl">
                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                  <AcademicCapIcon className="w-4 h-4 text-orange-500" /> Identity
+                                  <AcademicCapIcon className="w-4 h-4 text-primary" /> Identity
                                 </p>
                                 <div className="space-y-3.5">
                                   <InfoRow label="Full Name" value={s.full_name} />
@@ -1982,7 +1982,7 @@ export default function StudentsPage() {
                                   Approved Student
                                 </div>
                                 {s.user_id ? (
-                                  <div className="flex items-center gap-2 px-4 py-2 rounded-none bg-orange-600/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
+                                  <div className="flex items-center gap-2 px-4 py-2 rounded-none bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
                                     <ShieldCheckIcon className="w-3.5 h-3.5" />
                                     Portal Active
                                   </div>
@@ -1990,7 +1990,7 @@ export default function StudentsPage() {
                                   <button
                                     onClick={() => activatePortalAccount(s.id, s.full_name)}
                                     disabled={activating === s.id}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all shadow-2xl active:scale-95">
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all shadow-2xl active:scale-95">
                                     <KeyIcon className="w-4 h-4" />
                                     {activating === s.id ? 'Creating' : 'Activate Portal'}
                                   </button>
@@ -2006,14 +2006,14 @@ export default function StudentsPage() {
                             <div className="ml-auto flex items-center gap-5">
                               {!isEnrolled && (
                                 <Link href={`/dashboard/students/${s.id}/report`}
-                                  className="flex items-center gap-2 text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-primary hover:text-foreground uppercase tracking-widest transition-colors">
                                   <ClipboardDocumentListIcon className="w-4 h-4" /> Report
                                 </Link>
                               )}
                               {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                                 <button
                                   onClick={() => setLinkParentTarget(s)}
-                                  className="flex items-center gap-2 text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-primary hover:text-foreground uppercase tracking-widest transition-colors">
                                   <UserPlusIcon className="w-4 h-4" />
                                   {s.parent_email ? 'Edit Parent' : 'Link Parent'}
                                 </button>
@@ -2026,7 +2026,7 @@ export default function StudentsPage() {
                               )}
                               {(isEnrolled || s.user_id) && (
                                 <button onClick={() => handlePrintLoginSlip(s)}
-                                  className="flex items-center gap-2 text-[10px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
                                   <PrinterIcon className="w-4 h-4" /> Print Slip
                                 </button>
                               )}
@@ -2136,11 +2136,11 @@ export default function StudentsPage() {
       {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
       {selectedForEnrol.size > 0 && (profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
-          <div className="flex items-center gap-3 bg-background border border-orange-500/40 rounded-none px-5 py-3 shadow-2xl shadow-orange-500/20">
+          <div className="flex items-center gap-3 bg-background border border-primary/40 rounded-none px-5 py-3 shadow-2xl shadow-primary/20">
             <span className="text-sm font-bold text-foreground">{selectedForEnrol.size} selected</span>
             <button
               onClick={openBulkEnrol}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all flex items-center gap-2"
             >
               <AcademicCapIcon className="w-4 h-4" /> Enrol in Class
             </button>
@@ -2297,7 +2297,7 @@ function StudentSelfView() {
 
               <h1 className="text-4xl sm:text-7xl font-black text-foreground tracking-tighter leading-[0.9]">
                 Welcome back,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400 from-orange-600 to-orange-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary from-primary to-primary">
                   {profile?.full_name?.split(' ')?.[0] || 'Scholar'}
                 </span>
               </h1>
@@ -2311,7 +2311,7 @@ function StudentSelfView() {
             </div>
 
             <div className="hidden lg:block relative">
-              <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-primary to-primary from-primary to-primary flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
                 {profile?.full_name?.[0].toUpperCase()}
               </div>
               <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-none flex items-center justify-center text-black shadow-2xl -rotate-12">
@@ -2325,7 +2325,7 @@ function StudentSelfView() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 print:hidden">
           {[
             { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-            { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+            { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
             { label: 'Graded Tasks', value: stats.graded, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
             { label: 'Performance', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
           ].map(({ label, value, icon: Icon, color, bg, border }) => (
@@ -2406,9 +2406,9 @@ function StudentSelfView() {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            <div className="bg-gradient-to-br from-orange-600 to-orange-400/20 from-orange-600 to-orange-400/20 border border-emerald-500/20 rounded-none p-6">
+            <div className="bg-gradient-to-br from-primary to-primary/20 from-primary to-primary/20 border border-emerald-500/20 rounded-none p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
+                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary to-primary from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                   {(profile?.full_name ?? 'U')[0].toUpperCase()}
                 </div>
                 <div>

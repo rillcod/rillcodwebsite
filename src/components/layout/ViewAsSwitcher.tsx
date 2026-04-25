@@ -68,7 +68,7 @@ export default function ViewAsSwitcher({ compact = false }: { compact?: boolean 
         } ${
           isSimulating
             ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
-            : 'bg-sidebar-foreground/5 border-sidebar-foreground/15 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-orange-500/30'
+            : 'bg-sidebar-foreground/5 border-sidebar-foreground/15 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-primary/30'
         }`}
       >
         <EyeIcon className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
@@ -98,7 +98,7 @@ export default function ViewAsSwitcher({ compact = false }: { compact?: boolean 
                     onClick={() => { setViewAsRole(isSelf ? null : r); setOpen(false); }}
                     className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition ${
                       active
-                        ? 'bg-orange-500/10 text-orange-300'
+                        ? 'bg-primary/10 text-primary'
                         : 'text-foreground hover:bg-muted'
                     }`}
                   >

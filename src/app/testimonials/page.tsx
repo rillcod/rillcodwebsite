@@ -172,7 +172,7 @@ const stats = [
   { number: "500+", label: "Happy Students", icon: <Users className="w-8 h-8" />, color: "from-blue-500 to-cyan-500" },
   { number: "95%", label: "Satisfaction Rate", icon: <Star className="w-8 h-8" />, color: "from-green-500 to-emerald-500" },
   { number: "20+", label: "Partner Schools", icon: <Award className="w-8 h-8" />, color: "from-purple-500 to-violet-500" },
-  { number: "1000+", label: "Projects Completed", icon: <Code className="w-8 h-8" />, color: "from-orange-500 to-red-500" }
+  { number: "1000+", label: "Projects Completed", icon: <Code className="w-8 h-8" />, color: "from-primary to-red-500" }
 ];
 
 const achievements = [
@@ -180,7 +180,7 @@ const achievements = [
     title: "Edo State Recognition",
     description: "Awarded Best Technology Education Provider 2023",
     icon: <Award className="w-6 h-6" />,
-    color: "from-yellow-500 to-orange-500"
+    color: "from-yellow-500 to-primary"
   },
   {
     title: "Student Success",
@@ -216,32 +216,32 @@ export default function Testimonials() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white relative overflow-hidden selection:bg-orange-500 selection:text-white">
+    <div className="min-h-screen bg-[#121212] text-white relative overflow-hidden selection:bg-primary selection:text-white">
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-orange-600/5 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Header */}
-        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-primary relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
-            <Quote className="w-16 h-16 text-orange-500 opacity-20" />
+            <Quote className="w-16 h-16 text-primary opacity-20" />
           </div>
           <h1 className="text-4xl md:text-6xl font-black mb-8 uppercase tracking-tight italic">
-            Institutional <span className="text-orange-500">Validation.</span>
+            Institutional <span className="text-primary">Validation.</span>
           </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-orange-500 pl-8 inline-block text-left">
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-primary pl-8 inline-block text-left">
             Real-world impact assessments from our network of students, parents, and premier educational infrastructure partners.
           </p>
-          <div className="w-24 h-1 bg-orange-500 mx-auto mt-12"></div>
+          <div className="w-24 h-1 bg-primary mx-auto mt-12"></div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-border mb-24">
           {stats.map((stat, i) => (
             <div key={i} className="bg-[#1a1a1a] p-12 text-center group hover:bg-white/[0.02] transition-colors">
-              <div className="text-orange-500 mb-6 flex justify-center group-hover:scale-110 transition-transform">
+              <div className="text-primary mb-6 flex justify-center group-hover:scale-110 transition-transform">
                 {stat.icon}
               </div>
               <div className="text-4xl font-black mb-2 tracking-tighter">{stat.number}</div>
@@ -255,14 +255,14 @@ export default function Testimonials() {
           <div className="mb-32 relative">
              <div className="flex items-center justify-between mb-12">
                 <h2 className="text-2xl font-black uppercase italic tracking-tight flex items-center gap-4">
-                  <Sparkles className="w-6 h-6 text-orange-500" />
+                  <Sparkles className="w-6 h-6 text-primary" />
                   Primary Validators
                 </h2>
                 <div className="flex gap-2">
-                   <button onClick={prevTestimonial} className="p-4 bg-white/5 border border-border hover:border-orange-500 text-white transition-all rounded-none">
+                   <button onClick={prevTestimonial} className="p-4 bg-white/5 border border-border hover:border-primary text-white transition-all rounded-none">
                       <ArrowLeft className="w-5 h-5" />
                    </button>
-                   <button onClick={nextTestimonial} className="p-4 bg-white/5 border border-border hover:border-orange-500 text-white transition-all rounded-none">
+                   <button onClick={nextTestimonial} className="p-4 bg-white/5 border border-border hover:border-primary text-white transition-all rounded-none">
                       <ArrowRight className="w-5 h-5" />
                    </button>
                 </div>
@@ -275,7 +275,7 @@ export default function Testimonials() {
                    <div className="lg:col-span-7 space-y-10">
                       <div className="flex gap-1">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-5 h-5 text-orange-500 fill-current" />
+                          <Star key={i} className="w-5 h-5 text-primary fill-current" />
                         ))}
                       </div>
                       
@@ -294,12 +294,12 @@ export default function Testimonials() {
 
                    <div className="lg:col-span-5 bg-[#121212] border border-border p-10 rounded-none relative">
                       <div className="flex items-center gap-6 mb-8">
-                         <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center text-orange-500 font-black text-2xl rotate-3">
+                         <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center text-primary font-black text-2xl rotate-3">
                             {featuredTestimonials[currentIndex]?.name.split(' ').map(n => n[0]).join('')}
                          </div>
                          <div>
                             <h3 className="text-xl font-black uppercase italic text-white tracking-tighter">{featuredTestimonials[currentIndex]?.name}</h3>
-                            <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em]">{featuredTestimonials[currentIndex]?.role}</p>
+                            <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em]">{featuredTestimonials[currentIndex]?.role}</p>
                          </div>
                       </div>
                       
@@ -327,7 +327,7 @@ export default function Testimonials() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-10 py-5 text-[10px] font-black uppercase tracking-[0.4em] transition-all rounded-none ${
                 selectedCategory === cat
-                  ? "bg-orange-500 text-white shadow-xl shadow-orange-500/20"
+                  ? "bg-primary text-white shadow-xl shadow-primary/20"
                   : "bg-[#1a1a1a] text-slate-500 hover:text-white hover:bg-black/20"
               }`}
             >
@@ -339,15 +339,15 @@ export default function Testimonials() {
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
           {regularTestimonials.map((t, i) => (
-            <div key={i} className="bg-[#1a1a1a] border border-border p-10 rounded-none hover:border-orange-500 transition-all group flex flex-col relative overflow-hidden">
+            <div key={i} className="bg-[#1a1a1a] border border-border p-10 rounded-none hover:border-primary transition-all group flex flex-col relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-[50px] pointer-events-none" />
                <div className="flex items-center justify-between mb-8">
                   <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-3 h-3 ${i < t.rating ? 'text-orange-500 fill-current' : 'text-slate-800'}`} />
+                      <Star key={i} className={`w-3 h-3 ${i < t.rating ? 'text-primary fill-current' : 'text-slate-800'}`} />
                     ))}
                   </div>
-                  <Quote className="w-6 h-6 text-orange-500 opacity-10" />
+                  <Quote className="w-6 h-6 text-primary opacity-10" />
                </div>
 
                <p className="text-sm font-bold text-slate-300 italic mb-10 leading-relaxed flex-1">
@@ -356,7 +356,7 @@ export default function Testimonials() {
 
                <div className="pt-8 border-t border-border mt-auto">
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 bg-[#121212] border border-border text-orange-500 flex items-center justify-center font-black text-xs rounded-none group-hover:border-orange-500/50 transition-colors">
+                    <div className="w-12 h-12 bg-[#121212] border border-border text-primary flex items-center justify-center font-black text-xs rounded-none group-hover:border-primary/50 transition-colors">
                        {t.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
@@ -370,14 +370,14 @@ export default function Testimonials() {
         </div>
 
         {/* CTA */}
-        <div className="bg-[#1a1a1a] border border-border p-16 rounded-none text-center relative overflow-hidden border-t-8 border-t-orange-500 shadow-2xl">
-          <div className="absolute top-0 left-0 w-full h-full bg-orange-500/[0.02] pointer-events-none" />
+        <div className="bg-[#1a1a1a] border border-border p-16 rounded-none text-center relative overflow-hidden border-t-8 border-t-primary shadow-2xl">
+          <div className="absolute top-0 left-0 w-full h-full bg-primary/[0.02] pointer-events-none" />
           <h2 className="text-3xl font-black mb-8 uppercase italic tracking-tight leading-none">
             Ready to Initialize <br />
-            <span className="text-orange-500">Your Technological Ascension?</span>
+            <span className="text-primary">Your Technological Ascension?</span>
           </h2>
           <div className="flex flex-col sm:flex-row gap-6 justify-center mt-12">
-            <Link href="/student-registration" className="px-12 py-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
+            <Link href="/student-registration" className="px-12 py-6 bg-primary text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none shadow-xl shadow-primary/20 hover:bg-primary transition-all">
               Initiate Enrollment
             </Link>
             <Link href="/contact" className="px-12 py-6 bg-white/5 border border-border text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none hover:bg-white/10 transition-all">

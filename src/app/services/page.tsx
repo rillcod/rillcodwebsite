@@ -48,7 +48,7 @@ const services = [
     price: "Starting from ₦200,000"
   },
   {
-    icon: <BookOpen className="w-12 h-12 text-orange-600" />,
+    icon: <BookOpen className="w-12 h-12 text-primary" />,
     title: "Training Programs",
     description: "Comprehensive technology training for individuals and corporate teams.",
     features: [
@@ -59,7 +59,7 @@ const services = [
       "Workshop Sessions",
       "Online Learning"
     ],
-    color: "from-orange-500 to-orange-700",
+    color: "from-primary to-orange-700",
     price: "Starting from ₦50,000"
   }
 ];

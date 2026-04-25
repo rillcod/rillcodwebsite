@@ -185,7 +185,7 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 <p className="text-sm text-muted-foreground">Loading content...</p>
               </div>
             </div>
@@ -240,7 +240,7 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
                     href={fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-medium rounded-lg transition-colors"
                   >
                     <ArrowDownTrayIcon className="w-4 h-4" />
                     Download File
@@ -401,17 +401,17 @@ export default function ContentLibraryPage() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'video':        return 'from-red-600/30 to-orange-600/20';
+      case 'video':        return 'from-red-600/30 to-primary/20';
       case 'document':     return 'from-blue-600/30 to-indigo-600/20';
       case 'interactive':  return 'from-violet-600/30 to-purple-600/20';
       case 'presentation': return 'from-emerald-600/30 to-teal-600/20';
-      default:             return 'from-orange-600/20 to-amber-600/10';
+      default:             return 'from-primary/20 to-amber-600/10';
     }
   };
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -433,15 +433,15 @@ export default function ContentLibraryPage() {
 
       {/* Enhanced Header */}
       <div className="bg-card border-b border-border relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500/5 blur-3xl pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <BookOpenIcon className="w-5 h-5 text-orange-400" />
-                <span className="text-xs font-black text-orange-400 uppercase tracking-widest">
+                <BookOpenIcon className="w-5 h-5 text-primary" />
+                <span className="text-xs font-black text-primary uppercase tracking-widest">
                   {selectedCourse ? `Resources for ${selectedCourse.title}` : 'Digital Resources'}
                 </span>
               </div>
@@ -471,7 +471,7 @@ export default function ContentLibraryPage() {
               {canUpload && (
                 <button 
                   onClick={() => setShowUpload(true)} 
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:shadow-[0_0_25px_rgba(234,88,12,0.4)]"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:shadow-[0_0_25px_rgba(234,88,12,0.4)]"
                 >
                   <PlusIcon className="w-4 h-4" /> Upload Resource
                 </button>
@@ -485,12 +485,12 @@ export default function ContentLibraryPage() {
         
         {/* Smart Recommendations - CONTEXT AWARE */}
         {selectedCourse && (
-          <div className="mb-8 p-6 bg-gradient-to-r from-orange-600/10 via-card to-violet-600/5 border border-orange-500/30 rounded-none relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-2xl group-hover:bg-orange-500/10 transition-all" />
+          <div className="mb-8 p-6 bg-gradient-to-r from-primary/10 via-card to-violet-600/5 border border-primary/30 rounded-none relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-2xl group-hover:bg-primary/10 transition-all" />
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-orange-600/20 flex items-center justify-center">
-                  <SparklesIcon className="w-6 h-6 text-orange-500" />
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <SparklesIcon className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="text-lg font-black uppercase tracking-tight italic">Smart Recommendations</h3>
@@ -500,12 +500,12 @@ export default function ContentLibraryPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {items.filter(i => i.subject === selectedCourse.subject || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).slice(0, 3).map(rec => (
-                   <div key={rec.id} onClick={() => setViewerItem(rec)} className="p-4 bg-background border border-border hover:border-orange-500/30 transition-all cursor-pointer flex gap-3">
+                   <div key={rec.id} onClick={() => setViewerItem(rec)} className="p-4 bg-background border border-border hover:border-primary/30 transition-all cursor-pointer flex gap-3">
                       <div className={`w-12 h-12 shrink-0 bg-gradient-to-br ${getTypeColor(rec.content_type)} flex items-center justify-center`}>
                         {getTypeIcon(rec.content_type)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-orange-500 mb-1">{rec.content_type}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{rec.content_type}</p>
                         <p className="text-sm font-black truncate">{rec.title}</p>
                         <p className="text-[10px] text-muted-foreground italic truncate">Matching Subject: {rec.subject}</p>
                       </div>
@@ -560,12 +560,12 @@ export default function ContentLibraryPage() {
                 onClick={() => setActiveCategory(cat)}
                 className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                   active
-                    ? 'bg-orange-500/15 border-orange-500/40 text-orange-400'
-                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-orange-500/30'
+                    ? 'bg-primary/15 border-primary/40 text-primary'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
                 }`}
               >
                 <span>{cat}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-tighter ${active ? 'bg-orange-500/20 text-orange-300' : 'bg-muted text-muted-foreground'}`}>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-tighter ${active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {count}
                 </span>
               </button>
@@ -582,7 +582,7 @@ export default function ContentLibraryPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search resources by title, subject, or tags..."
-              className="w-full bg-background border border-border pl-12 pr-4 py-3 sm:py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors min-h-[44px]"
+              className="w-full bg-background border border-border pl-12 pr-4 py-3 sm:py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
             />
           </div>
 
@@ -594,7 +594,7 @@ export default function ContentLibraryPage() {
               <select
                 value={subjectFilter}
                 onChange={e => setSubjectFilter(e.target.value)}
-                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors min-h-[40px]"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-primary transition-colors min-h-[40px]"
               >
                 {subjects.map(subject => (
                   <option key={subject} value={subject}>{subject}</option>
@@ -608,7 +608,7 @@ export default function ContentLibraryPage() {
               <select
                 value={sortKey}
                 onChange={e => setSortKey(e.target.value as SortKey)}
-                className="select-premium w-full px-3 py-2.5 text-sm focus:border-orange-500 transition-colors min-h-[40px]"
+                className="select-premium w-full px-3 py-2.5 text-sm focus:border-primary transition-colors min-h-[40px]"
               >
                 <option value="newest">Newest First</option>
                 <option value="most_used">Most Used</option>
@@ -635,7 +635,7 @@ export default function ContentLibraryPage() {
                   onClick={() => setViewMode('grid')}
                   aria-pressed={viewMode === 'grid' ? 'true' : 'false'}
                   className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
-                    viewMode === 'grid' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
+                    viewMode === 'grid' ? 'bg-primary text-white' : 'bg-background hover:bg-muted text-muted-foreground'
                   }`}
                 >
                   <Squares2X2Icon className="w-4 h-4" /> Grid
@@ -644,7 +644,7 @@ export default function ContentLibraryPage() {
                   onClick={() => setViewMode('list')}
                   aria-pressed={viewMode === 'list' ? 'true' : 'false'}
                   className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 text-xs font-black uppercase tracking-widest transition-colors ${
-                    viewMode === 'list' ? 'bg-orange-600 text-white' : 'bg-background hover:bg-muted text-muted-foreground'
+                    viewMode === 'list' ? 'bg-primary text-white' : 'bg-background hover:bg-muted text-muted-foreground'
                   }`}
                 >
                   <ListBulletIcon className="w-4 h-4" /> List
@@ -657,7 +657,7 @@ export default function ContentLibraryPage() {
           <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground font-bold uppercase tracking-widest">
             <span>{filtered.length} resource{filtered.length === 1 ? '' : 's'}</span>
             {(search || activeCategory !== 'All' || subjectFilter !== 'All') && (
-              <span className="text-orange-400">Filtered</span>
+              <span className="text-primary">Filtered</span>
             )}
           </div>
         </div>
@@ -687,7 +687,7 @@ export default function ContentLibraryPage() {
             {canUpload && !search && (
               <button 
                 onClick={() => setShowUpload(true)}
-                className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-none transition-colors"
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-none transition-colors"
               >
                 Upload First Resource
               </button>
@@ -749,7 +749,7 @@ export default function ContentLibraryPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-card border border-border overflow-hidden hover:border-orange-500/30 transition-all duration-200 group cursor-pointer"
+                className="bg-card border border-border overflow-hidden hover:border-primary/30 transition-all duration-200 group cursor-pointer"
                 onClick={() => setViewerItem(item)}
               >
                 {/* Thumbnail/Preview */}
@@ -795,7 +795,7 @@ export default function ContentLibraryPage() {
                 {/* Content */}
                 <div className="p-4 space-y-3">
                   <div>
-                    <h3 className="font-bold text-foreground text-sm leading-tight group-hover:text-orange-400 transition-colors line-clamp-2">
+                    <h3 className="font-bold text-foreground text-sm leading-tight group-hover:text-primary transition-colors line-clamp-2">
                       {item.title}
                     </h3>
                     {item.description && (
@@ -929,7 +929,7 @@ function UploadModal({ onClose, onCreated }: {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <ArchiveBoxIcon className="w-5 h-5 text-orange-400" />
+            <ArchiveBoxIcon className="w-5 h-5 text-primary" />
             <h2 className="font-black uppercase tracking-widest text-sm text-foreground">Add Resource</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg" aria-label="Close">
@@ -1041,7 +1041,7 @@ function UploadModal({ onClose, onCreated }: {
             type="submit"
             disabled={submitting || !title.trim()}
             onClick={handleSubmit as any}
-            className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest min-h-[44px] inline-flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest min-h-[44px] inline-flex items-center justify-center gap-2"
           >
             {submitting ? (
               <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>

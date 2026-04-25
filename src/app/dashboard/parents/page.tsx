@@ -29,7 +29,7 @@ function CopyButton({ value }: { value: string }) {
     <button
       type="button"
       onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-border hover:border-orange-500/50 text-muted-foreground hover:text-orange-400 transition-all"
+      className="flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-border hover:border-primary/50 text-muted-foreground hover:text-primary transition-all"
     >
       <ClipboardIcon className="w-3 h-3" />
       {copied ? 'Copied!' : 'Copy'}
@@ -137,7 +137,7 @@ function LinkStudentModal({
               value={selectedSchool}
               onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setStudentId(''); }}
               disabled={schools.length <= 1 && profile?.role !== 'admin'}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
             >
               {schools.length === 0 && <option value="">— No Schools Available —</option>}
               {(profile?.role === 'admin' || !selectedSchool) && <option value="">— Select School —</option>}
@@ -153,7 +153,7 @@ function LinkStudentModal({
                 value={selectedTeacherId}
                 disabled={profile?.role === 'teacher'}
                 onChange={e => { setSelectedTeacherId(e.target.value); setStudentId(''); }}
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
               >
                 {profile?.role === 'admin' && <option value="">— All Teachers —</option>}
                 {teachers
@@ -174,7 +174,7 @@ function LinkStudentModal({
             <select
               value={selectedClass}
               onChange={e => { setSelectedClass(e.target.value); setStudentId(''); }}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             >
               <option value="">— All Students in School —</option>
               {classList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -195,7 +195,7 @@ function LinkStudentModal({
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
             <select value={relationship} onChange={e => setRelationship(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500">
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary">
               {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -205,7 +205,7 @@ function LinkStudentModal({
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">Cancel</button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
               {saving ? 'Linking…' : 'Link'}
             </button>
           </div>
@@ -301,7 +301,7 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all"
           >
             <PrinterIcon className="w-4 h-4 shrink-0" /> Print / Save PDF
           </button>
@@ -462,8 +462,8 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
           {/* Step: Upload */}
           {step === 'upload' && (
             <div className="space-y-4">
-              <div className="bg-orange-500/5 border border-orange-500/20 p-4 space-y-2">
-                <p className="text-xs font-black text-orange-400 uppercase tracking-widest">CSV Format</p>
+              <div className="bg-primary/5 border border-primary/20 p-4 space-y-2">
+                <p className="text-xs font-black text-primary uppercase tracking-widest">CSV Format</p>
                 <p className="text-xs text-muted-foreground">
                   Columns: <code className="bg-muted px-1 text-foreground text-[11px]">full_name</code>,{' '}
                   <code className="bg-muted px-1 text-foreground text-[11px]">email</code>,{' '}
@@ -472,7 +472,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   <code className="bg-muted px-1 text-foreground text-[11px]">relationship</code> (optional)
                 </p>
                 <button onClick={downloadTemplate}
-                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-orange-300 transition-colors underline underline-offset-2">
+                  className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hover:text-primary transition-colors underline underline-offset-2">
                   Download Template CSV
                 </button>
               </div>
@@ -483,9 +483,9 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 
               <div
                 onClick={() => fileRef.current?.click()}
-                className="border-2 border-dashed border-border hover:border-orange-500/50 p-10 text-center cursor-pointer transition-all group"
+                className="border-2 border-dashed border-border hover:border-primary/50 p-10 text-center cursor-pointer transition-all group"
               >
-                <ArrowUpTrayIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3 group-hover:text-orange-400 transition-colors" />
+                <ArrowUpTrayIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3 group-hover:text-primary transition-colors" />
                 <p className="text-sm font-black text-foreground uppercase tracking-wider">Click to upload CSV</p>
                 <p className="text-xs text-muted-foreground mt-1">Max 200 rows per import</p>
                 <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
@@ -542,7 +542,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   Cancel
                 </button>
                 <button onClick={handleImport} disabled={importing}
-                  className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
                   {importing ? 'Importing…' : `Import ${rows.length} Parent${rows.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
@@ -578,7 +578,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                       <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-3">
                         <div>
                           <p className="text-xs font-bold text-foreground">{r.email}</p>
-                          <p className="text-[11px] text-orange-300 font-mono">{r.password}</p>
+                          <p className="text-[11px] text-primary font-mono">{r.password}</p>
                         </div>
                         <CopyButton value={`${r.email} / ${r.password}`} />
                       </div>
@@ -597,7 +597,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               )}
 
               <button onClick={onClose}
-                className="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
                 Done
               </button>
             </div>
@@ -627,7 +627,7 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
           <p className="hidden md:block text-[10px] text-muted-foreground">{filtered.length} cards · Print on A4</p>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
           >
             <PrinterIcon className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Print Cards</span><span className="sm:hidden">Print</span>
           </button>
@@ -1012,7 +1012,7 @@ export default function ParentsPage() {
       {/* Parents Hub Tab Bar */}
       <div className="bg-card border border-border">
         <div className="flex items-center gap-0 overflow-x-auto">
-          <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-orange-500 text-orange-500 text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+          <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-primary text-primary text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
             <UserGroupIcon className="w-4 h-4" /> Parents
           </div>
           <Link href="/dashboard/parent-feedback"
@@ -1065,7 +1065,7 @@ export default function ParentsPage() {
           )}
           <button
             onClick={() => openSlide('add')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
             <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">Add Parent</span>
           </button>
         </div>
@@ -1080,7 +1080,7 @@ export default function ParentsPage() {
             onChange={e => handleSearchChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); load(); } }}
             placeholder="Search by name or email…"
-            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
           />
         </div>
 
@@ -1106,7 +1106,7 @@ export default function ParentsPage() {
                   else { setParents([]); setLoading(false); }
                 }}
                 disabled={false}
-                className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
+                className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-w-[180px] appearance-none disabled:opacity-70"
               >
                 <option value="">— Select School —</option>
                 {/* Guarantee teacher's school is always an option before schools[] loads */}
@@ -1126,7 +1126,7 @@ export default function ParentsPage() {
             <select
               value={classFilter}
               onChange={e => { classFilterRef.current = e.target.value; setClassFilter(e.target.value); load(); }}
-              className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none"
+              className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-w-[180px] appearance-none"
             >
               <option value="">All My Classes</option>
               {classes
@@ -1184,14 +1184,14 @@ export default function ParentsPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Active</p>
         </div>
         <div className="bg-card border border-border p-4">
-          <p className="text-2xl font-black text-orange-400">{parents.reduce((n, p) => n + p.children.length, 0)}</p>
+          <p className="text-2xl font-black text-primary">{parents.reduce((n, p) => n + p.children.length, 0)}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Linked Children</p>
         </div>
       </div>
 
       {/* School context banner for teachers */}
       {!isAdmin && profile?.school_name && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/5 border border-orange-500/20 text-xs text-orange-400">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/5 border border-primary/20 text-xs text-primary">
           <BuildingOfficeIcon className="w-4 h-4" />
           Showing parents and students for: <span className="font-black">{profile.school_name}</span>
         </div>
@@ -1270,7 +1270,7 @@ export default function ParentsPage() {
                   {(() => {
                     const initials = parent.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
                     return (
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-sm bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-sm bg-gradient-to-br from-primary to-primary flex items-center justify-center flex-shrink-0 shadow-sm">
                         <span className="text-xs sm:text-sm font-black text-white">{initials}</span>
                       </div>
                     );
@@ -1315,9 +1315,9 @@ export default function ParentsPage() {
 
                   {/* Children count badge */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <div className="flex items-center gap-1 px-2 py-1.5 bg-orange-500/5 border border-orange-500/15">
-                      <AcademicCapIcon className="w-3.5 h-3.5 text-orange-400" />
-                      <span className="text-xs font-black text-orange-400">{parent.children.length}</span>
+                    <div className="flex items-center gap-1 px-2 py-1.5 bg-primary/5 border border-primary/15">
+                      <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-black text-primary">{parent.children.length}</span>
                     </div>
                   </div>
 
@@ -1385,9 +1385,9 @@ export default function ParentsPage() {
                     <button
                       onClick={async () => { await ensurePickerData(); setLinkTarget(parent); }}
                       title="Link a student to this parent"
-                      className="group flex items-center gap-2 px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/20 hover:border-orange-500/50 transition-all">
-                      <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
-                        <LinkIcon className="w-3.5 h-3.5 text-orange-400" />
+                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
+                      <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <LinkIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Link Student</span>
                     </button>
@@ -1442,10 +1442,10 @@ export default function ParentsPage() {
                     <Link
                       href={`/dashboard/card-studio?mode=issuance&type=parent&q=${encodeURIComponent(parent.full_name || parent.email || '')}`}
                       title="Open in card studio"
-                      className="group flex items-center gap-2 px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/20 hover:border-orange-500/50 transition-all"
+                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all"
                     >
-                      <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
-                        <CreditCardIcon className="w-3.5 h-3.5 text-orange-400" />
+                      <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <CreditCardIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Card</span>
                     </Link>
@@ -1529,7 +1529,7 @@ export default function ParentsPage() {
                 </div>
               </div>
               <button onClick={() => setResetResult(null)}
-                className="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
                 Done
               </button>
             </div>
@@ -1557,9 +1557,9 @@ export default function ParentsPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-orange-500/20' : 'bg-violet-500/20'}`}>
+                <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-primary/20' : 'bg-violet-500/20'}`}>
                   {slideMode === 'add'
-                    ? <PlusIcon className="w-4 h-4 text-orange-400" />
+                    ? <PlusIcon className="w-4 h-4 text-primary" />
                     : <PencilSquareIcon className="w-4 h-4 text-violet-400" />}
                 </div>
                 <div>
@@ -1585,7 +1585,7 @@ export default function ParentsPage() {
             <div className="flex-1 overflow-y-auto p-6">
               {slidePickerLoading ? (
                 <div className="flex flex-col items-center justify-center h-48 gap-3">
-                  <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <p className="text-xs text-muted-foreground font-black uppercase tracking-widest animate-pulse">
                     Loading form data…
                   </p>

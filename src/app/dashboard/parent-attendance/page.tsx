@@ -299,8 +299,8 @@ function ParentAttendanceContent() {
               onClick={() => setSelectedId(child.id)}
               className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
                 selectedId === child.id
-                  ? 'bg-orange-600 border-orange-600 text-white'
-                  : 'bg-card border-border text-muted-foreground hover:border-orange-500/50'
+                  ? 'bg-primary border-primary text-white'
+                  : 'bg-card border-border text-muted-foreground hover:border-primary/50'
               }`}>
               {child.full_name}
             </button>

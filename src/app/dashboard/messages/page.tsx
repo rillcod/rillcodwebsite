@@ -248,7 +248,7 @@ export default function MessagesPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center gap-2 mb-6">
-          <ChatBubbleLeftRightIcon className="w-5 h-5 text-orange-400" />
+          <ChatBubbleLeftRightIcon className="w-5 h-5 text-primary" />
           <h1 className="text-3xl font-black">Parent-Teacher Messages</h1>
         </div>
 
@@ -256,7 +256,7 @@ export default function MessagesPage() {
           {/* Thread list */}
           <div className="lg:col-span-1 bg-card border border-border rounded-none overflow-y-auto">
             {loading ? (
-              <div className="flex justify-center py-8"><div className="w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+              <div className="flex justify-center py-8"><div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
             ) : threads.length === 0 ? (
               <div className="text-center py-10 px-4">
                 <ChatBubbleLeftRightIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
@@ -270,7 +270,7 @@ export default function MessagesPage() {
                   onClick={() => setSelected(t)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border hover:bg-muted transition-colors ${selected?.id === t.id ? 'bg-muted' : ''}`}
                 >
-                  <div className="w-9 h-9 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-black text-orange-400 flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-primary/30 flex items-center justify-center text-xs font-black text-primary flex-shrink-0">
                     {getThreadTitle(t)[0]}
                   </div>
                   <div className="min-w-0">
@@ -304,12 +304,12 @@ export default function MessagesPage() {
                     const isOwn = msg.sender_id === profile?.id;
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                        <div className="w-7 h-7 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                           {(msg.portal_users?.full_name ?? '?')[0]}
                         </div>
                         <div className={`max-w-[70%] space-y-1 ${isOwn ? 'items-end' : ''}`}>
                           {!isOwn && <p className="text-xs font-bold text-muted-foreground">{msg.portal_users?.full_name}</p>}
-                          <div className={`px-3 py-2 rounded-none text-sm ${isOwn ? 'bg-orange-600/90 text-white' : 'bg-muted border border-border text-foreground'}`}>
+                          <div className={`px-3 py-2 rounded-none text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-muted border border-border text-foreground'}`}>
                             {msg.body}
                           </div>
                           <p className="text-[10px] text-muted-foreground">
@@ -327,9 +327,9 @@ export default function MessagesPage() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Type a message…"
-                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-orange-500"
+                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
-                  <button onClick={sendMessage} disabled={!input.trim() || sending} className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-none transition-colors">
+                  <button onClick={sendMessage} disabled={!input.trim() || sending} className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-none transition-colors">
                     <PaperAirplaneIcon className="w-4 h-4" />
                   </button>
                 </div>

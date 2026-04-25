@@ -21,7 +21,7 @@ const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; 
   Silver:   { label: 'Silver',   emoji: '🥈', bar: 'bg-slate-400',  text: 'text-muted-foreground/70',  border: 'border-slate-400/40' },
   Gold:     { label: 'Gold',     emoji: '🥇', bar: 'bg-amber-400',  text: 'text-amber-400',  border: 'border-amber-400/40' },
   Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400',   text: 'text-cyan-400',   border: 'border-cyan-400/40' },
-  Modern:   { label: 'Level',    emoji: '⭐', bar: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500/40' },
+  Modern:   { label: 'Level',    emoji: '⭐', bar: 'bg-primary', text: 'text-primary', border: 'border-primary/40' },
 };
 const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 };
 const CUR_THRESHOLD:  Record<string, number>  = { Bronze: 0,   Silver: 500,  Gold: 2000, Platinum: 5000 };
@@ -196,18 +196,18 @@ export default function StudentDashboard() {
       {/* Greeting */}
       <div className="bg-gradient-to-br from-card to-background border border-border p-6 sm:p-8">
         <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
-          Welcome, <span className="text-orange-500">{profile?.full_name?.split(' ')?.[0] ?? 'there'}!</span>
+          Welcome, <span className="text-primary">{profile?.full_name?.split(' ')?.[0] ?? 'there'}!</span>
         </h1>
         <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in any course yet. Get started by exploring available programmes below.</p>
       </div>
 
       {/* CTA */}
       <Link href="/dashboard/learning"
-        className="flex flex-col gap-4 p-6 bg-orange-600/10 border border-orange-600/20 hover:border-orange-500/40 hover:bg-orange-600/15 transition-all group">
-        <div className="px-2.5 py-1 bg-orange-600 text-white text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
-        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-orange-400 transition-colors">Browse Programmes</h3>
+        className="flex flex-col gap-4 p-6 bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group">
+        <div className="px-2.5 py-1 bg-primary text-white text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
+        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">Browse Programmes</h3>
         <p className="text-[10px] text-muted-foreground font-medium">Find a programme to enrol in and start your learning journey.</p>
-        <div className="flex items-center gap-2 text-orange-400 text-[9px] font-black uppercase tracking-widest mt-auto">
+        <div className="flex items-center gap-2 text-primary text-[9px] font-black uppercase tracking-widest mt-auto">
           <RocketLaunchIcon className="w-4 h-4" /> Explore Now →
         </div>
       </Link>
@@ -254,32 +254,32 @@ export default function StudentDashboard() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <RocketLaunchIcon className="w-4 h-4 text-orange-500" />
+              <RocketLaunchIcon className="w-4 h-4 text-primary" />
               Your Next Lesson
             </h2>
-            <Link href="/dashboard/learning" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">
+            <Link href="/dashboard/learning" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
               Learning Center →
             </Link>
           </div>
 
           {data.nextLesson ? (
             <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
-              className="group flex flex-col gap-5 p-8 bg-gradient-to-br from-orange-600/10 via-card to-background border border-orange-500/30 hover:border-orange-500/50 transition-all relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+              className="group flex flex-col gap-5 p-8 bg-gradient-to-br from-primary/10 via-card to-background border border-primary/30 hover:border-primary/50 transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <div className="px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
-                <div className="flex items-center gap-1 text-orange-400 text-[10px] font-black uppercase tracking-widest">
+                <div className="px-3 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
+                <div className="flex items-center gap-1 text-primary text-[10px] font-black uppercase tracking-widest">
                   <SparklesIcon className="w-4 h-4 animate-pulse" /> +15 XP
                 </div>
               </div>
               <div className="relative z-10">
-                <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-[0.2em] mb-1.5">Up Next</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight leading-none group-hover:text-orange-400 transition-colors">
+                <p className="text-[10px] font-black text-primary/70 uppercase tracking-[0.2em] mb-1.5">Up Next</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight leading-none group-hover:text-primary transition-colors">
                   {data.nextLesson.title}
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
-                 <div className="px-10 py-3 bg-orange-600 group-hover:bg-orange-500 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-orange-950/20">
+                 <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-orange-950/20">
                     Resume Now
                  </div>
                  <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
@@ -287,13 +287,13 @@ export default function StudentDashboard() {
             </Link>
           ) : (
             <Link href="/dashboard/learning"
-              className="group flex flex-col gap-6 p-10 bg-card border border-dashed border-border hover:border-orange-500/30 transition-all text-center items-center justify-center min-h-[200px]">
+              className="group flex flex-col gap-6 p-10 bg-card border border-dashed border-border hover:border-primary/30 transition-all text-center items-center justify-center min-h-[200px]">
               <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center text-3xl">📚</div>
               <div>
                 <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Select a Programme</h3>
                 <p className="text-xs text-muted-foreground mt-1">You don't have an active mission. Start one in the Learning Center.</p>
               </div>
-              <div className="px-8 py-3 bg-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
+              <div className="px-8 py-3 bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
             </Link>
           )}
         </div>
@@ -340,7 +340,7 @@ export default function StudentDashboard() {
         
         {/* Profile/Level Card */}
         <div className="lg:col-span-3 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
           
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="relative shrink-0">
@@ -362,7 +362,7 @@ export default function StudentDashboard() {
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center">
-                    <p className="text-2xl font-black text-orange-500 tabular-nums leading-none">{data.streak}</p>
+                    <p className="text-2xl font-black text-primary tabular-nums leading-none">{data.streak}</p>
                     <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Streak</p>
                   </div>
                   <div className="text-center">
@@ -558,7 +558,7 @@ export default function StudentDashboard() {
             <div className="bg-card border border-border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Due Soon</h3>
-                <Link href="/dashboard/assignments" className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                <Link href="/dashboard/assignments" className="text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
                   View All →
                 </Link>
               </div>
@@ -590,7 +590,7 @@ export default function StudentDashboard() {
             <div className="bg-card border border-border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Recent Grades</h3>
-                <Link href="/dashboard/assignments" className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                <Link href="/dashboard/assignments" className="text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest transition-colors">
                   View All →
                 </Link>
               </div>
@@ -631,8 +631,8 @@ export default function StudentDashboard() {
           <div className="space-y-3">
             {data.recentActivity.map((a, i) => (
               <div key={i} className="flex items-center gap-4 p-3 bg-background border border-border">
-                <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                  <ChartBarIcon className="w-4 h-4 text-orange-400" />
+                <div className="w-8 h-8 bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <ChartBarIcon className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-black text-foreground uppercase tracking-tight truncate">{a.title}</p>

@@ -265,8 +265,8 @@ export default function NewslettersPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <SpeakerWaveIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Official Channel</span>
+              <SpeakerWaveIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Official Channel</span>
             </div>
             <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletters' : 'Official Newsletters'}</h1>
             <p className="text-muted-foreground text-sm mt-1">
@@ -279,7 +279,7 @@ export default function NewslettersPage() {
             isManager && (
               <button 
                 onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-                className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
+                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
               >
                 <PlusIcon className="w-5 h-5" /> Create Newsletter
               </button>
@@ -330,7 +330,7 @@ export default function NewslettersPage() {
                         <TrashIcon className="w-4 h-4" />
                       </button>
                     )}
-                    <ChevronRightIcon className="w-5 h-5 text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRightIcon className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="flex items-center gap-2 mb-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
@@ -359,8 +359,8 @@ export default function NewslettersPage() {
               <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 space-y-6 lg:space-y-8 shadow-2xl">
                 <div className="flex items-center justify-between lg:block">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/30">
-                      <SparklesIcon className="w-6 h-6 text-orange-400" />
+                    <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center border border-primary/30">
+                      <SparklesIcon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                       <h3 className="text-sm lg:text-lg font-black tracking-tight uppercase">AI Assistant</h3>
@@ -378,7 +378,7 @@ export default function NewslettersPage() {
                             <button
                               key={t}
                               onClick={() => setAiTone(t as any)}
-                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-orange-600 border-orange-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                             >
                               {t}
                             </button>
@@ -408,14 +408,14 @@ export default function NewslettersPage() {
                        value={topic}
                        onChange={e => setTopic(e.target.value)}
                        placeholder="Announce your news..."
-                       className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-4 text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
+                       className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
                      />
                   </div>
                   
                   <button
                     onClick={handleAIGenerate}
                     disabled={generating || !topic}
-                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-orange-600 to-indigo-700 hover:from-orange-500 hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
+                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-primary to-indigo-700 hover:from-primary hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
                   >
                     {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
                     {generating ? 'Generating...' : 'Generate'}
@@ -434,7 +434,7 @@ export default function NewslettersPage() {
                     onClick={handleDownloadPDF}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-none text-[10px] font-black transition-all border border-border group"
                   >
-                    <PrinterIcon className="w-4 h-4 text-orange-400" /> 
+                    <PrinterIcon className="w-4 h-4 text-primary" /> 
                     <span className="uppercase tracking-widest">Export PDF</span>
                   </button>
                   {activeNewsletter?.id && (
@@ -453,7 +453,7 @@ export default function NewslettersPage() {
             {/* Main Content Area */}
             <div className="lg:col-span-8 space-y-8 order-1 lg:order-2">
               <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[3rem] p-6 lg:p-10 space-y-6 lg:space-y-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                 
                 <div className="flex flex-col gap-6">
                   <div className="flex items-center gap-4 border-b border-border pb-6">
@@ -470,7 +470,7 @@ export default function NewslettersPage() {
                   </div>
                   
                   <div className="relative group/editor">
-                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-orange-500/20 to-transparent hidden sm:block" />
+                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-primary/20 to-transparent hidden sm:block" />
                     <textarea 
                       value={activeNewsletter?.content || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
@@ -490,7 +490,7 @@ export default function NewslettersPage() {
                    <button 
                     onClick={handleSave}
                     disabled={loading || !activeNewsletter?.title}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-none text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
                   >
                     {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save
@@ -506,8 +506,8 @@ export default function NewslettersPage() {
           <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl animate-in fade-in duration-300">
             <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/30">
-                    <EyeIcon className="w-5 h-5 text-orange-400" />
+                  <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center border border-primary/30">
+                    <EyeIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                      <h3 className="text-sm font-black uppercase tracking-widest">Print Preview</h3>
@@ -522,7 +522,7 @@ export default function NewslettersPage() {
                     onClick={handleDownloadPDF}
                     className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest transition-all"
                   >
-                    <PrinterIcon className="w-4 h-4 text-orange-400" /> Export PDF
+                    <PrinterIcon className="w-4 h-4 text-primary" /> Export PDF
                   </button>
                   <button 
                     onClick={() => setShowPreview(false)}
@@ -615,10 +615,10 @@ export default function NewslettersPage() {
                         key={t.id}
                         onClick={() => setTargetType(t.id as any)}
                         className={`flex items-center gap-3 px-4 py-4 rounded-none border transition-all ${
-                          targetType === t.id ? 'bg-orange-600/10 border-orange-500/50 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-white/8'
+                          targetType === t.id ? 'bg-primary/10 border-primary/50 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-white/8'
                         }`}
                       >
-                        <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-orange-400' : ''}`} />
+                        <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-primary' : ''}`} />
                         <span className="text-sm font-bold">{t.label}</span>
                       </button>
                     ))}

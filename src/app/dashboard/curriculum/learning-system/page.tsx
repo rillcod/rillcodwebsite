@@ -33,7 +33,7 @@ function ListBlock({
       <ul className="space-y-1 text-xs text-foreground/90">
         {items.map((x, i) => (
           <li key={i} className="flex gap-2">
-            <span className="text-orange-500 font-black shrink-0">·</span>
+            <span className="text-primary font-black shrink-0">·</span>
             <span>
               {typeof x === 'string' ? x : x.name}
               {typeof x !== 'string' && x.note && (
@@ -81,7 +81,7 @@ export default function LearningSystemMapPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
@@ -108,15 +108,15 @@ export default function LearningSystemMapPage() {
         </div>
         <div className="max-w-4xl mx-auto mt-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
-              <Squares2X2Icon className="w-5 h-5 text-orange-400" />
+            <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+              <Squares2X2Icon className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight">Learning &amp; QA system map</h1>
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                 One clear order: choose course, set syllabus path, set term plan, then deliver weekly lessons.
                 This page explains where each part lives so nothing feels hidden.
-                Active catalog version: <code className="text-orange-300 bg-muted px-1">{QA_CATALOG_VERSION}</code>
+                Active catalog version: <code className="text-primary bg-muted px-1">{QA_CATALOG_VERSION}</code>
               </p>
             </div>
           </div>
@@ -124,8 +124,8 @@ export default function LearningSystemMapPage() {
       </div>
 
       <div className="px-4 sm:px-8 py-8 max-w-4xl mx-auto space-y-4">
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/[0.05] p-4 space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">Start here (simple)</p>
+        <div className="rounded-xl border border-primary/30 bg-primary/[0.05] p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Start here (simple)</p>
           <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
             <li className="border border-border rounded-lg p-3 bg-card/60">
               <p className="font-black text-foreground">1) Choose your course</p>
@@ -160,7 +160,7 @@ export default function LearningSystemMapPage() {
 
         {/* One-line linear flow (visual) */}
         <div className="rounded-xl border border-border bg-gradient-to-b from-card to-card/50 p-4">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-3">Simple order</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-3">Simple order</p>
           <div className="overflow-x-auto pb-1 -mx-1 px-1">
             <div className="flex flex-nowrap items-center gap-0.5 min-w-max sm:flex-wrap sm:min-w-0">
               {LEARNING_QA_SYSTEM_ORDER.map((layer, i) => (
@@ -170,7 +170,7 @@ export default function LearningSystemMapPage() {
                     className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-muted/30 px-2 py-1.5 text-[10px] font-bold text-foreground whitespace-nowrap"
                     title={layer.title}
                   >
-                    <span className="text-orange-500 font-black tabular-nums">{layer.order}</span>
+                    <span className="text-primary font-black tabular-nums">{layer.order}</span>
                     {LEARNING_FLOW_STRIP_LABELS[layer.order] ?? '—'}
                   </span>
                 </Fragment>
@@ -219,8 +219,8 @@ export default function LearningSystemMapPage() {
         </div>
 
         {/* Adopt / flexible / traditional — policy in one place */}
-        <div className="rounded-xl border border-dashed border-orange-500/30 bg-orange-500/[0.04] p-4 space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-300">Choose how your school works</p>
+        <div className="rounded-xl border border-dashed border-primary/30 bg-primary/[0.04] p-4 space-y-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-primary">Choose how your school works</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {DELIVERY_MODE_CHOICES.map((m) => (
               <div
@@ -263,8 +263,8 @@ export default function LearningSystemMapPage() {
               key={layer.order}
               className="relative rounded-xl border border-border bg-card overflow-hidden"
             >
-              <div className="flex items-start gap-0 border-b border-border/80 bg-gradient-to-r from-orange-500/5 to-transparent px-4 py-3">
-                <span className="text-2xl font-black text-orange-500 tabular-nums w-10 shrink-0">
+              <div className="flex items-start gap-0 border-b border-border/80 bg-gradient-to-r from-primary/5 to-transparent px-4 py-3">
+                <span className="text-2xl font-black text-primary tabular-nums w-10 shrink-0">
                   {layer.order}
                 </span>
                 <div className="min-w-0 flex-1">

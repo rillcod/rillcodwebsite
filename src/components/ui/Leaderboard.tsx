@@ -69,7 +69,7 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                                 <AvatarImage src={topThree[2].portal_users.profile_image_url} />
                                 <AvatarFallback className="bg-orange-100">{topThree[2].portal_users.full_name.substring(0, 2)}</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-2 -right-2 bg-orange-300 text-orange-900 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white">3</div>
+                            <div className="absolute -bottom-2 -right-2 bg-primary text-orange-900 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white">3</div>
                         </div>
                         <p className="text-sm font-bold text-foreground/80 dark:text-slate-300 truncate w-24 text-center">{topThree[2].portal_users.full_name}</p>
                         <Badge variant="secondary" className="mt-2 font-mono text-teal-600 bg-teal-50">{topThree[2].points} pts</Badge>

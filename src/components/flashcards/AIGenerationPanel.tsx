@@ -85,8 +85,8 @@ export default function AIGenerationPanel({
         {/* Header */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center">
-              <SparklesIcon className="w-5 h-5 text-orange-400" />
+            <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
+              <SparklesIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-foreground">AI Card Generator</h2>
@@ -112,7 +112,7 @@ export default function AIGenerationPanel({
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 placeholder="e.g. Fundamental laws of physics, Python list comprehensions, or paste your lesson notes here..."
-                className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-orange-500 text-sm min-h-[120px] resize-none italic"
+                className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-primary text-sm min-h-[120px] resize-none italic"
               />
             </div>
 
@@ -124,7 +124,7 @@ export default function AIGenerationPanel({
                 <select 
                   value={count}
                   onChange={e => setCount(Number(e.target.value))}
-                  className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-orange-500 text-sm font-bold"
+                  className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-primary text-sm font-bold"
                 >
                   {[5, 10, 15, 20, 30].map(c => (
                     <option key={c} value={c}>{c} Cards</option>
@@ -138,7 +138,7 @@ export default function AIGenerationPanel({
                 <select 
                   value={difficulty}
                   onChange={e => setDifficulty(e.target.value)}
-                  className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-orange-500 text-sm font-bold"
+                  className="w-full bg-background border border-border px-4 py-3 rounded-none focus:outline-none focus:border-primary text-sm font-bold"
                 >
                   <option value="easy">Beginner / Foundation</option>
                   <option value="medium">Intermediate / Standard</option>
@@ -155,8 +155,8 @@ export default function AIGenerationPanel({
             </div>
           )}
 
-          <div className="bg-orange-500/5 border border-orange-500/10 p-4 rounded-none space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400">Template Context</p>
+          <div className="bg-primary/5 border border-primary/10 p-4 rounded-none space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Template Context</p>
             <p className="text-xs text-muted-foreground italic">
               Cards will be generated with the &quot;{selectedTemplate.name}&quot; style applied automatically.
             </p>
@@ -174,7 +174,7 @@ export default function AIGenerationPanel({
           <button 
             onClick={handleGenerate}
             disabled={generating}
-            className="flex-[2] py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-none text-sm transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-orange-500/20"
+            className="flex-[2] py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-none text-sm transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-primary/20"
           >
             {generating ? (
               <>

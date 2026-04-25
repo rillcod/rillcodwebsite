@@ -68,7 +68,7 @@ function detectCategory(block: string): BlockCategory {
 // ---------------------------------------------------------------------------
 
 const CATEGORY_BG: Record<BlockCategory, string> = {
-  control: 'bg-orange-500',
+  control: 'bg-primary',
   motion: 'bg-blue-500',
   looks: 'bg-purple-500',
   sound: 'bg-pink-500',
@@ -98,7 +98,7 @@ const CATEGORY_BORDER: Record<BlockCategory, string> = {
 };
 
 const CATEGORY_HOVER: Record<BlockCategory, string> = {
-  control: 'hover:bg-orange-600',
+  control: 'hover:bg-primary',
   motion: 'hover:bg-blue-600',
   looks: 'hover:bg-purple-600',
   sound: 'hover:bg-pink-600',
@@ -411,7 +411,7 @@ export default function BlockSequencer({
       <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-border">
         <div className="flex items-center gap-2">
           {/* Scratch-like notch icon */}
-          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-orange-400">
+          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-primary">
             <rect x="2" y="6" width="20" height="4" rx="1" fill="currentColor" opacity="0.8" />
             <rect x="2" y="14" width="20" height="4" rx="1" fill="currentColor" opacity="0.5" />
             <path d="M6 6 Q8 3 10 6" fill="currentColor" />

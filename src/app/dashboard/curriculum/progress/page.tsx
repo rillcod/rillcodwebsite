@@ -242,7 +242,7 @@ export default function CurriculumProgressPage() {
 
   if (authLoading || !profile) return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -287,7 +287,7 @@ export default function CurriculumProgressPage() {
             )}
             <Link
               href="/dashboard/curriculum"
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors"
             >
               <BookOpenIcon className="w-4 h-4" /> Open Curriculum
             </Link>
@@ -310,7 +310,7 @@ export default function CurriculumProgressPage() {
           {[
             { label: 'Active Curricula', value: totalCurricula, icon: BookOpenIcon, color: 'text-violet-400' },
             { label: 'Fully Completed', value: totalCompleted, icon: CheckCircleIcon, color: 'text-emerald-400' },
-            { label: 'Weeks Delivered', value: totalWeeksDelivered, icon: AcademicCapIcon, color: 'text-orange-400' },
+            { label: 'Weeks Delivered', value: totalWeeksDelivered, icon: AcademicCapIcon, color: 'text-primary' },
             { label: 'Upcoming Assessments', value: upcomingCount, icon: ExclamationTriangleIcon, color: 'text-amber-400' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-card border border-border p-4 space-y-2">
@@ -338,7 +338,7 @@ export default function CurriculumProgressPage() {
               title="Filter by school"
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
+              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
             >
               <option value="">All Schools</option>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -347,7 +347,7 @@ export default function CurriculumProgressPage() {
               title="Filter by term"
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-orange-500 rounded-lg"
+              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
             >
               <option value="">All Terms</option>
               <option value="1">First Term</option>
@@ -357,7 +357,7 @@ export default function CurriculumProgressPage() {
             {(filterSchool || filterTerm) && (
               <button
                 onClick={() => { setFilterSchool(''); setFilterTerm(''); }}
-                className="text-xs text-orange-400 hover:text-orange-300 font-bold transition-colors px-2"
+                className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
               >
                 Clear filters
               </button>
@@ -438,7 +438,7 @@ export default function CurriculumProgressPage() {
         {/* Curricula list */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : fetchError ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-rose-500/20 rounded-xl">
@@ -476,7 +476,7 @@ export default function CurriculumProgressPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{curr.program_name}</span>
                           <span className="text-muted-foreground/30">›</span>
-                          <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">v{curr.version}</span>
+                          <span className="text-[10px] text-primary font-bold uppercase tracking-wider">v{curr.version}</span>
                           {!curr.is_visible_to_school && !isSchool && (
                             <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-muted-foreground/70 border border-zinc-500/30 uppercase tracking-wider">
                               Hidden from schools

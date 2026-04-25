@@ -2324,7 +2324,7 @@ export default function LessonPlanDetailPage() {
                             <button
                               onClick={() => bulkGenerate('cbt')}
                               disabled={generating !== null}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate CBTs
                             </button>

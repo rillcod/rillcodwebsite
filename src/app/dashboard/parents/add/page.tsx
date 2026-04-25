@@ -54,7 +54,7 @@ export default function AddParentPage() {
   if (authLoading || loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading Form Data…</p>
       </div>
     );

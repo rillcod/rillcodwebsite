@@ -88,7 +88,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   onClick={() => setActiveTab(item.href)}
                   className={`flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 relative ${
                     isActive
-                      ? 'text-orange-500'
+                      ? 'text-primary'
                       : 'text-muted-foreground hover:text-white'
                   }`}
                 >
@@ -99,7 +99,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   
                   {/* Active indicator */}
                   {isActive && (
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 rounded-none shadow-[0_0_8px_rgba(255,145,77,0.8)]"></div>
+                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-none shadow-[0_0_8px_rgba(255,145,77,0.8)]"></div>
                   )}
                 </Link>
               );
@@ -157,7 +157,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
                   onClick={() => setIsOpen(false)}
                   className={`flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest transition-colors duration-200 ${
                     isActive
-                      ? 'bg-orange-500/10 text-orange-500 border-l-2 border-orange-500'
+                      ? 'bg-primary/10 text-primary border-l-2 border-primary'
                       : 'text-muted-foreground/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
@@ -192,7 +192,7 @@ export function FloatingActionButton() {
             <Link
               key={action.name}
               href={action.href}
-              className="flex items-center justify-center w-14 h-14 bg-[#1a1a1a] text-orange-500 border border-border rounded-none shadow-2xl hover:border-orange-500 transition-all duration-200 transform hover:scale-110"
+              className="flex items-center justify-center w-14 h-14 bg-[#1a1a1a] text-primary border border-border rounded-none shadow-2xl hover:border-primary transition-all duration-200 transform hover:scale-110"
               style={{
                 animationDelay: `${index * 100}ms`,
                 animation: 'slideInUp 0.3s ease-out forwards'
@@ -207,7 +207,7 @@ export function FloatingActionButton() {
       {/* Main FAB */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-16 h-16 bg-orange-500 text-white rounded-none shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-orange-600 transition-all duration-200 transform hover:rotate-90 group"
+        className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-none shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-primary transition-all duration-200 transform hover:rotate-90 group"
       >
         {isOpen ? (
           <XMarkIcon className="h-8 w-8" />

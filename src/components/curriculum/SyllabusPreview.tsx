@@ -179,7 +179,7 @@ export function SyllabusPreview({
       {/* Course overview */}
       <section className="rounded-lg border border-border bg-card/60 p-4 sm:p-5 space-y-3">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-md bg-orange-500/15 text-orange-300 inline-flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-md bg-primary/15 text-primary inline-flex items-center justify-center shrink-0">
             <AcademicCapIcon className="w-5 h-5" />
           </div>
           <div className="min-w-0">
@@ -229,7 +229,7 @@ export function SyllabusPreview({
                 }}
                 className={`snap-start shrink-0 px-3.5 py-2 rounded-full border text-[11px] font-black uppercase tracking-widest transition ${
                   active
-                    ? 'bg-orange-500/15 border-orange-500/40 text-orange-300'
+                    ? 'bg-primary/15 border-primary/40 text-primary'
                     : 'bg-muted/20 border-border text-muted-foreground hover:bg-muted/40'
                 }`}
               >
@@ -252,7 +252,7 @@ export function SyllabusPreview({
               <ul className="mt-3 space-y-1.5 text-sm">
                 {currentTerm.objectives.map((o, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <SparklesIcon className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+                    <SparklesIcon className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                     <span className="text-foreground/90">{o}</span>
                   </li>
                 ))}
@@ -274,7 +274,7 @@ export function SyllabusPreview({
                     className="w-full flex items-start sm:items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left hover:bg-muted/10 transition"
                   >
                     {expanded ? (
-                      <ChevronDownIcon className="w-4 h-4 text-orange-400 mt-0.5 sm:mt-0 shrink-0" />
+                      <ChevronDownIcon className="w-4 h-4 text-primary mt-0.5 sm:mt-0 shrink-0" />
                     ) : (
                       <ChevronRightIcon className="w-4 h-4 text-muted-foreground mt-0.5 sm:mt-0 shrink-0" />
                     )}
@@ -306,7 +306,7 @@ export function SyllabusPreview({
                           <ul className="mt-1 text-sm space-y-1">
                             {w.subtopics.map((s, i) => (
                               <li key={i} className="flex items-start gap-1.5">
-                                <span className="w-1 h-1 rounded-full bg-orange-500 mt-2 shrink-0" />
+                                <span className="w-1 h-1 rounded-full bg-primary mt-2 shrink-0" />
                                 <span>{s}</span>
                               </li>
                             ))}
@@ -430,8 +430,8 @@ function LessonDetails({
       )}
 
       {plan.project && (plan.project.title || plan.project.description) && (
-        <div className="rounded-md border border-orange-500/30 bg-orange-500/5 p-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-orange-300">
+        <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
             Project
           </p>
           {plan.project.title && (
@@ -542,7 +542,7 @@ function BlockList({
               <CheckCircleIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
             )}
             {icon === 'sparkle' && (
-              <SparklesIcon className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+              <SparklesIcon className="w-4 h-4 text-primary mt-0.5 shrink-0" />
             )}
             {icon === 'number' && (
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-border text-[10px] font-black shrink-0 mt-0.5">

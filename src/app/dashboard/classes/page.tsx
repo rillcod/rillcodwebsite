@@ -76,7 +76,7 @@ export default function ClassesPage() {
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -85,7 +85,7 @@ export default function ClassesPage() {
 
       {/* ── My Classes Tab Bar ── */}
       <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-black">
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
           <UserGroupIcon className="w-4 h-4" /> Classes
         </span>
         <Link href="/dashboard/timetable"
@@ -102,8 +102,8 @@ export default function ClassesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <AcademicCapIcon className="w-5 h-5 text-orange-400" />
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Class Management</span>
+            <AcademicCapIcon className="w-5 h-5 text-primary" />
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">Class Management</span>
           </div>
           <h1 className="text-3xl font-extrabold text-foreground">My Classes</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -114,16 +114,16 @@ export default function ClassesPage() {
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/reports/builder"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-orange-500/50 text-foreground font-bold text-sm rounded-none transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-none transition-colors"
             >
-              <ChartBarIcon className="w-4 h-4 text-orange-400" />
+              <ChartBarIcon className="w-4 h-4 text-primary" />
               Reports
             </Link>
           )}
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/classes/add"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30"
             >
               <PlusIcon className="w-4 h-4" />
               Add Class
@@ -146,7 +146,7 @@ export default function ClassesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-orange-500/10', color: 'text-orange-400' },
+          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', color: 'text-primary' },
           { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-blue-500/10',   color: 'text-blue-400'   },
           { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10',color: 'text-emerald-400' },
           { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', color: 'text-purple-400'  },
@@ -170,13 +170,13 @@ export default function ClassesPage() {
             placeholder="Search by class name or programme..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 cursor-pointer transition-colors"
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
@@ -188,8 +188,8 @@ export default function ClassesPage() {
       {/* Classes list */}
       {filtered.length === 0 ? (
         <div className="bg-card shadow-sm border border-border rounded-none p-16 flex flex-col items-center justify-center text-center">
-          <div className="w-12 h-12 bg-orange-500/10 rounded-none flex items-center justify-center mb-4">
-            <AcademicCapIcon className="w-6 h-6 text-orange-400" />
+          <div className="w-12 h-12 bg-primary/10 rounded-none flex items-center justify-center mb-4">
+            <AcademicCapIcon className="w-6 h-6 text-primary" />
           </div>
           <h3 className="text-base font-bold text-foreground mb-1">No classes found</h3>
           <p className="text-sm text-muted-foreground max-w-xs">
@@ -200,7 +200,7 @@ export default function ClassesPage() {
           {profile?.role !== 'school' && !searchTerm && filterStatus === 'all' && (
             <Link
               href="/dashboard/classes/add"
-              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors"
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Class
             </Link>
@@ -256,7 +256,7 @@ export default function ClassesPage() {
                   )}
                   {cls.portal_users?.full_name && profile?.role !== 'school' && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <div className="w-4 h-4 bg-orange-600 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+                      <div className="w-4 h-4 bg-primary flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
                         {cls.portal_users.full_name.charAt(0).toUpperCase()}
                       </div>
                       <span className="truncate">{cls.portal_users.full_name}</span>
@@ -273,7 +273,7 @@ export default function ClassesPage() {
                     </div>
                     <div className="h-1.5 bg-border rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-orange-500 rounded-full transition-all"
+                        className="h-full bg-primary rounded-full transition-all"
                         style={{ width: `${Math.min(100, Math.round(((cls.current_students ?? 0) / cls.max_students) * 100))}%` }}
                       />
                     </div>
@@ -285,7 +285,7 @@ export default function ClassesPage() {
               <div className="border-t border-border flex items-center">
                 <Link
                   href={`/dashboard/classes/${cls.id}`}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-orange-400 hover:bg-orange-500/5 transition-colors border-r border-border"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors border-r border-border"
                 >
                   <EyeIcon className="w-3.5 h-3.5" />
                   View
@@ -323,7 +323,7 @@ export default function ClassesPage() {
           <h2 className="text-sm font-bold text-foreground mb-4">Quick Links</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/students'    },
+              { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students'    },
               { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments' },
               { label: 'CBT Exams',   desc: 'Online tests',       icon: AcademicCapIcon, color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'         },
               { label: 'Lessons',     desc: 'Curriculum content', icon: BookOpenIcon,    color: 'text-purple-400', bg: 'bg-purple-500/10', href: '/dashboard/lessons'     },
@@ -331,13 +331,13 @@ export default function ClassesPage() {
               <Link
                 key={a.label}
                 href={a.href}
-                className="flex items-center gap-3 p-3 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-colors rounded-none group"
+                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-none group"
               >
                 <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
                   <a.icon className={`w-4 h-4 ${a.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-foreground group-hover:text-orange-400 transition-colors">{a.label}</p>
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{a.label}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
                 </div>
               </Link>

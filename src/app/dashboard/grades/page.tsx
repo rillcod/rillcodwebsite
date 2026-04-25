@@ -44,7 +44,7 @@ function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
         emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500', ring: 'ring-emerald-500' },
         blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500', ring: 'ring-blue-500' },
         amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', ring: 'ring-amber-500' },
-        orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
+        orange: { text: 'text-primary', bg: 'bg-primary', border: 'border-primary', ring: 'ring-primary' },
         rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500', ring: 'ring-rose-500' },
     };
     return map[color]?.[variant] ?? '';
@@ -132,26 +132,26 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
-                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500">
+                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary">
                             <option value="">Select Programme</option>
                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Course *</label>
-                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500 disabled:opacity-30">
+                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-30">
                             <option value="">Select Course</option>
                             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
-                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500" />
+                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Term *</label>
-                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500">
+                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary">
                                 <option value="First Term">First Term</option>
                                 <option value="Second Term">Second Term</option>
                                 <option value="Third Term">Third Term</option>
@@ -160,7 +160,7 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500" />
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary" />
                         </div>
                     </div>
                 </div>
@@ -169,7 +169,7 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
 
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-white/10 hover:bg-white/5 transition-all">Cancel</button>
-                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-900/40">
+                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-900/40">
                         {syncing ? (
                             <div className="flex items-center justify-center gap-2">
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -326,7 +326,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                     <div className="flex-1 min-w-0 pr-4">
                         <h3 className="font-bold text-foreground text-base leading-tight">{sub.assignments?.title ?? 'Grade Submission'}</h3>
                         <div className="flex items-center gap-2 mt-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                 {(sub.portal_users?.full_name ?? '?')[0]}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -389,7 +389,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <div className="flex items-center gap-3">
                                     <input type="number" min={0} max={max} value={grade}
                                         onChange={e => { setGrade(e.target.value); setErr(''); }}
-                                        className="w-24 px-3 py-2.5 bg-muted border border-border rounded-none text-foreground text-xl font-black text-center focus:outline-none focus:border-orange-500 transition-colors"
+                                        className="w-24 px-3 py-2.5 bg-muted border border-border rounded-none text-foreground text-xl font-black text-center focus:outline-none focus:border-primary transition-colors"
                                         placeholder="0"
                                     />
                                     <span className="text-muted-foreground text-sm font-bold">/ {max}</span>
@@ -426,7 +426,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                         </div>
                                         {sub.file_url && (
                                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-orange-500 p-3 bg-blue-400/5 rounded-none border border-blue-400/10">
+                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-primary p-3 bg-blue-400/5 rounded-none border border-blue-400/10">
                                                 <PaperClipIcon className="w-3 h-3" /> View attached file
                                             </a>
                                         )}
@@ -476,7 +476,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <button
                                     onClick={generateAIFeedback}
                                     disabled={isAIThinking}
-                                    className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 transition-all disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 transition-all disabled:opacity-50"
                                 >
                                     {isAIThinking ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                     {isAIThinking ? 'Analyzing...' : 'AI Assistant'}
@@ -485,7 +485,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <textarea value={feedback} rows={3}
                                 onChange={e => setFb(e.target.value)}
                                 placeholder="Write specific, constructive feedback for the student…"
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none min-h-[100px]"
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none min-h-[100px]"
                             />
                         </div>
 
@@ -525,7 +525,7 @@ function DistBar({ items }: { items: any[] }) {
         { label: 'A', count: counts.A, color: 'bg-emerald-400' },
         { label: 'B', count: counts.B, color: 'bg-blue-500' },
         { label: 'C', count: counts.C, color: 'bg-amber-500' },
-        { label: 'D', count: counts.D, color: 'bg-orange-500' },
+        { label: 'D', count: counts.D, color: 'bg-primary' },
         { label: 'F', count: counts.F, color: 'bg-rose-500' },
     ].filter(b => b.count > 0);
 
@@ -589,7 +589,7 @@ function AchievementBadges({ items }: { items: any[] }) {
             {badges.map(b => (
                 <div key={b.label} className={`rounded-none p-4 border transition-all ${b.earned ? (
                         b.color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' :
-                            b.color === 'orange' ? 'bg-orange-500/10 border-orange-500/20' :
+                            b.color === 'orange' ? 'bg-primary/10 border-primary/20' :
                                 b.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
                                     'bg-blue-500/10 border-blue-500/20'
                     ) : 'bg-card shadow-sm border-border opacity-40 grayscale'
@@ -961,7 +961,7 @@ export default function GradesPage() {
             <div className="text-center">
                 <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground mb-4">Sign in to view grades</p>
-                <Link href="/login" className="px-5 py-2 bg-orange-600 text-foreground rounded-none text-sm font-bold">Sign In</Link>
+                <Link href="/login" className="px-5 py-2 bg-primary text-foreground rounded-none text-sm font-bold">Sign In</Link>
             </div>
         </div>
     );
@@ -1017,7 +1017,7 @@ export default function GradesPage() {
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
                                     <DocumentTextIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>
@@ -1080,7 +1080,7 @@ export default function GradesPage() {
                     ].map(s => (
                         <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-5">
                             <div className="flex items-start justify-between mb-3">
-                                <div className={`w-9 h-9 rounded-none flex items-center justify-center ${s.color === 'orange' ? 'bg-orange-500/10' :
+                                <div className={`w-9 h-9 rounded-none flex items-center justify-center ${s.color === 'orange' ? 'bg-primary/10' :
                                         s.color === 'amber' ? 'bg-amber-500/10' :
                                             s.color === 'emerald' ? 'bg-emerald-500/10' :
                                                 'bg-rose-500/10'
@@ -1307,7 +1307,7 @@ export default function GradesPage() {
                                         {/* Main row */}
                                         <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5">
                                             {/* Avatar */}
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                 {(s.portal_users?.full_name ?? '?')[0]}
                                             </div>
 

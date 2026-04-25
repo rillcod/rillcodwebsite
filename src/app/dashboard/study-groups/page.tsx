@@ -110,8 +110,8 @@ export default function StudyGroupsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <UserGroupIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Collaboration</span>
+              <UserGroupIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Collaboration</span>
             </div>
             <h1 className="text-3xl font-black">Peer Study Groups</h1>
             <p className="text-muted-foreground text-sm mt-1">Collaborate with classmates in real-time with shared chat and code pad</p>
@@ -119,7 +119,7 @@ export default function StudyGroupsPage() {
           {isTeacher && (
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Create Group
             </button>
@@ -140,14 +140,14 @@ export default function StudyGroupsPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Python Study Squad"
-                  className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
+                  className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-primary text-sm"
                   onKeyDown={e => e.key === 'Enter' && createGroup()}
                 />
               </div>
               {error && <p className="text-rose-400 text-xs">{error}</p>}
               <div className="flex gap-3">
                 <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-muted text-muted-foreground font-bold rounded-none hover:bg-muted/80 text-sm transition-colors">Cancel</button>
-                <button onClick={createGroup} disabled={!name.trim() || creating} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
+                <button onClick={createGroup} disabled={!name.trim() || creating} className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
                   {creating ? 'Creating…' : 'Create'}
                 </button>
               </div>
@@ -157,7 +157,7 @@ export default function StudyGroupsPage() {
 
         {/* Groups list */}
         {loading ? (
-          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
         ) : groups.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-none">
             <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
@@ -169,7 +169,7 @@ export default function StudyGroupsPage() {
               const memberCount = group.study_group_members?.[0]?.count ?? 0;
               const isFull = memberCount >= 20;
               return (
-                <div key={group.id} className="bg-card border border-border rounded-none p-5 space-y-3 hover:border-orange-500/30 transition-colors">
+                <div key={group.id} className="bg-card border border-border rounded-none p-5 space-y-3 hover:border-primary/30 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-bold text-foreground text-sm leading-snug">{group.name}</h3>
                     {isFull && <span className="text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">FULL</span>}
@@ -187,7 +187,7 @@ export default function StudyGroupsPage() {
                     {memberCount} / 20 members
                   </div>
                   <div className="w-full bg-muted rounded-full h-1">
-                    <div className="h-1 bg-orange-500 rounded-full transition-all" style={{ width: `${(memberCount / 20) * 100}%` }} />
+                    <div className="h-1 bg-primary rounded-full transition-all" style={{ width: `${(memberCount / 20) * 100}%` }} />
                   </div>
                   <div className="flex gap-2 pt-1">
                     <Link
@@ -200,7 +200,7 @@ export default function StudyGroupsPage() {
                       <button
                         onClick={() => joinGroup(group.id)}
                         disabled={isFull || joinLoading === group.id}
-                        className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-xs font-bold rounded-none transition-colors"
+                        className="flex-1 py-2 bg-primary hover:bg-primary disabled:opacity-40 text-white text-xs font-bold rounded-none transition-colors"
                       >
                         {joinLoading === group.id ? '…' : isFull ? 'Full' : 'Join'}
                       </button>

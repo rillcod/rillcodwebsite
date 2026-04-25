@@ -38,7 +38,7 @@ const META: Record<PipelineStep, {
   color: string;
   ring: string;
 }> = {
-  syllabus:   { num: 1, short: 'Syllabus',   label: 'Course & Syllabus', href: '/dashboard/curriculum',    icon: BookOpenIcon,              color: 'text-orange-400',  ring: 'ring-orange-500/40 bg-orange-500/10 border-orange-500/40'  },
+  syllabus:   { num: 1, short: 'Syllabus',   label: 'Course & Syllabus', href: '/dashboard/curriculum',    icon: BookOpenIcon,              color: 'text-primary',  ring: 'ring-primary/40 bg-primary/10 border-primary/40'  },
   plans:      { num: 2, short: 'Plans',      label: 'Lesson Plans',      href: '/dashboard/lesson-plans',  icon: ClipboardDocumentListIcon, color: 'text-violet-400',  ring: 'ring-violet-500/40 bg-violet-500/10 border-violet-500/40'  },
   lessons:    { num: 3, short: 'Lessons',    label: 'Lessons',           href: '/dashboard/lessons',       icon: SparklesIcon,              color: 'text-emerald-400', ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40' },
   flashcards: { num: 4, short: 'Cards',      label: 'Flashcards & CBT',  href: '/dashboard/flashcards',    icon: BoltIcon,                  color: 'text-amber-400',   ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40'    },
@@ -112,7 +112,7 @@ export default function PipelineStepper(props: PipelineStepperProps) {
               ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
               : 'bg-muted/40 border border-border text-muted-foreground';
 
-          const wrapperBase = 'snap-start shrink-0 flex items-center gap-2 rounded-lg px-2.5 sm:px-3 py-2 min-h-[44px] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500';
+          const wrapperBase = 'snap-start shrink-0 flex items-center gap-2 rounded-lg px-2.5 sm:px-3 py-2 min-h-[44px] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
           const content = (
             <div className="flex items-center gap-2">

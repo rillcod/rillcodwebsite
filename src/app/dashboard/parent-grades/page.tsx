@@ -213,8 +213,8 @@ function ParentGradesContent() {
               }}
               className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
                 selectedId === child.id
-                  ? 'bg-orange-600 border-orange-600 text-white'
-                  : 'bg-card border-border text-muted-foreground hover:border-orange-500/50'
+                  ? 'bg-primary border-primary text-white'
+                  : 'bg-card border-border text-muted-foreground hover:border-primary/50'
               }`}
             >
               {child.full_name}
@@ -284,7 +284,7 @@ function ParentGradesContent() {
                     onClick={() => setTypeFilter(tab.key)}
                     className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-none ${
                       typeFilter === tab.key
-                        ? 'bg-orange-600 text-white'
+                        ? 'bg-primary text-white'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >

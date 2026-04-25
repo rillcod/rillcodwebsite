@@ -458,9 +458,9 @@ export default function EditLessonPage() {
                             <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
                             
                             {/* AI Lesson Engine Panel */}
-                            <div className="border border-orange-500/20 bg-orange-500/5 rounded-none overflow-hidden">
-                                <div className="px-5 py-4 flex items-center gap-3 border-b border-orange-500/10">
-                                    <SparklesIcon className="w-5 h-5 text-orange-400" />
+                            <div className="border border-primary/20 bg-primary/5 rounded-none overflow-hidden">
+                                <div className="px-5 py-4 flex items-center gap-3 border-b border-primary/10">
+                                    <SparklesIcon className="w-5 h-5 text-primary" />
                                     <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
                                     <span className="text-[10px] text-muted-foreground ml-1">— regenerate content from current title</span>
                                 </div>
@@ -479,7 +479,7 @@ export default function EditLessonPage() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
                                             <select value={aiGrade} onChange={e => setAiGrade(e.target.value)}
-                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500">
+                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
                                                 {![
                                                     'KG', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3',
                                                     'SS1', 'SS2', 'SS3', 'SS1–SS3', 'JSS1–SS3',
@@ -492,7 +492,7 @@ export default function EditLessonPage() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mode</label>
                                             <select value={aiMode} onChange={e => setAiMode(e.target.value as any)}
-                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500">
+                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
                                                 <option value="academic">Academic</option>
                                                 <option value="project">Project</option>
                                                 <option value="interactive">Interactive</option>
@@ -501,11 +501,11 @@ export default function EditLessonPage() {
                                     </div>
                                     <div className="flex gap-3">
                                         <button onClick={handleAiGenerate} disabled={aiGenerating}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
                                             {aiGenerating ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Building...</> : <><SparklesIcon className="w-3.5 h-3.5" /> Full Rebuild</>}
                                         </button>
                                         <button onClick={handleGenerateNotesOnly} disabled={aiGenerating}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border hover:border-orange-500/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border hover:border-primary/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
                                             {aiGenerating ? 'Writing...' : '✦ Notes Only'}
                                         </button>
                                     </div>

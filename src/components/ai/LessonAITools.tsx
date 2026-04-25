@@ -65,7 +65,7 @@ function AIToggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boole
     <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
       <div className="relative">
         <input type="checkbox" className="sr-only" checked={enabled} onChange={e => onChange(e.target.checked)} />
-        <div className={`w-8 h-4 rounded-full transition-colors ${enabled ? 'bg-orange-500' : 'bg-white/10'}`} />
+        <div className={`w-8 h-4 rounded-full transition-colors ${enabled ? 'bg-primary' : 'bg-white/10'}`} />
         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-card shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
       </div>
       <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
@@ -101,7 +101,7 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
   };
 
   return (
-    <ToolCard icon={PhotoIcon} title="Image Synthesis" color="bg-orange-600">
+    <ToolCard icon={PhotoIcon} title="Image Synthesis" color="bg-primary">
       <div className="flex items-center justify-between">
         <p className="text-[9px] text-white/30 uppercase tracking-widest">Gemini → Imagen 3 → Flux</p>
         <AIToggle enabled={aiEnabled} onChange={v => { setAiEnabled(v); setResult(null); setError(null); }} />
@@ -110,14 +110,14 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder="Neural prompt or title..."
-        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-orange-500"
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-primary"
         disabled={!aiEnabled}
       />
       {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
       {result && aiEnabled && (
         <div className="space-y-3">
           <img src={result} className="w-full rounded-xl border border-border shadow-xl" alt="AI Generated" />
-          <button onClick={() => onInsert(result)} className="w-full py-2 bg-orange-600 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Asset</button>
+          <button onClick={() => onInsert(result)} className="w-full py-2 bg-primary text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Asset</button>
         </div>
       )}
       {!result && (
@@ -130,7 +130,7 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: a
               : 'bg-white/[0.02] text-white/20 border-white/5 cursor-not-allowed'
           }`}
         >
-          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-orange-400" />}
+          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-primary" />}
           {!aiEnabled ? 'AI disabled — toggle to generate' : generating ? 'Synthesizing...' : 'Generate Image'}
         </button>
       )}
@@ -259,7 +259,7 @@ function GraphicSynthesizer({ lessonTitle, onInsert }: any) {
         <button onClick={() => handleGraphicGen('scratch-blocks')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-purple-500/30 transition-all">
           {generating === 'scratch-blocks' ? <Spinner /> : 'Scratch LAB'}
         </button>
-        <button onClick={() => handleGraphicGen('infographic')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-orange-500/30 transition-all">
+        <button onClick={() => handleGraphicGen('infographic')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-primary/20 hover:bg-primary/30 text-primary font-bold text-[9px] uppercase tracking-wider rounded-lg border border-primary/30 transition-all">
           {generating === 'infographic' ? <Spinner /> : 'Infographic Hub'}
         </button>
       </div>
@@ -462,17 +462,17 @@ export default function LessonAITools({
           className="w-full flex items-center justify-between px-8 py-6 text-left group"
         >
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/30 transition-all ${isOpenRouter ? 'scale-110 border-orange-500' : 'group-hover:border-orange-400'}`}>
-              <SparklesIcon className="w-6 h-6 text-orange-400" />
+            <div className={`w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/30 transition-all ${isOpenRouter ? 'scale-110 border-primary' : 'group-hover:border-primary'}`}>
+              <SparklesIcon className="w-6 h-6 text-primary" />
             </div>
             <div>
               <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">OpenRouter Premium Suite</h3>
-              <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em] mt-0.5">
+              <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em] mt-0.5">
                 Multi-Model Neural Synthesis (Gemini / Llama / DALL-E)
               </p>
             </div>
           </div>
-          {isOpenRouter ? <ChevronUpIcon className="w-5 h-5 text-orange-400" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
+          {isOpenRouter ? <ChevronUpIcon className="w-5 h-5 text-primary" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
         </button>
 
         {isOpenRouter && (
@@ -496,8 +496,8 @@ export default function LessonAITools({
               />
             </div>
 
-            <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-center gap-4">
-              <div className="px-2 py-1 bg-orange-500/10 rounded text-[9px] font-black text-orange-400 uppercase tracking-widest">Priority Engine: Active</div>
+            <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl flex items-center gap-4">
+              <div className="px-2 py-1 bg-primary/10 rounded text-[9px] font-black text-primary uppercase tracking-widest">Priority Engine: Active</div>
               <p className="text-[10px] text-white/20 uppercase tracking-widest font-medium">
                 Unified OpenRouter Infrastructure • Gemini-Flash & DALL-E 3 Integrated
               </p>

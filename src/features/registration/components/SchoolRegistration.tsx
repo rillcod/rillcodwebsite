@@ -10,7 +10,7 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
         <div className="space-y-2">
             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
             <div className="relative group">
-                {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
+                {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" />}
                 {children}
             </div>
             {error && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1">{error}</p>}
@@ -19,21 +19,21 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
 }
 
 const inputCls = (hasIcon = true) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all`;
 
 const selectCls = (hasIcon = false) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all appearance-none cursor-pointer`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all appearance-none cursor-pointer`;
 
 function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-2xl bg-card border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-orange-500">
+            <div className="relative w-full max-w-2xl bg-card border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-primary">
                 <div className="p-8 sm:p-12 max-h-[85vh] overflow-y-auto custom-scrollbar">
                     <div className="flex items-center gap-4 mb-10 pb-6 border-b border-border">
-                        <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                            <Scale className="w-6 h-6 text-orange-500" />
+                        <div className="w-12 h-12 bg-primary/10 border border-primary/20 flex items-center justify-center">
+                            <Scale className="w-6 h-6 text-primary" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Partnership Terms</h2>
@@ -44,11 +44,11 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                     <div className="space-y-10 text-muted-foreground text-sm leading-relaxed">
                         <section className="space-y-4">
                             <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-orange-500">01.</span> Revenue Share
+                                <span className="text-primary">01.</span> Revenue Share
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                                 <div className="p-6 bg-background border border-border">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-orange-400 mb-1">Rillcod Technologies</p>
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-primary mb-1">Rillcod Technologies</p>
                                     <p className="text-3xl font-black text-foreground">70%</p>
                                     <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase">Curriculum & Infrastructure</p>
                                 </div>
@@ -62,10 +62,10 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
                         <section className="space-y-4">
                             <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-orange-500">02.</span> Core Obligations
+                                <span className="text-primary">02.</span> Core Obligations
                             </h3>
                             <div className="space-y-4">
-                                <div className="p-6 bg-background border border-border border-l-4 border-l-orange-500">
+                                <div className="p-6 bg-background border border-border border-l-4 border-l-primary">
                                     <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-4">Rillcod Provides:</p>
                                     <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                                         <li className="flex items-center gap-2">✓ Proprietary STEM Curriculum</li>
@@ -91,7 +91,7 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
                     <button
                         onClick={onClose}
-                        className="w-full mt-10 py-5 bg-orange-500 hover:bg-orange-600 text-white font-black transition-all uppercase tracking-[0.4em] text-xs shadow-xl shadow-orange-500/20"
+                        className="w-full mt-10 py-5 bg-primary hover:bg-primary text-white font-black transition-all uppercase tracking-[0.4em] text-xs shadow-xl shadow-primary/20"
                     >
                         I Understand — Close
                     </button>
@@ -165,7 +165,7 @@ export function SchoolRegistration() {
                 Your application for <strong className="text-foreground">{form.schoolName}</strong> has been received. Our team will review and contact you within 48 hours.
             </p>
             <button onClick={() => setSubmitted(false)}
-                className="px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-orange-600 transition-all">
+                className="px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-primary transition-all">
                 Submit Another Application
             </button>
         </div>
@@ -177,14 +177,14 @@ export function SchoolRegistration() {
 
             {/* Header */}
             <div className="text-center mb-16">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-6">
                     <Building2 className="w-4 h-4" /> School Partnership
                 </div>
                 <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
                     REGISTER <br />
                     <span className="text-foreground/40 italic">SCHOOL.</span>
                 </h1>
-                <p className="text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-orange-500 pl-6 mt-8 hidden sm:block">
+                <p className="text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-primary pl-6 mt-8 hidden sm:block">
                     Join our network of partner schools delivering world-class STEM education to students across West Africa.
                 </p>
             </div>
@@ -244,7 +244,7 @@ export function SchoolRegistration() {
             </div>
 
             {/* Registration Form */}
-            <div className="bg-card border border-border p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+            <div className="bg-card border border-border p-8 md:p-12 shadow-2xl border-t-4 border-t-primary">
                 <form onSubmit={handleSubmit} className="space-y-12">
 
                     <section className="space-y-8">
@@ -322,10 +322,10 @@ export function SchoolRegistration() {
 
                     <div className="space-y-5 pt-4">
                         <div className="flex items-start gap-4 p-5 bg-muted/20 border border-border">
-                            <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
+                            <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-primary cursor-pointer flex-shrink-0" />
                             <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
                                 I confirm all information for <span className="text-foreground font-black">{form.schoolName || 'this school'}</span> is accurate. I agree to the{' '}
-                                <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-orange-500 underline cursor-pointer font-black">Partnership Terms</span>.
+                                <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-primary underline cursor-pointer font-black">Partnership Terms</span>.
                             </label>
                         </div>
 
@@ -339,7 +339,7 @@ export function SchoolRegistration() {
                                 Cancel
                             </button>
                             <button type="submit" disabled={loading}
-                                className="flex-[2] flex items-center justify-center gap-4 py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50">
+                                className="flex-[2] flex items-center justify-center gap-4 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50">
                                 {loading
                                     ? <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
                                     : <><ArrowRight className="w-5 h-5" /> Submit Partnership Application</>}
@@ -352,7 +352,7 @@ export function SchoolRegistration() {
             {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-8 mt-12 opacity-40">
                 <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
-                    <ShieldCheck className="w-3 h-3 text-orange-500" /> SSL Secured
+                    <ShieldCheck className="w-3 h-3 text-primary" /> SSL Secured
                 </div>
                 <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
                     <Globe className="w-3 h-3 text-blue-500" /> West Africa Network

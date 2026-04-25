@@ -348,16 +348,16 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         {/* ── Premium AI Assignment Engine ── */}
         <div className="relative bg-[#0d0d1a] border border-white/10 overflow-hidden group">
           {/* Ambient glow */}
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] group-hover:bg-orange-500/20 transition-all duration-1000 pointer-events-none" />
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000 pointer-events-none" />
 
           <div className="flex items-center justify-between relative px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-none bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+              <div className="w-14 h-14 rounded-none bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
                 <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Assignment Engine</h3>
-                <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">
+                <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em]">
                   {aiLastModel
                     ? <span>Generated with <span className="text-white">{aiLastModel}</span></span>
                     : 'Intelligent Homework Architecture'}
@@ -389,7 +389,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     onChange={e => setAiTopic(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Introduction to Python Functions & Loops"
-                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
+                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                   />
                 </div>
 
@@ -399,7 +399,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     type="button"
                     onClick={handleAiGenerate}
                     disabled={aiGenerating}
-                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-orange-600 hover:bg-orange-500 transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
                   >
                     <div className="text-[10px] font-black text-white uppercase tracking-widest">
                       {aiGenerating ? 'Processing...' : 'Generate Assignment'}
@@ -407,8 +407,8 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
                   </button>
                   {aiGenerating && (
-                    <div className="flex items-center gap-3 text-orange-400 animate-pulse border-l-2 border-orange-500 pl-4">
-                      <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="flex items-center gap-3 text-primary animate-pulse border-l-2 border-primary pl-4">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Synthesising Assignment...</span>
                     </div>
                   )}

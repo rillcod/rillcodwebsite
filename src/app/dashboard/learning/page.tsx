@@ -264,7 +264,7 @@ export default function StudentLearningPage() {
         emoji: '📝',
         href: '/dashboard/assignments',
         done: false,
-        color: 'border-l-orange-500 bg-orange-400/5 text-orange-400'
+        color: 'border-l-primary bg-primary/5 text-primary'
       });
     } else {
       missions.push({
@@ -311,7 +311,7 @@ export default function StudentLearningPage() {
   if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent animate-spin rounded-full" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent animate-spin rounded-full" />
         <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest animate-pulse">Loading...</p>
       </div>
     </div>
@@ -321,7 +321,7 @@ export default function StudentLearningPage() {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center space-y-4">
         <p className="text-muted-foreground text-sm">Session expired. Please sign in again.</p>
-        <a href="/login" className="inline-block px-6 py-3 bg-orange-600 text-white text-sm font-bold hover:bg-orange-500 transition-colors">Sign In</a>
+        <a href="/login" className="inline-block px-6 py-3 bg-primary text-white text-sm font-bold hover:bg-primary transition-colors">Sign In</a>
       </div>
     </div>
   );
@@ -367,14 +367,14 @@ export default function StudentLearningPage() {
 
           {/* Greeting */}
           <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-red-600/5 blur-3xl pointer-events-none" />
             <div className="relative z-10">
               <span className="inline-block text-[10px] font-black text-brand-red-600 uppercase tracking-widest mb-3">
                 {profile.grade_level || (isKids ? 'Primary School' : isAdult ? 'Professional' : 'Secondary School')}
               </span>
               <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight mb-2">
-                {greeting}, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
+                {greeting}, <span className="text-primary">{profile?.full_name?.split(' ')[0]}!</span>
                 {isKids && ' 🚀'}
               </h1>
               <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
@@ -387,7 +387,7 @@ export default function StudentLearningPage() {
 
               {nextLesson && (
                 <Link href={`/dashboard/lessons/${nextLesson.id}`}
-                  className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all border-2 border-transparent hover:border-brand-red-600">
+                  className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all border-2 border-transparent hover:border-brand-red-600">
                   <RocketLaunchIcon className="w-4 h-4" />
                   Continue: {nextLesson.title}
                   <ArrowRightIcon className="w-3.5 h-3.5" />
@@ -400,7 +400,7 @@ export default function StudentLearningPage() {
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
             {[
               { label: 'Lessons Done', value: stats.lessonsDone, icon: CheckBadgeIcon, color: 'text-emerald-500', border: 'border-t-emerald-500' },
-              { label: 'Week Streak',  value: stats.streak,      icon: FireIcon,       color: 'text-orange-500', border: 'border-t-orange-500' },
+              { label: 'Week Streak',  value: stats.streak,      icon: FireIcon,       color: 'text-primary', border: 'border-t-primary' },
               { label: 'Total Points', value: stats.xp.toLocaleString(), icon: TrophyIcon, color: 'text-amber-500', border: 'border-t-amber-500' },
               { label: 'Avg Score',    value: `${stats.avgScore}%`, icon: ChartBarIcon, color: 'text-blue-500', border: 'border-t-blue-500' },
             ].slice(0, 2).map(({ label, value, icon: Icon, color, border }) => (
@@ -467,7 +467,7 @@ export default function StudentLearningPage() {
                     <p className="text-sm font-black text-foreground truncate">{mission.label}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{mission.desc}</p>
                   </div>
-                  <span className="text-[10px] font-black text-orange-500 shrink-0">+{mission.xp} XP</span>
+                  <span className="text-[10px] font-black text-primary shrink-0">+{mission.xp} XP</span>
                   {mission.done && <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />}
                 </Link>
               ))}
@@ -481,7 +481,7 @@ export default function StudentLearningPage() {
             <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
               {isKids ? '🗺️ My Learning Path' : 'Your Lessons'}
             </h2>
-            <Link href="/dashboard/lessons" className="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors">
+            <Link href="/dashboard/lessons" className="text-xs font-bold text-primary hover:text-primary transition-colors">
               View all →
             </Link>
           </div>
@@ -501,7 +501,7 @@ export default function StudentLearningPage() {
                   return (
                     <div key={lesson.id} className="flex items-center">
                       {idx > 0 && (
-                        <div className={`h-0.5 w-12 sm:w-16 ${completedLessonIds.has(lessons[idx-1]?.id) ? 'bg-orange-500' : 'bg-border'}`} />
+                        <div className={`h-0.5 w-12 sm:w-16 ${completedLessonIds.has(lessons[idx-1]?.id) ? 'bg-primary' : 'bg-border'}`} />
                       )}
                       <div className="flex flex-col items-center gap-2 relative">
                         {isNext && (
@@ -512,8 +512,8 @@ export default function StudentLearningPage() {
                         <Link
                           href={isLocked ? '#' : `/dashboard/lessons/${lesson.id}`}
                           className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center border-2 transition-all ${
-                            isCompleted ? 'bg-orange-500 border-orange-400 text-white' :
-                            isNext ? 'bg-card border-orange-500 text-orange-500 ring-2 ring-brand-red-600/30 animate-pulse' :
+                            isCompleted ? 'bg-primary border-primary text-white' :
+                            isNext ? 'bg-card border-primary text-primary ring-2 ring-brand-red-600/30 animate-pulse' :
                             'bg-muted/30 border-border text-muted-foreground/30 cursor-not-allowed'
                           }`}
                         >
@@ -533,11 +533,11 @@ export default function StudentLearningPage() {
 
             {/* Legend */}
             <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-orange-500" /><span className="text-[10px] text-muted-foreground font-bold">Completed</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-orange-500 animate-pulse" /><span className="text-[10px] text-muted-foreground font-bold">Up Next</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 bg-primary" /><span className="text-[10px] text-muted-foreground font-bold">Completed</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-primary animate-pulse" /><span className="text-[10px] text-muted-foreground font-bold">Up Next</span></div>
               <div className="flex items-center gap-2"><div className="w-3 h-3 bg-muted border border-border" /><span className="text-[10px] text-muted-foreground font-bold">Locked</span></div>
               <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
-                className="ml-auto px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+                className="ml-auto px-5 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all">
                 {nextLesson ? 'Continue Learning' : 'Browse Lessons'}
               </Link>
             </div>
@@ -559,7 +559,7 @@ export default function StudentLearningPage() {
               <p className="text-sm text-muted-foreground font-bold mb-4">
                 {isKids ? 'No programmes yet — ask your teacher! ✨' : 'You are not enrolled in any programme yet.'}
               </p>
-              <Link href="/dashboard/library" className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-black uppercase tracking-widest transition-all">
+              <Link href="/dashboard/library" className="inline-flex items-center gap-2 text-primary hover:text-primary text-xs font-black uppercase tracking-widest transition-all">
                 Browse Library <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
@@ -568,7 +568,7 @@ export default function StudentLearningPage() {
               {programs.map((prog, pi) => {
                 const courses = coursesByProgram[prog.id] ?? [];
                 const accentColors = [
-                  { border: 'border-t-orange-500', text: 'text-orange-500', bar: 'bg-orange-500' },
+                  { border: 'border-t-primary', text: 'text-primary', bar: 'bg-primary' },
                   { border: 'border-t-blue-500',   text: 'text-blue-500',   bar: 'bg-blue-500'   },
                   { border: 'border-t-emerald-500', text: 'text-emerald-500',bar: 'bg-emerald-500'},
                 ][pi % 3];
@@ -587,7 +587,7 @@ export default function StudentLearningPage() {
                         </div>
                       </div>
                       <Link href={`/dashboard/curriculum?program=${prog.id}`}
-                        className="text-[10px] font-black text-brand-red-600 hover:text-orange-500 uppercase tracking-widest transition-colors">
+                        className="text-[10px] font-black text-brand-red-600 hover:text-primary uppercase tracking-widest transition-colors">
                         View Syllabus →
                       </Link>
                     </div>

@@ -127,7 +127,7 @@ export default function ProfilePage() {
 
   if (!profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -161,7 +161,7 @@ export default function ProfilePage() {
     statCards.push(
       { label: 'Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-400' },
       { label: 'Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
-      { label: 'Schools', value: stats.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-orange-400' },
+      { label: 'Schools', value: stats.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary' },
       { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-400' },
     );
   }

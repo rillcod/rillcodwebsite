@@ -145,7 +145,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
         </p>
         <button
           onClick={resetForm}
-          className="mt-6 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all"
+          className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all"
         >
           Submit Another
         </button>
@@ -177,8 +177,8 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
                   onClick={() => setSelectedChildId(child.id)}
                   className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold transition-all ${
                     selectedChildId === child.id
-                      ? 'bg-orange-600 border-orange-600 text-white'
-                      : 'bg-white/5 border-border text-muted-foreground hover:border-orange-500/50'
+                      ? 'bg-primary border-primary text-white'
+                      : 'bg-white/5 border-border text-muted-foreground hover:border-primary/50'
                   }`}
                 >
                   <AcademicCapIcon className="w-3.5 h-3.5" />
@@ -198,7 +198,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
               </button>
             </div>
             {selectedChild && (
-              <p className="text-[10px] text-orange-400 mt-2 flex items-center gap-1">
+              <p className="text-[10px] text-primary mt-2 flex items-center gap-1">
                 <AcademicCapIcon className="w-3 h-3" />
                 Feedback about <strong>{selectedChild.full_name}</strong>
               </p>
@@ -216,7 +216,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
             <select
               value={form.category}
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             >
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -239,7 +239,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
               onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
               rows={5}
               placeholder="Share your thoughts, suggestions, or concerns…"
-              className="w-full px-4 py-3 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
+              className="w-full px-4 py-3 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
             />
             <p className="text-[10px] text-muted-foreground mt-1">{form.message.length}/1000 characters</p>
           </div>
@@ -249,7 +249,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
               type="checkbox"
               checked={form.is_anonymous}
               onChange={e => setForm(f => ({ ...f, is_anonymous: e.target.checked }))}
-              className="w-4 h-4 border border-border bg-background accent-orange-500"
+              className="w-4 h-4 border border-border bg-background accent-primary"
             />
             <div>
               <span className="text-xs font-bold text-foreground">Submit anonymously</span>
@@ -260,7 +260,7 @@ function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string
           <button
             type="submit"
             disabled={submitting}
-            className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all"
+            className="w-full px-4 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all"
           >
             {submitting ? 'Submitting…' : 'Submit Feedback'}
           </button>
@@ -353,8 +353,8 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
           <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all ${
               filter === f
-                ? 'bg-orange-600 border-orange-600 text-white'
-                : 'border-border text-muted-foreground hover:border-orange-500/50'
+                ? 'bg-primary border-primary text-white'
+                : 'border-border text-muted-foreground hover:border-primary/50'
             }`}>
             {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
@@ -461,7 +461,7 @@ function ParentFeedbackContent() {
               className="px-5 sm:px-6 py-4 border-r border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-colors hover:bg-muted/30 whitespace-nowrap flex-shrink-0">
               <UserGroupIcon className="w-4 h-4" /> Parents
             </Link>
-            <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-orange-500 text-orange-500 text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+            <div className="px-5 sm:px-6 py-4 border-r border-border border-b-2 border-b-primary text-primary text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 whitespace-nowrap flex-shrink-0">
               <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Feedback
             </div>
             <Link href="/dashboard/parent-results"

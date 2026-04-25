@@ -17,13 +17,13 @@ export default function ThemeToggle() {
   const getThemeIcon = () => {
     switch (theme) {
       case 'light':
-        return <SunIcon className="w-5 h-5 text-orange-500" />
+        return <SunIcon className="w-5 h-5 text-primary" />
       case 'dark':
-        return <MoonIcon className="w-5 h-5 text-orange-400" />
+        return <MoonIcon className="w-5 h-5 text-primary" />
       case 'system':
         return <ComputerDesktopIcon className="w-5 h-5 text-muted-foreground" />
       default:
-        return <SunIcon className="w-5 h-5 text-orange-500" />
+        return <SunIcon className="w-5 h-5 text-primary" />
     }
   }
 
@@ -43,7 +43,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center w-10 h-10 rounded-none bg-card border border-border hover:border-orange-500 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+      className="relative inline-flex items-center justify-center w-10 h-10 rounded-none bg-card border border-border hover:border-primary transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
       aria-label={getThemeLabel()}
       title={getThemeLabel()}
     >

@@ -70,7 +70,7 @@ const Navigation = () => {
 
   const navLinkCls = (href: string) =>
     `flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-none ${isActive(href)
-      ? 'text-orange-500 bg-muted shadow-sm border-l-2 border-l-brand-red-600'
+      ? 'text-primary bg-muted shadow-sm border-l-2 border-l-brand-red-600'
       : 'text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm'
     }`;
 
@@ -134,7 +134,7 @@ const Navigation = () => {
               {mounted && !authLoading && (
                 user ? (
                   <Link href="/dashboard"
-                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10">
+                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/10">
                     <Squares2X2Icon className="w-4 h-4" /> Dashboard
                   </Link>
                 ) : (
@@ -173,7 +173,7 @@ const Navigation = () => {
                 </div>
                 <div className="grid gap-2">
                    {[...mainLinks, ...secondaryLinks].map(({ href, label }) => (
-                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-orange-500 transition-colors py-2 italic">
+                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-primary transition-colors py-2 italic">
                         {label}
                      </Link>
                    ))}
@@ -182,12 +182,12 @@ const Navigation = () => {
                 <div className="pt-10 border-t border-border space-y-6">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">System Uplink</p>
                    {user ? (
-                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-orange-500 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-2xl shadow-orange-500/20">
+                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-2xl shadow-primary/20">
                         <Zap className="w-4 h-4" /> Enter Dashboard
                      </Link>
                    ) : (
                      <div className="grid gap-4">
-                        <Link href="/student-registration" className="flex items-center justify-center py-6 bg-orange-500 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl shadow-orange-500/10">
+                        <Link href="/student-registration" className="flex items-center justify-center py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl shadow-primary/10">
                            Register Student
                         </Link>
                         <Link href="/school-registration" className="flex items-center justify-center py-6 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl">

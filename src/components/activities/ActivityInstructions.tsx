@@ -112,7 +112,7 @@ const CATEGORY_COLOR: Record<string, string> = {
     design:       'bg-pink-500/15 border-pink-500/30 text-pink-300',
     research:     'bg-amber-500/15 border-amber-500/30 text-amber-300',
     hardware:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
-    presentation: 'bg-orange-500/15 border-orange-500/30 text-orange-300',
+    presentation: 'bg-primary/15 border-primary/30 text-primary',
     robotics:     'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
 };
 
@@ -300,7 +300,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                         </span>
                     ))}
                     {meta.tags?.slice(0, 4).map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/15 text-[9px] font-bold text-orange-400/70 uppercase tracking-widest">
+                        <span key={tag} className="px-2 py-0.5 bg-primary/10 border border-primary/15 text-[9px] font-bold text-primary/70 uppercase tracking-widest">
                             #{tag}
                         </span>
                     ))}
@@ -312,11 +312,11 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Your Progress</span>
-                        <span className="text-[10px] font-black text-orange-400">{doneSteps}/{totalSteps} steps</span>
+                        <span className="text-[10px] font-black text-primary">{doneSteps}/{totalSteps} steps</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-orange-600 to-amber-400 rounded-full"
+                            className="h-full bg-gradient-to-r from-primary to-amber-400 rounded-full"
                             initial={{ width: 0 }}
                             animate={{ width: `${progress}%` }}
                             transition={{ duration: 0.5 }}
@@ -339,32 +339,32 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                             onChange={e => setEditIntro(e.target.value)}
                             rows={2}
                             autoFocus
-                            className="w-full bg-white/5 border border-orange-500/40 px-3 py-2 text-sm text-white/80 outline-none resize-none"
+                            className="w-full bg-white/5 border border-primary/40 px-3 py-2 text-sm text-white/80 outline-none resize-none"
                         />
                         <div className="flex gap-2">
                             <button onClick={() => setEditingIntro(false)}
-                                className="px-3 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest">Done</button>
+                                className="px-3 py-1 bg-primary text-white text-[10px] font-black uppercase tracking-widest">Done</button>
                             <button onClick={() => setEditingIntro(false)}
                                 className="px-3 py-1 bg-white/5 text-white/40 text-[10px] font-black uppercase tracking-widest">Cancel</button>
                         </div>
                     </div>
                 ) : editIntro ? (
                     <div className="group flex items-start gap-2">
-                        <p className="flex-1 text-sm text-white/60 leading-relaxed border-l-2 border-orange-500/30 pl-4">{editIntro}</p>
+                        <p className="flex-1 text-sm text-white/60 leading-relaxed border-l-2 border-primary/30 pl-4">{editIntro}</p>
                         <button onClick={() => setEditingIntro(true)}
-                            className="opacity-0 group-hover:opacity-100 text-[9px] text-orange-400 font-black uppercase tracking-widest px-2 py-1 border border-orange-500/20 hover:bg-orange-500/10 transition-all shrink-0">
+                            className="opacity-0 group-hover:opacity-100 text-[9px] text-primary font-black uppercase tracking-widest px-2 py-1 border border-primary/20 hover:bg-primary/10 transition-all shrink-0">
                             Edit
                         </button>
                     </div>
                 ) : (
                     <button onClick={() => setEditingIntro(true)}
-                        className="text-[10px] text-white/20 hover:text-orange-400 font-black uppercase tracking-widest transition-colors">
+                        className="text-[10px] text-white/20 hover:text-primary font-black uppercase tracking-widest transition-colors">
                         + Add intro text
                     </button>
                 )
             ) : (
                 parsed.intro && (
-                    <p className="text-sm text-white/60 leading-relaxed border-l-2 border-orange-500/30 pl-4">
+                    <p className="text-sm text-white/60 leading-relaxed border-l-2 border-primary/30 pl-4">
                         {parsed.intro}
                     </p>
                 )
@@ -377,7 +377,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                     <ul className="space-y-1.5">
                         {sec.items.map((item, ii) => (
                             <li key={ii} className="flex items-start gap-2 text-sm text-white/60">
-                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400/60 mt-1.5 shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-1.5 shrink-0" />
                                 {item}
                             </li>
                         ))}
@@ -402,7 +402,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                 <button
                                     onClick={handleSaveAll}
                                     disabled={saving}
-                                    className="flex items-center gap-1.5 px-3 py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-widest transition-all"
                                 >
                                     {saving ? '...' : '✓ Save Changes'}
                                 </button>
@@ -430,10 +430,10 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                             transition={{ delay: i * 0.04 }}
                                             className={`flex gap-3 p-4 border transition-all ${
                                                 isEditing
-                                                    ? 'border-orange-500/40 bg-orange-500/5'
+                                                    ? 'border-primary/40 bg-primary/5'
                                                     : done
                                                     ? 'border-emerald-500/20 bg-emerald-500/5'
-                                                    : 'border-white/[0.06] bg-white/[0.02] hover:border-orange-500/20'
+                                                    : 'border-white/[0.06] bg-white/[0.02] hover:border-primary/20'
                                             }`}
                                         >
                                             {/* Checkbox / step number */}
@@ -442,7 +442,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                 className={`w-7 h-7 shrink-0 border-2 flex items-center justify-center transition-all mt-0.5 ${
                                                     done
                                                         ? 'bg-emerald-500 border-emerald-500 text-white'
-                                                        : 'border-white/20 hover:border-orange-500 text-transparent'
+                                                        : 'border-white/20 hover:border-primary text-transparent'
                                                 }`}
                                             >
                                                 {done ? (
@@ -450,7 +450,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                         <polyline points="20 6 9 17 4 12" />
                                                     </svg>
                                                 ) : (
-                                                    <span className="text-[11px] font-black text-orange-400/60">{step.number}</span>
+                                                    <span className="text-[11px] font-black text-primary/60">{step.number}</span>
                                                 )}
                                             </button>
 
@@ -462,7 +462,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                             autoFocus
                                                             value={editStepTitle}
                                                             onChange={e => setEditStepTitle(e.target.value)}
-                                                            className="w-full bg-white/5 border border-orange-500/30 px-2 py-1 text-sm text-white outline-none"
+                                                            className="w-full bg-white/5 border border-primary/30 px-2 py-1 text-sm text-white outline-none"
                                                             placeholder="Step title"
                                                         />
                                                         <textarea
@@ -474,7 +474,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                         />
                                                         <div className="flex gap-2">
                                                             <button onClick={saveStep}
-                                                                className="px-3 py-1 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
+                                                                className="px-3 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-widest">
                                                                 Save
                                                             </button>
                                                             <button onClick={() => setEditingStep(null)}
@@ -500,7 +500,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                                 <div className="flex items-start gap-1 shrink-0 opacity-0 group-hover:opacity-100 ml-1">
                                                     <button
                                                         onClick={() => startEditStep(step)}
-                                                        className="p-1 text-white/20 hover:text-orange-400 transition-colors"
+                                                        className="p-1 text-white/20 hover:text-primary transition-colors"
                                                         title="Edit step"
                                                     >
                                                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -527,7 +527,7 @@ export default function ActivityInstructions({ instructions, meta = {}, studentM
                                 {teacherMode && (
                                     <button
                                         onClick={addStep}
-                                        className="w-full py-2.5 border border-dashed border-white/10 hover:border-orange-500/30 text-white/20 hover:text-orange-400 text-[10px] font-black uppercase tracking-widest transition-all"
+                                        className="w-full py-2.5 border border-dashed border-white/10 hover:border-primary/30 text-white/20 hover:text-primary text-[10px] font-black uppercase tracking-widest transition-all"
                                     >
                                         + Add Step
                                     </button>

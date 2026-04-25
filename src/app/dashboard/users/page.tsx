@@ -238,7 +238,7 @@ export default function UsersPage() {
     const roleBadge = (role: string) => {
         const map: Record<string, string> = {
             admin: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-            teacher: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+            teacher: 'bg-primary/10 text-primary border-primary/20',
             school: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
             student: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         };
@@ -248,16 +248,16 @@ export default function UsersPage() {
     const avatarGrad = (role: string) => {
         const map: Record<string, string> = {
             admin: 'from-rose-600 to-rose-400',
-            teacher: 'from-orange-600 to-orange-400',
-            school: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
-            student: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
+            teacher: 'from-primary to-primary',
+            school: 'from-primary to-primary from-primary to-primary',
+            student: 'from-primary to-primary from-primary to-primary',
         };
         return map[role] ?? 'from-muted to-background';
     };
 
     if (authLoading || !profile) return (
         <div className="min-h-screen flex items-center justify-center bg-background">
-            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -299,8 +299,8 @@ export default function UsersPage() {
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <ShieldCheckIcon className="w-5 h-5 text-orange-400" />
-                            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">System Administration</span>
+                            <ShieldCheckIcon className="w-5 h-5 text-primary" />
+                            <span className="text-xs font-bold text-primary uppercase tracking-widest">System Administration</span>
                         </div>
                         <h1 className="text-3xl font-extrabold">All Portal Users</h1>
                         <p className="text-muted-foreground text-sm mt-1">Manage and verify all user accounts across the system</p>
@@ -310,7 +310,7 @@ export default function UsersPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => { setShowCreate(true); setCreateErr(''); }}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-600/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-primary/20"
                             >
                                 <PlusIcon className="w-4 h-4" /> Create User
                             </button>
@@ -462,7 +462,7 @@ export default function UsersPage() {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search by name or email..."
-                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
+                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                         />
                     </div>
                     <div className="md:col-span-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -472,7 +472,7 @@ export default function UsersPage() {
                                 onClick={() => setRoleFilter(r.id)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-bold whitespace-nowrap border transition-all
                                     ${roleFilter === r.id
-                                        ? 'bg-orange-600 text-foreground border-orange-500 shadow-lg shadow-orange-600/20'
+                                        ? 'bg-primary text-foreground border-primary shadow-lg shadow-primary/20'
                                         : 'bg-card shadow-sm text-muted-foreground border-border hover:border-border hover:text-foreground'}`}
                             >
                                 <r.icon className="w-4 h-4" />
@@ -486,7 +486,7 @@ export default function UsersPage() {
                 <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                     {loading ? (
                         <div className="p-12 flex flex-col items-center justify-center gap-3">
-                            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Loading Users...</p>
                         </div>
                     ) : filtered.length === 0 ? (
@@ -537,7 +537,7 @@ export default function UsersPage() {
                                             <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
                                                 <button
                                                     onClick={() => openEdit(u)}
-                                                    className="p-2.5 sm:p-2 rounded-none bg-card shadow-sm sm:bg-transparent hover:bg-orange-500/20 hover:text-orange-400 text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
+                                                    className="p-2.5 sm:p-2 rounded-none bg-card shadow-sm sm:bg-transparent hover:bg-primary/20 hover:text-primary text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
                                                     title="Edit user"
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
@@ -601,7 +601,7 @@ export default function UsersPage() {
                                             { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
                                             { label: 'Auth Created (injected)', value: syncResult.summary?.portal_auth_created ?? 0, color: 'text-cyan-400' },
                                             { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
-                                            { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-orange-400' },
+                                            { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-primary' },
                                         ]).map(s => (
                                             <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-3 text-center">
                                                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -637,7 +637,7 @@ export default function UsersPage() {
                             )}
                         </div>
                         <div className="p-4 border-t border-border flex-shrink-0">
-                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none text-sm transition-all">
+                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-none text-sm transition-all">
                                 Done
                             </button>
                         </div>
@@ -660,24 +660,24 @@ export default function UsersPage() {
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Full Name</label>
                                 <input value={createForm.fullName} onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
                                     placeholder="e.g. Amaka Osei"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Email</label>
                                 <input type="email" value={createForm.email} onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
                                     placeholder="user@example.com"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Password</label>
                                 <input type="text" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
                                     placeholder="At least 8 characters"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
                                 <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors appearance-none cursor-pointer">
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
                             </div>
@@ -689,7 +689,7 @@ export default function UsersPage() {
                                 Cancel
                             </button>
                             <button onClick={handleCreate} disabled={creating}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-orange-600 hover:bg-orange-500 text-foreground transition-all disabled:opacity-50">
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all disabled:opacity-50">
                                 {creating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <><CheckIcon className="w-4 h-4" /> Create</>}
                             </button>
                         </div>
@@ -722,7 +722,7 @@ export default function UsersPage() {
                                 <input
                                     value={editForm.full_name}
                                     onChange={e => setEditForm(p => ({ ...p, full_name: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                             <div>
@@ -730,7 +730,7 @@ export default function UsersPage() {
                                 <select
                                     value={editForm.role}
                                     onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors appearance-none cursor-pointer"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
                                 >
                                     {ROLES.map(r => (
                                         <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -743,7 +743,7 @@ export default function UsersPage() {
                                     value={editForm.phone}
                                     onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
                                     placeholder="+234 800 000 0000"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                                 />
                             </div>
                             <div className="flex items-center justify-between p-3 bg-card shadow-sm border border-border rounded-none">
@@ -773,7 +773,7 @@ export default function UsersPage() {
                             <button
                                 onClick={saveEdit}
                                 disabled={saving}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-orange-600 hover:bg-orange-500 text-foreground transition-all shadow-lg shadow-orange-600/20 disabled:opacity-50"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                             >
                                 {saving ? (
                                     <ArrowPathIcon className="w-4 h-4 animate-spin" />

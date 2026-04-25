@@ -48,7 +48,7 @@ type VaultLanguage =
 const LANGUAGE_COLORS: Record<string, string> = {
   javascript: 'bg-yellow-500/15 text-yellow-400',
   python: 'bg-blue-500/15 text-blue-400',
-  html: 'bg-orange-500/15 text-orange-400',
+  html: 'bg-primary/15 text-primary',
   css: 'bg-pink-500/15 text-pink-400',
   typescript: 'bg-cyan-500/15 text-cyan-400',
   sql: 'bg-emerald-500/15 text-emerald-400',

@@ -17,7 +17,7 @@ const ROLES = [
   { id: "teacher", icon: User,           title: "Teacher",  color: "text-violet-500" },
   { id: "parent",  icon: Heart,          title: "Parent",   color: "text-pink-500"   },
   { id: "school",  icon: Building2,      title: "School",   color: "text-emerald-500"},
-  { id: "admin",   icon: Shield,         title: "Admin",    color: "text-orange-500" },
+  { id: "admin",   icon: Shield,         title: "Admin",    color: "text-primary" },
 ] as const;
 
 type Role = "student" | "teacher" | "admin" | "school" | "parent";
@@ -119,7 +119,7 @@ function LoginContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-3 sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
       {/* ── Background Effects ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] rounded-full bg-orange-500/10 dark:bg-orange-600/5 blur-[160px] animate-pulse" />
+        <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] rounded-full bg-primary/10 dark:bg-primary/5 blur-[160px] animate-pulse" />
         <div className="absolute bottom-1/4 -right-20 w-[500px] h-[500px] rounded-full bg-brand-red-600/5 dark:bg-brand-red-600/5 blur-[140px] animate-pulse [animation-delay:2s]" />
       </div>
 
@@ -188,8 +188,8 @@ function LoginContent() {
                           onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
                           className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-300 group ${
                             isActive
-                              ? 'bg-orange-600 border-brand-red-600 text-white shadow-lg shadow-orange-500/20 ring-2 ring-brand-red-600/30'
-                              : 'bg-background border-border text-muted-foreground hover:bg-muted/50 hover:border-orange-500/20'
+                              ? 'bg-primary border-brand-red-600 text-white shadow-lg shadow-primary/20 ring-2 ring-brand-red-600/30'
+                              : 'bg-background border-border text-muted-foreground hover:bg-muted/50 hover:border-primary/20'
                           }`}
                         >
                           <Icon className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'}`} />
@@ -247,7 +247,7 @@ function LoginContent() {
                     <button
                       type="submit"
                       disabled={loading || !selectedRole}
-                      className="w-full py-4 sm:py-5 bg-orange-600 text-white font-black text-xs uppercase tracking-[0.3em] rounded-xl sm:rounded-2xl hover:bg-orange-500 border-2 border-transparent hover:border-brand-red-600 transition-all transform active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 shadow-lg shadow-orange-500/20"
+                      className="w-full py-4 sm:py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.3em] rounded-xl sm:rounded-2xl hover:bg-primary border-2 border-transparent hover:border-brand-red-600 transition-all transform active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
                     >
                       {loading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" /></>}
                     </button>

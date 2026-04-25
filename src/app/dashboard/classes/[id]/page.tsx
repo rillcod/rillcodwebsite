@@ -653,7 +653,7 @@ export default function ClassDetailPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading class...</p>
       </div>
     </div>
@@ -694,8 +694,8 @@ export default function ClassDetailPage() {
               <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-none transition-colors">
                 <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
               </button>
-              <AcademicCapIcon className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Class Detail</span>
+              <AcademicCapIcon className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Class Detail</span>
             </div>
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-3xl font-extrabold text-foreground">{cls.name}</h1>
@@ -718,11 +718,11 @@ export default function ClassDetailPage() {
                 Broadcast (WhatsApp)
               </button>
               <Link href={`/dashboard/classes/${id}/edit`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-colors hover:border-orange-500/50">
-                <PencilIcon className="w-4 h-4 text-orange-400" /> Edit Class
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-colors hover:border-primary/50">
+                <PencilIcon className="w-4 h-4 text-primary" /> Edit Class
               </Link>
               <Link href={`/dashboard/attendance?class_id=${id}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30">
                 <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
               </Link>
             </div>
@@ -732,7 +732,7 @@ export default function ClassDetailPage() {
         {/* Stats — always visible */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Capacity', value: cls.max_students ?? '∞', icon: ChartBarIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Sessions', value: sessions.length, icon: CalendarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Level', value: cls.programs?.difficulty_level ?? 'N/A', icon: BoltIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
@@ -767,7 +767,7 @@ export default function ClassDetailPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-none text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
-                      ? 'bg-orange-600 text-white'
+                      ? 'bg-primary text-white'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
@@ -784,8 +784,8 @@ export default function ClassDetailPage() {
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                        <UserIcon className="w-4 h-4 text-orange-400" />
+                      <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Teacher</p>
@@ -910,13 +910,13 @@ export default function ClassDetailPage() {
                             setEditingSession({ id: 'new', class_id: id });
                             setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
                           }}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-full text-orange-400 text-[10px] font-bold transition-all"
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-full text-primary text-[10px] font-bold transition-all"
                         >
                           <PlusIcon className="w-3 h-3" /> New Session
                         </button>
                       )}
                     </div>
-                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">View Attendance →</Link>
+                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-xs font-bold text-primary hover:text-primary transition-colors">View Attendance →</Link>
                   </div>
                   {sessions.length === 0 ? (
                     <div className="p-12 text-center flex flex-col items-center justify-center">
@@ -927,8 +927,8 @@ export default function ClassDetailPage() {
                     <div className="divide-y divide-border">
                       {sessions.map(s => (
                         <div key={s.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/50 transition-colors group">
-                          <div className="w-9 h-9 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                            <CalendarIcon className="w-4 h-4 text-orange-400" />
+                          <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <CalendarIcon className="w-4 h-4 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">{s.topic ?? 'Untitled Session'}</p>
@@ -959,13 +959,13 @@ export default function ClassDetailPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <BookOpenIcon className="w-4 h-4 text-orange-400" />
+                    <BookOpenIcon className="w-4 h-4 text-primary" />
                     <h2 className="text-sm font-bold text-foreground">Lessons</h2>
                     <span className="text-xs text-muted-foreground">({items.lessons.length})</span>
                   </div>
                   {isStaff && (
                     <Link href={`/dashboard/lessons/add?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-orange-400" /> Add Lesson
+                      <PlusIcon className="w-3.5 h-3.5 text-primary" /> Add Lesson
                     </Link>
                   )}
                 </div>
@@ -979,8 +979,8 @@ export default function ClassDetailPage() {
                     {items.lessons.map(lesson => isSchool ? (
                       <div key={lesson.id}
                         className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center gap-3 cursor-default">
-                        <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                          <BookOpenIcon className="w-5 h-5 text-orange-400" />
+                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <BookOpenIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <h4 className="text-sm font-semibold text-foreground truncate">{lesson.title}</h4>
@@ -989,12 +989,12 @@ export default function ClassDetailPage() {
                       </div>
                     ) : (
                       <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-orange-500/50 transition-all flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                          <BookOpenIcon className="w-5 h-5 text-orange-400" />
+                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <BookOpenIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-semibold text-foreground group-hover:text-orange-400 transition-colors truncate">{lesson.title}</h4>
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{lesson.title}</h4>
                           <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type ?? lesson.status ?? ''}</p>
                         </div>
                         <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -1124,7 +1124,7 @@ export default function ClassDetailPage() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-3">
-                    <ChartBarIcon className="w-4 h-4 text-orange-400" />
+                    <ChartBarIcon className="w-4 h-4 text-primary" />
                     <h3 className="text-sm font-bold text-foreground">Gradebook</h3>
                     {isStaff && (
                       <button
@@ -1143,7 +1143,7 @@ export default function ClassDetailPage() {
                     <Link href="/dashboard/reports/builder" className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors whitespace-nowrap">
                       Build Report Cards →
                     </Link>
-                    <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors whitespace-nowrap">
+                    <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">
                       Full Gradebook →
                     </button>
                   </div>
@@ -1168,7 +1168,7 @@ export default function ClassDetailPage() {
                           {items.cbt.map(c => (
                             <th key={c.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
                               <div className="line-clamp-1 mb-0.5" title={c.title}>{c.title}</div>
-                              <div className="text-[10px] text-orange-400/70">{c.total_questions} Qs</div>
+                              <div className="text-[10px] text-primary/70">{c.total_questions} Qs</div>
                             </th>
                           ))}
                         </tr>
@@ -1178,7 +1178,7 @@ export default function ClassDetailPage() {
                           <tr key={enr.id} className="hover:bg-muted/30 transition-colors group border-b border-border">
                             <td className="px-5 py-3 sticky left-0 bg-card z-10 border-r border-border group-hover:bg-muted/30 transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-orange-500/10 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                                <div className="w-8 h-8 bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
                                   {(enr.full_name ?? '?')[0].toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
@@ -1252,7 +1252,7 @@ export default function ClassDetailPage() {
                                           <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
                                         )}
                                         <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden">
-                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-blue-500' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-orange-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-blue-500' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-primary' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
                                         </div>
                                       </div>
                                     ) : (
@@ -1269,7 +1269,7 @@ export default function ClassDetailPage() {
                               const score = sess?.score;
                               const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
                               return (
-                                <td key={c.id} className="px-6 py-6 text-center border-l border-border bg-orange-600/[0.01]">
+                                <td key={c.id} className="px-6 py-6 text-center border-l border-border bg-primary/[0.01]">
                                   {sess ? (
                                     score !== null ? (
                                       <div className="space-y-2">
@@ -1307,17 +1307,17 @@ export default function ClassDetailPage() {
             {isStaff && (
               <div className="bg-card shadow-sm border border-border p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-4">
-                  <BoltIcon className="w-4 h-4 text-orange-400" />
+                  <BoltIcon className="w-4 h-4 text-primary" />
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Quick Actions</h3>
                 </div>
                 {([
                   { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
                   { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push(`/dashboard/lessons/add?class_id=${id}`) },
-                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}`) },
+                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}`) },
                   { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
                 ] as const).map(btn => (
                   <button key={btn.label} onClick={btn.action}
-                    className="flex items-center gap-3 w-full p-3 bg-card shadow-sm hover:bg-muted border border-border hover:border-orange-500/30 text-left transition-colors">
+                    className="flex items-center gap-3 w-full p-3 bg-card shadow-sm hover:bg-muted border border-border hover:border-primary/30 text-left transition-colors">
                     <div className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${btn.bg}`}>
                       <btn.icon className={`w-4 h-4 ${btn.color}`} />
                     </div>
@@ -1342,12 +1342,12 @@ export default function ClassDetailPage() {
                       checked={checkedEnrollIds.size === enrollments.length}
                       ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < enrollments.length; }}
                       onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(enrollments.map((enr: any) => enr.id)) : new Set())}
-                      className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+                      className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0"
                     />
                   )}
                   <div>
                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Enrolled Students</h3>
-                    <p className="text-xs text-orange-400 mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
+                    <p className="text-xs text-primary mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1385,7 +1385,7 @@ export default function ClassDetailPage() {
                       <button
                         onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
                         title="Enrol existing student"
-                        className="w-8 h-8 bg-card shadow-sm hover:bg-orange-600 hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                        className="w-8 h-8 bg-card shadow-sm hover:bg-primary hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
                       >
                         <PlusIcon className="w-4 h-4" />
                       </button>
@@ -1404,7 +1404,7 @@ export default function ClassDetailPage() {
                 <div className="p-10 text-center flex flex-col items-center justify-center">
                   <UserGroupIcon className="w-8 h-8 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground mb-3">No students enrolled yet.</p>
-                  {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">Edit class to add students →</Link>}
+                  {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-primary hover:text-primary transition-colors">Edit class to add students →</Link>}
                 </div>
               ) : (
                 <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
@@ -1426,10 +1426,10 @@ export default function ClassDetailPage() {
                                 return next;
                               });
                             }}
-                            className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+                            className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0"
                           />
                         )}
-                        <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                        <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/10 text-primary'}`}>
                           {(enr.full_name ?? '?')[0].toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -1499,7 +1499,7 @@ export default function ClassDetailPage() {
               <div className="px-6 pt-4 pb-1 flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 py-2 rounded-none text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 rounded-none text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   Enrol into {cls?.name ?? 'this class'}
                 </button>
@@ -1522,7 +1522,7 @@ export default function ClassDetailPage() {
                         placeholder="Search by name, email or school..."
                         value={studentSearch}
                         onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
-                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
                   )}
@@ -1544,7 +1544,7 @@ export default function ClassDetailPage() {
                         <button
                           onClick={() => syncSelectedStudents()}
                           disabled={!!processingStudent}
-                          className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-[10px] font-bold text-foreground rounded-none transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-foreground rounded-none transition-all disabled:opacity-50 flex items-center gap-1.5"
                         >
                           {processingStudent === 'loading'
                             ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
@@ -1558,7 +1558,7 @@ export default function ClassDetailPage() {
                   <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar space-y-4">
                     {processingStudent === 'loading' ? (
                       <div className="py-20 text-center">
-                        <ArrowPathIcon className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-4" />
+                        <ArrowPathIcon className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
                         <p className="text-xs text-muted-foreground">Loading students…</p>
                       </div>
                     ) : availableStudents.length === 0 ? (
@@ -1597,10 +1597,10 @@ export default function ClassDetailPage() {
                         return (
                           <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); if (n.has(student.id)) n.delete(student.id); else n.add(student.id); return n; })}
                             className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all active:scale-[0.99] ${isChecked
-                              ? color === 'orange' ? 'bg-orange-600/15 border-orange-500/40' : 'bg-amber-500/10 border-amber-500/40'
-                              : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-orange-500/20' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'}`}>
+                              ? color === 'orange' ? 'bg-primary/15 border-primary/40' : 'bg-amber-500/10 border-amber-500/40'
+                              : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'}`}>
                             <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked
-                              ? color === 'orange' ? 'bg-orange-600 border-orange-400' : 'bg-amber-500 border-amber-400'
+                              ? color === 'orange' ? 'bg-primary border-primary' : 'bg-amber-500 border-amber-400'
                               : 'border-border'}`}>
                               {isChecked && <CheckIconOutline className="w-3 h-3 text-foreground" />}
                             </div>
@@ -1712,7 +1712,7 @@ export default function ClassDetailPage() {
                       : `Create Class & Enrol ${selectedStudentIds.size} Student${selectedStudentIds.size !== 1 ? 's' : ''}`}
                   </button>
                   {selectedStudentIds.size === 0 && (
-                    <button onClick={() => setEnrolMode('current')} className="w-full py-2 text-xs text-orange-400 hover:text-orange-500 transition-colors font-semibold">
+                    <button onClick={() => setEnrolMode('current')} className="w-full py-2 text-xs text-primary hover:text-primary transition-colors font-semibold">
                       ← Go back and select students first
                     </button>
                   )}
@@ -1779,7 +1779,7 @@ export default function ClassDetailPage() {
                   value={sessionForm.topic}
                   onChange={(e) => setSessionForm({ ...sessionForm, topic: e.target.value })}
                   placeholder="e.g. Introduction to Variables"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1789,7 +1789,7 @@ export default function ClassDetailPage() {
                     type="date"
                     value={sessionForm.session_date}
                     onChange={(e) => setSessionForm({ ...sessionForm, session_date: e.target.value })}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors [color-scheme:dark]"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors [color-scheme:dark]"
                   />
                 </div>
                 <div>
@@ -1797,11 +1797,11 @@ export default function ClassDetailPage() {
                   <div className="flex items-center gap-2">
                     <input type="time" value={sessionForm.start_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, start_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]" />
+                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                     <span className="text-muted-foreground text-xs">–</span>
                     <input type="time" value={sessionForm.end_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, end_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]" />
+                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                   </div>
                 </div>
               </div>
@@ -1810,7 +1810,7 @@ export default function ClassDetailPage() {
                 <textarea value={sessionForm.notes}
                   onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                   placeholder="Record notes, participation, or homework..."
                 />
               </div>
@@ -1841,7 +1841,7 @@ export default function ClassDetailPage() {
                   }
                 }}
                 disabled={savingSession}
-                className="flex-[2] py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
               >
                 {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                 {editingSession.id === 'new' ? 'Save Session' : 'Save Changes'}

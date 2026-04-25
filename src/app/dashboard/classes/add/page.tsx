@@ -12,7 +12,7 @@ import {
   BuildingOfficeIcon, UserGroupIcon,
 } from '@/lib/icons';
 
-const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors';
+const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
 
 export default function AddClassPage() {
@@ -220,7 +220,7 @@ export default function AddClassPage() {
 
   if (authLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -247,8 +247,8 @@ export default function AddClassPage() {
           <ArrowLeftIcon className="w-3.5 h-3.5" /> Back to Classes
         </Link>
         <div className="flex items-center gap-2 mb-1">
-          <AcademicCapIcon className="w-5 h-5 text-orange-400" />
-          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">New Class</span>
+          <AcademicCapIcon className="w-5 h-5 text-primary" />
+          <span className="text-xs font-bold text-primary uppercase tracking-widest">New Class</span>
         </div>
         <h1 className="text-3xl font-extrabold text-foreground">Add Class</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -271,7 +271,7 @@ export default function AddClassPage() {
           <h2 className="text-sm font-bold text-foreground">Class Details</h2>
 
           <div>
-            <label className={LABEL}>Class Name <span className="text-orange-500">*</span></label>
+            <label className={LABEL}>Class Name <span className="text-primary">*</span></label>
             <input
               type="text"
               required
@@ -284,7 +284,7 @@ export default function AddClassPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={LABEL}>Programme <span className="text-orange-500">*</span></label>
+              <label className={LABEL}>Programme <span className="text-primary">*</span></label>
               <select
                 required
                 value={form.program_id}
@@ -302,7 +302,7 @@ export default function AddClassPage() {
               <label className={LABEL}>Teacher</label>
               {profile?.role === 'teacher' ? (
                 <div className={`${INPUT} flex items-center gap-2 text-muted-foreground bg-muted cursor-not-allowed`}>
-                  <UserIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                  <UserIcon className="w-4 h-4 text-primary flex-shrink-0" />
                   <span className="truncate">{profile.full_name ?? 'You'}</span>
                   <span className="ml-auto text-[10px] text-muted-foreground">Locked</span>
                 </div>
@@ -441,7 +441,7 @@ export default function AddClassPage() {
             </div>
           ) : loadingStudents ? (
             <div className="py-12 flex items-center justify-center gap-3">
-              <ArrowPathIcon className="w-4 h-4 text-orange-400 animate-spin" />
+              <ArrowPathIcon className="w-4 h-4 text-primary animate-spin" />
               <span className="text-xs text-muted-foreground">Loading students...</span>
             </div>
           ) : availableStudents.length === 0 ? (
@@ -465,7 +465,7 @@ export default function AddClassPage() {
                     if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
                     else setSelectedStudents(availableStudents.map(s => s.id));
                   }}
-                  className="text-xs font-bold text-orange-400 hover:text-orange-300 transition-colors"
+                  className="text-xs font-bold text-primary hover:text-primary transition-colors"
                 >
                   {selectedStudents.length === availableStudents.length ? 'Deselect all' : 'Select all'}
                 </button>
@@ -476,7 +476,7 @@ export default function AddClassPage() {
                 {availableStudents.map(student => (
                   <label
                     key={student.id}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-orange-500/5 cursor-pointer transition-colors"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-primary/5 cursor-pointer transition-colors"
                   >
                     <input
                       type="checkbox"
@@ -485,14 +485,14 @@ export default function AddClassPage() {
                         if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
                         else setSelectedStudents(prev => prev.filter(id => id !== student.id));
                       }}
-                      className="w-4 h-4 rounded-none border-border bg-card text-orange-600 focus:ring-orange-500 focus:ring-offset-0 cursor-pointer"
+                      className="w-4 h-4 rounded-none border-border bg-card text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
                       <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                     </div>
                     {selectedStudents.includes(student.id) && (
-                      <CheckIcon className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                      <CheckIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     )}
                   </label>
                 ))}
@@ -512,7 +512,7 @@ export default function AddClassPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors disabled:opacity-50 shadow-lg shadow-orange-900/30"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors disabled:opacity-50 shadow-lg shadow-orange-900/30"
           >
             {saving
               ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating class...</>

@@ -226,7 +226,7 @@ export default function InboxPreviewWidget() {
                   {/* Avatar */}
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-lg ${
                     conv.type === 'students' ? 'bg-emerald-600' : 
-                    conv.type === 'parents' ? 'bg-orange-600' : 
+                    conv.type === 'parents' ? 'bg-primary' : 
                     conv.type === 'teachers' ? 'bg-violet-600' : 'bg-blue-700'
                   }`}>
                     {initials(conv.contact_name)}
@@ -261,7 +261,7 @@ export default function InboxPreviewWidget() {
                         ) : (
                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-white/[0.08] ${
                             conv.type === 'students' ? 'bg-emerald-500/10 text-emerald-400' :
-                            conv.type === 'parents'  ? 'bg-orange-500/10 text-orange-400' :
+                            conv.type === 'parents'  ? 'bg-primary/10 text-primary' :
                             conv.type === 'teachers' ? 'bg-violet-500/10 text-violet-400' :
                                                        'bg-blue-500/10 text-blue-400'
                           }`}>

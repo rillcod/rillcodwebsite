@@ -94,8 +94,8 @@ function ParentCertificatesContent() {
               onClick={() => setSelectedId(child.id)}
               className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
                 selectedId === child.id
-                  ? 'bg-orange-600 border-orange-600 text-white'
-                  : 'bg-card border-border text-muted-foreground hover:border-orange-500/50'
+                  ? 'bg-primary border-primary text-white'
+                  : 'bg-card border-border text-muted-foreground hover:border-primary/50'
               }`}>
               {child.full_name}
             </button>
@@ -148,10 +148,10 @@ function ParentCertificatesContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {certs.map(cert => (
                 <div key={cert.id} className="bg-card border border-border rounded-none p-6 hover:bg-white/5 transition-all group relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500 to-orange-500 opacity-[0.04] blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500 to-primary opacity-[0.04] blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform" />
 
                   {/* Icon */}
-                  <div className="w-12 h-12 rounded-none bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-none bg-gradient-to-br from-amber-500 to-primary flex items-center justify-center mb-4 relative z-10">
                     <TrophyIcon className="w-6 h-6 text-white" />
                   </div>
 
@@ -177,7 +177,7 @@ function ParentCertificatesContent() {
                     {/* Download */}
                     {cert.pdf_url && (
                       <a href={cert.pdf_url} target="_blank" rel="noopener noreferrer"
-                        className="mt-4 flex items-center justify-center gap-2 w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all">
+                        className="mt-4 flex items-center justify-center gap-2 w-full px-4 py-2 bg-gradient-to-r from-primary to-primary text-white text-[10px] font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all">
                         Download PDF
                       </a>
                     )}

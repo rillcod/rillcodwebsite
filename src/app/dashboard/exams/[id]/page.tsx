@@ -45,7 +45,7 @@ function QuestionTypeTag({ type }: { type: string }) {
     true_false: 'bg-emerald-500/20 text-emerald-400',
     short_answer: 'bg-amber-500/20 text-amber-400',
     essay: 'bg-violet-500/20 text-violet-400',
-    fill_in_blank: 'bg-orange-500/20 text-orange-400',
+    fill_in_blank: 'bg-primary/20 text-primary',
     matching: 'bg-pink-500/20 text-pink-400',
   };
   return (

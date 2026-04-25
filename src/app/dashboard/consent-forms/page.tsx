@@ -78,8 +78,8 @@ export default function ConsentFormsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ClipboardDocumentCheckIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Digital Consent</span>
+              <ClipboardDocumentCheckIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Digital Consent</span>
             </div>
             <h1 className="text-3xl font-black">Consent Forms</h1>
             <p className="text-muted-foreground text-sm mt-1">
@@ -87,7 +87,7 @@ export default function ConsentFormsPage() {
             </p>
           </div>
           {isStaff && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-none transition-colors">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors">
               <PlusIcon className="w-4 h-4" /> New Form
             </button>
           )}
@@ -104,21 +104,21 @@ export default function ConsentFormsPage() {
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1">Title *</label>
-                  <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Field Trip Permission" className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-orange-500" />
+                  <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Field Trip Permission" className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1">Body / Message *</label>
-                  <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="Describe the activity and what parents are consenting to…" rows={5} className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-orange-500 resize-none" />
+                  <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} placeholder="Describe the activity and what parents are consenting to…" rows={5} className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary resize-none" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block mb-1">Due Date</label>
-                  <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-orange-500" />
+                  <input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} className="w-full bg-card border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary" />
                 </div>
               </div>
               {error && <p className="text-rose-400 text-xs">{error}</p>}
               <div className="flex gap-3">
                 <button onClick={() => setShowCreate(false)} className="flex-1 py-2.5 bg-card text-muted-foreground font-bold rounded-none hover:bg-muted text-sm transition-colors">Cancel</button>
-                <button onClick={createForm} disabled={!form.title.trim() || !form.body.trim() || creating} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
+                <button onClick={createForm} disabled={!form.title.trim() || !form.body.trim() || creating} className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white font-bold rounded-none text-sm transition-colors">
                   {creating ? 'Creating…' : 'Publish Form'}
                 </button>
               </div>
@@ -128,7 +128,7 @@ export default function ConsentFormsPage() {
 
         {/* Forms list */}
         {loading ? (
-          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
         ) : forms.length === 0 ? (
           <div className="text-center py-16 bg-card border border-border rounded-none">
             <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
@@ -161,7 +161,7 @@ export default function ConsentFormsPage() {
                       <button
                         onClick={() => signForm(cf.id)}
                         disabled={signingId === cf.id}
-                        className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-sm font-bold rounded-none transition-colors"
+                        className="flex-1 py-2 bg-primary hover:bg-primary disabled:opacity-40 text-white text-sm font-bold rounded-none transition-colors"
                       >
                         {signingId === cf.id ? 'Signing…' : '✅ I Agree & Sign'}
                       </button>

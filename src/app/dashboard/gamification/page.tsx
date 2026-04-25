@@ -279,7 +279,7 @@ export default function GamificationPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <FireIcon className="w-3.5 h-3.5 text-orange-400" />
+                        <FireIcon className="w-3.5 h-3.5 text-primary" />
                         <span className="font-bold text-card-foreground">{entry.current_streak ?? 0}</span>
                         <span className="text-xs text-card-foreground/40">days</span>
                       </div>

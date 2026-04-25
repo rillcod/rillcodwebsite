@@ -4,7 +4,7 @@ import { BADGE_VISUAL } from '@/lib/grading';
 
 // ── Tier configuration ────────────────────────────────────────────────────────
 const TIER_META: Record<string, { label: string; glow: string; ring: string }> = {
-  bronze:   { label: 'BRONZE',   glow: 'shadow-orange-500/20',  ring: 'border-orange-500/50' },
+  bronze:   { label: 'BRONZE',   glow: 'shadow-primary/20',  ring: 'border-primary/50' },
   silver:   { label: 'SILVER',   glow: 'shadow-violet-500/20',  ring: 'border-white/20'      },
   gold:     { label: 'GOLD',     glow: 'shadow-amber-500/30',   ring: 'border-amber-400/60'  },
   platinum: { label: 'PLATINUM', glow: 'shadow-cyan-400/40',    ring: 'border-cyan-400/70'   },
@@ -79,8 +79,8 @@ export function BadgeCardFull({
   const visual = BADGE_VISUAL[badgeKey];
   const tier = visual ? TIER_META[visual.tier] ?? TIER_META.bronze : TIER_META.bronze;
   const color = visual?.color ?? '#f97316';
-  const bg    = visual?.bg ?? 'from-orange-600/20 to-orange-400/5';
-  const border = visual?.borderColor ?? 'border-orange-500/40';
+  const bg    = visual?.bg ?? 'from-primary/20 to-primary/5';
+  const border = visual?.borderColor ?? 'border-primary/40';
 
   return (
     <div
@@ -129,8 +129,8 @@ export function EarnedBadgeCard({
   const visual = BADGE_VISUAL[badgeKey];
   const tier = visual ? TIER_META[visual.tier] ?? TIER_META.bronze : TIER_META.bronze;
   const color = visual?.color ?? '#f97316';
-  const bg    = visual?.bg ?? 'from-orange-600/20 to-orange-400/5';
-  const border = visual?.borderColor ?? 'border-orange-500/40';
+  const bg    = visual?.bg ?? 'from-primary/20 to-primary/5';
+  const border = visual?.borderColor ?? 'border-primary/40';
 
   const dateStr = earnedAt
     ? new Date(earnedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
