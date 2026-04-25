@@ -3,57 +3,61 @@ import Image from 'next/image';
 import { brandAssets } from '../config/brand';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   showText?: boolean;
   className?: string;
   textColor?: string;
-  useSvg?: boolean;
+  variant?: 'default' | 'sidebar' | 'auth';
 }
 
-export default function Logo({ size = 'md', showText = true, className = '', textColor = 'text-foreground dark:text-white', useSvg = false }: LogoProps) {
-  const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-10 h-10',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16',
-  };
+const SIZE_MAP = {
+  sm:  { container: 'w-8 h-8',   img: 28,  text: 'text-sm',  sub: 'text-[8px]'  },
+  md:  { container: 'w-10 h-10', img: 36,  text: 'text-base',sub: 'text-[9px]'  },
+  lg:  { container: 'w-12 h-12', img: 44,  text: 'text-lg',  sub: 'text-[10px]' },
+  xl:  { container: 'w-16 h-16', img: 56,  text: 'text-xl',  sub: 'text-[11px]' },
+  '2xl':{ container: 'w-20 h-20',img: 72,  text: 'text-2xl', sub: 'text-xs'     },
+};
 
-  const imgSizes = { sm: 32, md: 40, lg: 48, xl: 64 };
-
-  const textSizes = {
-    sm: 'text-sm',
-    md: 'text-lg',
-    lg: 'text-xl',
-    xl: 'text-2xl',
-  };
-
-  const src = useSvg ? brandAssets.logoSvg : brandAssets.logo;
+export default function Logo({
+  size = 'md',
+  showText = true,
+  className = '',
+  variant = 'default',
+}: LogoProps) {
+  const s = SIZE_MAP[size];
 
   return (
-    <div className={`flex items-center space-x-3 ${className}`}>
-      <div className={`${sizeClasses[size]} rounded-xl overflow-hidden shadow-lg flex-shrink-0`}>
+    <div className={`flex items-center gap-3 ${className}`}>
+      {/* Logo mark — white bg so it looks correct on any background */}
+      <div className={`
+        ${s.container} flex-shrink-0 flex items-center justify-center
+        bg-white rounded-xl overflow-hidden
+        shadow-md border border-border/40
+        dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]
+      `}>
         <Image
-          src={src}
-          alt="Rillcod Technologies Logo"
-          width={imgSizes[size]}
-          height={imgSizes[size]}
-          className="w-full h-full object-contain"
+          src={brandAssets.logo}
+          alt="Rillcod Technologies"
+          width={s.img}
+          height={s.img}
+          className="w-[80%] h-[80%] object-contain"
           priority
           onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            // Try PNG fallback if SVG fails
-            if (target.src.includes('.svg')) {
-              target.src = brandAssets.logo;
-            } else if (target.src !== brandAssets.logoCloudinary) {
-              target.src = brandAssets.logoCloudinary;
-            }
+            const t = e.target as HTMLImageElement;
+            if (t.src !== brandAssets.logoCloudinary) t.src = brandAssets.logoCloudinary;
           }}
         />
       </div>
+
       {showText && (
-        <span className={`font-bold ${textColor} ${textSizes[size]} whitespace-nowrap`}>
-          Rillcod Technologies
-        </span>
+        <div className="leading-tight min-w-0">
+          <span className={`${s.text} font-black uppercase tracking-tighter block italic text-foreground`}>
+            RILLCOD<span className="not-italic text-brand-red-600">.</span>
+          </span>
+          <span className={`${s.sub} font-bold uppercase tracking-[0.25em] text-muted-foreground block`}>
+            Technologies
+          </span>
+        </div>
       )}
     </div>
   );
