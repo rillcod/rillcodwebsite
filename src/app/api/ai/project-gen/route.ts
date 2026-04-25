@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   // ── 2. OpenRouter fallback ──────────────────────────────────────────────────
   const MODELS = [
-    'google/gemini-2.0-flash-001',
+    'google/gemini-2.5-flash',
     'deepseek/deepseek-chat-v3-5',
     'meta-llama/llama-3.3-70b-instruct',
     'qwen/qwen3-14b:free',
