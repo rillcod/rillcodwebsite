@@ -120,6 +120,7 @@ export default function DashboardNavigation() {
           { name: 'Parents',           href: '/dashboard/parents',    icon: UserPlusIcon },
           { name: 'Users',             href: '/dashboard/users',      icon: ShieldCheckIcon },
           { name: 'Approvals',         href: '/dashboard/approvals',  icon: ClipboardDocumentCheckIcon },
+          { name: 'Card Studio',       href: '/dashboard/card-studio',icon: CreditCardIcon },
 
           // Step 1 → Step 2 → Step 3
           { divider: true, label: 'Content Pipeline' },
@@ -211,6 +212,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Students' },
           { name: 'Students',          href: '/dashboard/students',        icon: UserGroupIcon },
           { name: 'Parents',           href: '/dashboard/parents',         icon: UserPlusIcon },
+          { name: 'Card Studio',       href: '/dashboard/card-studio',     icon: CreditCardIcon },
           { name: 'Study Groups',      href: '/dashboard/study-groups',    icon: UserGroupIcon },
           { name: 'Gamification',      href: '/dashboard/gamification',    icon: FireIcon },
 
