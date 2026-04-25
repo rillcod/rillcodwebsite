@@ -2366,16 +2366,25 @@ export default function LessonPlanDetailPage() {
           )}
 
           <div className="bg-card border border-white/[0.08] rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-sm font-black text-card-foreground">Content Overview</h3>
-              {linkedLessons.length > 0 && (
-                <Link
-                  href={`/dashboard/lessons?lesson_plan_id=${id}`}
-                  className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors"
-                >
-                  View all {linkedLessons.length} lesson{linkedLessons.length !== 1 ? 's' : ''} →
-                </Link>
-              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                {linkedLessons.length > 0 && (
+                  <Link href={`/dashboard/lessons?lesson_plan_id=${id}`} className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors">
+                    {linkedLessons.length} lesson{linkedLessons.length !== 1 ? 's' : ''} →
+                  </Link>
+                )}
+                {linkedAssignments.length > 0 && (
+                  <Link href={`/dashboard/assignments?lesson_plan_id=${id}`} className="text-xs text-blue-400 hover:text-blue-300 font-bold transition-colors">
+                    {linkedAssignments.length} assignment{linkedAssignments.length !== 1 ? 's' : ''} →
+                  </Link>
+                )}
+                {linkedProjects.length > 0 && (
+                  <Link href={`/dashboard/assignments?lesson_plan_id=${id}&type=project`} className="text-xs text-emerald-400 hover:text-emerald-300 font-bold transition-colors">
+                    {linkedProjects.length} project{linkedProjects.length !== 1 ? 's' : ''} →
+                  </Link>
+                )}
+              </div>
             </div>
             {weeks.length === 0 ? (
               <p className="text-card-foreground/40 text-sm">No weeks defined yet.</p>
@@ -2383,38 +2392,47 @@ export default function LessonPlanDetailPage() {
               <div className="space-y-2">
                 {weeks.map(w => {
                   const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
+                  const weekAssignment = linkedAssignments.find(a => (a.metadata as any)?.week_number === w.week);
+                  const weekProject = linkedProjects.find(p => (p.metadata as any)?.week_number === w.week);
                   const addLessonHref = buildPlanWeekCreateLessonUrl({ plan, week: w, courseTitle });
+                  const addAssignmentHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${w.week}${plan.course_id ? `&course_id=${plan.course_id}` : ''}`;
+                  const addProjectHref = `/dashboard/projects/new?lesson_plan_id=${id}&week=${w.week}${plan.course_id ? `&course_id=${plan.course_id}` : ''}`;
                   return (
-                    <div key={w.week} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white/5 rounded-xl">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-black text-violet-400">Week {w.week}</span>
-                          {w.completed && <span className="text-[10px] font-black text-emerald-300">✓ Completed</span>}
-                          <span className="text-sm text-card-foreground truncate">{w.topic}</span>
-                        </div>
-                        <div className="flex gap-3 text-xs text-card-foreground/50">
-                          {weekLesson ? (
-                            <Link
-                              href={`/dashboard/lessons/${weekLesson.id}`}
-                              className="text-emerald-400 font-bold hover:text-emerald-300 transition-colors"
-                            >
-                              ✓ Lesson ({weekLesson.status})
-                            </Link>
-                          ) : (
-                            <span className="text-card-foreground/30">No lesson yet</span>
-                          )}
-                        </div>
+                    <div key={w.week} className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-violet-400">Week {w.week}</span>
+                        {w.completed && <span className="text-[10px] font-black text-emerald-300">✓ Completed</span>}
+                        <span className="text-sm text-card-foreground truncate">{w.topic}</span>
                       </div>
-                      {!weekLesson && (
-                        <Link
-                          href={addLessonHref}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold border border-emerald-500/30 text-emerald-400 rounded-md hover:bg-emerald-500/10 transition-colors whitespace-nowrap min-h-[36px]"
-                          title="Create lesson for this week"
-                        >
-                          <SparklesIcon className="w-3.5 h-3.5" />
-                          Create Lesson
-                        </Link>
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {weekLesson ? (
+                          <Link href={`/dashboard/lessons/${weekLesson.id}`} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors">
+                            ✓ Lesson
+                          </Link>
+                        ) : (
+                          <Link href={addLessonHref} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-400 transition-colors">
+                            + Lesson
+                          </Link>
+                        )}
+                        {weekAssignment ? (
+                          <Link href={`/dashboard/assignments/${weekAssignment.id}`} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-400 border border-blue-500/30 rounded hover:bg-blue-500/10 transition-colors">
+                            ✓ Assignment
+                          </Link>
+                        ) : (
+                          <Link href={addAssignmentHref} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-blue-500/30 hover:text-blue-400 transition-colors">
+                            + Assignment
+                          </Link>
+                        )}
+                        {weekProject ? (
+                          <Link href={`/dashboard/assignments/${weekProject.id}`} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors">
+                            ✓ Project
+                          </Link>
+                        ) : (
+                          <Link href={addProjectHref} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-emerald-500/30 hover:text-emerald-400 transition-colors">
+                            + Project
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
