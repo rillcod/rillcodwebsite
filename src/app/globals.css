@@ -54,7 +54,7 @@
   --card-foreground: #0D1B2A;
   --popover: #FFFFFF;
   --popover-foreground: #0D1B2A;
-  --primary: #1A3A8F;
+  --primary: #3B6FE8;
   --primary-foreground: #FFFFFF;
   --secondary: #EEF2FF;
   --secondary-foreground: #0D1B2A;
@@ -65,14 +65,14 @@
   --destructive: #C41E3A;
   --border: #D1D9E6;
   --input: #D1D9E6;
-  --ring: #1A3A8F;
-  --chart-1: #1A3A8F;
+  --ring: #3B6FE8;
+  --chart-1: #3B6FE8;
   --chart-2: #C41E3A;
   --chart-3: #2563EB;
   --chart-4: #DC2626;
-  --chart-5: #1E40AF;
+  --chart-5: #1A3A8F;
   --scrollbar-track: #EEF2FF;
-  --scrollbar-thumb: rgba(26, 58, 143, 0.25);
+  --scrollbar-thumb: rgba(59, 111, 232, 0.25);
   --scrollbar-thumb-hover: #C41E3A;
   
   /* Brand colors - consistent across themes */
