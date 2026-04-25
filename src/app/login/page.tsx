@@ -128,16 +128,15 @@ function LoginContent() {
           
           {/* ── Left Section: Brand ── */}
           <div className="lg:col-span-5 flex flex-col justify-center py-2 sm:py-4 lg:py-12 text-center lg:text-left">
-            <Link href="/" className="flex items-center gap-3 sm:gap-4 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
-              {/* Logo with white background — works in both light and dark */}
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
-                <Image src="/images/logo.png" alt="Rillcod" width={44} height={44} className="object-contain w-[75%] h-[75%]" />
+            <Link href="/" className="flex items-center gap-3 sm:gap-5 group w-fit mx-auto lg:mx-0 mb-4 sm:mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
+                <Image src="/images/logo.png" alt="Rillcod" width={80} height={80} className="object-contain w-[85%] h-[85%]" />
               </div>
               <div className="leading-tight">
-                <span className="text-xl sm:text-2xl font-black uppercase tracking-tighter block italic text-foreground">
+                <span className="text-3xl sm:text-4xl font-black uppercase tracking-tighter block italic text-foreground">
                   RILLCOD<span className="not-italic text-brand-red-600">.</span>
                 </span>
-                <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-muted-foreground">Technologies</span>
+                <span className="text-sm sm:text-base font-black uppercase tracking-[0.2em] text-muted-foreground block mt-0.5">Technologies</span>
               </div>
             </Link>
 
