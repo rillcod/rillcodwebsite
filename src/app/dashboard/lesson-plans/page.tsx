@@ -165,6 +165,8 @@ function LessonPlansPageInner() {
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const canManage = isAdmin || isTeacher;
+  const [debrisCount, setDebrisCount] = useState<number | null>(null);
+  const [cleaningDebris, setCleaningDebris] = useState(false);
 
   const [form, setForm] = useState({
     academic_year: currentAcademicYear(),
@@ -272,6 +274,13 @@ function LessonPlansPageInner() {
         const schoolsRes = await fetch('/api/schools');
         const schoolsJson = schoolsRes.ok ? await schoolsRes.json() : { data: [] };
         setSchools(schoolsJson.data ?? []);
+      }
+      if (isAdmin || isTeacher) {
+        const debrisRes = await fetch('/api/admin/debris');
+        if (debrisRes.ok) {
+          const debrisJson = await debrisRes.json();
+          setDebrisCount(debrisJson.debris?.total ?? 0);
+        }
       }
     } catch {
       toast.error('Failed to load lesson plans');
@@ -829,6 +838,43 @@ function LessonPlansPageInner() {
         )}
       </div>
 
+      {/* Debris banner — admin + teacher, only shown when orphaned records exist */}
+      {canManage && debrisCount !== null && debrisCount > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-5 py-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <TrashIcon className="w-5 h-5 text-amber-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-black text-amber-300">
+                {debrisCount} orphaned record{debrisCount !== 1 ? 's' : ''} detected
+              </p>
+              <p className="text-xs text-amber-400/70 mt-0.5">
+                Lessons or assignments linked to deleted plans. Safe to clean up.
+              </p>
+            </div>
+          </div>
+          <button
+            disabled={cleaningDebris}
+            onClick={async () => {
+              setCleaningDebris(true);
+              try {
+                const res = await fetch('/api/admin/debris', { method: 'DELETE' });
+                if (!res.ok) throw new Error('Cleanup failed');
+                const j = await res.json();
+                toast.success(`Cleaned up ${j.deleted.lessons} lessons and ${j.deleted.assignments} assignments`);
+                setDebrisCount(0);
+              } catch {
+                toast.error('Debris cleanup failed');
+              } finally {
+                setCleaningDebris(false);
+              }
+            }}
+            className="shrink-0 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-widest rounded-xl min-h-[44px] transition-all"
+          >
+            {cleaningDebris ? 'Cleaning…' : 'Clean Up'}
+          </button>
+        </div>
+      )}
+
       {/* Plans Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -886,8 +932,14 @@ function LessonPlansPageInner() {
                 <Link href={`/dashboard/lesson-plans/${plan.id}`} className="block p-5 hover:border-violet-500/30 transition-all flex-1">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[160px]">{courseTitle}</span>
+                      {/* Course name is the primary identifier — term + class are secondary context */}
+                      <h3 className="font-black text-card-foreground text-base line-clamp-2 break-words leading-snug mb-1">
+                        {courseTitle}
+                      </h3>
+                      <p className="text-xs text-card-foreground/50 font-medium truncate">
+                        {plan.term ?? 'Term Plan'}{plan.classes?.name ? ` · ${plan.classes.name}` : ''}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
                         {(plan.version ?? 1) > 1 && (
                           <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
@@ -898,9 +950,6 @@ function LessonPlansPageInner() {
                           </span>
                         )}
                       </div>
-                      <h3 className="font-black text-card-foreground text-base line-clamp-2 break-words">
-                        {plan.term ?? 'Term Plan'} {plan.classes?.name ? `— ${plan.classes.name}` : ''}
-                      </h3>
                     </div>
                   </div>
 
