@@ -442,6 +442,10 @@ export default function LessonPlanDetailPage() {
     preview: { total_weeks: number; projected_generations: number; projected_skips: number };
   } | null>(null);
   const [lmsOpen, setLmsOpen] = useState(false);
+  const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
+    scopeLabel: string;
+    preview: ProgressionPreview;
+  } | null>(null);
   const [lmsSettings, setLmsSettings] = useState<{
     enabled: boolean;
     types: ('lessons' | 'assignments' | 'projects')[];
@@ -965,10 +969,22 @@ export default function LessonPlanDetailPage() {
         toast.error('Resolve the blocking readiness issues before generation.');
         return;
       }
-      const approved = window.confirm(
-        `Scope: ${getProgressionScopeLabel()}\nPreview: ${preview.projected_terms?.length ?? 0} term(s), ${preview.projected_projects ?? 0} project weeks, ${preview.projected_assignments ?? 0} assignments, ${preview.projected_flashcard_decks ?? 0} flashcard decks, repetition risk: ${preview.repetition_risk ?? 'low'}. Continue generation?`,
-      );
-      if (!approved) return;
+      setProgressionRunConfirm({ scopeLabel: getProgressionScopeLabel(), preview });
+      return; // execution resumes in executeProgressionGeneration()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Progression generation failed';
+      toast.error(message);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  async function executeProgressionGeneration() {
+    if (!progressionRunConfirm || !plan) return;
+    setProgressionRunConfirm(null);
+    setGenerating('progression');
+    try {
+      const payload = buildProgressionPayload();
       const res = await fetch(`/api/lesson-plans/${id}/generate-progression`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2635,6 +2651,82 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
+      {/* Progression Run Confirmation Modal */}
+      {progressionRunConfirm && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Progression Builder</p>
+                  <h3 className="text-base font-black text-card-foreground">Generate {progressionRunConfirm.scopeLabel}</h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 border border-white/[0.08] rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-card-foreground">{progressionRunConfirm.preview.projected_terms?.length ?? 0}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Terms</p>
+                </div>
+                <div className="bg-white/5 border border-white/[0.08] rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-card-foreground">{progressionRunConfirm.preview.projected_projects ?? 0}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Project Weeks</p>
+                </div>
+                <div className="bg-white/5 border border-white/[0.08] rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-card-foreground">{progressionRunConfirm.preview.projected_assignments ?? 0}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Assignments</p>
+                </div>
+                <div className={`border rounded-xl p-3 text-center ${
+                  progressionRunConfirm.preview.repetition_risk === 'high'
+                    ? 'bg-rose-500/10 border-rose-500/20'
+                    : progressionRunConfirm.preview.repetition_risk === 'medium'
+                      ? 'bg-amber-500/10 border-amber-500/20'
+                      : 'bg-emerald-500/10 border-emerald-500/20'
+                }`}>
+                  <p className={`text-xl font-black capitalize ${
+                    progressionRunConfirm.preview.repetition_risk === 'high'
+                      ? 'text-rose-300'
+                      : progressionRunConfirm.preview.repetition_risk === 'medium'
+                        ? 'text-amber-300'
+                        : 'text-emerald-300'
+                  }`}>{progressionRunConfirm.preview.repetition_risk ?? 'low'}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Repetition Risk</p>
+                </div>
+              </div>
+
+              {progressionRunConfirm.preview.warnings && progressionRunConfirm.preview.warnings.length > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-300 space-y-1">
+                  {progressionRunConfirm.preview.warnings.map((w, i) => (
+                    <p key={i}>{w}</p>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-card-foreground/50 leading-relaxed">
+                This will write the progression route into the plan. Existing terms are {progressionOverwrite ? 'replaced' : 'preserved'}.
+              </p>
+            </div>
+            <div className="flex gap-3 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              <button
+                onClick={() => setProgressionRunConfirm(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-xl min-h-[44px] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeProgressionGeneration}
+                className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-xl min-h-[44px] transition-all"
+              >
+                Confirm & Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Week Edit Panel — Slide Over */}
       {weekPanelOpen && weekDraft && (
         <div className="fixed inset-0 z-[60] overflow-hidden">
@@ -2687,6 +2779,16 @@ export default function LessonPlanDetailPage() {
                           value={weekDraft.activities}
                           onChange={(e) => setWeekDraft({ ...weekDraft, activities: e.target.value })}
                           placeholder="Detail the planned flow and exercises."
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Teacher Notes</span>
+                        <textarea
+                          rows={2}
+                          value={weekDraft.notes ?? ''}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, notes: e.target.value })}
+                          placeholder="Internal notes visible only to teachers."
                           className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
                         />
                       </label>
