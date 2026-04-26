@@ -353,7 +353,11 @@ export async function POST(req: NextRequest) {
     if (existing) {
       const { data, error } = await admin
         .from('course_curricula')
-        .update({ content: aiContent, version: (existing as { version: number }).version + 1, updated_at: new Date().toISOString() })
+        .update({
+          content: { ...aiContent, description: body.description || null },
+          version: (existing as { version: number }).version + 1,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', (existing as { id: string }).id)
         .select('*, schools(id, name)')
         .single();
@@ -362,7 +366,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const insertPayload: Record<string, unknown> = { content: aiContent, version: 1, created_by: user.id };
+  const insertPayload: Record<string, unknown> = {
+    content: { ...aiContent, description: body.description || null },
+    version: 1,
+    created_by: user.id,
+  };
   if (course_id) insertPayload.course_id = course_id;
   insertPayload.school_id = targetSchoolId;
 
