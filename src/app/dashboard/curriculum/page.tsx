@@ -2010,33 +2010,39 @@ export default function CurriculumPage() {
                 /* Empty state */
                 <div className="h-full min-h-[60vh] px-4 py-8">
                   <div className="max-w-5xl mx-auto space-y-5">
-                    {/* Continue editing — shown while auto-restore is in flight or as manual fallback */}
+                    {/* Resume Planning — High-impact Hero Card */}
                     {lastVisited && (
-                      <div className="group relative overflow-hidden bg-card border border-primary/20 p-6 flex flex-col sm:flex-row sm:items-center gap-6 shadow-2xl transition-all hover:border-primary/40">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                          <RocketLaunchIcon className="w-24 h-24 text-primary" />
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
+                          <RocketLaunchIcon className="w-5 h-5 animate-pulse" />
+                          <span className="text-[11px] font-black uppercase tracking-[0.3em]">Continue Session</span>
                         </div>
-                        <div className="flex-1 min-w-0 relative z-10">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Resume Planning</p>
+                        <div className="group relative overflow-hidden bg-card border border-white/10 p-8 flex flex-col sm:flex-row sm:items-center gap-8 shadow-2xl transition-all hover:border-primary/40 duration-500 rounded-2xl">
+                          <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-all" />
+                          <div className="flex-1 min-w-0 relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                              <span className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
+                                Last Visited
+                              </span>
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">{lastVisited.progName}</span>
+                            </div>
+                            <h3 className="text-3xl font-black text-white tracking-tighter mb-2 group-hover:text-primary transition-colors">{lastVisited.courseTitle}</h3>
+                            <p className="text-sm text-muted-foreground font-medium max-w-md">Pick up exactly where you left off in your academic blueprinting cycle.</p>
                           </div>
-                          <h3 className="text-xl font-black text-foreground truncate mb-1">{lastVisited.courseTitle}</h3>
-                          <p className="text-xs text-muted-foreground truncate opacity-80">{lastVisited.progName}</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prog = programs.find(p => p.id === lastVisited.progId);
+                              const course = prog?.courses?.find(c => c.id === lastVisited.courseId);
+                              if (prog && course) { selectCourse(prog, course); return; }
+                              setSelectedCourse({ id: lastVisited.courseId, title: lastVisited.courseTitle, is_active: true });
+                              loadCurriculum(lastVisited.courseId);
+                            }}
+                            className="relative z-10 shrink-0 flex items-center justify-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 rounded-xl"
+                          >
+                            <ArrowRightIcon className="w-4 h-4" /> Open Blueprint
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const prog = programs.find(p => p.id === lastVisited.progId);
-                            const course = prog?.courses?.find(c => c.id === lastVisited.courseId);
-                            if (prog && course) { selectCourse(prog, course); return; }
-                            setSelectedCourse({ id: lastVisited.courseId, title: lastVisited.courseTitle, is_active: true });
-                            loadCurriculum(lastVisited.courseId);
-                          }}
-                          className="relative z-10 shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0"
-                        >
-                          <ArrowRightIcon className="w-4 h-4" /> Open Blueprint
-                        </button>
                       </div>
                     )}
                     {!lastVisited && (
@@ -2060,53 +2066,75 @@ export default function CurriculumPage() {
                       </div>
                     )}
                     {globalImplementationList.length > 0 && !lastVisited && (
-                      <div className="space-y-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Active Class Plans</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-violet-400">
+                          <PresentationChartLineIcon className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Class Plans</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {globalImplementationList.map(plan => (
                             <Link
                               key={plan.id}
                               href={`/dashboard/lesson-plans/${plan.id}`}
-                              className="group bg-card border border-border hover:border-violet-500/50 p-4 transition-all flex flex-col gap-3"
+                              className="group bg-card border border-white/5 hover:border-violet-500/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-violet-500/5 hover:-translate-y-1 rounded-xl"
                             >
-                              <div className="flex items-start justify-between min-w-0">
+                              <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <h5 className="text-xs font-black group-hover:text-violet-400 transition-colors truncate">{plan.classes?.name}</h5>
-                                  <p className="text-[10px] text-muted-foreground truncate font-bold uppercase tracking-widest">{plan.courses?.title}</p>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-1">
+                                    {plan.classes?.name}
+                                  </p>
+                                  <h5 className="text-sm font-black text-white group-hover:text-violet-400 transition-colors truncate">
+                                    {plan.courses?.title}
+                                  </h5>
                                 </div>
-                                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border border-violet-500/30 text-violet-400 bg-violet-500/5 shrink-0">
+                                <span className="bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-black px-2 py-1 rounded">
                                   {plan.term}
                                 </span>
+                              </div>
+                              <div className="pt-2 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity">Launch Class Plan →</span>
+                                <span className="text-[9px] text-muted-foreground">Active Implementation</span>
                               </div>
                             </Link>
                           ))}
                         </div>
                       </div>
                     )}
-                    <div className="bg-card border border-border p-4 sm:p-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">
-                        {lastVisited ? 'Or pick a different course' : 'Quick course grid'}
-                      </p>
-                      {(isTeacher || isSchool) && (
-                        <p className="text-[11px] text-muted-foreground mb-3">
-                          School-based list: showing courses linked to classes in your school scope.
-                        </p>
-                      )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="space-y-6">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-primary">
+                          <Squares2X2Icon className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Course Catalog</span>
+                        </div>
+                        {(isTeacher || isSchool) && (
+                          <p className="text-[11px] text-muted-foreground font-medium">
+                            Showing courses linked to your assigned school classes.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {quickChooserCourses.map(({ prog, course }) => (
                           <button
                             key={course.id}
                             type="button"
                             onClick={() => selectCourse(prog, course)}
-                            className="text-left border border-border bg-background hover:border-primary/40 hover:bg-muted/30 transition-colors p-3 space-y-1"
+                            className="group text-left bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
                           >
-                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black truncate">
-                              {prog.name}
-                            </p>
-                            <p className="text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                              Open syllabus
-                            </p>
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                {prog.name}
+                              </p>
+                              <h3 className="text-sm font-black text-white group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5em]">
+                                {course.title}
+                              </h3>
+                            </div>
+                            <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Select Course →</span>
+                              <div className="p-1 rounded bg-white/5">
+                                <ChevronRightIcon className="w-3 h-3 text-muted-foreground" />
+                              </div>
+                            </div>
                           </button>
                         ))}
                       </div>
