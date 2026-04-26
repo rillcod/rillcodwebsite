@@ -746,7 +746,7 @@ function LessonPlansPageInner() {
             <p className="text-muted-foreground mt-2 max-w-2xl">
               {filterCourseId 
                 ? `Manage and schedule term-based lesson progression for ${courses.find(c => c.id === filterCourseId)?.title}.`
-                : 'Group your lessons by term, class, and course for organized delivery.'}
+                : 'Each plan links a course to a class for a specific term. Plans created here or from the Curriculum page appear in the same list.'}
             </p>
           </div>
           
@@ -760,7 +760,7 @@ function LessonPlansPageInner() {
                 }}
                 className="flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors rounded-xl"
               >
-                Clear Context
+                Clear Filter
               </button>
             )}
             <div className="flex items-center gap-2">
@@ -856,7 +856,7 @@ function LessonPlansPageInner() {
             <TrashIcon className="w-5 h-5 text-amber-400 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-black text-amber-300">
-                {debrisCount} orphaned record{debrisCount !== 1 ? 's' : ''} detected
+                {debrisCount} orphaned records found — these plans have no linked course or class
               </p>
               <p className="text-xs text-amber-400/70 mt-0.5">
                 Lessons or assignments linked to deleted plans. Safe to clean up.
@@ -959,7 +959,7 @@ function LessonPlansPageInner() {
                         {plan.curriculum_version_id && (
                           <span className="text-xs text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/30 flex items-center gap-1">
                             <SparklesIcon className="w-3 h-3" />
-                            Syllabus-Aligned
+                            From Syllabus
                           </span>
                         )}
                         {(plan.version ?? 1) > 1 && (
@@ -1024,11 +1024,11 @@ function LessonPlansPageInner() {
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08] shrink-0">
               <div className="min-w-0">
                 <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
-                  <SparklesIcon className="w-5 h-5 text-violet-400" /> New Term Lesson Plan
+                  <SparklesIcon className="w-5 h-5 text-violet-400" /> New Lesson Plan
                 </h3>
                 {qpCourseId && prefilledFromUrl && (
                   <p className="text-[10px] text-violet-400 uppercase tracking-widest font-black mt-1">
-                    ← Prefilled from Syllabus
+                    ← Pre-filled from Syllabus
                   </p>
                 )}
               </div>

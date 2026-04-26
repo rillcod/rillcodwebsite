@@ -45,8 +45,8 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
   const [startY, endY] = academicYear.split('/').map(Number);
   if (!startY || !endY) return null;
   if (term === '1') return { start: `${startY}-09-01`, end: `${startY}-12-15` };
-  if (term === '2') return { start: `${endY}-01-10`,   end: `${endY}-04-10` };
-  if (term === '3') return { start: `${endY}-05-01`,   end: `${endY}-07-25` };
+  if (term === '2') return { start: `${endY}-01-10`, end: `${endY}-04-10` };
+  if (term === '3') return { start: `${endY}-05-01`, end: `${endY}-07-25` };
   return null;
 }
 
@@ -1453,57 +1453,6 @@ export default function CurriculumPage() {
     setExpandedPrograms(new Set(programs.map((p) => p.id)));
   }, [programs]);
 
-  function renderSyllabusScopeCard(title: string, description: string, showGenerateAction = false) {
-    if (!canGenerate) return null;
-    return (
-      <div className="w-full max-w-3xl text-left bg-card border border-border p-4 sm:p-5 space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">{title}</p>
-          {showGenerateAction && (
-            <button
-              onClick={openGenerateModal}
-              className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-primary/40 text-primary hover:bg-primary/10"
-            >
-              Generate for this context
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              School
-            </label>
-            <select
-              value={generateScope}
-              onChange={(e) => {
-                const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
-                void syncScopeToCurriculum(scope);
-              }}
-              className={SELECT_CLS}
-            >
-              <option value="platform">Shared (all schools)</option>
-              {assignedSchools.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Grade level / class
-            </label>
-            <select
-              value={form.grade_level}
-              onChange={(e) => setGradeForCurrentScope(e.target.value)}
-              className={SELECT_CLS}
-            >
-              {GRADE_LEVEL_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-        </div>
-        <p className="text-[11px] text-muted-foreground">{description}</p>
-      </div>
-    );
-  }
 
   // ── Auth loading guard — prevents role-based flash ──────────────────────
   if (authLoading) {
@@ -2081,7 +2030,7 @@ export default function CurriculumPage() {
                           </div>
                           <h2 className="text-2xl font-black mb-3 text-white tracking-tight">Academic Planning Hub</h2>
                           <p className="text-muted-foreground text-sm leading-relaxed">
-                            Start your planning cycle by selecting a course from the catalog. 
+                            Start your planning cycle by selecting a course from the catalog.
                             Create blueprints, implement them to specific classes, and track your teaching journey.
                           </p>
                           <div className="mt-8 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
@@ -2527,10 +2476,23 @@ export default function CurriculumPage() {
           {/* ── Implementations Tab ── */}
           {activeTab === 'implementations' && selectedCourse && (
             <div className="mx-4 sm:mx-6 mb-6 space-y-6">
+              {/* Explanation banner */}
+              <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4 flex items-start gap-3">
+                <ClipboardDocumentListIcon className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-black text-violet-400 uppercase tracking-widest mb-1">What are Class Plans?</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Each entry below is a <strong className="text-foreground">Lesson Plan</strong> — this syllabus deployed to a specific class for a specific term.
+                    Click any card to open the week-by-week planner. You can also manage all plans from the{' '}
+                    <Link href="/dashboard/lesson-plans" className="text-violet-400 hover:underline font-bold">Lesson Plans page</Link>.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Class Plans</h4>
-                  <p className="text-[10px] text-muted-foreground">Active lesson plans created from this syllabus</p>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Classes Using This Syllabus</h4>
+                  <p className="text-[10px] text-muted-foreground">Each card is a lesson plan for one class — click to plan week by week</p>
                 </div>
                 <button
                   onClick={() => {
@@ -2544,7 +2506,7 @@ export default function CurriculumPage() {
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest transition-all"
                 >
                   <PlusIcon className="w-3 h-3" />
-                  New Implementation
+                  Deploy to Another Class
                 </button>
               </div>
 
@@ -2552,11 +2514,12 @@ export default function CurriculumPage() {
                 <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-2xl gap-3">
                   <ClipboardDocumentListIcon className="w-12 h-12 text-muted-foreground/20" />
                   <p className="text-xs font-bold text-muted-foreground">No classes are using this syllabus yet.</p>
+                  <p className="text-[10px] text-muted-foreground max-w-xs text-center">Deploy this syllabus to a class to start planning lessons week by week.</p>
                   <button
                     onClick={() => setShowImplement(true)}
-                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
+                    className="text-violet-400 text-xs font-black uppercase tracking-widest hover:underline"
                   >
-                    Create the first implementation
+                    Deploy to a Class →
                   </button>
                 </div>
               ) : (
@@ -2579,9 +2542,8 @@ export default function CurriculumPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${
-                            plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'
-                          }`}>
+                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'
+                            }`}>
                             {plan.status || 'draft'}
                           </span>
                           <button
