@@ -1447,7 +1447,7 @@ export default function CurriculumPage() {
   const genSelectedTypeDef = CONTENT_TYPES.find(t => t.key === genContentType);
   const canGenerateContent = !!selectedCourse && !!genWeek && !!genContentType;
   const scopeLabel = generateScope === 'platform'
-    ? 'Platform template (shared)'
+    ? 'Shared (all schools)'
     : assignedSchools.find((s) => s.id === generateScope)?.name ?? 'Selected school';
 
   const expandAllPrograms = useCallback(() => {
@@ -1472,7 +1472,7 @@ export default function CurriculumPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              School (view + generation target)
+              School
             </label>
             <select
               value={generateScope}
@@ -1482,7 +1482,7 @@ export default function CurriculumPage() {
               }}
               className={SELECT_CLS}
             >
-              <option value="platform">Platform template (shared)</option>
+              <option value="platform">Shared (all schools)</option>
               {assignedSchools.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -1683,7 +1683,7 @@ export default function CurriculumPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               <div className="bg-card border border-border p-3 space-y-1">
                 <p className="font-black text-primary">1. Planning Phase</p>
-                <p className="text-muted-foreground">Build your Syllabus here. Once ready, use the <strong>"Implement to Class"</strong> button to create an active Lesson Plan for your students.</p>
+                <p className="text-muted-foreground">Build your Syllabus here. Once ready, use the <strong>"Deploy to Class"</strong> button to create an active Lesson Plan for your students.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
                 <p className="font-black text-primary">2. Teaching Phase</p>
@@ -1908,7 +1908,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">Implement</span>
+                    <span className="whitespace-nowrap">Class Plans</span>
                   </button>
                   <button
                     type="button"
@@ -1966,7 +1966,7 @@ export default function CurriculumPage() {
                     className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-black uppercase tracking-wide bg-violet-600 hover:bg-violet-700 text-white transition-all shadow-lg shadow-violet-500/20"
                   >
                     <RocketLaunchIcon className="w-4 h-4 shrink-0" />
-                    Implement Syllabus to Class
+                    Deploy to a Class
                   </button>
                   <div>
                     <p className="text-[11px] font-bold text-foreground">Planning Phase: Ready for Implementation</p>
@@ -2169,7 +2169,7 @@ export default function CurriculumPage() {
                     )}
                     {globalImplementationList.length > 0 && !lastVisited && (
                       <div className="space-y-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Recent Class Implementations</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Active Class Plans</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {globalImplementationList.map(plan => (
                             <Link
@@ -2572,7 +2572,7 @@ export default function CurriculumPage() {
             <div className="mx-4 sm:mx-6 mb-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Class Implementations</h4>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Class Plans</h4>
                   <p className="text-[10px] text-muted-foreground">Active lesson plans created from this syllabus</p>
                 </div>
                 <button
@@ -3388,7 +3388,7 @@ export default function CurriculumPage() {
             >
               <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Implement Syllabus</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Deploy to Class</h3>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Push this blueprint to a specific class & schedule</p>
                 </div>
                 <button
