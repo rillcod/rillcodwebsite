@@ -432,6 +432,10 @@ export default function LessonPlanDetailPage() {
   const [opsLoading, setOpsLoading] = useState(false);
   const [opsError, setOpsError] = useState<string | null>(null);
   const [operations, setOperations] = useState<LessonPlanOperations | null>(null);
+  const [genConfirm, setGenConfirm] = useState<{
+    type: 'lessons' | 'assignments' | 'projects';
+    preview: { total_weeks: number; projected_generations: number; projected_skips: number };
+  } | null>(null);
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
@@ -761,11 +765,22 @@ export default function LessonPlanDetailPage() {
       return;
     }
     const preview = (previewJson.data ?? {}) as { total_weeks?: number; projected_generations?: number; projected_skips?: number };
-    const approved = window.confirm(
-      `Preview: total ${preview.total_weeks ?? weeks.length}, generate ${preview.projected_generations ?? 0}, skip ${preview.projected_skips ?? 0}. Continue generating ${labels[type]}?`,
-    );
-    if (!approved) return;
+    // Show a non-blocking confirmation modal instead of window.confirm
+    setGenConfirm({
+      type: type as 'lessons' | 'assignments' | 'projects',
+      preview: {
+        total_weeks: preview.total_weeks ?? weeks.length,
+        projected_generations: preview.projected_generations ?? 0,
+        projected_skips: preview.projected_skips ?? 0,
+      },
+    });
+    return; // execution resumes in confirmAndGenerate() when user approves
+  }
 
+  async function confirmAndGenerate() {
+    if (!genConfirm) return;
+    const { type } = genConfirm;
+    setGenConfirm(null);
     setGenerating(type);
     setGenProgress({ generated: 0, total: weeks.length, status: 'Starting...' });
 
@@ -2457,6 +2472,66 @@ export default function LessonPlanDetailPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Generate confirmation modal — replaces window.confirm for dry-run preview */}
+      {genConfirm && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-card border border-white/[0.12] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">AI Generation</p>
+                  <h3 className="text-base font-black text-card-foreground capitalize">Generate {genConfirm.type}</h3>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/5 border border-white/[0.08] rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-card-foreground">{genConfirm.preview.total_weeks}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Weeks</p>
+                </div>
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-emerald-300">{genConfirm.preview.projected_generations}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60 mt-0.5">Will Generate</p>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center">
+                  <p className="text-xl font-black text-amber-300">{genConfirm.preview.projected_skips}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-500/60 mt-0.5">Already Exist</p>
+                </div>
+              </div>
+
+              {genConfirm.preview.projected_generations === 0 ? (
+                <p className="text-xs text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                  All weeks already have {genConfirm.type} — nothing to generate.
+                </p>
+              ) : (
+                <p className="text-xs text-card-foreground/50 leading-relaxed">
+                  This will use AI to create {genConfirm.preview.projected_generations} new {genConfirm.type}. Already-existing weeks are skipped automatically.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              <button
+                onClick={() => setGenConfirm(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-xl min-h-[44px] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndGenerate}
+                disabled={genConfirm.preview.projected_generations === 0}
+                className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-black rounded-xl min-h-[44px] transition-all"
+              >
+                Generate {genConfirm.preview.projected_generations} {genConfirm.type}
+              </button>
+            </div>
           </div>
         </div>
       )}
