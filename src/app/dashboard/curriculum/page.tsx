@@ -17,7 +17,6 @@ import {
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
-import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import {
   SyllabusPreview,
   type SyllabusContent,
@@ -202,7 +201,7 @@ const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
-  const { profile } = useAuth();
+  const { profile, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -1506,6 +1505,15 @@ export default function CurriculumPage() {
     );
   }
 
+  // ── Auth loading guard — prevents role-based flash ──────────────────────
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // ── Learner / School read-only layout ───────────────────────────────────
   if (learnerMode || isSchool) {
     return (
@@ -1624,55 +1632,7 @@ export default function CurriculumPage() {
             )}
           </div>
         </div>
-        {canTrack && selectedCourse && curriculumList.length > 0 && (
-          <div className="px-4 pb-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-t border-border/50 pt-3">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">
-              Syllabus copy for this course
-            </label>
-            <select
-              value={curriculum?.id ?? ''}
-              onChange={(e) => { void selectCurriculumVersion(e.target.value); }}
-              className="flex-1 min-w-0 max-w-md px-3 py-2 text-sm bg-card border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="">Choose a syllabus copy…</option>
-              {curriculumList.map((c) => {
-                const schoolName = c.schools?.name;
-                const label = c.school_id
-                  ? `${schoolName ?? 'School'} · v${c.version}`
-                  : `Platform template · v${c.version}`;
-                return (
-                  <option key={c.id} value={c.id}>
-                    {label} — {new Date(c.created_at).toLocaleDateString()}
-                  </option>
-                );
-              })}
-            </select>
-            {curriculum?.id && canGenerate && (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!confirm('Delete this syllabus copy and all its week tracking? This cannot be undone.')) return;
-                  const res = await fetch(`/api/curricula/${curriculum.id}`, { method: 'DELETE' });
-                  if (res.ok) {
-                    setCurriculum(null);
-                    setCurriculumList(prev => prev.filter(c => c.id !== curriculum.id));
-                    setTracking([]);
-                  } else {
-                    const j = await res.json().catch(() => ({}));
-                    alert(j.error ?? 'Delete failed');
-                  }
-                }}
-                className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 transition-colors"
-                title="Delete this syllabus copy"
-              >
-                Delete
-              </button>
-            )}
-            <p className="text-[10px] text-muted-foreground sm:ml-auto max-w-prose">
-              Multiple versions can exist (e.g. one per school). Choose which copy you are editing and generating from.
-            </p>
-          </div>
-        )}
+        {/* Removed "Syllabus copy" selector from header — version picker lives inside the Syllabus tab */}
       </div>
 
       {/* ── How to use guide ── */}
@@ -1941,41 +1901,6 @@ export default function CurriculumPage() {
             </div>
           )}
 
-          {/* Pipeline — shared 5-step stepper with course context preserved across steps */}
-          {selectedCourse && (
-            <div className="px-4 py-3 border-b border-border bg-card/50 shrink-0">
-              <PipelineStepper
-                current="syllabus"
-                courseId={selectedCourse.id}
-                programId={selectedCourse.program_id ?? selectedProgram?.id ?? null}
-                curriculumId={curriculum?.id ?? null}
-                courseTitle={selectedCourse.title}
-              />
-              {/* Always show Step-2 link when at least one syllabus exists for this course */}
-              {(curriculum?.id ?? curriculumList[0]?.id) && (
-                <div className="mt-3 pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <button
-                    onClick={() => {
-                      const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
-                      setImplError('');
-                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                      if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
-                      else setImplClasses([]);
-                      setShowImplement(true);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-black uppercase tracking-wide bg-violet-600 hover:bg-violet-700 text-white transition-all shadow-lg shadow-violet-500/20"
-                  >
-                    <RocketLaunchIcon className="w-4 h-4 shrink-0" />
-                    Deploy to a Class
-                  </button>
-                  <div>
-                    <p className="text-[11px] font-bold text-foreground">Planning Phase: Ready for Implementation</p>
-                    <p className="text-[10px] text-muted-foreground">One click to create an active Lesson Plan for your students using this syllabus blueprint.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Generate Content Tab */}
           {activeTab === 'generate' && selectedCourse && (
@@ -2560,6 +2485,38 @@ export default function CurriculumPage() {
                           </ul>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* ── Push to Class CTA — bottom of Syllabus tab ── */}
+                  {canTrack && (
+                    <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-violet-600/10 border border-violet-500/20">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-foreground">Ready to teach this syllabus?</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Push it to a class to create a live Lesson Plan your students can follow.</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => setActiveTab('implementations')}
+                          className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border px-3 py-2 transition-colors"
+                        >
+                          View Classes
+                        </button>
+                        <button
+                          onClick={() => {
+                            const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
+                            setImplError('');
+                            setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                            if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                            else setImplClasses([]);
+                            setShowImplement(true);
+                          }}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                        >
+                          <RocketLaunchIcon className="w-4 h-4 shrink-0" />
+                          Push to Class
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
