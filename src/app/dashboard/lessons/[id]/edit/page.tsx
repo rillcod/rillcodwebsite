@@ -528,7 +528,7 @@ export default function EditLessonPage() {
 
                     {activeTab === 'content' && (
                         <div className="bg-card shadow-sm border border-border rounded-none p-8 animate-in fade-in duration-500">
-                            <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
+                            <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} lessonTitle={form.title} />
                         </div>
                     )}
 

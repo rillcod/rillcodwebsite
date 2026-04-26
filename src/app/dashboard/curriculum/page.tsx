@@ -31,6 +31,26 @@ const TERM_LABEL: Record<number, string> = {
   3: 'Third Term',
 };
 
+function academicYearOptions(): string[] {
+  const y = new Date().getFullYear();
+  return [`${y - 1}/${y}`, `${y}/${y + 1}`, `${y + 1}/${y + 2}`];
+}
+
+function currentAcademicYear(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+}
+
+function termDatesNg(term: string, academicYear: string): { start: string; end: string } | null {
+  const [startY, endY] = academicYear.split('/').map(Number);
+  if (!startY || !endY) return null;
+  if (term === '1') return { start: `${startY}-09-01`, end: `${startY}-12-15` };
+  if (term === '2') return { start: `${endY}-01-10`,   end: `${endY}-04-10` };
+  if (term === '3') return { start: `${endY}-05-01`,   end: `${endY}-07-25` };
+  return null;
+}
+
 // ── Content generation types ─────────────────────────────────────────────────
 const CONTENT_TYPES = [
   {
@@ -270,9 +290,10 @@ export default function CurriculumPage() {
     school_id: '',
     class_id: '',
     term: '1',
+    academic_year: currentAcademicYear(),
     term_start: new Date().toISOString().split('T')[0],
     term_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    sessions_per_week: '2',
+    sessions_per_week: '5',
   });
   const [implClasses, setImplClasses] = useState<{ id: string; name: string; school_id: string }[]>([]);
   const [implError, setImplError] = useState('');
@@ -733,6 +754,13 @@ export default function CurriculumPage() {
     }
   }, []);
 
+  // Auto-fill term dates in implement modal when term or academic year changes
+  useEffect(() => {
+    if (!implForm.term || !implForm.academic_year) return;
+    const dates = termDatesNg(implForm.term, implForm.academic_year);
+    if (dates) setImplForm(f => ({ ...f, term_start: dates.start, term_end: dates.end }));
+  }, [implForm.term, implForm.academic_year]);
+
   // Load classes when school in implementation modal changes
   useEffect(() => {
     if (showImplement && implForm.school_id) {
@@ -745,6 +773,10 @@ export default function CurriculumPage() {
 
   const deployToClass = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
+    if (!implForm.school_id) {
+      setImplError('Please select a school first.');
+      return;
+    }
     if (!implForm.class_id) {
       setImplError('Please select a class to implement this syllabus.');
       return;
@@ -752,18 +784,19 @@ export default function CurriculumPage() {
     setImplementing(true);
     setImplError('');
     try {
+      const termLabel = TERM_LABEL[Number(implForm.term)] ?? 'First Term';
       const res = await fetch('/api/lesson-plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           curriculum_version_id: curriculum.id,
           course_id: selectedCourse.id,
-          school_id: implForm.school_id,
+          school_id: implForm.school_id || null,
           class_id: implForm.class_id,
-          term: `Term ${implForm.term}`,
+          term: `${termLabel} ${implForm.academic_year}`,
           term_start: implForm.term_start,
           term_end: implForm.term_end,
-          sessions_per_week: implForm.sessions_per_week,
+          sessions_per_week: Number(implForm.sessions_per_week) || 5,
           status: 'draft',
         }),
       });
@@ -1859,7 +1892,7 @@ export default function CurriculumPage() {
                     }`}
                 >
                   <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">2. Generate</span>
+                  <span className="whitespace-nowrap">2. Create Content</span>
                 </button>
               )}
               {curriculum && canTrack && (
@@ -1875,7 +1908,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">2. Implementations</span>
+                    <span className="whitespace-nowrap">3. Implement</span>
                   </button>
                   <button
                     type="button"
@@ -1888,7 +1921,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">3. Progress</span>
+                    <span className="whitespace-nowrap">4. Progress</span>
                   </button>
                   <button
                     type="button"
@@ -1923,14 +1956,12 @@ export default function CurriculumPage() {
                 <div className="mt-3 pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center gap-4">
                   <button
                     onClick={() => {
+                      const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                       setImplError('');
-                      setImplForm(f => ({ ...f, school_id: curriculum?.school_id || assignedSchools[0]?.id || '' }));
+                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                      if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                      else setImplClasses([]);
                       setShowImplement(true);
-                      // Load classes for the school
-                      const sid = curriculum?.school_id || assignedSchools[0]?.id;
-                      if (sid) {
-                        fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
-                      }
                     }}
                     className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-black uppercase tracking-wide bg-violet-600 hover:bg-violet-700 text-white transition-all shadow-lg shadow-violet-500/20"
                   >
@@ -2358,7 +2389,7 @@ export default function CurriculumPage() {
                             onClick={openGenerateModal}
                             className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/50 text-sm font-bold transition-all shrink-0"
                           >
-                            <ArrowPathIcon className="w-4 h-4 text-primary" /> Regenerate
+                            <ArrowPathIcon className="w-4 h-4 text-primary" /> Regenerate Syllabus
                           </button>
                         </>
                       )}
@@ -2552,8 +2583,11 @@ export default function CurriculumPage() {
                 </div>
                 <button
                   onClick={() => {
+                    const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                     setImplError('');
-                    setImplForm(f => ({ ...f, school_id: curriculum?.school_id || assignedSchools[0]?.id || '' }));
+                    setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                    if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                    else setImplClasses([]);
                     setShowImplement(true);
                   }}
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest transition-all"
@@ -2608,6 +2642,33 @@ export default function CurriculumPage() {
                       </div>
                     </Link>
                   ))}
+                </div>
+              )}
+
+              {/* Next Step hint: prompt to implement when no class uses this syllabus yet */}
+              {curriculum && canTrack && implementationList.length === 0 && (
+                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <RocketLaunchIcon className="w-5 h-5 text-violet-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-violet-300">Syllabus ready — next step is to push it to a class</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Pick a school, a class, and a term to create a lesson plan from this syllabus.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const sid = curriculum.school_id || assignedSchools[0]?.id || '';
+                      setImplError('');
+                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                      if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                      else setImplClasses([]);
+                      setShowImplement(true);
+                    }}
+                    className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-violet-600 hover:bg-violet-500 text-white transition-all"
+                  >
+                    <RocketLaunchIcon className="w-4 h-4" />
+                    Push to Class
+                  </button>
                 </div>
               )}
             </div>
@@ -3339,37 +3400,53 @@ export default function CurriculumPage() {
               </div>
 
               <div className="p-6 space-y-4">
+                {/* School → Class (class disabled until school is chosen) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">School</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">School <span className="text-rose-400">*</span></label>
                     <select
                       value={implForm.school_id}
                       onChange={e => {
                         const sid = e.target.value;
                         setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                        fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                        if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                        else setImplClasses([]);
                       }}
                       className={SELECT_CLS}
                     >
+                      <option value="">— Select School —</option>
                       {assignedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+                    {!implForm.school_id && <p className="text-[10px] text-amber-400 mt-1">Pick a school first to load its classes.</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class / Group</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class / Group <span className="text-rose-400">*</span></label>
                     <select
                       value={implForm.class_id}
                       onChange={e => setImplForm(f => ({ ...f, class_id: e.target.value }))}
-                      className={SELECT_CLS}
+                      disabled={!implForm.school_id}
+                      className={`${SELECT_CLS} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <option value="">— Select Class —</option>
+                      <option value="">{!implForm.school_id ? 'Select school first…' : implClasses.length === 0 ? 'No classes found' : '— Select Class —'}</option>
                       {implClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>
 
+                {/* Term + Academic Year (auto-fills dates) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Term</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</label>
+                    <select
+                      value={implForm.academic_year}
+                      onChange={e => setImplForm(f => ({ ...f, academic_year: e.target.value }))}
+                      className={SELECT_CLS}
+                    >
+                      {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term</label>
                     <select
                       value={implForm.term}
                       onChange={e => setImplForm(f => ({ ...f, term: e.target.value }))}
@@ -3380,20 +3457,14 @@ export default function CurriculumPage() {
                       <option value="3">Third Term</option>
                     </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sessions Per Week</label>
-                    <input
-                      type="number"
-                      value={implForm.sessions_per_week}
-                      onChange={e => setImplForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                      className={INPUT_CLS}
-                    />
-                  </div>
                 </div>
 
+                {/* Dates — auto-filled when term+year change, still editable */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Date</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Start Date <span className="text-violet-400 normal-case font-normal">(auto-filled)</span>
+                    </label>
                     <input
                       type="date"
                       value={implForm.term_start}
@@ -3402,13 +3473,31 @@ export default function CurriculumPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Date</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      End Date <span className="text-violet-400 normal-case font-normal">(auto-filled)</span>
+                    </label>
                     <input
                       type="date"
                       value={implForm.term_end}
                       onChange={e => setImplForm(f => ({ ...f, term_end: e.target.value }))}
                       className={INPUT_CLS}
                     />
+                  </div>
+                </div>
+
+                {/* Sessions per week */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sessions Per Week</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={implForm.sessions_per_week}
+                      onChange={e => setImplForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                      className="flex-1 accent-violet-500"
+                    />
+                    <span className="w-8 text-center font-black text-foreground text-sm">{implForm.sessions_per_week}</span>
                   </div>
                 </div>
 

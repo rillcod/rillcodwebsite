@@ -908,7 +908,7 @@ function AddLessonPageContent() {
           <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Content Builder</h2>
           <span className="text-[10px] text-muted-foreground font-medium ml-1">— visual blocks, quizzes &amp; activities</span>
         </div>
-        <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
+        <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} lessonTitle={form.title} />
       </div>
 
       {/* Sticky Save Bar */}
