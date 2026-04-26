@@ -147,6 +147,7 @@ interface CurriculumContent {
   assessment_strategy: string;
   materials_required: string[];
   recommended_tools: string[];
+  description?: string | null;
 }
 
 interface CurriculumDoc {
@@ -165,6 +166,8 @@ interface CurriculumDoc {
   school_id?: string | null;
   /** Joined from schools — which partner this row belongs to (null = platform template). */
   schools?: { id: string; name: string } | null;
+  /** High-level summary of this implementation (e.g. "2026 Innovation Track"). */
+  description?: string | null;
 }
 
 interface WeekTracking {
@@ -977,11 +980,14 @@ export default function CurriculumPage() {
           const scope = curr.school_id ? curr.school_id : 'platform';
           setGenerateScope(scope);
           restoreGradeForScope(scope);
-          // Auto-select the best curriculum so the pipeline stepper always
-          // has a curriculumId to pass to Step 2. The teacher can still
-          // switch versions using the syllabus copy chooser dropdown above.
-          setCurriculum(curr);
-          // Tracking is a staff-only feature — skip for learner roles to
+          
+          // Only auto-select if there's exactly one version, 
+          // or if we are a learner (learners always see the best/published one).
+          if (items.length === 1 || isLearnerRole) {
+            setCurriculum(curr);
+          }
+          
+          // Tracking is a staff-only feature
           // avoid a 401 that can interfere with session cookie handling.
           if (!isLearnerRole) {
             try {
@@ -1748,13 +1754,25 @@ export default function CurriculumPage() {
                             <button
                               key={course.id}
                               onClick={() => selectCourse(prog, course)}
-                              className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${isSelected
-                                ? 'text-primary bg-primary/5'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                              className={`w-full flex items-center gap-3 pl-10 pr-4 py-3.5 text-left transition-all relative group ${isSelected
+                                ? 'text-primary bg-primary/10'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                                 }`}
                             >
-                              {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
-                              <span className="text-[12px] font-bold truncate tracking-tight">{course.title}</span>
+                              {isSelected && (
+                                <motion.div
+                                  layoutId="course-active-pill"
+                                  className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full shadow-[0_0_10px_rgba(255,107,0,0.4)]"
+                                />
+                              )}
+                              <span className={`text-[13px] ${isSelected ? 'font-black' : 'font-medium'} truncate tracking-tight`}>
+                                {course.title}
+                              </span>
+                              {!isSelected && (
+                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <ArrowRightIcon className="w-3 h-3 text-muted-foreground" />
+                                </div>
+                              )}
                             </button>
                           );
                         })}
@@ -2100,9 +2118,18 @@ export default function CurriculumPage() {
                     </div>
                   </div>
                 </div>
-              ) : loadingCurr ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (loadingCurr || !programs.length) ? (
+                <div className="flex-1 px-8 py-12 space-y-8 animate-pulse">
+                  <div className="h-12 w-1/3 bg-white/5 rounded-xl" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="h-48 bg-white/5 rounded-2xl" />
+                    <div className="h-48 bg-white/5 rounded-2xl" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-10 w-full bg-white/5 rounded-lg" />
+                    <div className="h-10 w-full bg-white/5 rounded-lg" />
+                    <div className="h-10 w-full bg-white/5 rounded-lg" />
+                  </div>
                 </div>
               ) : loadError ? (
                 <div className="flex flex-col items-center justify-center h-64 gap-4 px-4 text-center">
@@ -2133,28 +2160,47 @@ export default function CurriculumPage() {
                     )}
                   </div>
                   {curriculumList.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {curriculumList.map((c) => {
-                        const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
-                        const terms = c.content?.terms?.length ?? 0;
-                        const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
-                        return (
-                          <button
-                            key={c.id}
-                            onClick={() => { void selectCurriculumVersion(c.id); }}
-                            className="text-left bg-card border border-border hover:border-primary/40 p-4 space-y-2 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs font-black text-foreground truncate">{schoolName}</p>
-                              <span className="text-[10px] font-black uppercase tracking-wider text-primary">v{c.version}</span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                              {terms} term{terms === 1 ? '' : 's'} · {weeks} week{weeks === 1 ? '' : 's'} · {new Date(c.created_at).toLocaleDateString()}
-                            </p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Open this syllabus →</p>
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary">
+                        <ClockIcon className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Blueprint History</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {curriculumList.map((c) => {
+                          const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
+                          const terms = c.content?.terms?.length ?? 0;
+                          const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
+                          return (
+                            <button
+                              key={c.id}
+                              onClick={() => { void selectCurriculumVersion(c.id); }}
+                              className="group text-left bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
+                                    {schoolName} Scope
+                                  </p>
+                                  <h3 className="text-sm font-black text-white group-hover:text-primary transition-colors">
+                                    {c.content?.description || `Version ${c.version}`}
+                                  </h3>
+                                </div>
+                                <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded">
+                                  v{c.version}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
+                                <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> {new Date(c.created_at).toLocaleDateString()}</span>
+                                <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {terms} Terms</span>
+                              </div>
+                              <div className="pt-2 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Open Blueprint →</span>
+                                <span className="text-[9px] text-muted-foreground">{weeks} Weeks total</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2162,16 +2208,46 @@ export default function CurriculumPage() {
                 /* Curriculum content */
                 <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
                   {/* Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div>
-                      <h1 className="text-xl font-black leading-tight">{curriculum.content.course_title}</h1>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        v{curriculum.version} · {termCount} term{termCount !== 1 ? 's' : ''} · {allWeeks.length} weeks
-                        {allWeeks.length > 0 && (
-                          <span className="ml-2 text-emerald-400 font-bold">{progressPct}% delivered</span>
-                        )}
-                        {' · '}<span className="text-primary font-bold">{scopeLabel}</span>
-                      </p>
+                  {/* Header — Unified with History Card aesthetics */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                    <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="space-y-4 relative z-10">
+                      <div className="flex flex-wrap items-center gap-2 text-primary">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
+                          <SparklesIcon className="w-3 h-3" /> Active Blueprint
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                          {scopeLabel} Scope
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
+                          {curriculum.content.course_title}
+                        </h1>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
+                          <span className="text-white font-bold px-2 py-0.5 bg-white/5 rounded border border-white/10">v{curriculum.version}</span>
+                          <span className="w-1 h-1 rounded-full bg-white/20" />
+                          <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {termCount} Terms</span>
+                          <span className="w-1 h-1 rounded-full bg-white/20" />
+                          <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> Updated {new Date(curriculum.created_at).toLocaleDateString()}</span>
+                          {allWeeks.length > 0 && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-white/20" />
+                              <span className="text-emerald-400 font-black">{progressPct}% Delivered</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {curriculum.content.description && (
+                        <div className="relative mt-6 max-w-2xl">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30 rounded-full" />
+                          <p className="text-sm text-muted-foreground/90 leading-relaxed pl-5 italic font-medium">
+                            &ldquo;{curriculum.content.description}&rdquo;
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-4">
                       {/* Top Row: View & Context */}
