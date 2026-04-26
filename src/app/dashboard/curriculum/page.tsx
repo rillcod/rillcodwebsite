@@ -2658,7 +2658,7 @@ export default function CurriculumPage() {
                   )}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* ── Implementations Tab ── */}
@@ -2853,7 +2853,7 @@ export default function CurriculumPage() {
                   );
                 })}
               </div>
-            </motion.div>
+              </div>
           )}
 
           {/* ── Tools Tab ── */}
