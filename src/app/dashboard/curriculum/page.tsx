@@ -13,7 +13,7 @@ import {
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
-  Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon,
+  Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -960,9 +960,12 @@ export default function CurriculumPage() {
 
   // ── Load curriculum for selected course ──────────────────────────────────
   const loadCurriculum = useCallback(async (courseId: string) => {
-    setLoadingCurr(true);
+    // Only show loading if it takes longer than 150ms
+    let timer: any;
+    timer = setTimeout(() => setLoadingCurr(true), 150);
     setLoadError('');
-    setCurriculum(null);
+    // We DON'T clear curriculum immediately to avoid flashing white space
+    // setCurriculum(null); 
     setCurriculumList([]);
     setTracking([]);
     setActiveWeek(null);
@@ -1001,6 +1004,7 @@ export default function CurriculumPage() {
     } catch {
       setLoadError('Could not load the syllabus — please try again.');
     } finally {
+      clearTimeout(timer);
       setLoadingCurr(false);
     }
   }, [profile?.school_id, profile?.role, restoreGradeForScope]);
@@ -2005,7 +2009,14 @@ export default function CurriculumPage() {
 
           {/* Syllabus Tab (or no course selected) */}
           {(activeTab === 'syllabus' || !selectedCourse) && (
-            <div className="flex-1">
+            <motion.div 
+              key={selectedCourse?.id || 'hub'}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="flex-1"
+            >
               {!selectedCourse ? (
                 /* Empty state */
                 <div className="h-full min-h-[60vh] px-4 py-8">
@@ -2046,21 +2057,68 @@ export default function CurriculumPage() {
                       </div>
                     )}
                     {!lastVisited && (
-                      <div className="py-12 px-6 text-center border border-dashed border-white/10 bg-card/20 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative z-10 max-w-lg mx-auto">
-                          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-                            <BookOpenIcon className="w-8 h-8 text-primary" />
+                      <div className="py-16 px-6">
+                        <div className="max-w-4xl mx-auto text-center space-y-12">
+                          <div className="space-y-4">
+                            <h2 className="text-4xl font-black text-white tracking-tighter">Academic Planning Hub</h2>
+                            <p className="text-muted-foreground text-base max-w-xl mx-auto leading-relaxed">
+                              Your command center for end-to-end academic excellence. Follow the cycle to transform curriculum standards into classroom success.
+                            </p>
                           </div>
-                          <h2 className="text-2xl font-black mb-3 text-white tracking-tight">Academic Planning Hub</h2>
-                          <p className="text-muted-foreground text-sm leading-relaxed">
-                            Start your planning cycle by selecting a course from the catalog.
-                            Create blueprints, implement them to specific classes, and track your teaching journey.
-                          </p>
-                          <div className="mt-8 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                            <span className="flex items-center gap-1.5"><SparklesIcon className="w-3.5 h-3.5" /> 1. Strategy</span>
-                            <span className="w-1 h-1 rounded-full bg-white/20" />
-                            <span className="flex items-center gap-1.5"><RocketLaunchIcon className="w-3.5 h-3.5" /> 2. Execution</span>
+
+                          {/* Visual Stepper */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                            {/* Connection Lines (Desktop) */}
+                            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2" />
+                            
+                            {[
+                              { 
+                                step: '01', 
+                                title: 'Blueprint', 
+                                desc: 'AI-generated curriculum strategy scoped to grade & subject.',
+                                icon: SparklesIcon,
+                                color: 'text-primary',
+                                bg: 'bg-primary/10'
+                              },
+                              { 
+                                step: '02', 
+                                title: 'Implementation', 
+                                desc: 'Deploy blueprints to specific classes and terms for delivery.',
+                                icon: RocketLaunchIcon,
+                                color: 'text-violet-400',
+                                bg: 'bg-violet-400/10'
+                              },
+                              { 
+                                step: '03', 
+                                title: 'Tracking', 
+                                desc: 'Monitor progress and manage lesson-level execution in real-time.',
+                                icon: PresentationChartLineIcon,
+                                color: 'text-emerald-400',
+                                bg: 'bg-emerald-400/10'
+                              }
+                            ].map((s, i) => (
+                              <div key={i} className="relative z-10 group">
+                                <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-2xl flex flex-col items-center text-center space-y-4 transition-all duration-500 hover:border-white/20 hover:-translate-y-2 group-hover:shadow-2xl">
+                                  <div className={`w-12 h-12 rounded-xl ${s.bg} flex items-center justify-center mb-2`}>
+                                    <s.icon className={`w-6 h-6 ${s.color}`} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${s.color}`}>Step {s.step}</p>
+                                    <h3 className="text-lg font-black text-white">{s.title}</h3>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-relaxed px-2 opacity-80">
+                                    {s.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-8">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
+                              <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select a course below to begin cycle</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2147,16 +2205,25 @@ export default function CurriculumPage() {
                   </div>
                 </div>
               ) : (loadingCurr || !programs.length) ? (
-                <div className="flex-1 px-8 py-12 space-y-8 animate-pulse">
-                  <div className="h-12 w-1/3 bg-white/5 rounded-xl" />
+                <div className="flex-1 px-4 md:px-6 py-8 space-y-12 animate-pulse">
+                  {/* Skeleton Header mirroring the real one */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-6 bg-white/5 rounded-lg" />
+                        <div className="w-16 h-6 bg-white/5 rounded-lg opacity-50" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-10 w-64 bg-white/5 rounded-xl" />
+                        <div className="h-4 w-96 bg-white/5 rounded-lg opacity-60" />
+                      </div>
+                    </div>
+                    <div className="w-32 h-12 bg-white/5 rounded-xl" />
+                  </div>
+                  {/* Skeleton Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="h-48 bg-white/5 rounded-2xl" />
                     <div className="h-48 bg-white/5 rounded-2xl" />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="h-10 w-full bg-white/5 rounded-lg" />
-                    <div className="h-10 w-full bg-white/5 rounded-lg" />
-                    <div className="h-10 w-full bg-white/5 rounded-lg" />
                   </div>
                 </div>
               ) : loadError ? (
@@ -2171,17 +2238,34 @@ export default function CurriculumPage() {
                   </button>
                 </div>
               ) : !curriculum ? (
-                /* No curriculum yet — staff empty state */
-                <div className="px-4 py-8 max-w-3xl mx-auto space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black">{selectedCourse.title}</h2>
-                      <p className="text-sm text-muted-foreground mt-0.5">No syllabus yet for this course.</p>
+                /* No curriculum yet — staff empty state unified with premium aesthetics */
+                <div className="px-4 md:px-6 py-8 space-y-12 max-w-5xl">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                    <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="space-y-4 relative z-10">
+                      <div className="flex flex-wrap items-center gap-2 text-primary">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
+                          <InformationCircleIcon className="w-3 h-3" /> System Status
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                          Draft Mode
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
+                          {selectedCourse.title}
+                        </h1>
+                        <p className="text-sm text-muted-foreground font-medium max-w-xl">
+                          No active blueprint found for this course in your current scope. Generate a new strategy or select an existing version below.
+                        </p>
+                      </div>
                     </div>
+
                     {canGenerate && (
                       <button
                         onClick={openGenerateModal}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm transition-colors shrink-0"
+                        className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 rounded-xl shrink-0"
                       >
                         <SparklesIcon className="w-4 h-4" /> Generate Syllabus
                       </button>
@@ -2769,7 +2853,7 @@ export default function CurriculumPage() {
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ── Tools Tab ── */}
