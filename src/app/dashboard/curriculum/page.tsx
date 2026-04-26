@@ -223,7 +223,7 @@ export default function CurriculumPage() {
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [creatingCbt, setCreatingCbt] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'generate' | 'delivery' | 'tools'>(
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'generate' | 'delivery' | 'tools' | 'implementations'>(
     searchParams.get('tab') === 'generate' ? 'generate' : 'syllabus'
   );
   const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
