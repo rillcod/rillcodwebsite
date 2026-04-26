@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAIGenerate } from '@/lib/lesson-plans/ai-fetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,34 +36,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   try {
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      (process.env.VERCEL_URL
-        ? process.env.VERCEL_URL.startsWith('http')
-          ? process.env.VERCEL_URL
-          : `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000');
-
-    const aiResponse = await fetch(`${appUrl}/api/ai/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: req.headers.get('cookie') || '',
-      },
-      body: JSON.stringify({
-        type: 'flashcard',
-        topic: topic || content || deck.title,
-        difficulty,
-        questionCount: count,
-      })
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
+    const aiResult = await fetchAIGenerate(appUrl, req.headers.get('cookie') || '', {
+      type: 'flashcard',
+      topic: topic || content || deck.title,
+      difficulty,
+      questionCount: count,
     });
-
-    if (!aiResponse.ok) {
-      throw new Error('AI generation failed');
-    }
-
-    const aiResult = await aiResponse.json();
-    const flashcards = aiResult?.data?.cards;
+    const flashcards = (aiResult.data as { cards?: AiGeneratedCard[] })?.cards;
 
     if (!Array.isArray(flashcards) || flashcards.length === 0) {
       throw new Error('Invalid flashcards format');
