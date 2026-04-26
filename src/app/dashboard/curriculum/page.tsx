@@ -703,6 +703,16 @@ export default function CurriculumPage() {
     }
   }, [selectedCourse, activeTab]);
 
+  // Load classes when school in implementation modal changes
+  useEffect(() => {
+    if (showImplement && implForm.school_id) {
+      fetch(`/api/classes?school_id=${implForm.school_id}`)
+        .then(r => r.json())
+        .then(j => setImplClasses(j.data || []))
+        .catch(() => setImplClasses([]));
+    }
+  }, [showImplement, implForm.school_id]);
+
   const deployToClass = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
     if (!implForm.class_id) {
@@ -2544,7 +2554,7 @@ export default function CurriculumPage() {
             </div>
           )}
 
-          {/* ── Delivery Tab ── */}
+          {/* ── Progress Tab ── */}
           {activeTab === 'delivery' && curriculum && (
             <div className="mx-4 sm:mx-6 mb-6 space-y-6">
               <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
@@ -2554,7 +2564,7 @@ export default function CurriculumPage() {
                       <ChartBarIcon className="w-5 h-5 text-violet-400" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Curriculum Progress</h4>
                       <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
                     </div>
                   </div>
