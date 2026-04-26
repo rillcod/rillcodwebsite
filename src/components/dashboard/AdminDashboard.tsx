@@ -42,7 +42,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
             Refresh
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
           {dataLoading
             ? Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
@@ -126,11 +126,10 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
                         <td className="py-3.5"><span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span></td>
                         <td className="py-3.5 text-right"><span className="text-sm font-black text-foreground">{sym}{inv.amount.toLocaleString()}</span></td>
                         <td className="py-3.5 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${
-                            isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                              isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
                             {isPaid ? '✓ Paid' : isOverdue ? 'Overdue' : inv.status}
                           </span>
                         </td>

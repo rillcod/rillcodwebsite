@@ -41,7 +41,7 @@ export default function BuilderHeader({
   };
 
   return (
-    <div className="absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center justify-between z-10 gap-2">
+    <div className="absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border px-3 py-3 flex items-center justify-between z-10 gap-2">
       <div className="flex items-center gap-2 min-w-0">
         {onToggleSidebar && (
           <button
@@ -72,11 +72,10 @@ export default function BuilderHeader({
             type="button"
             whileTap={{ scale: 0.95 }}
             onClick={onTogglePreview}
-            className={`flex items-center gap-1.5 px-2 py-2 text-xs font-bold transition-colors rounded-lg ${
-              showPreview
+            className={`flex items-center gap-1.5 px-2 py-2 text-xs font-bold transition-colors rounded-lg ${showPreview
                 ? 'bg-primary hover:bg-primary text-white'
                 : 'bg-muted hover:bg-muted/80 text-foreground'
-            }`}
+              }`}
           >
             <EyeIcon className="w-4 h-4" />
           </motion.button>
@@ -131,68 +130,67 @@ export default function BuilderHeader({
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-1.5">
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={onShowImport}
-          className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors rounded-lg"
-        >
-          <ArrowUpTrayIcon className="w-4 h-4" />
-          <span className="hidden sm:inline">Import</span>
-        </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={onShowImport}
+            className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors rounded-lg"
+          >
+            <ArrowUpTrayIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Import</span>
+          </motion.button>
 
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={onShowAI}
-          className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold transition-colors rounded-lg"
-        >
-          <SparklesIcon className="w-4 h-4" />
-          <span className="hidden sm:inline">AI Generate</span>
-        </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={onShowAI}
+            className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold transition-colors rounded-lg"
+          >
+            <SparklesIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">AI Generate</span>
+          </motion.button>
 
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={onTogglePreview}
-          className={`flex items-center gap-1.5 px-2 sm:px-4 py-2 text-sm font-bold transition-colors rounded-lg ${
-            showPreview
-              ? 'bg-primary hover:bg-primary text-white'
-              : 'bg-muted hover:bg-muted/80 text-foreground'
-          }`}
-        >
-          <EyeIcon className="w-4 h-4" />
-          <span className="hidden sm:inline">Preview</span>
-        </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={onTogglePreview}
+            className={`flex items-center gap-1.5 px-2 sm:px-4 py-2 text-sm font-bold transition-colors rounded-lg ${showPreview
+                ? 'bg-primary hover:bg-primary text-white'
+                : 'bg-muted hover:bg-muted/80 text-foreground'
+              }`}
+          >
+            <EyeIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Preview</span>
+          </motion.button>
 
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={onSave}
-          disabled={saving || validCardCount === 0}
-          className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors rounded-lg"
-        >
-          {saving ? (
-            <>
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-              <span className="hidden sm:inline">Saving...</span>
-            </>
-          ) : (
-            <>
-              <CheckIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Save Cards</span>
-            </>
-          )}
-        </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={onSave}
+            disabled={saving || validCardCount === 0}
+            className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors rounded-lg"
+          >
+            {saving ? (
+              <>
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                <span className="hidden sm:inline">Saving...</span>
+              </>
+            ) : (
+              <>
+                <CheckIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Save Cards</span>
+              </>
+            )}
+          </motion.button>
 
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.95 }}
-          onClick={onClose}
-          className="p-2 hover:bg-muted rounded-lg transition-colors"
-        >
-          <XMarkIcon className="w-5 h-5" />
-        </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </motion.button>
         </div>
       </div>
     </div>

@@ -20,8 +20,8 @@ import {
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.849L.057 23.852a.5.5 0 0 0 .611.611l6.003-1.476A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.663-.523-5.176-1.432l-.372-.22-3.849.946.964-3.849-.24-.381A9.953 9.953 0 0 1 2 12C2 6.478 6.478 2 12 2s10 4.478 10 10-4.478 10-10 10z"/>
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.849L.057 23.852a.5.5 0 0 0 .611.611l6.003-1.476A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.663-.523-5.176-1.432l-.372-.22-3.849.946.964-3.849-.24-.381A9.953 9.953 0 0 1 2 12C2 6.478 6.478 2 12 2s10 4.478 10 10-4.478 10-10 10z" />
         </svg>
     );
 }
@@ -34,8 +34,8 @@ function projectScore(labCount: number, portfolioCount: number) {
 
 function ScoreBadge({ pct }: { pct: number }) {
     const colorClass = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400';
-    const barClass   = pct >= 80 ? 'bg-emerald-500'   : pct >= 50 ? 'bg-amber-500'   : 'bg-rose-500';
-    const label      = pct >= 80 ? 'Excellent'         : pct >= 50 ? 'Developing'     : 'Needs Work';
+    const barClass = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+    const label = pct >= 80 ? 'Excellent' : pct >= 50 ? 'Developing' : 'Needs Work';
     return (
         <div className="flex items-center gap-2">
             <div className="w-20 h-1.5 bg-border rounded-full overflow-hidden">
@@ -52,28 +52,28 @@ function deadlineLabel(dateStr: string | null): { text: string; urgent: boolean;
     if (!dateStr) return { text: 'No deadline', urgent: false, overdue: false };
     const diff = new Date(dateStr).getTime() - Date.now();
     const days = Math.floor(diff / 86400000);
-    const hrs  = Math.floor(diff / 3600000);
-    if (diff < 0)      return { text: `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''}`, urgent: true, overdue: true };
-    if (days === 0)    return { text: `Due today · ${Math.max(0, hrs)}h left`, urgent: true, overdue: false };
-    if (days === 1)    return { text: 'Due tomorrow', urgent: true, overdue: false };
-    if (days <= 3)     return { text: `Due in ${days} days`, urgent: true, overdue: false };
+    const hrs = Math.floor(diff / 3600000);
+    if (diff < 0) return { text: `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''}`, urgent: true, overdue: true };
+    if (days === 0) return { text: `Due today · ${Math.max(0, hrs)}h left`, urgent: true, overdue: false };
+    if (days === 1) return { text: 'Due tomorrow', urgent: true, overdue: false };
+    if (days <= 3) return { text: `Due in ${days} days`, urgent: true, overdue: false };
     return { text: `Due ${new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`, urgent: false, overdue: false };
 }
 
 const CAT_META: Record<string, { label: string; Icon: any; color: string }> = {
-    coding:       { label: 'Coding',         Icon: CodeBracketIcon,          color: '#f97316' },
-    web:          { label: 'Web Dev',         Icon: GlobeAltIcon,             color: '#06b6d4' },
-    ai:           { label: 'AI / ML',         Icon: SparklesIcon,             color: '#a855f7' },
-    design:       { label: 'Design',          Icon: PaintBrushIcon,           color: '#f59e0b' },
-    research:     { label: 'Research',        Icon: BeakerIcon,               color: '#10b981' },
-    hardware:     { label: 'Hardware / IoT',  Icon: CpuChipIcon,              color: '#ef4444' },
-    presentation: { label: 'Presentation',    Icon: PresentationChartBarIcon, color: '#ec4899' },
+    coding: { label: 'Coding', Icon: CodeBracketIcon, color: '#f97316' },
+    web: { label: 'Web Dev', Icon: GlobeAltIcon, color: '#06b6d4' },
+    ai: { label: 'AI / ML', Icon: SparklesIcon, color: '#a855f7' },
+    design: { label: 'Design', Icon: PaintBrushIcon, color: '#f59e0b' },
+    research: { label: 'Research', Icon: BeakerIcon, color: '#10b981' },
+    hardware: { label: 'Hardware / IoT', Icon: CpuChipIcon, color: '#ef4444' },
+    presentation: { label: 'Presentation', Icon: PresentationChartBarIcon, color: '#ec4899' },
 };
 
 const DIFF_META: Record<string, { color: string; dot: string }> = {
-    beginner:     { color: 'text-emerald-400', dot: 'bg-emerald-400' },
-    intermediate: { color: 'text-amber-400',   dot: 'bg-amber-400'   },
-    advanced:     { color: 'text-rose-400',     dot: 'bg-rose-400'    },
+    beginner: { color: 'text-emerald-400', dot: 'bg-emerald-400' },
+    intermediate: { color: 'text-amber-400', dot: 'bg-amber-400' },
+    advanced: { color: 'text-rose-400', dot: 'bg-rose-400' },
 };
 
 const LANG_COLOR: Record<string, string> = {
@@ -85,20 +85,20 @@ const CAT_COLOR: Record<string, string> = {
     game: '#f59e0b', iot: '#10b981', other: '#64748b',
 };
 
-type Tab       = 'work' | 'activities' | 'groups';
+type Tab = 'work' | 'activities' | 'groups';
 type ActFilter = 'all' | 'active' | 'pending_review' | 'overdue' | 'draft';
 
 // ── page ─────────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
     const { profile, loading: authLoading, profileLoading } = useAuth();
-    const role      = profile?.role;
-    const isStaff   = role === 'admin' || role === 'teacher' || role === 'school';
+    const role = profile?.role;
+    const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
     const isStudent = role === 'student';
 
-    const [tab, setTab]           = useState<Tab>('work');
-    const [loading, setLoading]   = useState(true);
+    const [tab, setTab] = useState<Tab>('work');
+    const [loading, setLoading] = useState(true);
     const [actLoading, setActLoading] = useState(false);
-    const [search, setSearch]     = useState('');
+    const [search, setSearch] = useState('');
     const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
     const [collapsedSchools, setCollapsedSchools] = useState<Set<string>>(new Set());
     const [actFilter, setActFilter] = useState<ActFilter>('all');
@@ -106,44 +106,44 @@ export default function ProjectsPage() {
     const [selectedCat, setSelectedCat] = useState<string>('all');
 
     // Student state
-    const [myLab, setMyLab]         = useState<any[]>([]);
+    const [myLab, setMyLab] = useState<any[]>([]);
     const [myPortfolio, setMyPortfolio] = useState<any[]>([]);
     const [myActivities, setMyActivities] = useState<any[]>([]);
     const [studentActFilter, setStudentActFilter] = useState<'all' | 'pending' | 'submitted' | 'graded'>('all');
 
     // Staff state
-    const [students, setStudents]     = useState<any[]>([]);
-    const [labMap, setLabMap]         = useState<Record<string, any[]>>({});
+    const [students, setStudents] = useState<any[]>([]);
+    const [labMap, setLabMap] = useState<Record<string, any[]>>({});
     const [portfolioMap, setPortfolioMap] = useState<Record<string, any[]>>({});
     const [activities, setActivities] = useState<any[]>([]);
 
     // Groups state (shared — student sees own groups; staff manages all)
-    const [groups, setGroups]           = useState<any[]>([]);
+    const [groups, setGroups] = useState<any[]>([]);
     const [groupsLoading, setGroupsLoading] = useState(false);
     const [groupsError, setGroupsError] = useState<string | null>(null);
     // Staff group creator
     const [showCreateGroup, setShowCreateGroup] = useState(false);
-    const [newGroupName, setNewGroupName]       = useState('');
-    const [newGroupClass, setNewGroupClass]     = useState('');
-    const [newGroupEval, setNewGroupEval]       = useState<'individual' | 'group'>('group');
+    const [newGroupName, setNewGroupName] = useState('');
+    const [newGroupClass, setNewGroupClass] = useState('');
+    const [newGroupEval, setNewGroupEval] = useState<'individual' | 'group'>('group');
     const [newGroupStudents, setNewGroupStudents] = useState<string[]>([]);
     const [newGroupMemberTasks, setNewGroupMemberTasks] = useState<Record<string, string>>({});
-    const [savingGroup, setSavingGroup]         = useState(false);
+    const [savingGroup, setSavingGroup] = useState(false);
     // Group submissions (lazy load)
     const [groupSubmissions, setGroupSubmissions] = useState<Record<string, any[]>>({});
-    const [loadingSubsId, setLoadingSubsId]       = useState<string | null>(null);
-    const [expandedSubsId, setExpandedSubsId]     = useState<string | null>(null);
+    const [loadingSubsId, setLoadingSubsId] = useState<string | null>(null);
+    const [expandedSubsId, setExpandedSubsId] = useState<string | null>(null);
     // Inline task editing for existing groups
     const [editingTasksGroupId, setEditingTasksGroupId] = useState<string | null>(null);
-    const [editingTasks, setEditingTasks]               = useState<Record<string, string>>({});
-    const [savingTasks, setSavingTasks]                 = useState(false);
+    const [editingTasks, setEditingTasks] = useState<Record<string, string>>({});
+    const [savingTasks, setSavingTasks] = useState(false);
     // Staff grading
-    const [gradingGroupId, setGradingGroupId]   = useState<string | null>(null);
-    const [gradingGroup, setGradingGroup]       = useState<any | null>(null);
-    const [gradeScore, setGradeScore]           = useState('');
-    const [gradeFeedback, setGradeFeedback]     = useState('');
+    const [gradingGroupId, setGradingGroupId] = useState<string | null>(null);
+    const [gradingGroup, setGradingGroup] = useState<any | null>(null);
+    const [gradeScore, setGradeScore] = useState('');
+    const [gradeFeedback, setGradeFeedback] = useState('');
     const [individualScores, setIndividualScores] = useState<Record<string, { score: string; feedback: string }>>({});
-    const [savingGrade, setSavingGrade]         = useState(false);
+    const [savingGrade, setSavingGrade] = useState(false);
 
     // ── Load work data ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -160,8 +160,8 @@ export default function ProjectsPage() {
                     setMyLab(labRes.data || []);
                     setMyPortfolio(portRes.data || []);
                 } else if (isStaff) {
-                    const r    = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' });
-                    const j    = r.ok ? await r.json() : { data: [] };
+                    const r = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' });
+                    const j = r.ok ? await r.json() : { data: [] };
                     const studs: any[] = j.data || [];
                     setStudents(studs);
                     if (studs.length > 0) {
@@ -189,11 +189,11 @@ export default function ProjectsPage() {
         async function loadActs() {
             setActLoading(true);
             try {
-                const res  = await fetch('/api/assignments', { cache: 'no-store' });
+                const res = await fetch('/api/assignments', { cache: 'no-store' });
                 const json = res.ok ? await res.json() : { data: [] };
                 const all: any[] = (json.data || []).filter((a: any) => a.assignment_type === 'project');
-                if (isStaff)   setActivities(all);
-                else            setMyActivities(all.filter((a: any) => a.is_active !== false));
+                if (isStaff) setActivities(all);
+                else setMyActivities(all.filter((a: any) => a.is_active !== false));
             } finally { setActLoading(false); }
         }
         loadActs();
@@ -330,9 +330,9 @@ export default function ProjectsPage() {
         if (!raw) return null;
         const digits = raw.replace(/\D/g, '');
         if (digits.length === 0) return null;
-        if (digits.startsWith('234'))  return digits;          // already has country code
-        if (digits.startsWith('0'))    return '234' + digits.slice(1); // Nigerian local format
-        if (digits.length >= 10)       return digits;          // assume already international
+        if (digits.startsWith('234')) return digits;          // already has country code
+        if (digits.startsWith('0')) return '234' + digits.slice(1); // Nigerian local format
+        if (digits.length >= 10) return digits;          // assume already international
         return null;
     }
 
@@ -357,21 +357,21 @@ export default function ProjectsPage() {
             { id: 'work' as Tab, label: 'My Work', icon: CodeBracketIcon },
             { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon },
             { id: 'groups' as Tab, label: 'My Group', icon: UsersIcon },
-          ]
+        ]
         : [
             { id: 'work' as Tab, label: 'Student Overview', icon: UserGroupIcon },
             { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon },
             { id: 'groups' as Tab, label: 'Groups', icon: UsersIcon },
-          ];
+        ];
 
     function TabBar() {
         return (
             <div className="bg-background border-b border-border px-6 md:px-10">
                 <div className="flex gap-0">
                     {TABS.map(t => {
-                        const Icon   = t.icon;
+                        const Icon = t.icon;
                         const active = tab === t.id;
-                        const badge  = (t.id === 'activities' && isStaff && activities.length > 0 && !actLoading) ? activities.length : null;
+                        const badge = (t.id === 'activities' && isStaff && activities.length > 0 && !actLoading) ? activities.length : null;
                         return (
                             <button key={t.id} onClick={() => setTab(t.id)}
                                 className={`flex items-center gap-2 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all ${active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
@@ -390,23 +390,23 @@ export default function ProjectsPage() {
     // STUDENT VIEW
     // ═══════════════════════════════════════════════════════════════════════════
     if (isStudent) {
-        const pct   = projectScore(myLab.length, myPortfolio.length);
+        const pct = projectScore(myLab.length, myPortfolio.length);
         const total = myLab.length + myPortfolio.length;
 
         // Student activity stats
         const myActStats = {
-            total:     myActivities.length,
-            pending:   myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return !s; }).length,
+            total: myActivities.length,
+            pending: myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return !s; }).length,
             submitted: myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return s?.status === 'submitted'; }).length,
-            graded:    myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return s?.status === 'graded'; }).length,
+            graded: myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return s?.status === 'graded'; }).length,
         };
 
         const filteredMyActs = myActivities.filter(a => {
             const sub = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id);
             const status = sub?.status || 'pending';
-            if (studentActFilter === 'pending')   return status === 'pending';
+            if (studentActFilter === 'pending') return status === 'pending';
             if (studentActFilter === 'submitted') return status === 'submitted';
-            if (studentActFilter === 'graded')    return status === 'graded';
+            if (studentActFilter === 'graded') return status === 'graded';
             return true;
         });
 
@@ -416,14 +416,14 @@ export default function ProjectsPage() {
                 <div className="px-4 sm:px-6 md:px-10 pt-6">
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
                         <Link href="/dashboard/assignments"
-                            className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                         </Link>
-                        <span className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg bg-primary text-white text-sm font-black">
+                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                             <RocketLaunchIcon className="w-4 h-4" /> Projects
                         </span>
                         <Link href="/dashboard/cbt"
-                            className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                             <CommandLineIcon className="w-4 h-4" /> CBT Exams
                         </Link>
                     </div>
@@ -495,7 +495,7 @@ export default function ProjectsPage() {
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {myLab.map(p => {
-                                            const lang  = (p.language || 'default').toLowerCase();
+                                            const lang = (p.language || 'default').toLowerCase();
                                             const color = LANG_COLOR[lang] || LANG_COLOR.default;
                                             return (
                                                 <div key={p.id} className="bg-card border border-border hover:border-indigo-500/30 transition-all group">
@@ -533,7 +533,7 @@ export default function ProjectsPage() {
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {myPortfolio.map(p => {
-                                            const cat   = (p.category || 'other').toLowerCase();
+                                            const cat = (p.category || 'other').toLowerCase();
                                             const color = CAT_COLOR[cat] || CAT_COLOR.other;
                                             return (
                                                 <div key={p.id} className="bg-card border border-border hover:border-primary/30 transition-all group">
@@ -701,13 +701,13 @@ export default function ProjectsPage() {
                         {/* Quick links to other activity sections */}
                         <div className="bg-card border-b border-border px-6 md:px-10 py-3 flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0">Also see:</span>
-                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
+                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
                                 <AcademicCapIcon className="w-3 h-3" /> Written Exams
                             </Link>
-                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
+                            <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <ChartBarIcon className="w-3 h-3" /> CBT / Evaluation
                             </Link>
-                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
+                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
                                 <ClipboardDocumentListIcon className="w-3 h-3" /> Assignments
                             </Link>
                         </div>
@@ -720,10 +720,10 @@ export default function ProjectsPage() {
                                     <div className="bg-card border-b border-border px-6 md:px-10 py-4">
                                         <div className="flex items-center gap-6 overflow-x-auto">
                                             {[
-                                                { label: 'Total',     value: myActStats.total,     color: 'text-foreground',   dot: 'bg-foreground/30' },
-                                                { label: 'To Do',     value: myActStats.pending,   color: 'text-amber-400',    dot: 'bg-amber-400'     },
-                                                { label: 'Submitted', value: myActStats.submitted, color: 'text-indigo-400',   dot: 'bg-indigo-400'    },
-                                                { label: 'Graded',    value: myActStats.graded,    color: 'text-emerald-400',  dot: 'bg-emerald-400'   },
+                                                { label: 'Total', value: myActStats.total, color: 'text-foreground', dot: 'bg-foreground/30' },
+                                                { label: 'To Do', value: myActStats.pending, color: 'text-amber-400', dot: 'bg-amber-400' },
+                                                { label: 'Submitted', value: myActStats.submitted, color: 'text-indigo-400', dot: 'bg-indigo-400' },
+                                                { label: 'Graded', value: myActStats.graded, color: 'text-emerald-400', dot: 'bg-emerald-400' },
                                             ].map(s => (
                                                 <div key={s.label} className="flex items-center gap-2 flex-shrink-0">
                                                     <div className={`w-2 h-2 rounded-full ${s.dot}`} />
@@ -746,13 +746,13 @@ export default function ProjectsPage() {
                                 {myActivities.length > 0 && (
                                     <div className="px-6 md:px-10 py-3 border-b border-border flex items-center gap-2 overflow-x-auto">
                                         {([
-                                            { key: 'all',       label: 'All Activities' },
-                                            { key: 'pending',   label: 'To Do' },
+                                            { key: 'all', label: 'All Activities' },
+                                            { key: 'pending', label: 'To Do' },
                                             { key: 'submitted', label: 'Submitted' },
-                                            { key: 'graded',    label: 'Graded' },
+                                            { key: 'graded', label: 'Graded' },
                                         ] as const).map(f => (
                                             <button key={f.key} onClick={() => setStudentActFilter(f.key)}
-                                                className={`px-4 py-2.5 min-h-[44px] text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
+                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${studentActFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
                                                 {f.label}
                                             </button>
                                         ))}
@@ -773,20 +773,20 @@ export default function ProjectsPage() {
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {filteredMyActs.map((act: any) => {
-                                                const subs  = act.assignment_submissions || [];
+                                                const subs = act.assignment_submissions || [];
                                                 const mySub = subs.find((s: any) => s.portal_user_id === profile!.id);
                                                 const status = mySub?.status || 'pending';
-                                                const meta   = act.metadata || {};
+                                                const meta = act.metadata || {};
                                                 const catInfo = CAT_META[meta.category] || CAT_META.coding;
                                                 const CatIcon = catInfo.Icon;
-                                                const dl      = deadlineLabel(act.due_date);
-                                                const diff    = DIFF_META[meta.difficulty] || DIFF_META.intermediate;
+                                                const dl = deadlineLabel(act.due_date);
+                                                const diff = DIFF_META[meta.difficulty] || DIFF_META.intermediate;
 
                                                 const statusStyle = status === 'graded'
                                                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                                                     : status === 'submitted'
-                                                    ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                                    : 'bg-white/5 border-white/10 text-white/30';
+                                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                                        : 'bg-white/5 border-white/10 text-white/30';
 
                                                 return (
                                                     <Link key={act.id} href={`/dashboard/projects/${act.id}`}
@@ -903,22 +903,22 @@ export default function ProjectsPage() {
 
     // Activity filters
     const filteredActs = activities.filter(a => {
-        const isOverdue  = a.due_date && new Date(a.due_date) < new Date();
-        const isDraft    = a.is_active === false;
+        const isOverdue = a.due_date && new Date(a.due_date) < new Date();
+        const isDraft = a.is_active === false;
         const hasPending = (a.assignment_submissions || []).some((s: any) => s.status === 'submitted');
-        if (actFilter === 'active')         return !isDraft && !isOverdue;
-        if (actFilter === 'overdue')        return !isDraft && isOverdue;
+        if (actFilter === 'active') return !isDraft && !isOverdue;
+        if (actFilter === 'overdue') return !isDraft && isOverdue;
         if (actFilter === 'pending_review') return hasPending;
-        if (actFilter === 'draft')          return isDraft;
+        if (actFilter === 'draft') return isDraft;
         return true;
     }).filter(a => !actSearch || (a.title || '').toLowerCase().includes(actSearch.toLowerCase()));
 
     const actStats = {
-        total:        activities.length,
-        active:       activities.filter(a => a.is_active !== false && !(a.due_date && new Date(a.due_date) < new Date())).length,
+        total: activities.length,
+        active: activities.filter(a => a.is_active !== false && !(a.due_date && new Date(a.due_date) < new Date())).length,
         pendingGrade: activities.reduce((n, a) => n + (a.assignment_submissions || []).filter((s: any) => s.status === 'submitted').length, 0),
-        totalSubs:    activities.reduce((n, a) => n + (a.assignment_submissions || []).length, 0),
-        graded:       activities.reduce((n, a) => n + (a.assignment_submissions || []).filter((s: any) => s.status === 'graded').length, 0),
+        totalSubs: activities.reduce((n, a) => n + (a.assignment_submissions || []).length, 0),
+        graded: activities.reduce((n, a) => n + (a.assignment_submissions || []).filter((s: any) => s.status === 'graded').length, 0),
     };
 
     // Group filtered activities by category
@@ -941,14 +941,14 @@ export default function ProjectsPage() {
             <div className="px-4 sm:px-6 md:px-10 pt-6">
                 <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
                     <Link href="/dashboard/assignments"
-                        className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
                     </Link>
-                    <span className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg bg-primary text-white text-sm font-black">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                         <RocketLaunchIcon className="w-4 h-4" /> Projects
                     </span>
                     <Link href="/dashboard/cbt"
-                        className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <CommandLineIcon className="w-4 h-4" /> CBT Exams
                     </Link>
                 </div>
@@ -974,8 +974,8 @@ export default function ProjectsPage() {
                             <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full sm:w-auto">
                                 {[
                                     { label: 'Students', value: students.length, color: 'text-white' },
-                                    { label: 'Active',   value: totalWithProjects, color: 'text-primary' },
-                                    { label: 'Avg Score',value: `${avgScore}%`, color: 'text-emerald-400' },
+                                    { label: 'Active', value: totalWithProjects, color: 'text-primary' },
+                                    { label: 'Avg Score', value: `${avgScore}%`, color: 'text-emerald-400' },
                                 ].map(s => (
                                     <div key={s.label} className="bg-white/[0.03] border border-white/[0.07] px-3 sm:px-4 py-2 sm:py-3 text-center">
                                         <p className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -1042,9 +1042,9 @@ export default function ProjectsPage() {
                                         {!isCollapsed && (
                                             <div className="space-y-1.5 pl-0">
                                                 {schoolStudents.map(student => {
-                                                    const labs  = labMap[student.id] || [];
-                                                    const port  = portfolioMap[student.id] || [];
-                                                    const pct   = projectScore(labs.length, port.length);
+                                                    const labs = labMap[student.id] || [];
+                                                    const port = portfolioMap[student.id] || [];
+                                                    const pct = projectScore(labs.length, port.length);
                                                     const isExp = expandedStudent === student.id;
                                                     return (
                                                         <div key={student.id} className="bg-card border border-border hover:border-primary/20 transition-all">
@@ -1082,13 +1082,15 @@ export default function ProjectsPage() {
                                                                         <div className="flex items-center gap-2 mb-3"><CodeBracketIcon className="w-4 h-4 text-indigo-400" /><span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Lab Projects ({labs.length})</span></div>
                                                                         {labs.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No lab projects saved yet</p> : (
                                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
-                                                                                {labs.map(p => { const color = LANG_COLOR[(p.language || '').toLowerCase()] || LANG_COLOR.default; return (
-                                                                                    <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
-                                                                                        <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
-                                                                                        <span className="text-[9px] font-bold" style={{ color }}>{p.language}</span>
-                                                                                        <p className="text-[9px] text-white/20 mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
-                                                                                    </div>
-                                                                                ); })}
+                                                                                {labs.map(p => {
+                                                                                    const color = LANG_COLOR[(p.language || '').toLowerCase()] || LANG_COLOR.default; return (
+                                                                                        <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
+                                                                                            <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
+                                                                                            <span className="text-[9px] font-bold" style={{ color }}>{p.language}</span>
+                                                                                            <p className="text-[9px] text-white/20 mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -1096,13 +1098,15 @@ export default function ProjectsPage() {
                                                                         <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-primary" /><span className="text-xs font-black text-primary uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
                                                                         {port.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No portfolio projects added yet</p> : (
                                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
-                                                                                {port.map(p => { const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
-                                                                                    <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
-                                                                                        <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
-                                                                                        <span className="text-[9px] font-bold" style={{ color }}>{p.category}</span>
-                                                                                        {p.is_featured && <p className="text-[9px] text-amber-400 font-black mt-1">★ Featured</p>}
-                                                                                    </div>
-                                                                                ); })}
+                                                                                {port.map(p => {
+                                                                                    const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
+                                                                                        <div key={p.id} className="bg-white/[0.03] border border-border px-3 py-2.5">
+                                                                                            <p className="text-[11px] font-black text-foreground truncate">{p.title}</p>
+                                                                                            <span className="text-[9px] font-bold" style={{ color }}>{p.category}</span>
+                                                                                            {p.is_featured && <p className="text-[9px] text-amber-400 font-black mt-1">★ Featured</p>}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -1499,11 +1503,11 @@ export default function ProjectsPage() {
                                                     </div>
                                                     <div className="space-y-2">
                                                         {members.map((m: any) => {
-                                                            const name  = m.portal_users?.full_name || 'Student';
+                                                            const name = m.portal_users?.full_name || 'Student';
                                                             const phone = fmtPhone(m.portal_users?.phone);
                                                             const score = isGroupEval ? group.group_score : m.individual_score;
                                                             const feedback = isGroupEval ? group.group_feedback : m.individual_feedback;
-                                                            const msg   = buildResultMsg(name, group.name, group.assignments?.title, score, feedback, group.evaluation_type);
+                                                            const msg = buildResultMsg(name, group.name, group.assignments?.title, score, feedback, group.evaluation_type);
                                                             const waUrl = phone
                                                                 ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
                                                                 : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -1675,10 +1679,10 @@ export default function ProjectsPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0 mr-1">Activity Hub:</span>
                             {[
-                                { label: 'Written Exams',  href: '/dashboard/exams',       color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20',    Icon: AcademicCapIcon },
-                                { label: 'CBT / Evaluation', href: '/dashboard/cbt',       color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ChartBarIcon },
-                                { label: 'Assignments',    href: '/dashboard/assignments',  color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', Icon: ClipboardDocumentListIcon },
-                                { label: 'Projects',       href: '#',                       color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',                 Icon: RocketLaunchIcon, active: true },
+                                { label: 'Written Exams', href: '/dashboard/exams', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20', Icon: AcademicCapIcon },
+                                { label: 'CBT / Evaluation', href: '/dashboard/cbt', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ChartBarIcon },
+                                { label: 'Assignments', href: '/dashboard/assignments', color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', Icon: ClipboardDocumentListIcon },
+                                { label: 'Projects', href: '#', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30', Icon: RocketLaunchIcon, active: true },
                             ].map(({ label, href, color, Icon }) => (
                                 href === '#'
                                     ? <span key={label} className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 ${color}`}><Icon className="w-3 h-3" />{label} <span className="text-[8px] opacity-60">(here)</span></span>
@@ -1690,11 +1694,11 @@ export default function ProjectsPage() {
                     <div className="bg-card border-b border-border px-6 md:px-10 py-4">
                         <div className="flex items-center gap-6 overflow-x-auto">
                             {[
-                                { label: 'Total Activities', value: actStats.total,        Icon: ClipboardDocumentListIcon, color: 'text-foreground'   },
-                                { label: 'Active',           value: actStats.active,        Icon: CheckCircleIcon,           color: 'text-emerald-400'  },
-                                { label: 'Need Grading',     value: actStats.pendingGrade,  Icon: PencilSquareIcon,          color: actStats.pendingGrade > 0 ? 'text-amber-400' : 'text-muted-foreground' },
-                                { label: 'Total Subs',       value: actStats.totalSubs,     Icon: RocketLaunchIcon,          color: 'text-primary'   },
-                                { label: 'Graded',           value: actStats.graded,        Icon: TrophyIcon,                color: 'text-cyan-400'     },
+                                { label: 'Total Activities', value: actStats.total, Icon: ClipboardDocumentListIcon, color: 'text-foreground' },
+                                { label: 'Active', value: actStats.active, Icon: CheckCircleIcon, color: 'text-emerald-400' },
+                                { label: 'Need Grading', value: actStats.pendingGrade, Icon: PencilSquareIcon, color: actStats.pendingGrade > 0 ? 'text-amber-400' : 'text-muted-foreground' },
+                                { label: 'Total Subs', value: actStats.totalSubs, Icon: RocketLaunchIcon, color: 'text-primary' },
+                                { label: 'Graded', value: actStats.graded, Icon: TrophyIcon, color: 'text-cyan-400' },
                             ].map(s => {
                                 const Icon = s.Icon;
                                 return (
@@ -1722,11 +1726,11 @@ export default function ProjectsPage() {
                     <div className="bg-card border-b border-border px-6 md:px-10 py-3 flex items-center gap-3 flex-wrap">
                         <div className="flex items-center gap-1.5 overflow-x-auto">
                             {([
-                                { key: 'all',            label: 'All' },
-                                { key: 'active',         label: 'Active' },
+                                { key: 'all', label: 'All' },
+                                { key: 'active', label: 'Active' },
                                 { key: 'pending_review', label: `Needs Grading${actStats.pendingGrade > 0 ? ` (${actStats.pendingGrade})` : ''}` },
-                                { key: 'overdue',        label: 'Overdue' },
-                                { key: 'draft',          label: 'Drafts' },
+                                { key: 'overdue', label: 'Overdue' },
+                                { key: 'draft', label: 'Drafts' },
                             ] as const).map(f => (
                                 <button key={f.key} onClick={() => setActFilter(f.key)}
                                     className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${actFilter === f.key ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground'}`}>
@@ -1792,107 +1796,107 @@ export default function ProjectsPage() {
                                 const CatSectionIcon = catMeta.Icon;
                                 const catActs = actsByCategory[catKey];
                                 return (
-                                <section key={catKey}>
-                                    {/* Category section header */}
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-8 h-8 flex items-center justify-center border" style={{ backgroundColor: catMeta.color + '18', borderColor: catMeta.color + '40' }}>
-                                            <CatSectionIcon className="w-4 h-4" style={{ color: catMeta.color }} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="text-xs font-black text-foreground uppercase tracking-widest">{catMeta.label}</h3>
-                                            <p className="text-[9px] text-muted-foreground">{catActs.length} activit{catActs.length !== 1 ? 'ies' : 'y'}</p>
-                                        </div>
-                                        <div className="h-px flex-1 bg-white/[0.05]" />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                        {catActs.map((act: any) => {
-                                    const subs          = act.assignment_submissions || [];
-                                    const gradedCount   = subs.filter((s: any) => s.status === 'graded').length;
-                                    const pendingCount  = subs.filter((s: any) => s.status === 'submitted').length;
-                                    const pct           = subs.length > 0 ? Math.round((gradedCount / subs.length) * 100) : 0;
-                                    const meta          = act.metadata || {};
-                                    const catInfo       = CAT_META[meta.category] || CAT_META.coding;
-                                    const CatIcon       = catInfo.Icon;
-                                    const dl            = deadlineLabel(act.due_date);
-                                    const diff          = DIFF_META[meta.difficulty];
-                                    const isDraft       = act.is_active === false;
-                                    const tags: string[] = meta.tags || [];
-
-                                    return (
-                                        <Link key={act.id} href={`/dashboard/projects/${act.id}`}
-                                            className="bg-card border border-border hover:border-primary/30 transition-all group block relative overflow-hidden">
-
-                                            {/* Urgent banner */}
-                                            {pendingCount > 0 && (
-                                                <div className="absolute top-0 left-0 right-0 bg-amber-500/80 px-3 py-1 flex items-center gap-1.5 z-10">
-                                                    <FireIcon className="w-3 h-3 text-white" />
-                                                    <span className="text-[9px] font-black text-white uppercase tracking-widest">{pendingCount} submission{pendingCount !== 1 ? 's' : ''} awaiting your review</span>
-                                                </div>
-                                            )}
-
-                                            {/* Category color bar */}
-                                            <div className={`h-1 ${pendingCount > 0 ? 'mt-7' : ''}`} style={{ backgroundColor: catInfo.color }} />
-
-                                            <div className="p-5">
-                                                {/* Header */}
-                                                <div className="flex items-start gap-3 mb-3">
-                                                    <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 border" style={{ backgroundColor: catInfo.color + '18', borderColor: catInfo.color + '40' }}>
-                                                        <CatIcon className="w-4.5 h-4.5" style={{ color: catInfo.color }} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{act.title}</h3>
-                                                        {act.description && <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{act.description}</p>}
-                                                    </div>
-                                                    {isDraft && <span className="text-[8px] font-black text-white/30 border border-white/10 px-1.5 py-0.5 uppercase tracking-widest flex-shrink-0">Draft</span>}
-                                                </div>
-
-                                                {/* Badges */}
-                                                <div className="flex items-center gap-1.5 flex-wrap mb-4">
-                                                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '20', color: catInfo.color }}>{catInfo.label}</span>
-                                                    {diff && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[8px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
-                                                    {meta.group_activity && <span className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
-                                                    {meta.grading_mode === 'auto'   && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
-                                                    {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5">📋 Rubric</span>}
-                                                    {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-white/30 border border-white/10 px-1 py-0.5">{t}</span>)}
-                                                </div>
-
-                                                {/* Submissions ring */}
-                                                <div className="bg-white/[0.02] border border-border px-4 py-3 mb-3">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Submissions</span>
-                                                        <span className="text-[10px] font-black text-foreground">{gradedCount} / {subs.length} graded</span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                                                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
-                                                    </div>
-                                                    <div className="flex items-center justify-between mt-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] text-white/40">{gradedCount} done</span></div>
-                                                            {pendingCount > 0 && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[9px] text-amber-400 font-bold">{pendingCount} pending</span></div>}
-                                                        </div>
-                                                        <span className="text-[9px] text-white/20">{act.max_points || 100} pts max</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Deadline */}
-                                                <div className={`flex items-center gap-1.5 mb-4 ${dl.overdue ? 'text-rose-400' : dl.urgent ? 'text-amber-400' : 'text-white/30'}`}>
-                                                    <ClockIcon className="w-3 h-3" />
-                                                    <span className="text-[10px] font-bold">{dl.text}</span>
-                                                </div>
-
-                                                {/* CTA */}
-                                                <div className="flex items-center gap-1.5 text-primary group-hover:text-primary transition-colors">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                                        {pendingCount > 0 ? `Grade ${pendingCount} submission${pendingCount !== 1 ? 's' : ''}` : subs.length > 0 ? 'View Activity' : 'View & Share'}
-                                                    </span>
-                                                    <ArrowRightIcon className="w-3 h-3" />
-                                                </div>
+                                    <section key={catKey}>
+                                        {/* Category section header */}
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-8 h-8 flex items-center justify-center border" style={{ backgroundColor: catMeta.color + '18', borderColor: catMeta.color + '40' }}>
+                                                <CatSectionIcon className="w-4 h-4" style={{ color: catMeta.color }} />
                                             </div>
-                                        </Link>
-                                    );
-                                })}
-                                    </div>
-                                </section>
+                                            <div className="flex-1">
+                                                <h3 className="text-xs font-black text-foreground uppercase tracking-widest">{catMeta.label}</h3>
+                                                <p className="text-[9px] text-muted-foreground">{catActs.length} activit{catActs.length !== 1 ? 'ies' : 'y'}</p>
+                                            </div>
+                                            <div className="h-px flex-1 bg-white/[0.05]" />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                            {catActs.map((act: any) => {
+                                                const subs = act.assignment_submissions || [];
+                                                const gradedCount = subs.filter((s: any) => s.status === 'graded').length;
+                                                const pendingCount = subs.filter((s: any) => s.status === 'submitted').length;
+                                                const pct = subs.length > 0 ? Math.round((gradedCount / subs.length) * 100) : 0;
+                                                const meta = act.metadata || {};
+                                                const catInfo = CAT_META[meta.category] || CAT_META.coding;
+                                                const CatIcon = catInfo.Icon;
+                                                const dl = deadlineLabel(act.due_date);
+                                                const diff = DIFF_META[meta.difficulty];
+                                                const isDraft = act.is_active === false;
+                                                const tags: string[] = meta.tags || [];
+
+                                                return (
+                                                    <Link key={act.id} href={`/dashboard/projects/${act.id}`}
+                                                        className="bg-card border border-border hover:border-primary/30 transition-all group block relative overflow-hidden">
+
+                                                        {/* Urgent banner */}
+                                                        {pendingCount > 0 && (
+                                                            <div className="absolute top-0 left-0 right-0 bg-amber-500/80 px-3 py-1 flex items-center gap-1.5 z-10">
+                                                                <FireIcon className="w-3 h-3 text-white" />
+                                                                <span className="text-[9px] font-black text-white uppercase tracking-widest">{pendingCount} submission{pendingCount !== 1 ? 's' : ''} awaiting your review</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Category color bar */}
+                                                        <div className={`h-1 ${pendingCount > 0 ? 'mt-7' : ''}`} style={{ backgroundColor: catInfo.color }} />
+
+                                                        <div className="p-5">
+                                                            {/* Header */}
+                                                            <div className="flex items-start gap-3 mb-3">
+                                                                <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 border" style={{ backgroundColor: catInfo.color + '18', borderColor: catInfo.color + '40' }}>
+                                                                    <CatIcon className="w-4.5 h-4.5" style={{ color: catInfo.color }} />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">{act.title}</h3>
+                                                                    {act.description && <p className="text-[10px] text-white/40 mt-0.5 line-clamp-1">{act.description}</p>}
+                                                                </div>
+                                                                {isDraft && <span className="text-[8px] font-black text-white/30 border border-white/10 px-1.5 py-0.5 uppercase tracking-widest flex-shrink-0">Draft</span>}
+                                                            </div>
+
+                                                            {/* Badges */}
+                                                            <div className="flex items-center gap-1.5 flex-wrap mb-4">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '20', color: catInfo.color }}>{catInfo.label}</span>
+                                                                {diff && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[8px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
+                                                                {meta.group_activity && <span className="text-[8px] font-black text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
+                                                                {meta.grading_mode === 'auto' && <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
+                                                                {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5">📋 Rubric</span>}
+                                                                {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-white/30 border border-white/10 px-1 py-0.5">{t}</span>)}
+                                                            </div>
+
+                                                            {/* Submissions ring */}
+                                                            <div className="bg-white/[0.02] border border-border px-4 py-3 mb-3">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Submissions</span>
+                                                                    <span className="text-[10px] font-black text-foreground">{gradedCount} / {subs.length} graded</span>
+                                                                </div>
+                                                                <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                                                                    <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-amber-500' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
+                                                                </div>
+                                                                <div className="flex items-center justify-between mt-2">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[9px] text-white/40">{gradedCount} done</span></div>
+                                                                        {pendingCount > 0 && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-[9px] text-amber-400 font-bold">{pendingCount} pending</span></div>}
+                                                                    </div>
+                                                                    <span className="text-[9px] text-white/20">{act.max_points || 100} pts max</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Deadline */}
+                                                            <div className={`flex items-center gap-1.5 mb-4 ${dl.overdue ? 'text-rose-400' : dl.urgent ? 'text-amber-400' : 'text-white/30'}`}>
+                                                                <ClockIcon className="w-3 h-3" />
+                                                                <span className="text-[10px] font-bold">{dl.text}</span>
+                                                            </div>
+
+                                                            {/* CTA */}
+                                                            <div className="flex items-center gap-1.5 text-primary group-hover:text-primary transition-colors">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                                                    {pendingCount > 0 ? `Grade ${pendingCount} submission${pendingCount !== 1 ? 's' : ''}` : subs.length > 0 ? 'View Activity' : 'View & Share'}
+                                                                </span>
+                                                                <ArrowRightIcon className="w-3 h-3" />
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
                                 );
                             })
                         )}

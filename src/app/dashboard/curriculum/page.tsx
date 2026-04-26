@@ -1467,16 +1467,16 @@ export default function CurriculumPage() {
             {showHelp ? 'Hide guide' : '? How to use'}
           </button>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">            <div className="relative flex-1 min-w-0">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="search"
-                value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
-                placeholder="Filter programmes & courses…"
-                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                aria-label="Filter programmes and courses"
-              />
-            </div>
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={catalogQuery}
+              onChange={(e) => setCatalogQuery(e.target.value)}
+              placeholder="Filter programmes & courses…"
+              className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              aria-label="Filter programmes and courses"
+            />
+          </div>
             {canTrack && programs.length > 0 && (
               <button
                 type="button"
@@ -1639,8 +1639,8 @@ export default function CurriculumPage() {
                     key={t.term}
                     onClick={() => setActiveTerm(t.term)}
                     className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${active
-                        ? 'bg-primary/15 border-primary/40 text-primary'
-                        : 'bg-muted/20 border-border text-muted-foreground'
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-muted/20 border-border text-muted-foreground'
                       }`}
                   >
                     T{t.term} {TERM_LABEL[t.term] ? `· ${TERM_LABEL[t.term].split(' ')[0]}` : ''}
@@ -1722,8 +1722,8 @@ export default function CurriculumPage() {
                               key={course.id}
                               onClick={() => selectCourse(prog, course)}
                               className={`w-full flex items-center gap-3 pl-10 pr-4 py-3 text-left transition-all relative group ${isSelected
-                                  ? 'text-primary bg-primary/5'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                                ? 'text-primary bg-primary/5'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                                 }`}
                             >
                               {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
@@ -1755,8 +1755,8 @@ export default function CurriculumPage() {
                 aria-selected={activeTab === 'syllabus'}
                 onClick={() => setActiveTab('syllabus')}
                 className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'syllabus'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                   }`}
               >
                 <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1769,8 +1769,8 @@ export default function CurriculumPage() {
                   aria-selected={activeTab === 'generate'}
                   onClick={() => setActiveTab('generate')}
                   className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'generate'
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                     }`}
                 >
                   <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1785,8 +1785,8 @@ export default function CurriculumPage() {
                     aria-selected={activeTab === 'delivery'}
                     onClick={() => setActiveTab('delivery')}
                     className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'delivery'
-                        ? 'border-violet-500 text-violet-400'
-                        : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                      ? 'border-violet-500 text-violet-400'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                       }`}
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1798,8 +1798,8 @@ export default function CurriculumPage() {
                     aria-selected={activeTab === 'tools'}
                     onClick={() => setActiveTab('tools')}
                     className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'tools'
-                        ? 'border-cyan-500 text-cyan-400'
-                        : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                      ? 'border-cyan-500 text-cyan-400'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
                       }`}
                   >
                     <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
@@ -2175,8 +2175,8 @@ export default function CurriculumPage() {
                         <div className="flex items-center gap-2 shrink-0 flex-wrap">
                           <span
                             className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border ${curriculum.is_visible_to_school
-                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                                : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                              : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
                               }`}
                             title={
                               curriculum.is_visible_to_school
@@ -2246,451 +2246,451 @@ export default function CurriculumPage() {
                     </div>
                   </div>
 
-                      {/* Term tabs */}
-                      {termCount > 0 && (
-                        <div className="flex gap-1 bg-card border border-border p-1 w-fit">
-                          {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
-                            const termTracking = tracking.filter(t => t.term_number === term.term);
-                            const termWeeks = term.weeks?.length ?? 0;
-                            const termDone = termTracking.filter(t => t.status === 'completed').length;
-                            return (
-                              <button
-                                key={term.term}
-                                onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
-                                className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${activeTerm === term.term
-                                    ? 'bg-primary text-white'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                                  }`}
-                              >
-                                <span>Term {term.term}</span>
-                                <span className={`text-[9px] font-black ${activeTerm === term.term ? 'text-white/70' : 'text-muted-foreground'}`}>
-                                  {termDone}/{termWeeks} done
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                  {/* Term tabs */}
+                  {termCount > 0 && (
+                    <div className="flex gap-1 bg-card border border-border p-1 w-fit">
+                      {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
+                        const termTracking = tracking.filter(t => t.term_number === term.term);
+                        const termWeeks = term.weeks?.length ?? 0;
+                        const termDone = termTracking.filter(t => t.status === 'completed').length;
+                        return (
+                          <button
+                            key={term.term}
+                            onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
+                            className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${activeTerm === term.term
+                              ? 'bg-primary text-white'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                              }`}
+                          >
+                            <span>Term {term.term}</span>
+                            <span className={`text-[9px] font-black ${activeTerm === term.term ? 'text-white/70' : 'text-muted-foreground'}`}>
+                              {termDone}/{termWeeks} done
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Term title & objectives */}
+                  {currentTermData && (
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
+                      {currentTermData.objectives?.length > 0 && (
+                        <ul className="flex flex-wrap gap-2 mt-2">
+                          {currentTermData.objectives.map((o, i) => (
+                            <li key={i} className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold">
+                              {o}
+                            </li>
+                          ))}
+                        </ul>
                       )}
+                    </div>
+                  )}
 
-                      {/* Term title & objectives */}
-                      {currentTermData && (
-                        <div className="space-y-1">
-                          <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
-                          {currentTermData.objectives?.length > 0 && (
-                            <ul className="flex flex-wrap gap-2 mt-2">
-                              {currentTermData.objectives.map((o, i) => (
-                                <li key={i} className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold">
-                                  {o}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
+                  {/* Week grid */}
+                  {currentTermData?.weeks && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {[...currentTermData.weeks].sort((a, b) => a.week - b.week).map(week => {
+                        const meta = WEEK_META[week.type] ?? WEEK_META.lesson;
+                        const trackRec = getTracking(activeTerm, week.week);
+                        const trackMeta = TRACK_META[trackRec?.status ?? 'pending'];
+                        const TrackIcon = trackMeta.icon;
+                        const WeekIcon = meta.icon;
+                        const isActive = activeWeek?.week === week.week;
 
-                      {/* Week grid */}
-                      {currentTermData?.weeks && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {[...currentTermData.weeks].sort((a, b) => a.week - b.week).map(week => {
-                            const meta = WEEK_META[week.type] ?? WEEK_META.lesson;
-                            const trackRec = getTracking(activeTerm, week.week);
-                            const trackMeta = TRACK_META[trackRec?.status ?? 'pending'];
-                            const TrackIcon = trackMeta.icon;
-                            const WeekIcon = meta.icon;
-                            const isActive = activeWeek?.week === week.week;
-
-                            return (
-                              <div
-                                key={week.week}
-                                className={`border transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
-                              >
-                                {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
-                                  <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Week {week.week} · Edit</p>
-                                    <input
-                                      autoFocus
-                                      value={editWeekTopic}
-                                      onChange={e => setEditWeekTopic(e.target.value)}
-                                      placeholder="Week topic"
-                                      className="w-full px-2 py-1.5 text-sm bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
-                                    />
-                                    <input
-                                      value={editWeekSubtopics}
-                                      onChange={e => setEditWeekSubtopics(e.target.value)}
-                                      placeholder="Subtopics, comma-separated"
-                                      className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
-                                    />
-                                    <div className="flex gap-2 pt-1">
-                                      <button
-                                        onClick={saveWeekEdit}
-                                        disabled={savingWeek}
-                                        className="flex-1 py-1.5 text-xs font-black bg-primary hover:bg-primary text-white rounded transition-colors disabled:opacity-50"
-                                      >
-                                        {savingWeek ? '…' : 'Save'}
-                                      </button>
-                                      <button
-                                        onClick={() => setEditingWeekKey(null)}
-                                        className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground border border-border rounded transition-colors"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
+                        return (
+                          <div
+                            key={week.week}
+                            className={`border transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
+                          >
+                            {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
+                              <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Week {week.week} · Edit</p>
+                                <input
+                                  autoFocus
+                                  value={editWeekTopic}
+                                  onChange={e => setEditWeekTopic(e.target.value)}
+                                  placeholder="Week topic"
+                                  className="w-full px-2 py-1.5 text-sm bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
+                                />
+                                <input
+                                  value={editWeekSubtopics}
+                                  onChange={e => setEditWeekSubtopics(e.target.value)}
+                                  placeholder="Subtopics, comma-separated"
+                                  className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border text-foreground rounded focus:outline-none focus:border-primary/50"
+                                />
+                                <div className="flex gap-2 pt-1">
                                   <button
-                                    className="text-left p-4 w-full space-y-2 hover:bg-muted/10"
-                                    onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
+                                    onClick={saveWeekEdit}
+                                    disabled={savingWeek}
+                                    className="flex-1 py-1.5 text-xs font-black bg-primary hover:bg-primary text-white rounded transition-colors disabled:opacity-50"
                                   >
-                                    {/* Week number + type badge */}
-                                    <div className="flex items-center justify-between gap-1">
-                                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                        Week {week.week}
-                                      </span>
-                                      <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
-                                        {meta.label}
-                                      </span>
-                                    </div>
-
-                                    {/* Topic */}
-                                    <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
-                                    <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
-
-                                    {/* Subtopics preview */}
-                                    {(week.subtopics ?? []).length > 0 && (
-                                      <p className="text-[10px] text-muted-foreground truncate">
-                                        {(week.subtopics ?? []).slice(0, 2).join(' · ')}
-                                      </p>
-                                    )}
-
-                                    {/* Status */}
-                                    <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
-                                      <TrackIcon className="w-3 h-3" />
-                                      <span>{trackMeta.label}</span>
-                                    </div>
+                                    {savingWeek ? '…' : 'Save'}
                                   </button>
-                                )}
-                                {canGenerate && editingWeekKey !== `term${activeTerm}-week${week.week}` && (
                                   <button
-                                    onClick={() => {
-                                      setEditingWeekKey(`term${activeTerm}-week${week.week}`);
-                                      setEditWeekTopic(week.topic);
-                                      setEditWeekSubtopics((week.subtopics ?? []).join(', '));
-                                      setActiveWeek(null);
-                                    }}
-                                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-colors border-t border-border"
-                                    title="Edit week topic"
+                                    onClick={() => setEditingWeekKey(null)}
+                                    className="px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground border border-border rounded transition-colors"
                                   >
-                                    <PencilIcon className="w-3 h-3" /> Edit topic
+                                    Cancel
                                   </button>
-                                )}
+                                </div>
                               </div>
-                            );
-                          })}
+                            ) : (
+                              <button
+                                className="text-left p-4 w-full space-y-2 hover:bg-muted/10"
+                                onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
+                              >
+                                {/* Week number + type badge */}
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                    Week {week.week}
+                                  </span>
+                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
+                                    {meta.label}
+                                  </span>
+                                </div>
+
+                                {/* Topic */}
+                                <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
+                                <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
+
+                                {/* Subtopics preview */}
+                                {(week.subtopics ?? []).length > 0 && (
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {(week.subtopics ?? []).slice(0, 2).join(' · ')}
+                                  </p>
+                                )}
+
+                                {/* Status */}
+                                <div className={`flex items-center gap-1 text-[10px] font-bold ${trackMeta.color}`}>
+                                  <TrackIcon className="w-3 h-3" />
+                                  <span>{trackMeta.label}</span>
+                                </div>
+                              </button>
+                            )}
+                            {canGenerate && editingWeekKey !== `term${activeTerm}-week${week.week}` && (
+                              <button
+                                onClick={() => {
+                                  setEditingWeekKey(`term${activeTerm}-week${week.week}`);
+                                  setEditWeekTopic(week.topic);
+                                  setEditWeekSubtopics((week.subtopics ?? []).join(', '));
+                                  setActiveWeek(null);
+                                }}
+                                className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-muted-foreground/50 hover:text-primary hover:bg-primary/5 transition-colors border-t border-border"
+                                title="Edit week topic"
+                              >
+                                <PencilIcon className="w-3 h-3" /> Edit topic
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Materials + tools */}
+                  {(curriculum.content.materials_required?.length > 0 || curriculum.content.recommended_tools?.length > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {curriculum.content.materials_required?.length > 0 && (
+                        <div className="bg-card border border-border p-4">
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Materials Required</h3>
+                          <ul className="space-y-1">
+                            {curriculum.content.materials_required.map((m, i) => (
+                              <li key={i} className="flex gap-2 text-xs text-foreground/70">
+                                <span className="text-primary">•</span>{m}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
-
-                      {/* Materials + tools */}
-                      {(curriculum.content.materials_required?.length > 0 || curriculum.content.recommended_tools?.length > 0) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {curriculum.content.materials_required?.length > 0 && (
-                            <div className="bg-card border border-border p-4">
-                              <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Materials Required</h3>
-                              <ul className="space-y-1">
-                                {curriculum.content.materials_required.map((m, i) => (
-                                  <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                                    <span className="text-primary">•</span>{m}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {curriculum.content.recommended_tools?.length > 0 && (
-                            <div className="bg-card border border-border p-4">
-                              <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Recommended Tools</h3>
-                              <ul className="space-y-1">
-                                {curriculum.content.recommended_tools.map((t, i) => (
-                                  <li key={i} className="flex gap-2 text-xs text-foreground/70">
-                                    <span className="text-primary">•</span>{t}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                      {curriculum.content.recommended_tools?.length > 0 && (
+                        <div className="bg-card border border-border p-4">
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Recommended Tools</h3>
+                          <ul className="space-y-1">
+                            {curriculum.content.recommended_tools.map((t, i) => (
+                              <li key={i} className="flex gap-2 text-xs text-foreground/70">
+                                <span className="text-primary">•</span>{t}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
               )}
             </div>
           )}
 
           {/* ── Delivery Tab ── */}
           {activeTab === 'delivery' && curriculum && (
-                    <div className="mx-4 sm:mx-6 mb-6 space-y-6">
-                      <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                              <ChartBarIcon className="w-5 h-5 text-violet-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
-                              <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
-                            </div>
+            <div className="mx-4 sm:mx-6 mb-6 space-y-6">
+              <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
+                      <ChartBarIcon className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
+                      <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const terms = curriculum.content?.terms ?? [];
+                    const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
+                    const totalWeeks = allWeeks.length;
+                    const completed = tracking.filter(t => t.status === 'completed').length;
+                    const inProgress = tracking.filter(t => t.status === 'in_progress').length;
+                    const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
+
+                    return (
+                      <div className="flex-1 max-w-md space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                          <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
+                          <span className="text-violet-400">{pct}%</span>
+                        </div>
+                        <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
+                          <div
+                            className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <span className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(curriculum.content.terms ?? []).map((term: any) => {
+                  const termWeeks = term.weeks ?? [];
+                  const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
+                  const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
+                  return (
+                    <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
+                        <span className="text-xs font-black text-violet-400">{termPct}%</span>
+                      </div>
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
+                      </div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Tools Tab ── */}
+          {activeTab === 'tools' && curriculum && (
+            <div className="mx-4 sm:mx-6 space-y-6 pb-10">
+              {/* Course Overview */}
+              {curriculum.content.overview && (
+                <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-4 flex items-center gap-2">
+                    <InformationCircleIcon className="w-3 h-3" />
+                    Course Overview
+                  </h3>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
+                </div>
+              )}
+
+              {/* Learning outcomes */}
+              {curriculum.content.learning_outcomes?.length > 0 && (
+                <div className="bg-card border border-border p-6 rounded-xl">
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-4">Learning Outcomes</h3>
+                  <ul className="space-y-2">
+                    {curriculum.content.learning_outcomes.map((o, i) => (
+                      <li key={i} className="flex gap-3 text-sm text-foreground/80">
+                        <span className="text-primary font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
+                        <span>{o}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Standard Teaching Path (QA Spine) — optional, action-focused */}
+              {canGenerate && (
+                <div className="bg-card border border-border space-y-0">
+                  <button
+                    type="button"
+                    onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black text-foreground">Standard Teaching Path</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Optional — align this syllabus to a pre-built curriculum sequence</p>
+                      </div>
+                    </div>
+                    {qaSpineOpen
+                      ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                      : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+                  </button>
+
+                  <AnimatePresence>
+                    {qaSpineOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-t border-border"
+                      >
+                        <div className="p-4 space-y-4">
+                          {!programIdForQa ? (
+                            <p className="text-[11px] text-amber-400">This course has no programme linked — fix the course catalog first before applying a teaching path.</p>
+                          ) : (
+                            <>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Pick your class, preview the week-by-week sequence, then apply it to this syllabus (v{curriculum.version}).
+                                Skip this step entirely if you prefer to build your own week order from scratch.
+                              </p>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Class</label>
+                                  <select
+                                    className={SELECT_CLS}
+                                    value={qaClassId}
+                                    onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
+                                  >
+                                    <option value="">— Select class —</option>
+                                    {[...qaClassOptions]
+                                      .sort((a, b) => {
+                                        const ap = a.program_id === programIdForQa ? 0 : 1;
+                                        const bp = b.program_id === programIdForQa ? 0 : 1;
+                                        if (ap !== bp) return ap - bp;
+                                        return (a.name || '').localeCompare(b.name || '');
+                                      })
+                                      .map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                          {c.name || c.id}{c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Teaching year</label>
+                                  <select
+                                    className={SELECT_CLS}
+                                    value={qaYear}
+                                    onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
+                                  >
+                                    <option value={1}>Year 1</option>
+                                    <option value={2}>Year 2</option>
+                                    <option value={3}>Year 3</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {qaClassId && (
+                                <div className="flex gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
+                                    onClick={() => void saveQaClassGradeMode('optional')}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                  >Flexible (recommended)</button>
+                                  <button
+                                    type="button"
+                                    disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
+                                    onClick={() => void saveQaClassGradeMode('compulsory')}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                  >Compulsory</button>
+                                  {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
+                                </div>
+                              )}
+
+                              <label className="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
+                                <span className="text-[11px] text-muted-foreground">Replace existing weeks (if unchecked, only empty terms are filled)</span>
+                              </label>
+
+                              <div className="flex gap-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => void runQaSpinePreview()}
+                                  disabled={!qaClassId || qaPreviewLoading}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                                >
+                                  {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                                  Preview sequence
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void applyQaSpine()}
+                                  disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-orange-200 hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                >
+                                  {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
+                                  Apply to syllabus
+                                </button>
+                              </div>
+
+                              {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Run Preview first before applying.</p>}
+                              {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
+                              {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
+
+                              {qaPreviewData && (
+                                <div className="p-3 bg-muted/20 border border-border space-y-3">
+                                  <p className="text-[10px] font-black uppercase text-cyan-300">
+                                    Preview — path {qaPreviewData.lane_index} · {qaPreviewData.lane_source} · offset {qaPreviewData.path_offset}
+                                  </p>
+                                  {qaPreviewData.terms.map((t) => (
+                                    <div key={t.term}>
+                                      <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
+                                        {t.weeks.map((w) => (
+                                          <li key={w.week} className="flex gap-1.5 truncate">
+                                            <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
+                                            <span className="truncate">{w.topic}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          <div className="pt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                            <Link href="/dashboard/progression/qa-spine-catalog" className="text-cyan-400 hover:underline font-bold">
+                              View catalog details →
+                            </Link>
+                            <span>·</span>
+                            <Link href="/dashboard/curriculum/learning-system" className="text-muted-foreground hover:text-foreground">
+                              How this works
+                            </Link>
                           </div>
-
-                          {(() => {
-                            const terms = curriculum.content?.terms ?? [];
-                            const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
-                            const totalWeeks = allWeeks.length;
-                            const completed = tracking.filter(t => t.status === 'completed').length;
-                            const inProgress = tracking.filter(t => t.status === 'in_progress').length;
-                            const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
-
-                            return (
-                              <div className="flex-1 max-w-md space-y-2">
-                                <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                                  <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
-                                  <span className="text-violet-400">{pct}%</span>
-                                </div>
-                                <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                  <span className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
-                                  </span>
-                                  <span className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {(curriculum.content.terms ?? []).map((term: any) => {
-                          const termWeeks = term.weeks ?? [];
-                          const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
-                          const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
-                          return (
-                            <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
-                              <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
-                                <span className="text-xs font-black text-violet-400">{termPct}%</span>
-                              </div>
-                              <div className="h-1 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
-                              </div>
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Tools Tab ── */}
-                  {activeTab === 'tools' && curriculum && (
-                    <div className="mx-4 sm:mx-6 space-y-6 pb-10">
-                      {/* Course Overview */}
-                      {curriculum.content.overview && (
-                        <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
-                          <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-4 flex items-center gap-2">
-                            <InformationCircleIcon className="w-3 h-3" />
-                            Course Overview
-                          </h3>
-                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
-                        </div>
-                      )}
-
-                      {/* Learning outcomes */}
-                      {curriculum.content.learning_outcomes?.length > 0 && (
-                        <div className="bg-card border border-border p-6 rounded-xl">
-                          <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-4">Learning Outcomes</h3>
-                          <ul className="space-y-2">
-                            {curriculum.content.learning_outcomes.map((o, i) => (
-                              <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                                <span className="text-primary font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
-                                <span>{o}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Standard Teaching Path (QA Spine) — optional, action-focused */}
-                      {canGenerate && (
-                        <div className="bg-card border border-border space-y-0">
-                          <button
-                            type="button"
-                            onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
-                            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
-                              <div>
-                                <p className="text-xs font-black text-foreground">Standard Teaching Path</p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">Optional — align this syllabus to a pre-built curriculum sequence</p>
-                              </div>
-                            </div>
-                            {qaSpineOpen
-                              ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                              : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
-                          </button>
-
-                          <AnimatePresence>
-                            {qaSpineOpen && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden border-t border-border"
-                              >
-                                <div className="p-4 space-y-4">
-                                  {!programIdForQa ? (
-                                    <p className="text-[11px] text-amber-400">This course has no programme linked — fix the course catalog first before applying a teaching path.</p>
-                                  ) : (
-                                    <>
-                                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                        Pick your class, preview the week-by-week sequence, then apply it to this syllabus (v{curriculum.version}).
-                                        Skip this step entirely if you prefer to build your own week order from scratch.
-                                      </p>
-
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Class</label>
-                                          <select
-                                            className={SELECT_CLS}
-                                            value={qaClassId}
-                                            onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
-                                          >
-                                            <option value="">— Select class —</option>
-                                            {[...qaClassOptions]
-                                              .sort((a, b) => {
-                                                const ap = a.program_id === programIdForQa ? 0 : 1;
-                                                const bp = b.program_id === programIdForQa ? 0 : 1;
-                                                if (ap !== bp) return ap - bp;
-                                                return (a.name || '').localeCompare(b.name || '');
-                                              })
-                                              .map((c) => (
-                                                <option key={c.id} value={c.id}>
-                                                  {c.name || c.id}{c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
-                                                </option>
-                                              ))}
-                                          </select>
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                          <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Teaching year</label>
-                                          <select
-                                            className={SELECT_CLS}
-                                            value={qaYear}
-                                            onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
-                                          >
-                                            <option value={1}>Year 1</option>
-                                            <option value={2}>Year 2</option>
-                                            <option value={3}>Year 3</option>
-                                          </select>
-                                        </div>
-                                      </div>
-
-                                      {qaClassId && (
-                                        <div className="flex gap-2 flex-wrap">
-                                          <button
-                                            type="button"
-                                            disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
-                                            onClick={() => void saveQaClassGradeMode('optional')}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                          >Flexible (recommended)</button>
-                                          <button
-                                            type="button"
-                                            disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
-                                            onClick={() => void saveQaClassGradeMode('compulsory')}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                          >Compulsory</button>
-                                          {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
-                                        </div>
-                                      )}
-
-                                      <label className="flex items-start gap-2 cursor-pointer">
-                                        <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
-                                        <span className="text-[11px] text-muted-foreground">Replace existing weeks (if unchecked, only empty terms are filled)</span>
-                                      </label>
-
-                                      <div className="flex gap-2 flex-wrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => void runQaSpinePreview()}
-                                          disabled={!qaClassId || qaPreviewLoading}
-                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
-                                        >
-                                          {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
-                                          Preview sequence
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => void applyQaSpine()}
-                                          disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                          className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-orange-200 hover:bg-primary/20 disabled:opacity-50 transition-colors"
-                                        >
-                                          {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
-                                          Apply to syllabus
-                                        </button>
-                                      </div>
-
-                                      {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Run Preview first before applying.</p>}
-                                      {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
-                                      {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
-
-                                      {qaPreviewData && (
-                                        <div className="p-3 bg-muted/20 border border-border space-y-3">
-                                          <p className="text-[10px] font-black uppercase text-cyan-300">
-                                            Preview — path {qaPreviewData.lane_index} · {qaPreviewData.lane_source} · offset {qaPreviewData.path_offset}
-                                          </p>
-                                          {qaPreviewData.terms.map((t) => (
-                                            <div key={t.term}>
-                                              <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
-                                              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
-                                                {t.weeks.map((w) => (
-                                                  <li key={w.week} className="flex gap-1.5 truncate">
-                                                    <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
-                                                    <span className="truncate">{w.topic}</span>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-
-                                  <div className="pt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                                    <Link href="/dashboard/progression/qa-spine-catalog" className="text-cyan-400 hover:underline font-bold">
-                                      View catalog details →
-                                    </Link>
-                                    <span>·</span>
-                                    <Link href="/dashboard/curriculum/learning-system" className="text-muted-foreground hover:text-foreground">
-                                      How this works
-                                    </Link>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
 
@@ -2862,8 +2862,8 @@ export default function CurriculumPage() {
                         disabled={savingTrack}
                         onClick={() => trackWeek(activeWeek, s)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border transition-all ${isCurrent
-                            ? `${m.color} border-current bg-current/10`
-                            : 'text-muted-foreground border-border hover:border-foreground/30'
+                          ? `${m.color} border-current bg-current/10`
+                          : 'text-muted-foreground border-border hover:border-foreground/30'
                           } disabled:opacity-40`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -3058,8 +3058,8 @@ export default function CurriculumPage() {
                       key={r}
                       onClick={() => setPreviewRole(r)}
                       className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded border ${previewRole === r
-                          ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                          : 'border-border text-muted-foreground hover:text-foreground'
+                        ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                        : 'border-border text-muted-foreground hover:text-foreground'
                         }`}
                     >
                       {r}
@@ -3101,8 +3101,8 @@ export default function CurriculumPage() {
                   onClick={() => togglePublish(!curriculum.is_visible_to_school)}
                   disabled={publishing}
                   className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
-                      ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
-                      : 'border-primary/50 text-primary hover:bg-primary/10'
+                    ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
+                    : 'border-primary/50 text-primary hover:bg-primary/10'
                     }`}
                 >
                   {publishing

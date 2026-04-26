@@ -63,7 +63,7 @@ export default function EnhancedFlashcardBuilder({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-background border border-border w-full max-w-7xl h-[100dvh] sm:h-[90vh] flex flex-col overflow-hidden sm:rounded-lg shadow-2xl relative"
+        className="bg-background border border-border w-full max-w-7xl h-full sm:h-[90vh] flex flex-col overflow-hidden sm:rounded-lg shadow-2xl relative"
       >
         {/* Header */}
         <BuilderHeader
@@ -84,7 +84,7 @@ export default function EnhancedFlashcardBuilder({
           {success && <SuccessNotification message={success} onClose={clearSuccess} />}
         </AnimatePresence>
 
-        <div className="flex flex-1 flex-col md:flex-row overflow-hidden pt-[calc(60px+env(safe-area-inset-top))] md:pt-16">
+        <div className="flex flex-1 flex-col md:flex-row overflow-hidden pt-20 md:pt-16">
           {/* Sidebar — desktop inline, mobile drawer */}
           <BuilderSidebar
             selectedTemplate={selectedTemplate}

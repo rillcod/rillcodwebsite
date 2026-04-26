@@ -18,39 +18,39 @@ import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  active:    'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  active: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  draft:     'bg-muted text-muted-foreground border-border',
+  draft: 'bg-muted text-muted-foreground border-border',
 };
 
 const TYPE_ICON: Record<string, React.ElementType> = {
-  video:       VideoCameraIcon,
+  video: VideoCameraIcon,
   interactive: PlayIcon,
-  hands_on:    BoltIcon,
-  'hands-on':  BoltIcon,
-  workshop:    BookOpenIcon,
-  coding:      DocumentTextIcon,
-  reading:     AcademicCapIcon,
-  quiz:        ClipboardDocumentListIcon,
-  article:     DocumentTextIcon,
-  project:     TrophyIcon,
-  live:        PlayIcon,
-  lesson:      BookOpenIcon,
+  hands_on: BoltIcon,
+  'hands-on': BoltIcon,
+  workshop: BookOpenIcon,
+  coding: DocumentTextIcon,
+  reading: AcademicCapIcon,
+  quiz: ClipboardDocumentListIcon,
+  article: DocumentTextIcon,
+  project: TrophyIcon,
+  live: PlayIcon,
+  lesson: BookOpenIcon,
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  video:       'bg-rose-500/10 text-rose-400',
+  video: 'bg-rose-500/10 text-rose-400',
   interactive: 'bg-amber-500/10 text-amber-400',
-  hands_on:    'bg-cyan-500/10 text-cyan-400',
-  'hands-on':  'bg-cyan-500/10 text-cyan-400',
-  workshop:    'bg-primary/10 text-primary',
-  coding:      'bg-emerald-500/10 text-emerald-400',
-  reading:     'bg-indigo-500/10 text-indigo-400',
-  quiz:        'bg-purple-500/10 text-purple-400',
-  article:     'bg-slate-500/10 text-muted-foreground/70',
-  project:     'bg-yellow-500/10 text-yellow-500',
-  live:        'bg-red-500/10 text-red-500',
-  lesson:      'bg-blue-500/10 text-blue-400',
+  hands_on: 'bg-cyan-500/10 text-cyan-400',
+  'hands-on': 'bg-cyan-500/10 text-cyan-400',
+  workshop: 'bg-primary/10 text-primary',
+  coding: 'bg-emerald-500/10 text-emerald-400',
+  reading: 'bg-indigo-500/10 text-indigo-400',
+  quiz: 'bg-purple-500/10 text-purple-400',
+  article: 'bg-slate-500/10 text-muted-foreground/70',
+  project: 'bg-yellow-500/10 text-yellow-500',
+  live: 'bg-red-500/10 text-red-500',
+  lesson: 'bg-blue-500/10 text-blue-400',
 };
 
 export default function LessonsPage() {
@@ -187,7 +187,7 @@ export default function LessonsPage() {
           const supabase = createClient();
           const { data: enr } = await supabase.from('enrollments').select('program_id').eq('user_id', profile!.id);
           const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean); // Filter out null values
-          
+
           if (!programIds.length) {
             // No enrollments or all enrollments have null program_id
             // Show empty state but don't block - they might have direct course access
@@ -195,17 +195,17 @@ export default function LessonsPage() {
             setLoading(false);
             return;
           }
-          
+
           const { data: courseData } = await supabase.from('courses').select('id').in('program_id', programIds);
           const courseIds = (courseData ?? []).map((c: any) => c.id);
-          
+
           if (!courseIds.length) {
             // No courses found for enrolled programs
             if (!cancelled) setLessons([]);
             setLoading(false);
             return;
           }
-          
+
           const { data, error: err } = await supabase.from('lessons')
             .select('id, title, description, lesson_type, status, duration_minutes, session_date, video_url, created_by, created_at, courses(id, title, programs(name))')
             .in('course_id', courseIds).order('created_at', { ascending: false });
@@ -250,8 +250,8 @@ export default function LessonsPage() {
   })();
 
   const completed = lessons.filter(l => l.status === 'completed').length;
-  const active    = lessons.filter(l => l.status === 'active').length;
-  const isStaff   = profile?.role === 'admin' || profile?.role === 'teacher';
+  const active = lessons.filter(l => l.status === 'active').length;
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -298,12 +298,12 @@ export default function LessonsPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Lessons',    value: lessons.length,                                                              icon: BookOpenIcon,    bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Active',           value: active,                                                                      icon: BoltIcon,        bg: 'bg-blue-500/10',   color: 'text-blue-400'   },
-          { label: 'Completed',        value: completed,                                                                   icon: CheckCircleIcon, bg: 'bg-emerald-500/10',color: 'text-emerald-400'},
-          { label: 'Completion Rate',  value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon,      bg: 'bg-purple-500/10', color: 'text-purple-400' },
+          { label: 'Total Lessons', value: lessons.length, icon: BookOpenIcon, bg: 'bg-primary/10', color: 'text-primary' },
+          { label: 'Active', value: active, icon: BoltIcon, bg: 'bg-blue-500/10', color: 'text-blue-400' },
+          { label: 'Completed', value: completed, icon: CheckCircleIcon, bg: 'bg-emerald-500/10', color: 'text-emerald-400' },
+          { label: 'Completion Rate', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, bg: 'bg-purple-500/10', color: 'text-purple-400' },
         ].map(s => (
           <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
             <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
@@ -369,11 +369,10 @@ export default function LessonsPage() {
           </span>
           <button
             onClick={() => setFilterCourseId('')}
-            className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
-              filterCourseId === ''
+            className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${filterCourseId === ''
                 ? 'bg-primary/15 border-primary/40 text-primary'
                 : 'border-border text-muted-foreground hover:text-foreground'
-            }`}
+              }`}
           >
             All
           </button>
@@ -381,11 +380,10 @@ export default function LessonsPage() {
             <button
               key={c.id}
               onClick={() => setFilterCourseId(c.id)}
-              className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
-                filterCourseId === c.id
+              className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${filterCourseId === c.id
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'border-border text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
               title={c.title}
             >
               {c.title.length > 22 ? c.title.slice(0, 20) + '…' : c.title}
@@ -421,9 +419,9 @@ export default function LessonsPage() {
             const TypeIcon = TYPE_ICON[lesson.lesson_type] ?? BookOpenIcon;
             const typeColor = TYPE_COLOR[lesson.lesson_type] ?? 'bg-muted text-muted-foreground';
             const statusColor =
-              lesson.status === 'active'    ? 'bg-emerald-500' :
-              lesson.status === 'completed' ? 'bg-blue-500'    :
-              lesson.status === 'scheduled' ? 'bg-amber-500'   : 'bg-muted';
+              lesson.status === 'active' ? 'bg-emerald-500' :
+                lesson.status === 'completed' ? 'bg-blue-500' :
+                  lesson.status === 'scheduled' ? 'bg-amber-500' : 'bg-muted';
 
             return (
               <div key={lesson.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col overflow-hidden">
@@ -517,10 +515,10 @@ export default function LessonsPage() {
           <h2 className="text-sm font-bold text-foreground mb-4">Teaching Tools</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'Add Lesson',    desc: 'Create lesson content',   icon: BookOpenIcon,       color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/lessons/add'      },
-              { label: 'Assignments',   desc: 'Tasks & assessments',     icon: DocumentTextIcon,   color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments/new'  },
-              { label: 'CBT Exams',     desc: 'Online examinations',     icon: AcademicCapIcon,    color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'              },
-              { label: 'Classes',       desc: 'Manage class groups',     icon: UserGroupIcon,      color: 'text-amber-400',  bg: 'bg-amber-500/10',  href: '/dashboard/classes'          },
+              { label: 'Add Lesson', desc: 'Create lesson content', icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/lessons/add' },
+              { label: 'Assignments', desc: 'Tasks & assessments', icon: DocumentTextIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/assignments/new' },
+              { label: 'CBT Exams', desc: 'Online examinations', icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/cbt' },
+              { label: 'Classes', desc: 'Manage class groups', icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/classes' },
             ].map(a => (
               <Link
                 key={a.label}

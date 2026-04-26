@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type InboxCategory = 'students' | 'parents' | 'school' | 'teachers';
-type SidebarView   = 'chats' | 'contacts';
+type SidebarView = 'chats' | 'contacts';
 
 interface Conversation {
   id: string;
@@ -124,21 +124,21 @@ function sameDay(a: string, b: string) {
 
 const AVATAR_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-500',
-  parents:  'bg-primary',
-  school:   'bg-blue-600',
+  parents: 'bg-primary',
+  school: 'bg-blue-600',
   teachers: 'bg-violet-600',
 };
 const ROLE_COLORS: Record<string, string> = {
   student: 'bg-emerald-500/20 text-emerald-400',
-  parent:  'bg-primary/20 text-primary',
+  parent: 'bg-primary/20 text-primary',
   teacher: 'bg-violet-500/20 text-violet-400',
-  school:  'bg-blue-500/20 text-blue-400',
-  admin:   'bg-rose-500/20 text-rose-400',
+  school: 'bg-blue-500/20 text-blue-400',
+  admin: 'bg-rose-500/20 text-rose-400',
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-900/40 text-emerald-500',
-  parents:  'bg-orange-900/40 text-primary',
-  school:   'bg-blue-900/40 text-blue-500',
+  parents: 'bg-orange-900/40 text-primary',
+  school: 'bg-blue-900/40 text-blue-500',
   teachers: 'bg-violet-900/40 text-violet-500',
 };
 
@@ -148,55 +148,55 @@ export default function UnifiedInbox() {
   const supabase = useMemo(() => createClient(), []);
 
   // Chat state
-  const [sidebarView, setSidebarView]         = useState<SidebarView>('chats');
-  const [activeTab, setActiveTab]             = useState<InboxCategory>('students');
-  const [conversations, setConversations]     = useState<Conversation[]>([]);
-  const [filteredConvs, setFilteredConvs]     = useState<Conversation[]>([]);
-  const [messages, setMessages]               = useState<Message[]>([]);
-  const [activeConv, setActiveConv]           = useState<Conversation | null>(null);
-  const [newMessage, setNewMessage]           = useState('');
-  const [isLoading, setIsLoading]             = useState(true);
-  const [isSending, setIsSending]             = useState(false);
-  const [showSidebar, setShowSidebar]         = useState(true);
-  const [showInfo, setShowInfo]               = useState(false);
-  const [convSearch, setConvSearch]           = useState('');
-  const [filterUnread, setFilterUnread]       = useState(false);
-  const [msgLoading, setMsgLoading]           = useState(false);
-  const [sendError, setSendError]             = useState('');
-  const [policySignal, setPolicySignal]       = useState<string>('');
-  const [queueSummary, setQueueSummary]       = useState<{ all: number; unassigned: number; overdue: number; needs_escalation: number } | null>(null);
-  const [queueFilter, setQueueFilter]         = useState<'all' | 'unassigned' | 'overdue' | 'needs_escalation'>('all');
-  const [convPriority, setConvPriority]       = useState<'low' | 'medium' | 'high'>('medium');
-  const [convSlaDueAt, setConvSlaDueAt]       = useState('');
-  const [savingConvMeta, setSavingConvMeta]   = useState(false);
+  const [sidebarView, setSidebarView] = useState<SidebarView>('chats');
+  const [activeTab, setActiveTab] = useState<InboxCategory>('students');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [filteredConvs, setFilteredConvs] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activeConv, setActiveConv] = useState<Conversation | null>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
+  const [convSearch, setConvSearch] = useState('');
+  const [filterUnread, setFilterUnread] = useState(false);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [policySignal, setPolicySignal] = useState<string>('');
+  const [queueSummary, setQueueSummary] = useState<{ all: number; unassigned: number; overdue: number; needs_escalation: number } | null>(null);
+  const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'overdue' | 'needs_escalation'>('all');
+  const [convPriority, setConvPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [convSlaDueAt, setConvSlaDueAt] = useState('');
+  const [savingConvMeta, setSavingConvMeta] = useState(false);
 
   // Contacts state
-  const [contacts, setContacts]               = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
-  const [contactSearch, setContactSearch]     = useState('');
+  const [contactSearch, setContactSearch] = useState('');
   const [contactRoleFilter, setContactRoleFilter] = useState<string>('all');
-  const [activeContact, setActiveContact]     = useState<Contact | null>(null);
-  const [showAddContact, setShowAddContact]   = useState(false);
-  const [addContactForm, setAddContactForm]   = useState(EMPTY_CONTACT_FORM);
-  const [savingContact, setSavingContact]     = useState(false);
-  const [contactError, setContactError]       = useState('');
-  const [editingContact, setEditingContact]   = useState<Contact | null>(null);
+  const [activeContact, setActiveContact] = useState<Contact | null>(null);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [addContactForm, setAddContactForm] = useState(EMPTY_CONTACT_FORM);
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactError, setContactError] = useState('');
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   // New chat (from contacts modal)
-  const [showNewChat, setShowNewChat]           = useState(false);
-  const [directorySearch, setDirectorySearch]   = useState('');
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState('');
   const [directoryResults, setDirectoryResults] = useState<any[]>([]);
   const [loadingDirectory, setLoadingDirectory] = useState(false);
 
   // Quick chat by number (floating button)
-  const [showQuickChat, setShowQuickChat]       = useState(false);
-  const [quickChatNumber, setQuickChatNumber]   = useState('');
-  const [quickChatError, setQuickChatError]     = useState('');
+  const [showQuickChat, setShowQuickChat] = useState(false);
+  const [quickChatNumber, setQuickChatNumber] = useState('');
+  const [quickChatError, setQuickChatError] = useState('');
 
   // Advanced contact filters
   const [contactSchoolFilter, setContactSchoolFilter] = useState('');
-  const [contactClassFilter, setContactClassFilter]   = useState('');
+  const [contactClassFilter, setContactClassFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // "Save to contacts" for unknown inbound senders
@@ -233,13 +233,13 @@ export default function UnifiedInbox() {
   // Subject dialog (replaces window.prompt for school/teacher convs)
   const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
 
-  const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const textareaRef     = useRef<HTMLTextAreaElement>(null);
-  const activeConvRef   = useRef<Conversation | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeConvRef = useRef<Conversation | null>(null);
 
-  const isSchool  = profile?.role === 'school';
+  const isSchool = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
-  const isAdmin   = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin';
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
@@ -266,7 +266,7 @@ export default function UnifiedInbox() {
           setPolicySignal('Messaging safety policy is active.');
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [hasAccess]);
 
   useEffect(() => {
@@ -274,7 +274,7 @@ export default function UnifiedInbox() {
     fetch(`/api/inbox/queue?filter=${queueFilter}`)
       .then((r) => r.json())
       .then((j) => setQueueSummary(j.summary ?? null))
-      .catch(() => {});
+      .catch(() => { });
   }, [isStaff, activeTab, queueFilter, conversations.length]);
 
   useEffect(() => {
@@ -319,9 +319,9 @@ export default function UnifiedInbox() {
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs = [
-    { id: 'students'  as const, label: isParentOrStudent ? 'Contact Center' : 'WhatsApp', icon: MessageSquare },
-    ...(!isSchool && !isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents',             icon: Users }] : []),
-    ...(isAdmin   ? [{ id: 'teachers' as const, label: 'Teachers',           icon: GraduationCap }] : []),
+    { id: 'students' as const, label: isParentOrStudent ? 'Contact Center' : 'WhatsApp', icon: MessageSquare },
+    ...(!isSchool && !isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
+    ...(isAdmin ? [{ id: 'teachers' as const, label: 'Teachers', icon: GraduationCap }] : []),
     ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
   ];
 
@@ -474,14 +474,14 @@ export default function UnifiedInbox() {
 
   function normaliseMsg(m: any): Message {
     return {
-      id:              m.id,
+      id: m.id,
       conversation_id: m.conversation_id || m.thread_id || '',
-      sender_id:       m.sender_id,
-      direction:       m.direction,
-      body:            m.body,
-      created_at:      m.created_at || m.sent_at,
-      status:          m.status,
-      is_read:         m.is_read,
+      sender_id: m.sender_id,
+      direction: m.direction,
+      body: m.body,
+      created_at: m.created_at || m.sent_at,
+      status: m.status,
+      is_read: m.is_read,
     };
   }
 
@@ -539,17 +539,17 @@ export default function UnifiedInbox() {
 
           const { data } = await query;
           if (data) setConversations(data.map(c => ({
-            id:                   c.id,
-            type:                 'students' as const,
-            phone_number:         c.phone_number,
-            contact_name:         c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
-            last_message_at:      c.last_message_at || '',
+            id: c.id,
+            type: 'students' as const,
+            phone_number: c.phone_number,
+            contact_name: c.contact_name || (c.portal_user as any)?.full_name || c.phone_number || 'Unknown',
+            last_message_at: c.last_message_at || '',
             last_message_preview: c.last_message_preview || '',
-            unread_count:         c.unread_count || 0,
-            school_name:          (c.portal_user as any)?.school_name || c.school_name,
-            role:                 (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
-            portal_user_id:       c.portal_user_id ?? undefined,
-            assigned_staff_id:    c.assigned_staff_id,
+            unread_count: c.unread_count || 0,
+            school_name: (c.portal_user as any)?.school_name || c.school_name,
+            role: (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
+            portal_user_id: c.portal_user_id ?? undefined,
+            assigned_staff_id: c.assigned_staff_id,
           })));
         }
       } else if (cat === 'parents') {
@@ -561,48 +561,48 @@ export default function UnifiedInbox() {
         if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id);
         const { data } = await q;
         if (data) setConversations(data.map(t => {
-          const msgs  = (t.messages ?? []) as any[];
-          const last  = msgs.sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())[0];
+          const msgs = (t.messages ?? []) as any[];
+          const last = msgs.sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())[0];
           const unread = msgs.filter(m => !m.is_read && m.sender_id !== profile?.id).length;
           return {
             id: t.id, type: 'parents' as const,
-            contact_name:         (t.parent as any)?.full_name || 'Parent',
-            student_name:         (t.student as any)?.full_name,
-            avatar_url:           (t.parent as any)?.avatar_url,
-            last_message_at:      last?.sent_at || t.created_at,
+            contact_name: (t.parent as any)?.full_name || 'Parent',
+            student_name: (t.student as any)?.full_name,
+            avatar_url: (t.parent as any)?.avatar_url,
+            last_message_at: last?.sent_at || t.created_at,
             last_message_preview: last?.body || 'No messages yet',
-            unread_count:         unread,
-            phone_number:         (t.parent as any)?.phone,
-            school_name:          (t.parent as any)?.school_name,
-            role:                 'parent',
+            unread_count: unread,
+            phone_number: (t.parent as any)?.phone,
+            school_name: (t.parent as any)?.school_name,
+            role: 'parent',
           };
         }));
       } else if (cat === 'teachers') {
         // Admin-only: direct messages with individual teachers
         // Re-uses school_teacher_conversations filtered to where teacher side is a teacher (not a school)
-        const res  = await fetch('/api/school-teacher/conversations?type=teacher');
+        const res = await fetch('/api/school-teacher/conversations?type=teacher');
         const json = await res.json();
         if (json.data) setConversations(json.data.map((c: any) => ({
-          id:                   c.id, type: 'teachers' as const,
-          contact_name:         c.teacher?.full_name || 'Teacher',
-          subject:              c.subject,
-          last_message_at:      c.last_message_at || c.created_at,
+          id: c.id, type: 'teachers' as const,
+          contact_name: c.teacher?.full_name || 'Teacher',
+          subject: c.subject,
+          last_message_at: c.last_message_at || c.created_at,
           last_message_preview: c.last_message_preview || 'No messages yet',
-          unread_count:         c.unread_count || 0,
-          school_name:          c.teacher?.school_name,
-          role:                 'teacher',
+          unread_count: c.unread_count || 0,
+          school_name: c.teacher?.school_name,
+          role: 'teacher',
         })));
       } else {
-        const res  = await fetch('/api/school-teacher/conversations');
+        const res = await fetch('/api/school-teacher/conversations');
         const json = await res.json();
         if (json.data) setConversations(json.data.map((c: any) => ({
-          id:                   c.id, type: 'school' as const,
-          contact_name:         isSchool ? (c.teacher?.full_name || 'Teacher') : (c.school?.name || 'School Office'),
-          subject:              c.subject,
-          last_message_at:      c.last_message_at || c.created_at,
+          id: c.id, type: 'school' as const,
+          contact_name: isSchool ? (c.teacher?.full_name || 'Teacher') : (c.school?.name || 'School Office'),
+          subject: c.subject,
+          last_message_at: c.last_message_at || c.created_at,
           last_message_preview: c.last_message_preview || 'No messages yet',
-          unread_count:         c.unread_count || 0,
-          role:                 isSchool ? 'teacher' : 'school',
+          unread_count: c.unread_count || 0,
+          role: isSchool ? 'teacher' : 'school',
         })));
       }
     } catch (err) { console.error('fetchConversations error:', err); }
@@ -669,15 +669,15 @@ export default function UnifiedInbox() {
 
       const { data: portalUsers } = await q.limit(200);
       const portalContacts: Contact[] = (portalUsers ?? []).map((u: any) => ({
-        id:           u.id,
-        full_name:    u.full_name || 'Unknown',
-        phone:        u.phone,
-        email:        u.email,
-        school_name:  u.school_name,
-        school_id:    u.school_id,
-        role:         u.role,
-        is_active:    u.is_active,
-        source:       'portal' as const,
+        id: u.id,
+        full_name: u.full_name || 'Unknown',
+        phone: u.phone,
+        email: u.email,
+        school_name: u.school_name,
+        school_id: u.school_id,
+        role: u.role,
+        is_active: u.is_active,
+        source: 'portal' as const,
         portal_user_id: u.id,
       }));
 
@@ -691,11 +691,11 @@ export default function UnifiedInbox() {
           .order('last_message_at', { ascending: false })
           .limit(100);
         externalContacts = (waConvs ?? []).map((c: any) => ({
-          id:        c.id,
+          id: c.id,
           full_name: c.contact_name || c.phone_number || 'Unknown',
-          phone:     c.phone_number,
-          role:      'external',
-          source:    'whatsapp' as const,
+          phone: c.phone_number,
+          role: 'external',
+          source: 'whatsapp' as const,
         }));
       }
 
@@ -711,9 +711,9 @@ export default function UnifiedInbox() {
   // ── Filter contacts ────────────────────────────────────────────────────────
   useEffect(() => {
     let r = contacts;
-    if (contactRoleFilter !== 'all')      r = r.filter(c => c.role === contactRoleFilter);
-    if (contactSchoolFilter.trim())        r = r.filter(c => c.school_name?.toLowerCase().includes(contactSchoolFilter.toLowerCase()));
-    if (contactClassFilter.trim())         r = r.filter(c => c.class_name?.toLowerCase().includes(contactClassFilter.toLowerCase()));
+    if (contactRoleFilter !== 'all') r = r.filter(c => c.role === contactRoleFilter);
+    if (contactSchoolFilter.trim()) r = r.filter(c => c.school_name?.toLowerCase().includes(contactSchoolFilter.toLowerCase()));
+    if (contactClassFilter.trim()) r = r.filter(c => c.class_name?.toLowerCase().includes(contactClassFilter.toLowerCase()));
     if (contactSearch.trim()) {
       const q = contactSearch.toLowerCase();
       r = r.filter(c =>
@@ -732,13 +732,13 @@ export default function UnifiedInbox() {
     if (!activeConv) return;
     setEditingContact(null);
     setAddContactForm({
-      full_name:   activeConv.contact_name,
-      phone:       activeConv.phone_number || '',
-      email:       '',
+      full_name: activeConv.contact_name,
+      phone: activeConv.phone_number || '',
+      email: '',
       school_name: activeConv.school_name || '',
-      role:        activeConv.role || 'student',
-      class_name:  activeConv.class_name || '',
-      notes:       '',
+      role: activeConv.role || 'student',
+      class_name: activeConv.class_name || '',
+      notes: '',
     });
     setContactError('');
     setShowAddContact(true);
@@ -756,7 +756,7 @@ export default function UnifiedInbox() {
       } else {
         await supabase.from('school_teacher_messages').update({ is_read: true }).eq('conversation_id', conv.id).neq('sender_id', profile.id);
       }
-      
+
       setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
     } catch (err) { console.error('markAsRead error:', err); }
   };
@@ -810,8 +810,8 @@ export default function UnifiedInbox() {
     setSavingProfile(true);
     try {
       await supabase.from('portal_users').update({
-        full_name:   profileForm.full_name,
-        phone:       profileForm.phone || undefined,
+        full_name: profileForm.full_name,
+        phone: profileForm.phone || undefined,
         school_name: profileForm.school_name || undefined,
         section_class: profileForm.class_name || undefined,
       }).eq('id', profile!.id);
@@ -830,14 +830,14 @@ export default function UnifiedInbox() {
     setIsSending(true);
     try {
       if (activeConv.type === 'students') {
-        const res  = await fetch('/api/inbox/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: activeConv.id, message: body }) });
+        const res = await fetch('/api/inbox/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: activeConv.id, message: body }) });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Send failed');
         if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
         if (json.policy && typeof json.policy.remaining_daily === 'number') {
           setPolicySignal(`Daily messages left: ${json.policy.remaining_daily}.`);
         }
-        
+
         // Show warning if number is not on WhatsApp
         if (json.is_not_whatsapp_user) {
           setSendError(`⚠️ ${json.message || 'This number is not registered on WhatsApp'}`);
@@ -928,7 +928,7 @@ export default function UnifiedInbox() {
               .select('id, full_name, phone, school_name, role')
               .in('role', ['admin', 'teacher', 'school'])
               .eq('is_active', true);
-            
+
             data = (staffData ?? []).map((u: any) => ({
               id: u.id,
               full_name: u.full_name || 'Staff',
@@ -959,10 +959,10 @@ export default function UnifiedInbox() {
           if (directorySearch) extQ = extQ.ilike('contact_name', `%${directorySearch}%`);
           const extRaw = (await extQ.limit(20)).data || [];
           const extContacts = extRaw.map((c: any) => ({
-            id:           c.id,
-            full_name:    c.contact_name || c.phone_number || 'Unknown',
-            phone:        c.phone_number,
-            role:         'external',
+            id: c.id,
+            full_name: c.contact_name || c.phone_number || 'Unknown',
+            phone: c.phone_number,
+            role: 'external',
             isExternalWA: true,   // flag: already has a WA conversation record
           }));
 
@@ -1008,14 +1008,14 @@ export default function UnifiedInbox() {
     setQuickChatError('');
     setShowQuickChat(false);
     setQuickChatNumber('');
-    
+
     // Check if conversation exists
     const { data: existing } = await supabase
       .from('whatsapp_conversations')
       .select('*')
       .eq('phone_number', phone)
       .maybeSingle();
-    
+
     if (existing) {
       // Open existing conversation
       const c: Conversation = {
@@ -1046,7 +1046,7 @@ export default function UnifiedInbox() {
         })
         .select()
         .single();
-      
+
       if (created) {
         const c: Conversation = {
           id: created.id,
@@ -1145,13 +1145,13 @@ export default function UnifiedInbox() {
         ).data;
         if (thread) {
           const c: Conversation = {
-            id:                   thread.id,
-            type:                 'parents' as const,
-            contact_name:         item.full_name || 'Parent',
-            last_message_at:      thread.created_at || new Date().toISOString(),
+            id: thread.id,
+            type: 'parents' as const,
+            contact_name: item.full_name || 'Parent',
+            last_message_at: thread.created_at || new Date().toISOString(),
             last_message_preview: 'No messages yet',
-            unread_count:         0,
-            role:                 'parent',
+            unread_count: 0,
+            role: 'parent',
           };
           setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
           setActiveConv(c);
@@ -1168,7 +1168,7 @@ export default function UnifiedInbox() {
 
   // ── Confirm subject dialog and create school/teacher conversation ─────────
   const confirmSubjectAndCreate = async () => {
-    const item    = subjectDialog.pendingItem;
+    const item = subjectDialog.pendingItem;
     const subject = subjectDialog.subject.trim();
     if (!subject || !item) return;
     setSubjectDialog({ open: false, subject: '', pendingItem: null });
@@ -1177,7 +1177,7 @@ export default function UnifiedInbox() {
       const res = await fetch('/api/school-teacher/conversations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          school_id:  isSchool ? (profile?.school_id || '') : (isTeacherTab ? null : item.id),
+          school_id: isSchool ? (profile?.school_id || '') : (isTeacherTab ? null : item.id),
           teacher_id: isSchool ? item.id : (isTeacherTab ? item.id : profile?.id),
           subject,
         }),
@@ -1185,15 +1185,15 @@ export default function UnifiedInbox() {
       const json = await res.json();
       if (json.data) {
         const c: Conversation = {
-          id:                   json.data.id,
-          type:                 isTeacherTab ? 'teachers' : 'school',
-          contact_name:         isTeacherTab ? (item.full_name || 'Teacher') : isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'),
-          school_name:          isTeacherTab ? item.school_name : undefined,
-          role:                 isTeacherTab ? 'teacher' : isSchool ? 'teacher' : 'school',
+          id: json.data.id,
+          type: isTeacherTab ? 'teachers' : 'school',
+          contact_name: isTeacherTab ? (item.full_name || 'Teacher') : isSchool ? (item.full_name || 'Teacher') : (item.name || 'School'),
+          school_name: isTeacherTab ? item.school_name : undefined,
+          role: isTeacherTab ? 'teacher' : isSchool ? 'teacher' : 'school',
           subject,
-          last_message_at:      json.data.created_at || new Date().toISOString(),
+          last_message_at: json.data.created_at || new Date().toISOString(),
           last_message_preview: '',
-          unread_count:         0,
+          unread_count: 0,
         };
         setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
         setActiveConv(c); setShowSidebar(false);
@@ -1234,11 +1234,11 @@ export default function UnifiedInbox() {
   // ── Open email compose pre-filled from a contact or conversation ──────────
   const openEmailCompose = (contact?: Contact | Conversation | null) => {
     setEmailForm({
-      to:       (contact as any)?.email || (contact as any)?.phone_number || '',
-      to_name:  (contact as any)?.full_name || (contact as any)?.contact_name || '',
-      subject:  '',
-      body:     '',
-      cc:       '',
+      to: (contact as any)?.email || (contact as any)?.phone_number || '',
+      to_name: (contact as any)?.full_name || (contact as any)?.contact_name || '',
+      subject: '',
+      body: '',
+      cc: '',
     });
     setEmailError(''); setEmailSuccess('');
     setShowEmailCompose(true);
@@ -1287,14 +1287,14 @@ export default function UnifiedInbox() {
       if (existing) {
         const c: Conversation = {
           id: existing.id, type: 'students',
-          phone_number:         existing.phone_number,
-          contact_name:         contact.full_name,
-          last_message_at:      existing.last_message_at ?? '',
+          phone_number: existing.phone_number,
+          contact_name: contact.full_name,
+          last_message_at: existing.last_message_at ?? '',
           last_message_preview: existing.last_message_preview || '',
-          unread_count:         existing.unread_count || 0,
-          school_name:          contact.school_name,
-          role:                 contact.role,
-          portal_user_id:       contact.portal_user_id,
+          unread_count: existing.unread_count || 0,
+          school_name: contact.school_name,
+          role: contact.role,
+          portal_user_id: contact.portal_user_id,
         };
         setActiveConv(c); setShowSidebar(false);
       } else if (contact.phone) {
@@ -1337,8 +1337,8 @@ export default function UnifiedInbox() {
         // Update portal_users if it's a portal contact
         if (editingContact.source === 'portal') {
           const { error } = await supabase.from('portal_users').update({
-            full_name:   addContactForm.full_name,
-            phone:       addContactForm.phone || undefined,
+            full_name: addContactForm.full_name,
+            phone: addContactForm.phone || undefined,
             school_name: addContactForm.school_name || undefined,
           }).eq('id', editingContact.id);
           if (error) throw error;
@@ -1352,32 +1352,32 @@ export default function UnifiedInbox() {
         }
         setContacts(prev => prev.map(c => c.id === editingContact.id ? {
           ...c,
-          full_name:   addContactForm.full_name,
-          phone:       addContactForm.phone,
-          email:       addContactForm.email,
+          full_name: addContactForm.full_name,
+          phone: addContactForm.phone,
+          email: addContactForm.email,
           school_name: addContactForm.school_name,
         } : c));
       } else {
         // New contact: create whatsapp_conversations record for external contacts
         const cleanPhone = addContactForm.phone?.replace(/\D/g, '');
         const insertPayload: Record<string, unknown> = {
-          contact_name:         addContactForm.full_name,
-          last_message_at:      new Date().toISOString(),
+          contact_name: addContactForm.full_name,
+          last_message_at: new Date().toISOString(),
           last_message_preview: '',
-          unread_count:         0,
+          unread_count: 0,
         };
         if (cleanPhone) insertPayload.phone_number = cleanPhone;
         const { data, error } = await (supabase.from('whatsapp_conversations') as any).insert(insertPayload).select().single();
         if (error) throw error;
         const newContact: Contact = {
-          id:        data.id,
+          id: data.id,
           full_name: addContactForm.full_name,
-          phone:     cleanPhone,
-          email:     addContactForm.email,
+          phone: cleanPhone,
+          email: addContactForm.email,
           school_name: addContactForm.school_name,
-          role:      addContactForm.role,
+          role: addContactForm.role,
           class_name: addContactForm.class_name,
-          source:    'whatsapp',
+          source: 'whatsapp',
         };
         setContacts(prev => [newContact, ...prev]);
       }
@@ -1396,7 +1396,7 @@ export default function UnifiedInbox() {
         .from('whatsapp_conversations')
         .update({ assigned_staff_id: staffId })
         .eq('id', convId);
-      
+
       if (error) throw error;
       setConversations(prev => prev.map(c => c.id === convId ? { ...c, assigned_staff_id: staffId } : c));
       if (activeConv?.id === convId) {
@@ -1505,9 +1505,8 @@ export default function UnifiedInbox() {
               {tabs.map(tab => (
                 <button key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setActiveConv(null); setConvSearch(''); setFilterUnread(false); }}
-                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${
-                    activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
-                  }`}>
+                  className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
+                    }`}>
                   <tab.icon className="w-[15px] h-[15px]" />{tab.label}
                 </button>
               ))}
@@ -1540,9 +1539,8 @@ export default function UnifiedInbox() {
                     key={q.id}
                     type="button"
                     onClick={() => setQueueFilter(q.id as typeof queueFilter)}
-                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${
-                      queueFilter === q.id ? 'bg-violet-500/30 text-violet-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${queueFilter === q.id ? 'bg-violet-500/30 text-violet-200' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                      }`}
                   >
                     {q.label}
                   </button>
@@ -1594,7 +1592,7 @@ export default function UnifiedInbox() {
                   return (
                     <div key={conv.id} onClick={() => { setActiveConv(conv); setShowSidebar(false); setShowInfo(false); }}
                       className={`flex items-center px-3 py-3 cursor-pointer transition-all border-b border-white/[0.04] group relative ${activeConv?.id === conv.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
-                      
+
                       <div className="relative shrink-0 mr-3">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-[15px] text-white ${AVATAR_COLORS[conv.type]}`}>
                           {initials(conv.contact_name)}
@@ -1621,7 +1619,7 @@ export default function UnifiedInbox() {
                           <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
                           <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-primary' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary text-white shadow-sm shadow-orange-900/40">You</span>}
                           {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
@@ -1727,10 +1725,9 @@ export default function UnifiedInbox() {
                     onClick={() => setActiveContact(prev => prev?.id === contact.id ? null : contact)}
                     className={`px-3 py-3 cursor-pointer transition-colors border-b border-white/[0.04] group ${activeContact?.id === contact.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
                     <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${
-                        contact.role === 'student' ? 'bg-emerald-500' : contact.role === 'parent' ? 'bg-primary' :
-                        contact.role === 'teacher' ? 'bg-blue-600' : contact.role === 'school' ? 'bg-indigo-600' : 'bg-white/20'
-                      }`}>
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${contact.role === 'student' ? 'bg-emerald-500' : contact.role === 'parent' ? 'bg-primary' :
+                          contact.role === 'teacher' ? 'bg-blue-600' : contact.role === 'school' ? 'bg-indigo-600' : 'bg-white/20'
+                        }`}>
                         {initials(contact.full_name)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1742,7 +1739,7 @@ export default function UnifiedInbox() {
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {contact.phone && <span className="text-[11px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />{contact.phone}</span>}
                           {contact.school_name && <span className="text-[11px] text-white/30 truncate max-w-[110px]">{contact.school_name}</span>}
-                          {contact.class_name  && <span className="text-[11px] text-violet-400">{contact.class_name}</span>}
+                          {contact.class_name && <span className="text-[11px] text-violet-400">{contact.class_name}</span>}
                         </div>
                       </div>
                       <ChevronRight className={`w-4 h-4 text-white/20 shrink-0 transition-transform ${activeContact?.id === contact.id ? 'rotate-90 text-primary' : 'group-hover:text-primary'}`} />
@@ -1774,9 +1771,9 @@ export default function UnifiedInbox() {
                         {/* Full detail row */}
                         {(contact.email || contact.school_name) && (
                           <div className="w-full mt-1 bg-[#111b21] rounded-xl p-2 space-y-1">
-                            {contact.email      && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Email:</span> {contact.email}</p>}
+                            {contact.email && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Email:</span> {contact.email}</p>}
                             {contact.school_name && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">School:</span> {contact.school_name}</p>}
-                            {contact.class_name  && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Class:</span> {contact.class_name}</p>}
+                            {contact.class_name && <p className="text-[11px] text-white/40"><span className="text-white/20 font-bold">Class:</span> {contact.class_name}</p>}
                           </div>
                         )}
                       </div>
@@ -1808,18 +1805,17 @@ export default function UnifiedInbox() {
                       <h3 className="font-bold text-white text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
                       <p className="text-[11px] text-white/40 truncate flex items-center gap-1.5">
                         {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
-                         activeConv.subject ? activeConv.subject :
-                         activeConv.student_name ? `Re: ${activeConv.student_name}` :
-                         activeConv.role || 'Chat'}
-                        
+                          activeConv.subject ? activeConv.subject :
+                            activeConv.student_name ? `Re: ${activeConv.student_name}` :
+                              activeConv.role || 'Chat'}
+
                         {/* Assignment Status Pill */}
                         {activeConv.type === 'students' && (
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
-                            activeConv.assigned_staff_id ? 'bg-violet-500/20 text-violet-400' : 'bg-white/5 text-white/30'
-                          }`}>
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
+                              activeConv.assigned_staff_id ? 'bg-violet-500/20 text-violet-400' : 'bg-white/5 text-white/30'
+                            }`}>
                             {activeConv.assigned_staff_id === profile?.id ? 'Assigned to you' :
-                             activeConv.assigned_staff_id ? `Assigned to ${staff.find(s => s.id === activeConv.assigned_staff_id)?.full_name || 'Staff'}` : 'Unassigned'}
+                              activeConv.assigned_staff_id ? `Assigned to ${staff.find(s => s.id === activeConv.assigned_staff_id)?.full_name || 'Staff'}` : 'Unassigned'}
                           </span>
                         )}
                       </p>
@@ -1832,7 +1828,7 @@ export default function UnifiedInbox() {
                 {/* Assignment Dropdown (Multi-user) */}
                 {activeConv.type === 'students' && (isAdmin || isSchool) && (
                   <div className="relative group/assign">
-                    <button 
+                    <button
                       disabled={!!assigningId}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-black rounded-lg transition-all border border-white/5"
                     >
@@ -1845,7 +1841,7 @@ export default function UnifiedInbox() {
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest px-2 py-1">Assign to Staff</p>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        <button 
+                        <button
                           onClick={() => assignConversation(activeConv.id, profile!.id)}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
                         >
@@ -1857,7 +1853,7 @@ export default function UnifiedInbox() {
                           {activeConv.assigned_staff_id === profile?.id && <Check className="w-4 h-4 text-primary" />}
                         </button>
                         {staff.filter(s => s.id !== profile?.id).map(s => (
-                          <button 
+                          <button
                             key={s.id}
                             onClick={() => assignConversation(activeConv.id, s.id)}
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10 transition-colors border-b border-white/5"
@@ -1873,7 +1869,7 @@ export default function UnifiedInbox() {
                             {activeConv.assigned_staff_id === s.id && <Check className="w-4 h-4 text-violet-500" />}
                           </button>
                         ))}
-                        <button 
+                        <button
                           onClick={() => assignConversation(activeConv.id, null)}
                           className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-rose-500/10 transition-colors text-white/40 hover:text-rose-400 group/unassign"
                         >
@@ -1890,7 +1886,7 @@ export default function UnifiedInbox() {
 
                 {/* Self-assign Quick Action for Teachers */}
                 {activeConv.type === 'students' && isTeacher && !activeConv.assigned_staff_id && (
-                  <button 
+                  <button
                     onClick={() => assignToMe(activeConv.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
                   >
@@ -1954,7 +1950,7 @@ export default function UnifiedInbox() {
                   </div>
                 ) : (
                   messages.map((msg, idx) => {
-                    const isMine   = msg.sender_id === profile?.id || msg.direction === 'outbound';
+                    const isMine = msg.sender_id === profile?.id || msg.direction === 'outbound';
                     const showDate = idx === 0 || !sameDay(messages[idx - 1].created_at, msg.created_at);
                     return (
                       <React.Fragment key={msg.id}>
@@ -1964,9 +1960,8 @@ export default function UnifiedInbox() {
                           </div>
                         )}
                         <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-[2px]`}>
-                          <div className={`max-w-[78%] md:max-w-[62%] shadow-sm ${
-                            isMine ? 'bg-[#005c4b] text-white rounded-[18px] rounded-tr-[4px] px-3.5 py-2' : 'bg-[#202c33] text-white rounded-[18px] rounded-tl-[4px] px-3.5 pt-2 pb-2'
-                          }`}>
+                          <div className={`max-w-[78%] md:max-w-[62%] shadow-sm ${isMine ? 'bg-[#005c4b] text-white rounded-[18px] rounded-tr-[4px] px-3.5 py-2' : 'bg-[#202c33] text-white rounded-[18px] rounded-tl-[4px] px-3.5 pt-2 pb-2'
+                            }`}>
                             {/* Inbound meta row — role/school/class for teachers/admins */}
                             {!isMine && (
                               <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
@@ -1990,8 +1985,8 @@ export default function UnifiedInbox() {
                               <span className="text-[10px]">{formatMsgTime(msg.created_at)}</span>
                               {isMine && (
                                 msg.is_read || msg.status === 'read' ? <CheckCheck className="w-3.5 h-3.5 text-blue-400" /> :
-                                msg.status === 'delivered'           ? <CheckCheck className="w-3.5 h-3.5" /> :
-                                                                       <Check className="w-3.5 h-3.5" />
+                                  msg.status === 'delivered' ? <CheckCheck className="w-3.5 h-3.5" /> :
+                                    <Check className="w-3.5 h-3.5" />
                               )}
                             </div>
                           </div>
@@ -2030,9 +2025,9 @@ export default function UnifiedInbox() {
 
                     {[
                       activeConv.phone_number ? { label: 'Phone / WhatsApp', value: `+${activeConv.phone_number}` } : null,
-                      activeConv.school_name  ? { label: 'School',           value: activeConv.school_name }       : null,
-                      activeConv.student_name ? { label: 'About Student',    value: activeConv.student_name }       : null,
-                      activeConv.subject      ? { label: 'Subject',          value: activeConv.subject }             : null,
+                      activeConv.school_name ? { label: 'School', value: activeConv.school_name } : null,
+                      activeConv.student_name ? { label: 'About Student', value: activeConv.student_name } : null,
+                      activeConv.subject ? { label: 'Subject', value: activeConv.subject } : null,
                       { label: 'Channel', value: activeConv.type === 'teachers' ? 'Internal · Teacher' : activeConv.type === 'school' ? 'Internal · School' : activeConv.type === 'parents' ? 'Internal · Parent' : 'WhatsApp' },
                     ].filter(Boolean).map((item: any) => (
                       <div key={item.label} className="bg-[#202c33]/60 rounded-lg p-3">
@@ -2128,7 +2123,7 @@ export default function UnifiedInbox() {
                   </div>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2.5">
                 <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
                   placeholder="Type a message…" rows={1}
@@ -2157,9 +2152,9 @@ export default function UnifiedInbox() {
             </div>
             <h1 className="text-[22px] font-black text-white/75 mb-2 tracking-tight">Unified Inbox</h1>
             <p className="text-white/25 max-w-xs text-[13px] leading-relaxed">
-              {isAdmin   ? 'All channels in one place — WhatsApp, parents, teachers & schools.' :
-               isSchool  ? 'Reach students via WhatsApp and communicate with teachers directly.' :
-               'Student WhatsApp messages, parent threads, and school communications.'}
+              {isAdmin ? 'All channels in one place — WhatsApp, parents, teachers & schools.' :
+                isSchool ? 'Reach students via WhatsApp and communicate with teachers directly.' :
+                  'Student WhatsApp messages, parent threads, and school communications.'}
             </p>
             <p className="text-white/15 text-[11px] mt-2 font-bold uppercase tracking-widest">
               Select a conversation to start
@@ -2178,44 +2173,44 @@ export default function UnifiedInbox() {
               </button>
             </div>
             <div className="w-full max-w-5xl mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 text-left">
-                <button 
-                  onClick={startSupportConversation}
-                  className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 hover:border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left"
-                >
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
-                    <MessageSquare className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Fast Response</p>
-                  <h3 className="text-base font-black text-white mt-2">Start WhatsApp Chat</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Direct line to rillcod support. Chat in real-time for quick answers.</p>
-                  <div className="mt-4 flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
-                    Open Channel <ChevronRight className="w-3 h-3" />
-                  </div>
-                </button>
+              <button
+                onClick={startSupportConversation}
+                className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 hover:border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition-colors">
+                  <MessageSquare className="w-5 h-5 text-emerald-400" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Fast Response</p>
+                <h3 className="text-base font-black text-white mt-2">Start WhatsApp Chat</h3>
+                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Direct line to rillcod support. Chat in real-time for quick answers.</p>
+                <div className="mt-4 flex items-center gap-1.5 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                  Open Channel <ChevronRight className="w-3 h-3" />
+                </div>
+              </button>
 
-                <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:border-cyan-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group">
-                  <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mb-3 group-hover:bg-cyan-500/30 transition-colors">
-                    <FileText className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
-                  <h3 className="text-base font-black text-white mt-2">Open Support Ticket</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
-                  <div className="mt-4 flex items-center gap-1.5 text-cyan-400 text-[10px] font-black uppercase tracking-widest">
-                    Create Ticket <ChevronRight className="w-3 h-3" />
-                  </div>
-                </Link>
+              <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:border-cyan-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group">
+                <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mb-3 group-hover:bg-cyan-500/30 transition-colors">
+                  <FileText className="w-5 h-5 text-cyan-400" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Formal Support</p>
+                <h3 className="text-base font-black text-white mt-2">Open Support Ticket</h3>
+                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Log billing, access, and platform issues with tracked staff follow-up.</p>
+                <div className="mt-4 flex items-center gap-1.5 text-cyan-400 text-[10px] font-black uppercase tracking-widest">
+                  Create Ticket <ChevronRight className="w-3 h-3" />
+                </div>
+              </Link>
 
-                <button onClick={openSupportEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5 hover:border-violet-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left">
-                  <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center mb-3 group-hover:bg-violet-500/30 transition-colors">
-                    <Mail className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
-                  <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
-                  <div className="mt-4 flex items-center gap-1.5 text-violet-400 text-[10px] font-black uppercase tracking-widest">
-                    Send Email <ChevronRight className="w-3 h-3" />
-                  </div>
-                </button>
+              <button onClick={openSupportEmailCompose} className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5 hover:border-violet-400/40 transition-all hover:scale-[1.02] active:scale-[0.98] group text-left">
+                <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center mb-3 group-hover:bg-violet-500/30 transition-colors">
+                  <Mail className="w-5 h-5 text-violet-400" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
+                <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
+                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+                <div className="mt-4 flex items-center gap-1.5 text-violet-400 text-[10px] font-black uppercase tracking-widest">
+                  Send Email <ChevronRight className="w-3 h-3" />
+                </div>
+              </button>
             </div>
             {isParentOrStudent && (
               <div className="w-full max-w-3xl mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
@@ -2279,8 +2274,8 @@ export default function UnifiedInbox() {
                 </h2>
                 <p className="text-white/30 text-[11px] mt-0.5">
                   {activeTab === 'students' ? 'Search students by name or school' :
-                   activeTab === 'parents'  ? 'Search parents by name' :
-                   isSchool                 ? 'Search teachers in your school' : 'Search partner schools'}
+                    activeTab === 'parents' ? 'Search parents by name' :
+                      isSchool ? 'Search teachers in your school' : 'Search partner schools'}
                 </p>
               </div>
               <button onClick={() => setShowNewChat(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-white/40" /></button>
@@ -2307,10 +2302,10 @@ export default function UnifiedInbox() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-white text-[13px] truncate">{item.full_name || item.name}</p>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                          {item.phone       && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
+                          {item.phone && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
                           {item.school_name && <span className="text-[10px] text-white/30 truncate">{item.school_name}</span>}
-                          {item.email       && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
-                          {item.role        && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
+                          {item.email && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
+                          {item.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
                           {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
                         </div>
                       </div>
@@ -2320,7 +2315,7 @@ export default function UnifiedInbox() {
 
                   {/* Message by Number Option */}
                   {activeTab === 'students' && directorySearch.replace(/\D/g, '').length >= 7 && (
-                    <button 
+                    <button
                       onClick={() => {
                         const phone = directorySearch.replace(/\D/g, '');
                         startNewConversation({ id: phone, full_name: `+${phone}`, phone: phone, role: 'external' });

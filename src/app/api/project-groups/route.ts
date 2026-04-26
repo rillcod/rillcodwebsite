@@ -15,14 +15,14 @@ async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
-    const profile  = await getCallerProfile(supabase);
+    const profile = await getCallerProfile(supabase);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const admin = createAdminClient();
-    const url   = new URL(req.url);
+    const url = new URL(req.url);
     const assignmentId = url.searchParams.get('assignment_id') ?? '';
 
-    const isStaff   = ['admin', 'teacher'].includes(profile.role);
+    const isStaff = ['admin', 'teacher'].includes(profile.role);
     const isStudent = profile.role === 'student';
 
     if (isStaff) {
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const profile  = await getCallerProfile(supabase);
+    const profile = await getCallerProfile(supabase);
     if (!profile || !['admin', 'teacher'].includes(profile.role)) {
       return NextResponse.json({ error: 'Staff only' }, { status: 403 });
     }
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, assignment_id, class_name, school_name, evaluation_type = 'individual', student_ids, member_tasks } = body;
 
-    if (!name?.trim())           return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
+    if (!name?.trim()) return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
     if (!Array.isArray(student_ids) || student_ids.length < 2) {
       return NextResponse.json({ error: 'Select at least 2 students for a group' }, { status: 400 });
     }
@@ -111,12 +111,12 @@ export async function POST(req: Request) {
     const { data: group, error: gErr } = await admin
       .from('project_groups')
       .insert({
-        name:            name.trim(),
-        assignment_id:   assignment_id || null,
-        class_name:      class_name    || null,
-        school_name:     school_name   || profile.school_name || null,
+        name: name.trim(),
+        assignment_id: assignment_id || null,
+        class_name: class_name || null,
+        school_name: school_name || profile.school_name || null,
         evaluation_type,
-        created_by:      profile.id,
+        created_by: profile.id,
       })
       .select()
       .single();
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const supabase = await createClient();
-    const profile  = await getCallerProfile(supabase);
+    const profile = await getCallerProfile(supabase);
     if (!profile || !['admin', 'teacher'].includes(profile.role)) {
       return NextResponse.json({ error: 'Staff only' }, { status: 403 });
     }
@@ -165,11 +165,11 @@ export async function PATCH(req: Request) {
       is_graded?: boolean;
     } = { updated_at: new Date().toISOString() };
 
-    if (name            !== undefined) updates.name            = name;
+    if (name !== undefined) updates.name = name;
     if (evaluation_type !== undefined) updates.evaluation_type = evaluation_type;
-    if (group_score     !== undefined) updates.group_score     = group_score;
-    if (group_feedback  !== undefined) updates.group_feedback  = group_feedback;
-    if (is_graded       !== undefined) updates.is_graded       = is_graded;
+    if (group_score !== undefined) updates.group_score = group_score;
+    if (group_feedback !== undefined) updates.group_feedback = group_feedback;
+    if (is_graded !== undefined) updates.is_graded = is_graded;
 
     const { error: gErr } = await admin.from('project_groups').update(updates).eq('id', id);
     if (gErr) throw gErr;
@@ -220,35 +220,16 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const supabase = await createClient();
-    const profile  = await getCallerProfile(supabase);
+    const profile = await getCallerProfile(supabase);
     if (!profile || !['admin', 'teacher'].includes(profile.role)) {
       return NextResponse.json({ error: 'Staff only' }, { status: 403 });
     }
 
-    const url   = new URL(req.url);
-    const id    = url.searchParams.get('id');
-    const force = url.searchParams.get('force') === 'true';
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
-
-    // Block deletion when students have graded work unless admin overrides with ?force=true
-    if (!force) {
-      const { count, error: countErr } = await (admin as any)
-        .from('project_submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', id);
-
-      if (countErr) {
-        console.error('[project-group-delete] submission check failed:', countErr);
-      } else if (count && count > 0) {
-        return NextResponse.json(
-          { error: `This group has ${count} submission(s). Pass ?force=true to delete anyway (admin only).` },
-          { status: 409 },
-        );
-      }
-    }
-
     const { error } = await admin.from('project_groups').delete().eq('id', id);
     if (error) throw error;
 

@@ -13,9 +13,9 @@ import {
 } from 'recharts';
 
 // ── Shared theme tokens ───────────────────────────────────────────────────────
-const GRID_COLOR   = 'rgba(255,255,255,0.06)';
-const AXIS_COLOR   = 'rgba(255,255,255,0.25)';
-const LABEL_STYLE  = { fontSize: 10, fontWeight: 700, fill: 'rgba(255,255,255,0.45)', fontFamily: 'inherit' };
+const GRID_COLOR = 'rgba(255,255,255,0.06)';
+const AXIS_COLOR = 'rgba(255,255,255,0.25)';
+const LABEL_STYLE = { fontSize: 10, fontWeight: 700, fill: 'rgba(255,255,255,0.45)', fontFamily: 'inherit' };
 const TOOLTIP_STYLE: React.CSSProperties = {
   background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
   borderRadius: 0, fontSize: 12, fontWeight: 600,
@@ -24,14 +24,14 @@ const TOOLTIP_STYLE: React.CSSProperties = {
 
 // Brand palette — cycling colours for multi-series data
 export const CHART_COLORS = {
-  orange:  '#f97316',
-  violet:  '#8b5cf6',
+  orange: '#f97316',
+  violet: '#8b5cf6',
   emerald: '#10b981',
-  blue:    '#3b82f6',
-  amber:   '#f59e0b',
-  rose:    '#f43f5e',
-  cyan:    '#06b6d4',
-  pink:    '#ec4899',
+  blue: '#3b82f6',
+  amber: '#f59e0b',
+  rose: '#f43f5e',
+  cyan: '#06b6d4',
+  pink: '#ec4899',
 };
 
 export const COLOR_SEQ = Object.values(CHART_COLORS);
@@ -103,10 +103,10 @@ export function VerticalBarChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }} barGap={3}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barGap={3}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />}
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         {bars.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />}
         {bars.map(b => (
@@ -132,10 +132,10 @@ export function AreaLineChart({
   const Chart = type === 'area' ? AreaChart : LineChart;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <Chart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+      <Chart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />}
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} />
         {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }} />}
         {series.map(s =>
@@ -224,10 +224,10 @@ export function StackedBarChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }} barGap={0}>
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barGap={0}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
         <XAxis dataKey={xKey} tick={LABEL_STYLE} axisLine={false} tickLine={false} />
-        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} width={30} />
+        <YAxis tick={LABEL_STYLE} axisLine={false} tickLine={false} />
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />
         {bars.map((b, i) => (
@@ -268,7 +268,7 @@ export function RadialRing({
           <span className="text-sm font-black text-foreground leading-none">{Math.round(pct * 100)}%</span>
         </div>
       </div>
-      {label    && <p className="text-xs font-black text-foreground">{label}</p>}
+      {label && <p className="text-xs font-black text-foreground">{label}</p>}
       {subLabel && <p className="text-[10px] text-muted-foreground">{subLabel}</p>}
     </div>
   );
