@@ -591,17 +591,14 @@ function LessonPlansPageInner() {
       return; // stop here, let the next render handle the next step
     }
 
-    // Step B: auto-pick curriculum — only when course is set AND no curriculum chosen yet
-    // AND there is exactly one visible option (avoids repeated state churn).
-    if (
-      form.course_id &&
-      !form.curriculum_version_id &&
-      visibleCurricula.length === 1
-    ) {
+    // Step B: auto-pick curriculum — prefer school-scoped over platform template.
+    // Fires whenever at least one curriculum exists for the selected course.
+    if (form.course_id && !form.curriculum_version_id && visibleCurricula.length >= 1) {
+      const best = visibleCurricula.find(c => c.school_id) ?? visibleCurricula[0];
       setForm(f =>
-        f.curriculum_version_id === visibleCurricula[0].id
+        f.curriculum_version_id === best.id
           ? f // already set — bail out to prevent loop
-          : { ...f, curriculum_version_id: visibleCurricula[0].id },
+          : { ...f, curriculum_version_id: best.id },
       );
       return;
     }
