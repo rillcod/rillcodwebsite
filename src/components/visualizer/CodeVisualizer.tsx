@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -75,28 +75,33 @@ export default function CodeVisualizer({
   const [currentStep, setCurrentStep] = useState(codeData.step);
   const [playbackSpeed, setPlaybackSpeed] = useState(speed);
   const [showMetrics, setShowMetrics] = useState(true);
+  // Stable ref so the interval closure never captures a stale callback
+  const onStepChangeRef = useRef(onStepChange);
+  onStepChangeRef.current = onStepChange;
 
   // Synchronize internal step with prop step
   useEffect(() => {
     setCurrentStep(codeData.step);
   }, [codeData.step]);
 
-  // Handle Playback Loop
+  // Playback loop — uses functional setState so currentStep is NOT a dependency,
+  // which means the interval is NOT recreated on every tick.
   useEffect(() => {
-    let interval: any;
-    if (isPlaying && currentStep < codeData.totalSteps - 1) {
-      interval = setInterval(() => {
-        const nextStep = currentStep + 1;
-        setCurrentStep(nextStep);
-        onStepChange?.(nextStep);
-        
-        if (nextStep >= codeData.totalSteps - 1) {
+    if (!isPlaying) return;
+    const totalSteps = codeData.totalSteps;
+    const interval = setInterval(() => {
+      setCurrentStep(prev => {
+        if (prev >= totalSteps - 1) {
           setIsPlaying(false);
+          return prev;
         }
-      }, 1000 / playbackSpeed);
-    }
+        const next = prev + 1;
+        onStepChangeRef.current?.(next);
+        return next;
+      });
+    }, 1000 / playbackSpeed);
     return () => clearInterval(interval);
-  }, [isPlaying, currentStep, codeData.totalSteps, playbackSpeed, onStepChange]);
+  }, [isPlaying, codeData.totalSteps, playbackSpeed]);
 
   const handleExport = async () => {
     if (!containerRef.current) return;
@@ -210,8 +215,10 @@ export default function CodeVisualizer({
                     {Object.entries(codeData.variables).map(([key, val]) => (
                       <div key={key} className="flex items-center gap-3">
                         <span className="text-[10px] font-bold text-white/50">{key}:</span>
-                        <span className="text-[10px] font-black text-white px-1.5 py-0.5 bg-white/5 border border-white/10 uppercase tabular-nums">
-                          {typeof val === 'number' ? val.toFixed(2) : String(val)}
+                        <span className="text-[10px] font-black text-white px-1.5 py-0.5 bg-white/5 border border-white/10 tabular-nums">
+                          {typeof val === 'number'
+                            ? (Number.isInteger(val) ? String(val) : val.toFixed(1))
+                            : String(val)}
                         </span>
                       </div>
                     ))}
