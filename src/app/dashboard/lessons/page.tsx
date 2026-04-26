@@ -54,7 +54,7 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 export default function LessonsPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, isLoading: authLoading, profileLoading } = useAuth();
   const searchParams = useSearchParams();
   const lessonPlanId = searchParams.get('lesson_plan_id');
   const [lessons, setLessons] = useState<any[]>([]);
@@ -253,7 +253,7 @@ export default function LessonsPage() {
   const active = lessons.filter(l => l.status === 'active').length;
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
-  if (authLoading || loading) return (
+  if (authLoading || (profileLoading && !profile) || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
@@ -370,8 +370,8 @@ export default function LessonsPage() {
           <button
             onClick={() => setFilterCourseId('')}
             className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${filterCourseId === ''
-                ? 'bg-primary/15 border-primary/40 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'
+              ? 'bg-primary/15 border-primary/40 text-primary'
+              : 'border-border text-muted-foreground hover:text-foreground'
               }`}
           >
             All
@@ -381,8 +381,8 @@ export default function LessonsPage() {
               key={c.id}
               onClick={() => setFilterCourseId(c.id)}
               className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${filterCourseId === c.id
-                  ? 'bg-primary/15 border-primary/40 text-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground'
+                ? 'bg-primary/15 border-primary/40 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground'
                 }`}
               title={c.title}
             >
