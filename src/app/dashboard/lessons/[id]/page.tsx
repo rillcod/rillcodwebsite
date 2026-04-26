@@ -1840,7 +1840,9 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
 
           /* ── TABLE ─────────────────────────────────────────────────── */
           case 'table': {
-            const headers: string[] = block.headers || block.columns || [];
+            // Support both AI-generated format (headers array) and editor format (col1_header/col2_header)
+            const headers: string[] = block.headers || block.columns
+              || (block.col1_header ? [block.col1_header, block.col2_header].filter(Boolean) : []);
             const rows: any[][] = block.rows || block.data || [];
             return (
               <AnimatedBlock key={i} i={i}>
@@ -1881,7 +1883,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
 
           /* ── COLUMNS ───────────────────────────────────────────────── */
           case 'columns': {
-            const cols: any[] = block.columns || block.items || [];
+            // Support editor format (left/right strings) and AI format (columns array)
+            const cols: any[] = block.columns || block.items
+              || (block.left !== undefined
+                ? [{ content: block.left }, { content: block.right }]
+                : []);
             return (
               <AnimatedBlock key={i} i={i}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

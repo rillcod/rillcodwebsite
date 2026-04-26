@@ -212,16 +212,16 @@ function LessonPlansPageInner() {
     setForm(f => ({ ...f, school_id: profileSchoolId }));
   }, [profile?.id, profile?.school_id, isAdmin, form.school_id]);
 
-  // If a curriculum is preselected (from pipeline query params), inherit its
-  // school scope so Step 2 "Import weeks from syllabus" behaves predictably.
+  // If a curriculum is selected and no school is chosen yet, inherit the
+  // curriculum's school. Never override an explicit school the teacher picked.
   useEffect(() => {
     if (!form.curriculum_version_id || curricula.length === 0) return;
     const selected = curricula.find(c => c.id === form.curriculum_version_id);
-    if (!selected) return;
-    if (selected.school_id && selected.school_id !== form.school_id) {
-      setForm(f => ({ ...f, school_id: selected.school_id ?? '' }));
-    }
-  }, [form.curriculum_version_id, curricula, form.school_id]);
+    if (!selected?.school_id) return;   // platform template — nothing to inherit
+    if (form.school_id) return;         // teacher already picked a school — don't override
+    setForm(f => ({ ...f, school_id: selected.school_id ?? '' }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.curriculum_version_id, curricula]);
 
   // When a programme is chosen in the create-plan modal, load that programme's courses explicitly.
   // The global `courses` list is capped at 500 rows — courses for the selected programme may not appear otherwise.
@@ -485,16 +485,30 @@ function LessonPlansPageInner() {
 
   const visibleCurricula = useMemo(() => {
     const selectedId = form.curriculum_version_id;
-    if (!form.school_id) {
-      // No explicit school selected: only show platform templates.
-      return curricula.filter(c => !c.school_id || (selectedId && c.id === selectedId));
+    const scoped = form.school_id
+      ? curricula.filter(c =>
+          !c.school_id ||
+          c.school_id === form.school_id ||
+          (selectedId ? c.id === selectedId : false),
+        )
+      : curricula.filter(c => !c.school_id || (selectedId && c.id === selectedId));
+
+    // Deduplicate: keep only the highest-version row per (course_id + school scope).
+    // If the DB somehow has duplicate rows (e.g. from a past RLS write failure),
+    // we surface only the latest so the picker never shows two identical labels.
+    const seen = new Map<string, Curriculum>();
+    for (const c of scoped) {
+      const key = `${c.school_id ?? '__platform__'}`;
+      const existing = seen.get(key);
+      if (!existing || (c.version ?? 0) > (existing.version ?? 0)) seen.set(key, c);
     }
-    // School selected: allow that school's copy or platform fallback.
-    return curricula.filter(c =>
-      !c.school_id ||
-      c.school_id === form.school_id ||
-      (selectedId ? c.id === selectedId : false),
-    );
+    // Always include currently selected even if dedup would drop it.
+    const deduped = Array.from(seen.values());
+    if (selectedId && !deduped.find(c => c.id === selectedId)) {
+      const sel = scoped.find(c => c.id === selectedId);
+      if (sel) deduped.push(sel);
+    }
+    return deduped;
   }, [curricula, form.school_id, form.curriculum_version_id]);
 
   const syllabusWeeksPreview = useMemo(() => {
@@ -1134,7 +1148,7 @@ function LessonPlansPageInner() {
                     <option value="">{visibleCurricula.length === 0 ? 'No syllabus available for this school scope' : '— Skip, start blank —'}</option>
                     {visibleCurricula.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.content?.course_title ?? 'Syllabus'} · v{c.version} · {c.school_id ? (c.schools?.name ?? 'School') : 'Platform'}
+                        {c.school_id ? (c.schools?.name ?? 'School') : 'Platform template'} — v{c.version}
                       </option>
                     ))}
                   </select>

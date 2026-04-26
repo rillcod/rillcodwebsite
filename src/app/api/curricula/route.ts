@@ -336,9 +336,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
-  // Update existing or insert new — scope by (course_id, targetSchoolId)
+  // Update existing or insert new — scope by (course_id, targetSchoolId).
+  // Always use admin client here so RLS never silently drops the write.
   if (course_id) {
-    let existingQuery = supabase
+    let existingQuery = admin
       .from('course_curricula')
       .select('id, version')
       .eq('course_id', course_id);
@@ -350,7 +351,7 @@ export async function POST(req: NextRequest) {
     const { data: existing } = await existingQuery.maybeSingle();
 
     if (existing) {
-      const { data, error } = await supabase
+      const { data, error } = await admin
         .from('course_curricula')
         .update({ content: aiContent, version: (existing as { version: number }).version + 1, updated_at: new Date().toISOString() })
         .eq('id', (existing as { id: string }).id)
@@ -365,7 +366,7 @@ export async function POST(req: NextRequest) {
   if (course_id) insertPayload.course_id = course_id;
   insertPayload.school_id = targetSchoolId;
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('course_curricula')
     .insert(insertPayload as any)
     .select('*, schools(id, name)')
