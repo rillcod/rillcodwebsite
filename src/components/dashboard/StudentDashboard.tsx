@@ -17,15 +17,15 @@ import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard'
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
-  Bronze:   { label: 'Bronze',   emoji: '🥉', bar: 'bg-amber-700',  text: 'text-amber-700',  border: 'border-amber-700/40' },
-  Silver:   { label: 'Silver',   emoji: '🥈', bar: 'bg-slate-400',  text: 'text-muted-foreground/70',  border: 'border-slate-400/40' },
-  Gold:     { label: 'Gold',     emoji: '🥇', bar: 'bg-amber-400',  text: 'text-amber-400',  border: 'border-amber-400/40' },
-  Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400',   text: 'text-cyan-400',   border: 'border-cyan-400/40' },
-  Modern:   { label: 'Level',    emoji: '⭐', bar: 'bg-primary', text: 'text-primary', border: 'border-primary/40' },
+  Bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-700', text: 'text-amber-700', border: 'border-amber-700/40' },
+  Silver: { label: 'Silver', emoji: '🥈', bar: 'bg-slate-400', text: 'text-muted-foreground/70', border: 'border-slate-400/40' },
+  Gold: { label: 'Gold', emoji: '🥇', bar: 'bg-amber-400', text: 'text-amber-400', border: 'border-amber-400/40' },
+  Platinum: { label: 'Platinum', emoji: '💎', bar: 'bg-cyan-400', text: 'text-cyan-400', border: 'border-cyan-400/40' },
+  Modern: { label: 'Level', emoji: '⭐', bar: 'bg-primary', text: 'text-primary', border: 'border-primary/40' },
 };
 const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 };
-const CUR_THRESHOLD:  Record<string, number>  = { Bronze: 0,   Silver: 500,  Gold: 2000, Platinum: 5000 };
-const NEXT_LEVEL:     Record<string, string>  = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum', Platinum: '∞' };
+const CUR_THRESHOLD: Record<string, number> = { Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000 };
+const NEXT_LEVEL: Record<string, string> = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum', Platinum: '∞' };
 
 export default function StudentDashboard() {
   const { profile } = useAuth();
@@ -51,7 +51,7 @@ export default function StudentDashboard() {
       try {
         const res = await fetch('/api/dashboard/stats');
         const json = await res.json();
-        
+
         if (json.stats) {
           const s = json.stats;
           setData(prev => ({
@@ -71,7 +71,7 @@ export default function StudentDashboard() {
         // Still fetch dynamic/list data not in basic stats RPC
         const db = createClient();
         const now = new Date().toISOString();
-        
+
         const [upcomingRes, recentGradesRes, activityRes, enrollRes] = await Promise.allSettled([
           // Fix: assignments don't have 'status', we just need upcoming ones
           // In a real scenario, we'd filter out already submitted ones via a join or secondary check
@@ -87,12 +87,12 @@ export default function StudentDashboard() {
 
         const upcomingDue = upcomingRes.status === 'fulfilled' ? (upcomingRes.value.data ?? []) : [];
         const recentGrades = recentGradesRes.status === 'fulfilled' ? (recentGradesRes.value.data ?? []) : [];
-        const recentActivity = activityRes.status === 'fulfilled' 
+        const recentActivity = activityRes.status === 'fulfilled'
           ? (activityRes.value.data ?? []).map((s: any) => ({
-              title: s.status === 'graded' ? 'Assignment graded' : 'Assignment submitted',
-              desc: s.assignments?.title ?? '—',
-              time: s.submitted_at,
-            }))
+            title: s.status === 'graded' ? 'Assignment graded' : 'Assignment submitted',
+            desc: s.assignments?.title ?? '—',
+            time: s.submitted_at,
+          }))
           : [];
 
         // Next lesson logic
@@ -152,7 +152,7 @@ export default function StudentDashboard() {
 
   let levelConf = LEVEL_COLORS[data.level] ?? LEVEL_COLORS.Bronze;
   let nextThreshold = NEXT_THRESHOLD[data.level] ?? 500;
-  let curThreshold  = CUR_THRESHOLD[data.level]  ?? 0;
+  let curThreshold = CUR_THRESHOLD[data.level] ?? 0;
   let nextLevelName = NEXT_LEVEL[data.level] ?? 'Next Level';
 
   if (data.level?.startsWith('Level ')) {
@@ -215,12 +215,12 @@ export default function StudentDashboard() {
       {/* Quick Nav */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Student Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'My Saved Work',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -249,7 +249,7 @@ export default function StudentDashboard() {
 
       {/* ── TOP SECTION: PRIMARY LEARNING ACTIONS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
+
         {/* Next Mission / Learning Hub - BIG CARD */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-1">
@@ -279,10 +279,10 @@ export default function StudentDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
-                 <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
-                    Resume Now
-                 </div>
-                 <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
+                <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
+                  Resume Now
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
               </div>
             </Link>
           ) : (
@@ -317,19 +317,19 @@ export default function StudentDashboard() {
                 Your learning path is kept up to date with the latest Rillcod lessons.
               </p>
             </div>
-            
+
             <div className="space-y-3 pt-4 border-t border-border">
-               <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-blue-500/30 transition-all">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
-                  <ArrowRightIcon className="w-3.5 h-3.5 text-blue-500" />
-               </Link>
-               <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
-                  <div className="flex items-center gap-2">
-                    {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
-                    <ArrowRightIcon className="w-3.5 h-3.5 text-rose-500" />
-                  </div>
-               </Link>
+              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-blue-500/30 transition-all">
+                <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
+                <ArrowRightIcon className="w-3.5 h-3.5 text-blue-500" />
+              </Link>
+              <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
+                <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
+                <div className="flex items-center gap-2">
+                  {data.pendingAssignments > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
+                  <ArrowRightIcon className="w-3.5 h-3.5 text-rose-500" />
+                </div>
+              </Link>
             </div>
           </div>
         </div>
@@ -337,11 +337,11 @@ export default function StudentDashboard() {
 
       {/* ── STATS & PROGRESS SECTION ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        
+
         {/* Profile/Level Card */}
         <div className="lg:col-span-3 bg-card border border-border p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="relative shrink-0">
               <div className={`w-20 h-20 border-2 ${levelConf.border} bg-background flex items-center justify-center text-4xl shadow-2xl`}>
@@ -387,7 +387,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
           <div className="bg-card border border-border p-4 flex flex-col justify-between">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Lessons Done</p>
             <div className="flex items-end justify-between mt-2">
@@ -433,7 +433,7 @@ export default function StudentDashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-foreground break-words">{data.nextLesson.title}</p>
-            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you&apos;ll learn</p>
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you&apos;ll learn</p>
                   </div>
                   <button type="button" onClick={generateHook} disabled={loadingHook}
                     className="w-full sm:w-auto shrink-0 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2">
@@ -449,12 +449,12 @@ export default function StudentDashboard() {
       {/* Quick Nav Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
-          { href: '/dashboard/learning',     icon: BookOpenIcon,  label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/cbt',          icon: AcademicCapIcon, label: 'Take a Quiz',   color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/leaderboard',  icon: TrophyIcon,    label: 'Leaderboard',     color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon,  label: 'Student Hub',    color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault',        icon: ArchiveBoxIcon, label: 'My Saved Work',   color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -567,8 +567,8 @@ export default function StudentDashboard() {
                   const due = new Date(a.due_date);
                   const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                   const urgency = daysLeft <= 1 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-                                : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                                : 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+                    : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                      : 'text-blue-400 bg-blue-500/10 border-blue-500/20';
                   return (
                     <div key={a.id} className="flex items-center gap-3 p-3 bg-background border border-border">
                       <div className="flex-1 min-w-0">
@@ -600,7 +600,7 @@ export default function StudentDashboard() {
                     ? Math.min(100, Math.round((g.grade / g.max_points) * 100))
                     : g.grade ?? 0;
                   const color = pct >= 70 ? 'text-emerald-400' : pct >= 55 ? 'text-amber-400' : 'text-rose-400';
-                  const bar   = pct >= 70 ? 'bg-emerald-500'   : pct >= 55 ? 'bg-amber-500'   : 'bg-rose-500';
+                  const bar = pct >= 70 ? 'bg-emerald-500' : pct >= 55 ? 'bg-amber-500' : 'bg-rose-500';
                   return (
                     <div key={g.id} className="p-3 bg-background border border-border">
                       <div className="flex items-center justify-between mb-1.5">

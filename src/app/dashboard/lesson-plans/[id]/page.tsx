@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
-  BoltIcon, LockOpenIcon,
+  BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -403,8 +403,12 @@ export default function LessonPlanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
-  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+  const [weekPanelOpen, setWeekPanelOpen] = useState(false);
   const [weekDraft, setWeekDraft] = useState<WeekEntry | null>(null);
+  const [practicalModal, setPracticalModal] = useState<{ weekNum: number; passScore: number } | null>(null);
+  const [practicalInput, setPracticalInput] = useState('0');
+  const [overrideModal, setOverrideModal] = useState<{ weekNum: number } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
   const [activeTab, setActiveTab] = useState<'weeks' | 'content'>('weeks');
   const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | 'progression' | null>(null);
   const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
@@ -615,28 +619,37 @@ export default function LessonPlanDetailPage() {
   }
 
   function addWeek() {
-    const newWeek: WeekEntry = { week: weeks.length + 1, topic: '', completed: false, objectives: '', activities: '', notes: '' };
+    const newWeek: WeekEntry = { 
+      week: weeks.length + 1, 
+      topic: '', 
+      completed: false, 
+      objectives: '', 
+      activities: '', 
+      notes: '',
+      project: { title: '', description: '' },
+      assignment: { title: '', brief: '' },
+      practical_assessment: { max_score: 100, pass_score: 60, practical_score: 0 }
+    };
     setWeeks(prev => [...prev, newWeek]);
-    setEditingWeek(newWeek.week);
     setWeekDraft(newWeek);
+    setWeekPanelOpen(true);
   }
 
   function startEdit(w: WeekEntry) {
-    setEditingWeek(w.week);
     setWeekDraft({ ...w });
+    setWeekPanelOpen(true);
   }
 
   function cancelEdit() {
-    setEditingWeek(null);
+    setWeekPanelOpen(false);
     setWeekDraft(null);
-    // Remove the last week if it was just added and has no topic
     setWeeks(prev => prev.filter(w => w.topic.trim() !== '' || w.week !== prev.length));
   }
 
   function saveWeekEdit() {
     if (!weekDraft) return;
     const updated = weeks.map(w => w.week === weekDraft.week ? weekDraft : w);
-    setEditingWeek(null);
+    setWeekPanelOpen(false);
     setWeekDraft(null);
     saveWeeks(updated);
   }
@@ -681,22 +694,22 @@ export default function LessonPlanDetailPage() {
       toast.error('This week is locked. Use override unlock if needed.');
       return;
     }
-
     const markingDone = !target.completed;
     const isStrict = (target.mastery_mode ?? 'strict') === 'strict';
-    let practicalScore = Number(target.practical_assessment?.practical_score ?? 0);
-    const passScore = Number(target.practical_assessment?.pass_score ?? 60);
     if (markingDone && isStrict) {
-      const input = window.prompt(`Enter practical score for Week ${weekNum} (0-100):`, String(practicalScore || '0'));
-      if (input === null) return;
-      const parsed = Number(input);
-      practicalScore = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 100) : 0;
+      setPracticalModal({ weekNum, passScore: Number(target.practical_assessment?.pass_score ?? 60) });
+      setPracticalInput(String(target.practical_assessment?.practical_score ?? '0'));
+      return;
     }
+    applyWeekCompletion(weekNum, markingDone, 0);
+  }
 
-    const shouldMaster = markingDone
-      ? (isStrict ? practicalScore >= passScore : true)
-      : false;
-
+  function applyWeekCompletion(weekNum: number, markingDone: boolean, practicalScore: number) {
+    const target = weeks.find((w) => w.week === weekNum);
+    if (!target) return;
+    const isStrict = (target.mastery_mode ?? 'strict') === 'strict';
+    const passScore = Number(target.practical_assessment?.pass_score ?? 60);
+    const shouldMaster = markingDone ? (isStrict ? practicalScore >= passScore : true) : false;
     const updated = weeks.map((w) => {
       if (w.week === weekNum) {
         return {
@@ -717,14 +730,27 @@ export default function LessonPlanDetailPage() {
     saveWeeks(updated);
   }
 
+  function confirmPracticalScore() {
+    if (!practicalModal) return;
+    const parsed = Number(practicalInput);
+    const score = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 100) : 0;
+    const { weekNum } = practicalModal;
+    setPracticalModal(null);
+    applyWeekCompletion(weekNum, true, score);
+  }
+
   function unlockWeekWithOverride(weekNum: number) {
-    const reason = window.prompt(`Override unlock reason for Week ${weekNum}:`, '');
-    if (reason === null) return;
-    const trimmed = reason.trim();
-    if (!trimmed) {
-      toast.error('Override reason is required.');
-      return;
-    }
+    setOverrideModal({ weekNum });
+    setOverrideReason('');
+  }
+
+  function confirmOverride() {
+    if (!overrideModal) return;
+    const trimmed = overrideReason.trim();
+    if (!trimmed) { toast.error('Override reason is required.'); return; }
+    const { weekNum } = overrideModal;
+    setOverrideModal(null);
+    setOverrideReason('');
     const updated = weeks.map((w) =>
       w.week === weekNum
         ? {
@@ -1358,7 +1384,7 @@ export default function LessonPlanDetailPage() {
         <div className="space-y-3">
         <div className="flex items-center justify-between print:hidden">
           <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
-          <button onClick={addWeek} disabled={saving || editingWeek !== null}
+          <button onClick={addWeek} disabled={saving || weekDraft !== null}
             className="flex items-center gap-2 px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
             <PlusIcon className="w-4 h-4" /> Add Week
           </button>
@@ -1371,105 +1397,63 @@ export default function LessonPlanDetailPage() {
         ) : (
           <div className="space-y-3">
             {weeks.map(w => (
-              <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden">
-                {editingWeek === w.week && weekDraft ? (
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-black text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
-                      {w.completed && (
-                        <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                          Completed
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1">Topic <span className="text-rose-400">*</span></label>
-                      <input value={weekDraft.topic} onChange={e => setWeekDraft(d => d ? { ...d, topic: e.target.value } : d)}
-                        placeholder="Week topic…"
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1">Objectives</label>
-                      <textarea value={weekDraft.objectives ?? ''} onChange={e => setWeekDraft(d => d ? { ...d, objectives: e.target.value } : d)}
-                        rows={2} placeholder="Learning objectives…"
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 resize-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1">Activities</label>
-                      <textarea value={weekDraft.activities ?? ''} onChange={e => setWeekDraft(d => d ? { ...d, activities: e.target.value } : d)}
-                        rows={2} placeholder="Teaching activities…"
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 resize-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1">Teacher Notes</label>
-                      <textarea value={weekDraft.notes ?? ''} onChange={e => setWeekDraft(d => d ? { ...d, notes: e.target.value } : d)}
-                        rows={2} placeholder="Internal notes…"
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 resize-none" />
-                    </div>
-                    {(weekDraft.gating_state ?? 'unlocked') === 'locked' && (
-                      <div>
-                        <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1">Override Reason (required for locked term edit)</label>
-                        <input
-                          value={weekDraft.override_reason ?? ''}
-                          onChange={e => setWeekDraft(d => d ? { ...d, override_reason: e.target.value } : d)}
-                          placeholder="Reason for editing locked term..."
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-cyan-500/50"
-                        />
-                      </div>
-                    )}
-                    <div className="flex gap-2 pt-1">
-                      <button onClick={saveWeekEdit} disabled={!weekDraft.topic.trim() || saving}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all">
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Save
-                      </button>
-                      <button onClick={cancelEdit} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 text-xs font-bold rounded-xl transition-all">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
+              <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors group">
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(w)}>
+                        <div className="flex items-center flex-wrap gap-1.5 mb-2">
                           <span className="text-xs font-black text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
                           {(w.gating_state ?? 'unlocked') === 'locked' && (
-                            <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                              Locked
-                            </span>
+                            <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Locked</span>
                           )}
                           {(w.gating_state ?? 'unlocked') === 'mastered' && (
-                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                              Mastered
-                            </span>
+                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Mastered</span>
                           )}
                           {w.completed && (
-                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                              Completed
-                            </span>
+                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Completed</span>
                           )}
                           {w.progression_badge?.label && (
-                            <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                              {w.progression_badge.label}
-                            </span>
+                            <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">{w.progression_badge.label}</span>
                           )}
                         </div>
                         <h3 className="font-bold text-card-foreground text-sm">{w.topic || <span className="text-card-foreground/30 italic">No topic</span>}</h3>
-                        {w.objectives && <p className="text-xs text-card-foreground/50 mt-1 line-clamp-1">{w.objectives}</p>}
-                        {typeof w.practical_assessment?.practical_score === 'number' && (
-                          <p className="text-[11px] text-amber-300/90 mt-0.5">
-                            Practical Score: {w.practical_assessment.practical_score}/{w.practical_assessment?.max_score ?? 100}
-                          </p>
-                        )}
-                        {w.override_reason && (
-                          <p className="text-[11px] text-cyan-300/90 mt-0.5">
-                            Override: {w.override_reason}
-                          </p>
-                        )}
-                        {w.assignment?.title && (
-                          <p className="text-[11px] text-blue-300/90 mt-1">Assignment: {w.assignment.title}</p>
-                        )}
-                        {w.project?.title && (
-                          <p className="text-[11px] text-emerald-300/90 mt-0.5">Project: {w.project.title}</p>
-                        )}
+                        {w.objectives && <p className="text-xs text-card-foreground/50 mt-1 line-clamp-2">{w.objectives}</p>}
+                        
+                        {/* Seed Data Preview */}
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {(w.project?.title || w.project?.description) && (
+                            <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-2.5">
+                              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project Seed</p>
+                              <p className="text-xs font-bold text-emerald-100/90 line-clamp-1">{w.project.title || 'Untitled Project'}</p>
+                              {w.project.description && <p className="text-[10px] text-emerald-300/50 mt-1 line-clamp-2 leading-relaxed">{w.project.description}</p>}
+                            </div>
+                          )}
+                          {(w.assignment?.title || w.assignment?.brief) && (
+                            <div className="bg-blue-500/[0.03] border border-blue-500/10 rounded-xl p-2.5">
+                              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Assignment Brief</p>
+                              <p className="text-xs font-bold text-blue-100/90 line-clamp-1">{w.assignment.title || 'Untitled Task'}</p>
+                              {w.assignment.brief && <p className="text-[10px] text-blue-300/50 mt-1 line-clamp-2 leading-relaxed">{w.assignment.brief}</p>}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-white/[0.04] pt-3">
+                          {w.practical_assessment && (
+                            <div className="flex items-center gap-2 bg-amber-500/5 border border-amber-500/10 px-2 py-1 rounded-lg">
+                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">Practical</span>
+                              <p className="text-xs text-amber-200/90 font-bold">
+                                {w.practical_assessment.practical_score ?? 0}/{w.practical_assessment.max_score ?? 100}
+                                <span className="ml-1 opacity-50 font-normal">(Pass: {w.practical_assessment.pass_score ?? 60}%)</span>
+                              </p>
+                            </div>
+                          )}
+                          {w.override_reason && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-black text-cyan-300/60 uppercase tracking-wider">Override</span>
+                              <p className="text-xs text-cyan-300/80 line-clamp-1">{w.override_reason}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1 print:hidden">
                         <Link
@@ -1527,8 +1511,7 @@ export default function LessonPlanDetailPage() {
                       {w.notes && <p><strong>Notes:</strong> {w.notes}</p>}
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
             ))}
           </div>
         )}
@@ -2647,6 +2630,245 @@ export default function LessonPlanDetailPage() {
               >
                 Generate {genConfirm.preview.projected_generations} {genConfirm.type}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Week Edit Panel — Slide Over */}
+      {weekPanelOpen && weekDraft && (
+        <div className="fixed inset-0 z-[60] overflow-hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={cancelEdit} />
+          <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex sm:pl-16">
+            <div className="w-screen max-w-2xl">
+              <div className="h-full flex flex-col bg-card border-l border-white/10 shadow-2xl">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.1),transparent_50%)]">
+                  <div>
+                    <h2 className="text-lg font-black text-card-foreground">Edit Week {weekDraft.week}</h2>
+                    <p className="text-xs text-card-foreground/50">Update curriculum details, projects, and assessments.</p>
+                  </div>
+                  <button onClick={cancelEdit} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                    <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                  {/* General Details */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-violet-300/70">Curriculum Foundation</h3>
+                    </div>
+                    <div className="space-y-4 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl">
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Week Topic</span>
+                        <input
+                          type="text"
+                          value={weekDraft.topic}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, topic: e.target.value })}
+                          placeholder="e.g., Introduction to Neural Networks"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-violet-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Learning Objectives</span>
+                        <textarea
+                          rows={3}
+                          value={weekDraft.objectives}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, objectives: e.target.value })}
+                          placeholder="What should students master this week?"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Classroom Activities</span>
+                        <textarea
+                          rows={3}
+                          value={weekDraft.activities}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, activities: e.target.value })}
+                          placeholder="Detail the planned flow and exercises."
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  {/* Project Section */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-emerald-300/70">Project Seed</h3>
+                    </div>
+                    <div className="space-y-4 bg-emerald-500/[0.02] border border-emerald-500/10 p-4 rounded-2xl">
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Title</span>
+                        <input
+                          type="text"
+                          value={weekDraft.project?.title || ''}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), title: e.target.value } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-emerald-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Description</span>
+                        <textarea
+                          rows={4}
+                          value={weekDraft.project?.description || ''}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), description: e.target.value } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-emerald-500/50 focus:ring-0 transition-all resize-none"
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  {/* Assignment Section */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-blue-300/70">Assignment Brief</h3>
+                    </div>
+                    <div className="space-y-4 bg-blue-500/[0.02] border border-blue-500/10 p-4 rounded-2xl">
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-400/60 ml-1">Task Title</span>
+                        <input
+                          type="text"
+                          value={weekDraft.assignment?.title || ''}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), title: e.target.value } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-blue-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-400/60 ml-1">Submission Brief</span>
+                        <textarea
+                          rows={4}
+                          value={weekDraft.assignment?.brief || ''}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), brief: e.target.value } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-blue-500/50 focus:ring-0 transition-all resize-none"
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  {/* Practical Assessment */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                      <h3 className="text-xs font-black uppercase tracking-widest text-amber-300/70">Practical Assessment</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 bg-amber-500/[0.02] border border-amber-500/10 p-4 rounded-2xl">
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Max Score</span>
+                        <input
+                          type="number"
+                          value={weekDraft.practical_assessment?.max_score ?? 100}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), max_score: Number(e.target.value) } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Pass %</span>
+                        <input
+                          type="number"
+                          value={weekDraft.practical_assessment?.pass_score ?? 60}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), pass_score: Number(e.target.value) } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Score</span>
+                        <input
+                          type="number"
+                          value={weekDraft.practical_assessment?.practical_score ?? 0}
+                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), practical_score: Number(e.target.value) } })}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                        />
+                      </label>
+                    </div>
+                  </section>
+                </div>
+
+                <div className="p-6 border-t border-white/10 bg-white/[0.02] flex items-center gap-3">
+                  <button onClick={cancelEdit} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
+                    Cancel Changes
+                  </button>
+                  <button onClick={saveWeekEdit} className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-2xl shadow-lg shadow-violet-500/20 transition-all">
+                    Save Week
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Practical Score Modal */}
+      {practicalModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden">
+            <div className="p-8 text-center space-y-6">
+              <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto">
+                <TrophyIcon className="w-8 h-8 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-card-foreground">Practical Assessment</h3>
+                <p className="text-sm text-card-foreground/50 mt-2">Enter the student's score for Week {practicalModal.weekNum}</p>
+              </div>
+              <div className="relative">
+                <input
+                  autoFocus
+                  type="number"
+                  value={practicalInput}
+                  onChange={(e) => setPracticalInput(e.target.value)}
+                  className="w-full bg-black/40 border-2 border-white/10 rounded-2xl px-6 py-4 text-3xl font-black text-center text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                />
+                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-sm font-black text-card-foreground/30">/ 100</span>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setPracticalModal(null)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
+                  Cancel
+                </button>
+                <button onClick={confirmPracticalScore} className="flex-1 py-4 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-2xl transition-all">
+                  Save Score
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Override Reason Modal */}
+      {overrideModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-white/10 rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-2xl flex items-center justify-center shrink-0">
+                  <LockOpenIcon className="w-6 h-6 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-card-foreground">Override Unlock</h3>
+                  <p className="text-sm text-card-foreground/50">Week {overrideModal.weekNum} · Manual Gating Bypass</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 ml-1">Reason for override</label>
+                <textarea
+                  autoFocus
+                  rows={4}
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="e.g., Student has demonstrated mastery through external project..."
+                  className="w-full bg-black/40 border-2 border-white/10 rounded-2xl px-5 py-4 text-sm font-medium text-card-foreground focus:border-cyan-500/50 focus:ring-0 transition-all resize-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setOverrideModal(null)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
+                  Cancel
+                </button>
+                <button onClick={confirmOverride} className="flex-1 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl transition-all">
+                  Confirm Override
+                </button>
+              </div>
             </div>
           </div>
         </div>

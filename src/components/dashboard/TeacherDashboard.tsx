@@ -39,7 +39,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             Refresh
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {dataLoading
             ? Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
@@ -75,11 +75,10 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Smart Command Center</p>
                 <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
               </div>
-              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${
-                (teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
                   : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-              }`}>
+                }`}>
                 {(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? `${teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams} Pending`
                   : 'All Clear ✓'}
@@ -87,11 +86,10 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Link href="/dashboard/assignments"
-                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
-                  teacherActionCenter.ungradedAssignments > 0
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedAssignments > 0
                     ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
                     : 'bg-card border-border hover:border-border'
-                }`}>
+                  }`}>
                 <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedAssignments > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/10'}`}>
                   {teacherActionCenter.ungradedAssignments > 0 ? '📋' : '✅'}
                 </div>
@@ -104,11 +102,10 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
               <Link href="/dashboard/cbt"
-                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
-                  teacherActionCenter.ungradedExams > 0
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedExams > 0
                     ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                     : 'bg-card border-border hover:border-border'
-                }`}>
+                  }`}>
                 <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedExams > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/10'}`}>
                   {teacherActionCenter.ungradedExams > 0 ? '📝' : '✅'}
                 </div>
