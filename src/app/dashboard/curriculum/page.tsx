@@ -277,6 +277,8 @@ export default function CurriculumPage() {
   const [implClasses, setImplClasses] = useState<{ id: string; name: string; school_id: string }[]>([]);
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
+  const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
+  const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
   const [qaTmplLoading, setQaTmplLoading] = useState(false);
   const [qaTmplErr, setQaTmplErr] = useState('');
   const [qaTmplMeta, setQaTmplMeta] = useState<{
@@ -701,7 +703,35 @@ export default function CurriculumPage() {
         .then(j => setImplementationList(j.data || []))
         .catch(() => setImplementationList([]));
     }
+    // Also load global list for the landing page
+    if (!selectedCourse) {
+      fetch('/api/lesson-plans?limit=6')
+        .then(r => r.json())
+        .then(j => setGlobalImplementationList(j.data || []))
+        .catch(() => setGlobalImplementationList([]));
+    }
   }, [selectedCourse, activeTab]);
+
+  const deleteImplementation = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this implementation? All associated teaching progress will be lost.')) return;
+    setDeletingImpl(id);
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setImplementationList(prev => prev.filter(p => p.id !== id));
+        setGlobalImplementationList(prev => prev.filter(p => p.id !== id));
+        toast.success('Implementation deleted');
+      } else {
+        toast.error('Failed to delete implementation');
+      }
+    } catch {
+      toast.error('Network error');
+    } finally {
+      setDeletingImpl(null);
+    }
+  }, []);
 
   // Load classes when school in implementation modal changes
   useEffect(() => {
@@ -2090,10 +2120,30 @@ export default function CurriculumPage() {
                         </p>
                       </div>
                     )}
-                    {/* Pipeline stepper — always visible so teachers know where they are */}
-                    <div className="hidden sm:block">
-                      <PipelineStepper current="syllabus" courseId={null} programId={null} curriculumId={null} courseTitle={null} />
-                    </div>
+                    {globalImplementationList.length > 0 && !lastVisited && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Recent Class Implementations</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {globalImplementationList.map(plan => (
+                            <Link
+                              key={plan.id}
+                              href={`/dashboard/lesson-plans/${plan.id}`}
+                              className="group bg-card border border-border hover:border-violet-500/50 p-4 transition-all flex flex-col gap-3"
+                            >
+                              <div className="flex items-start justify-between min-w-0">
+                                <div className="min-w-0">
+                                  <h5 className="text-xs font-black group-hover:text-violet-400 transition-colors truncate">{plan.classes?.name}</h5>
+                                  <p className="text-[10px] text-muted-foreground truncate font-bold uppercase tracking-widest">{plan.courses?.title}</p>
+                                </div>
+                                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border border-violet-500/30 text-violet-400 bg-violet-500/5 shrink-0">
+                                  {plan.term}
+                                </span>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="bg-card border border-border p-4 sm:p-5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-3">
                         {lastVisited ? 'Or pick a different course' : 'Quick course grid'}
@@ -2533,15 +2583,24 @@ export default function CurriculumPage() {
                       className="group bg-card border border-border hover:border-primary/50 p-5 transition-all flex flex-col gap-4"
                     >
                       <div className="flex items-start justify-between">
-                        <div>
-                          <h5 className="text-sm font-black group-hover:text-primary transition-colors">{plan.classes?.name || 'Unnamed Class'}</h5>
+                        <div className="min-w-0">
+                          <h5 className="text-sm font-black group-hover:text-primary transition-colors truncate">{plan.classes?.name || 'Unnamed Class'}</h5>
                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{plan.term || 'No Term'}</p>
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                          plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-zinc-500/30 text-zinc-400 bg-zinc-500/5'
-                        }`}>
-                          {plan.status || 'draft'}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-zinc-500/30 text-zinc-400 bg-zinc-500/5'
+                          }`}>
+                            {plan.status || 'draft'}
+                          </span>
+                          <button
+                            onClick={(e) => deleteImplementation(plan.id, e)}
+                            disabled={deletingImpl === plan.id}
+                            className="p-1 text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-30"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                         <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3 h-3" /> {new Date(plan.term_start).toLocaleDateString()}</span>
