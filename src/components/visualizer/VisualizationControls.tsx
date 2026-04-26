@@ -1,15 +1,12 @@
 'use client';
 
 import React from 'react';
-import { 
-  Play, 
-  Pause, 
-  SkipForward, 
-  SkipBack, 
+import {
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
   RotateCcw,
-  FastForward,
-  Rewind,
-  Zap,
   Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -115,8 +112,8 @@ export default function VisualizationControls({
           </Button>
         </div>
 
-        {/* Informative Stats (Mobile Hidden sometimes depending on width) */}
-        <div className="hidden lg:flex items-center gap-6">
+        {/* Step counter */}
+        <div className="hidden lg:flex items-center gap-4">
           <div className="flex flex-col items-center">
             <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Status</span>
             <div className="flex items-center gap-2">
@@ -125,7 +122,7 @@ export default function VisualizationControls({
                 isPlaying ? "bg-cyan-500 animate-pulse" : "bg-zinc-600"
               )} />
               <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
-                {isPlaying ? 'EXECUTING' : 'IDLE_WAIT'}
+                {isPlaying ? 'RUNNING' : 'PAUSED'}
               </span>
             </div>
           </div>
@@ -133,8 +130,10 @@ export default function VisualizationControls({
           <div className="w-px h-6 bg-white/5" />
 
           <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Interpolation</span>
-            <span className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest leading-none">Next.Step()</span>
+            <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Step</span>
+            <span className="text-[10px] font-black text-cyan-400 tabular-nums leading-none">
+              {String(currentStep + 1).padStart(2, '0')} / {String(totalSteps).padStart(2, '0')}
+            </span>
           </div>
         </div>
 
@@ -168,14 +167,6 @@ export default function VisualizationControls({
             </div>
           </div>
           
-          <Button 
-            variant="outline" 
-            className="rounded-none border-zinc-800 bg-black/40 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 hover:text-white text-muted-foreground/70 h-10 px-4"
-            disabled
-          >
-            <Zap className="mr-2 h-3.5 w-3.5 text-yellow-500 fill-yellow-500/20" />
-            V-Sync
-          </Button>
         </div>
       </div>
     </div>

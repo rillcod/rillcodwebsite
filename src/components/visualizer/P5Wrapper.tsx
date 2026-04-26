@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import p5 from 'p5';
 import { VisualizationType, CodeData } from './CodeVisualizer';
 
-// Import Sketches
 import { sortingSketch } from './p5-sketches/sortingSketch';
 import { physicsSketch } from './p5-sketches/physicsSketch';
 import { turtleSketch } from './p5-sketches/turtleSketch';
@@ -18,61 +17,47 @@ interface P5WrapperProps {
   speed: number;
 }
 
-/**
- * P5Wrapper - A React wrapper for P5.js that handles lifecycle and data sync.
- */
-export default function P5Wrapper({
-  type,
-  data,
-  isPlaying,
-  speed
-}: P5WrapperProps) {
+export default function P5Wrapper({ type, data, isPlaying, speed }: P5WrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<p5 | null>(null);
 
-  // Initialize and Update Instance
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Clean up previous instance
     if (p5InstanceRef.current) {
       p5InstanceRef.current.remove();
       p5InstanceRef.current = null;
     }
 
-    // Select sketch based on type
-    const getSketchFunc = () => {
-      switch (type) {
-        case 'sorting': return sortingSketch;
-        case 'physics': return physicsSketch;
-        case 'turtle': return turtleSketch;
-        case 'loops': return loopsSketch;
-        case 'stateMachine': return stateMachineSketch;
-        default: return sortingSketch;
-      }
+    const sketchMap: Record<VisualizationType, typeof sortingSketch> = {
+      sorting: sortingSketch,
+      physics: physicsSketch,
+      turtle: turtleSketch,
+      loops: loopsSketch,
+      stateMachine: stateMachineSketch,
     };
 
-    const sketchFunc = getSketchFunc();
+    const sketchFunc = sketchMap[type] ?? sortingSketch;
+    const container = containerRef.current;
+
     const sketch = (p: p5) => {
-      // Store any necessary state on the prototype if needed or let the sketch handle it
+      // Make the container element available inside each sketch so they can
+      // query its actual rendered dimensions instead of windowWidth/windowHeight.
+      (p as any)._container = container;
       sketchFunc(p, data, isPlaying, speed);
     };
 
-    p5InstanceRef.current = new p5(sketch, containerRef.current);
+    p5InstanceRef.current = new p5(sketch, container);
 
     return () => {
-      if (p5InstanceRef.current) {
-        p5InstanceRef.current.remove();
-      }
+      p5InstanceRef.current?.remove();
+      p5InstanceRef.current = null;
     };
-  }, [type]); // Re-initialize only if sketch type changes
+  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Synchronize data without full re-mount for high performance
+  // Sync runtime changes (step, play state, speed) without destroying the canvas
   useEffect(() => {
-    if (p5InstanceRef.current) {
-      // Custom method we'll implement in sketches to update data
-      (p5InstanceRef.current as any).updateData?.(data, isPlaying, speed);
-    }
+    (p5InstanceRef.current as any)?.updateData?.(data, isPlaying, speed);
   }, [data, isPlaying, speed]);
 
   return <div ref={containerRef} className="w-full h-full" />;

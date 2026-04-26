@@ -70,7 +70,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
         if (type === 'callout') newBlock.style = 'info';
         if (type === 'mermaid') newBlock.code = 'graph TD\n    A[Start] --> B[End]';
         if (type === 'math') newBlock.formula = 'E = mc^2';
-        if (type === 'visualizer') { newBlock.visualType = 'sorting'; newBlock.visualData = { totalSteps: 12, variables: { i: 0, comparison: 'Active' }, visualizationState: { array: [42, 15, 7, 33, 1, 28, 19, 50], comparing: [0, 1] } }; }
+        if (type === 'visualizer') { newBlock.visualType = 'sorting'; newBlock.visualData = { totalSteps: 8, variables: { i: 0, j: 1 }, visualizationState: { array: [42, 15, 7, 33, 1, 28, 19, 50], comparing: [0, 1] } }; }
         if (type === 'motion-graphics') { newBlock.animationType = 'orbit'; newBlock.config = { nodes: 3 }; }
         if (type === 'd3-chart') { newBlock.chartType = 'bar'; newBlock.dataset = [10, 20, 30, 40]; }
         if (type === 'scratch') { newBlock.projectId = ''; newBlock.blocks = ['when flag clicked', 'move 10 steps']; }
@@ -514,24 +514,77 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                     </div>
                                 )}
                                 {block.type === 'visualizer' && (
-                                    <div className="space-y-4 p-4 bg-cyan-500/5 rounded-none border border-cyan-500/10">
-                                        <div className="flex gap-4">
-                                            <select 
-                                                value={block.visualType} 
-                                                onChange={e => updateBlock(i, { visualType: e.target.value })}
+                                    <div className="space-y-3 p-4 bg-cyan-500/5 rounded-none border border-cyan-500/10">
+                                        {/* Type selector + presets */}
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <select
+                                                value={block.visualType}
+                                                onChange={e => {
+                                                    const t = e.target.value;
+                                                    const presets: Record<string, any> = {
+                                                        sorting:      { totalSteps: 8,  variables: { i: 0, j: 1 },       visualizationState: { array: [42, 15, 7, 33, 1, 28, 19, 50], comparing: [0, 1] } },
+                                                        physics:      { totalSteps: 12, variables: { ball: 0 },           visualizationState: { balls: [{ x: 0.3, y: 0.15, vx: 2, vy: 0, radius: 20, hue: 120 }, { x: 0.6, y: 0.12, vx: -1.5, vy: 0, radius: 16, hue: 200 }] } },
+                                                        loops:        { totalSteps: 8,  variables: { i: 0 },             visualizationState: { iterations: [0, 1, 2, 3, 4, 5, 6, 7] } },
+                                                        turtle:       { totalSteps: 6,  variables: { x: 0, y: 0 },       visualizationState: { turtle: { x: 0.5, y: 0.5, hue: 180, path: [{ x: 0.2, y: 0.5 }, { x: 0.5, y: 0.2 }, { x: 0.8, y: 0.5 }] } } },
+                                                        stateMachine: { totalSteps: 4,  variables: { state: 0 },         visualizationState: { states: [{ label: 'IDLE', x: 0.2, y: 0.5 }, { label: 'INIT', x: 0.42, y: 0.25 }, { label: 'RUN', x: 0.65, y: 0.25 }, { label: 'DONE', x: 0.82, y: 0.5 }], connections: [{ from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 3, to: 0 }] } },
+                                                    };
+                                                    updateBlock(i, { visualType: t, visualData: presets[t] ?? block.visualData });
+                                                }}
                                                 className="bg-black/40 border border-white/10 rounded-none px-3 py-1.5 text-[10px] text-cyan-400 font-bold outline-none"
                                             >
-                                                {['physics', 'sorting', 'turtle', 'loops', 'stateMachine'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                                                {['sorting', 'physics', 'loops', 'turtle', 'stateMachine'].map(t => (
+                                                    <option key={t} value={t}>{t === 'stateMachine' ? 'STATE MACHINE' : t.toUpperCase()}</option>
+                                                ))}
                                             </select>
-                                            <p className="text-[10px] text-white/40 font-medium">Configure visualization logic and parameters below.</p>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-[9px] text-white/30 uppercase tracking-widest font-bold">Steps:</span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    max={100}
+                                                    value={block.visualData?.totalSteps ?? 8}
+                                                    onChange={e => updateBlock(i, { visualData: { ...block.visualData, totalSteps: Math.max(1, parseInt(e.target.value) || 1) } })}
+                                                    className="w-14 bg-black/40 border border-white/10 rounded-none px-2 py-1 text-[10px] text-white outline-none focus:border-cyan-500"
+                                                />
+                                            </div>
                                         </div>
-                                        <textarea
-                                            value={JSON.stringify(block.visualData, null, 2)}
-                                            onChange={e => {
-                                                try { updateBlock(i, { visualData: JSON.parse(e.target.value) }); } catch(err) {}
-                                            }}
-                                            className="w-full bg-black/60 border border-white/5 p-3 rounded-none font-mono text-[10px] text-white/80 h-32 outline-none focus:border-cyan-500"
-                                        />
+
+                                        {/* Sorting array editor */}
+                                        {block.visualType === 'sorting' && (
+                                            <div className="space-y-1.5">
+                                                <span className="text-[9px] text-cyan-300/50 uppercase tracking-widest font-bold">Array values (comma-separated)</span>
+                                                <input
+                                                    type="text"
+                                                    value={(block.visualData?.visualizationState?.array || []).join(', ')}
+                                                    onChange={e => {
+                                                        const arr = e.target.value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                                                        if (arr.length > 0) updateBlock(i, { visualData: { ...block.visualData, visualizationState: { ...block.visualData?.visualizationState, array: arr } } });
+                                                    }}
+                                                    placeholder="42, 15, 7, 33, 1, 28"
+                                                    className="w-full bg-black/40 border border-white/10 rounded-none px-3 py-1.5 text-[10px] text-white outline-none focus:border-cyan-500"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Loops iteration count */}
+                                        {block.visualType === 'loops' && (
+                                            <div className="space-y-1.5">
+                                                <span className="text-[9px] text-cyan-300/50 uppercase tracking-widest font-bold">Loop count</span>
+                                                <input
+                                                    type="number"
+                                                    min={2}
+                                                    max={16}
+                                                    value={(block.visualData?.visualizationState?.iterations || []).length || 8}
+                                                    onChange={e => {
+                                                        const n = Math.min(16, Math.max(2, parseInt(e.target.value) || 8));
+                                                        updateBlock(i, { visualData: { ...block.visualData, visualizationState: { iterations: Array.from({ length: n }, (_, k) => k) } } });
+                                                    }}
+                                                    className="w-20 bg-black/40 border border-white/10 rounded-none px-2 py-1.5 text-[10px] text-white outline-none focus:border-cyan-500"
+                                                />
+                                            </div>
+                                        )}
+
+                                        <p className="text-[9px] text-white/25 leading-relaxed">The visualizer auto-plays the selected sketch type — pick the type that best illustrates your lesson concept, then hit play in the preview.</p>
                                     </div>
                                 )}
                                 {block.type === 'motion-graphics' && (
