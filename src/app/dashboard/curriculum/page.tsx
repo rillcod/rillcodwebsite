@@ -201,7 +201,7 @@ const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
-  const { profile, isLoading: authLoading } = useAuth();
+  const { profile, isLoading: authLoading, profileLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -1455,7 +1455,7 @@ export default function CurriculumPage() {
 
 
   // ── Auth loading guard — prevents role-based flash ──────────────────────
-  if (authLoading) {
+  if (authLoading || (profileLoading && !profile)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1549,7 +1549,7 @@ export default function CurriculumPage() {
         <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">
-              {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Course Syllabus Builder'}
+              {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Academic Planning Hub'}
             </p>
           </div>
           <button
