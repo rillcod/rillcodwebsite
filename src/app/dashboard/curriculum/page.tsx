@@ -1863,7 +1863,7 @@ export default function CurriculumPage() {
           {/* Tab bar — shown when course selected */}
           {selectedCourse && (
             <div
-              className="flex overflow-x-auto snap-x snap-mandatory border-b border-border bg-card px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
+              className="sticky top-0 z-20 flex overflow-x-auto snap-x snap-mandatory border-b border-white/5 bg-background/80 backdrop-blur-xl px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
               role="tablist"
               aria-label="Curriculum views"
             >
@@ -1872,9 +1872,9 @@ export default function CurriculumPage() {
                 role="tab"
                 aria-selected={activeTab === 'syllabus'}
                 onClick={() => setActiveTab('syllabus')}
-                className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'syllabus'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'syllabus'
+                  ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
               >
                 <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1886,9 +1886,9 @@ export default function CurriculumPage() {
                   role="tab"
                   aria-selected={activeTab === 'generate'}
                   onClick={() => setActiveTab('generate')}
-                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'generate'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'generate'
+                    ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                     }`}
                 >
                   <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1902,9 +1902,9 @@ export default function CurriculumPage() {
                     role="tab"
                     aria-selected={activeTab === 'implementations'}
                     onClick={() => setActiveTab('implementations')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'implementations'
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'implementations'
+                      ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                       }`}
                   >
                     <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1915,9 +1915,9 @@ export default function CurriculumPage() {
                     role="tab"
                     aria-selected={activeTab === 'delivery'}
                     onClick={() => setActiveTab('delivery')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'delivery'
-                      ? 'border-violet-500 text-violet-400'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'delivery'
+                      ? 'border-violet-500 text-violet-400 bg-violet-500/5 shadow-[inset_0_-2px_0_0_rgba(139,92,246,0.5)]'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                       }`}
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
@@ -1928,9 +1928,9 @@ export default function CurriculumPage() {
                     role="tab"
                     aria-selected={activeTab === 'tools'}
                     onClick={() => setActiveTab('tools')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'tools'
-                      ? 'border-cyan-500 text-cyan-400'
-                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'tools'
+                      ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-[inset_0_-2px_0_0_rgba(6,182,212,0.5)]'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                       }`}
                   >
                     <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
@@ -2120,11 +2120,17 @@ export default function CurriculumPage() {
                   <div className="max-w-5xl mx-auto space-y-5">
                     {/* Continue editing — shown while auto-restore is in flight or as manual fallback */}
                     {lastVisited && (
-                      <div className="bg-primary/5 border border-primary/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-0.5">Continue where you left off</p>
-                          <p className="text-sm font-bold text-foreground truncate">{lastVisited.courseTitle}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">{lastVisited.progName}</p>
+                      <div className="group relative overflow-hidden bg-card border border-primary/20 p-6 flex flex-col sm:flex-row sm:items-center gap-6 shadow-2xl transition-all hover:border-primary/40">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                          <RocketLaunchIcon className="w-24 h-24 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0 relative z-10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Resume Planning</p>
+                          </div>
+                          <h3 className="text-xl font-black text-foreground truncate mb-1">{lastVisited.courseTitle}</h3>
+                          <p className="text-xs text-muted-foreground truncate opacity-80">{lastVisited.progName}</p>
                         </div>
                         <button
                           type="button"
@@ -2132,23 +2138,33 @@ export default function CurriculumPage() {
                             const prog = programs.find(p => p.id === lastVisited.progId);
                             const course = prog?.courses?.find(c => c.id === lastVisited.courseId);
                             if (prog && course) { selectCourse(prog, course); return; }
-                            // Fallback: load by courseId even if program isn't found in memory
                             setSelectedCourse({ id: lastVisited.courseId, title: lastVisited.courseTitle, is_active: true });
                             loadCurriculum(lastVisited.courseId);
                           }}
-                          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-colors"
+                          className="relative z-10 shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0"
                         >
-                          <ArrowRightIcon className="w-3.5 h-3.5" /> Open syllabus
+                          <ArrowRightIcon className="w-4 h-4" /> Open Blueprint
                         </button>
                       </div>
                     )}
                     {!lastVisited && (
-                      <div className="text-center">
-                        <BookOpenIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                        <h2 className="text-xl font-black mb-1">Choose a Course</h2>
-                        <p className="text-muted-foreground text-sm">
-                          Pick a course below to open its syllabus. On mobile, tap <strong>Browse</strong> in the top bar to open the full catalog.
-                        </p>
+                      <div className="py-12 px-6 text-center border border-dashed border-white/10 bg-card/20 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative z-10 max-w-lg mx-auto">
+                          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+                            <BookOpenIcon className="w-8 h-8 text-primary" />
+                          </div>
+                          <h2 className="text-2xl font-black mb-3 text-white tracking-tight">Academic Planning Hub</h2>
+                          <p className="text-muted-foreground text-sm leading-relaxed">
+                            Start your planning cycle by selecting a course from the catalog. 
+                            Create blueprints, implement them to specific classes, and track your teaching journey.
+                          </p>
+                          <div className="mt-8 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                            <span className="flex items-center gap-1.5"><SparklesIcon className="w-3.5 h-3.5" /> 1. Strategy</span>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="flex items-center gap-1.5"><RocketLaunchIcon className="w-3.5 h-3.5" /> 2. Execution</span>
+                          </div>
+                        </div>
                       </div>
                     )}
                     {globalImplementationList.length > 0 && !lastVisited && (
@@ -2283,138 +2299,112 @@ export default function CurriculumPage() {
                         {' · '}<span className="text-primary font-bold">{scopeLabel}</span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Version switcher — Bug 1 Fix A */}
-                      {canGenerate && curriculumList.length > 1 && (
-                        <div className="inline-flex items-center rounded-md border border-border bg-card px-2 h-[34px]">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2 border-r border-border pr-2 h-full flex items-center">Copy</span>
-                          <select
-                            value={curriculum.id}
-                            onChange={(e) => selectCurriculumVersion(e.target.value)}
-                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 focus:ring-0 p-0 pr-6 h-full cursor-pointer"
-                          >
-                            {curriculumList.map((c) => (
-                              <option key={c.id} value={c.id} className="bg-background text-foreground">
-                                v{c.version} — {c.school_id ? 'School' : 'Platform'}
-                              </option>
+                    <div className="flex flex-col gap-4">
+                      {/* Top Row: View & Context */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Version switcher */}
+                        {canGenerate && curriculumList.length > 1 && (
+                          <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">v{curriculum.version}</span>
+                            <select
+                              value={curriculum.id}
+                              onChange={(e) => selectCurriculumVersion(e.target.value)}
+                              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-6 h-full cursor-pointer"
+                            >
+                              {curriculumList.map((c) => (
+                                <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                  Version {c.version} — {c.school_id ? 'School' : 'Platform'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Preview as role */}
+                        {canGenerate && (
+                          <div className="inline-flex rounded-lg border border-white/10 overflow-hidden bg-card/50 backdrop-blur-sm h-[36px]">
+                            <span className="hidden sm:flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground px-3 border-r border-white/10">
+                              Preview
+                            </span>
+                            {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => setPreviewRole(r)}
+                                className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors border-r border-white/10 last:border-0 ${previewRole === r ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                              >
+                                {r}
+                              </button>
                             ))}
-                          </select>
-                        </div>
-                      )}
-                      {/* Preview as role — lets the teacher see the exact student/parent/school view */}
-                      {canGenerate && (
-                        <div className="inline-flex rounded-md border border-border overflow-hidden bg-card">
-                          <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-muted-foreground self-center px-2.5">
-                            Preview as
-                          </span>
-                          {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
-                            <button
-                              key={r}
-                              onClick={() => setPreviewRole(r)}
-                              className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted/30 border-l border-border first:border-l-0"
-                              title={`See this syllabus as a ${r}`}
-                            >
-                              {r}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                          </div>
+                        )}
+                      </div>
 
-                      {/* Teacher publish toggle */}
-                      {canGenerate && (
-                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                          <span
-                            className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border ${curriculum.is_visible_to_school
-                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                              : 'bg-amber-500/10 border-amber-500/40 text-amber-300'
-                              }`}
-                            title={
-                              curriculum.is_visible_to_school
-                                ? 'Published and visible to school, students, and parents.'
-                                : 'Draft mode. Only teacher/admin sees this working copy.'
-                            }
+                      {/* Bottom Row: Actions */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {canGenerate && (
+                          <div className="flex items-center gap-2">
+                            {curriculum.is_visible_to_school ? (
+                              <button
+                                onClick={() => togglePublish(false)}
+                                disabled={publishing}
+                                className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg"
+                              >
+                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
+                                Edit Draft
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => togglePublish(true)}
+                                disabled={publishing}
+                                className="flex items-center gap-2 px-5 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 transition-all rounded-lg"
+                              >
+                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
+                                Publish Blueprint
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
+                          <Link
+                            href="/dashboard/curriculum/progress"
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            {curriculum.is_visible_to_school ? 'Stage: Published' : 'Stage: Draft'}
-                          </span>
-
-                          {curriculum.is_visible_to_school ? (
+                            <ChartBarIcon className="w-3.5 h-3.5" /> Progress
+                          </Link>
+                          {canGenerate && (
                             <button
-                              onClick={() => togglePublish(false)}
-                              disabled={publishing}
-                              className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-all disabled:opacity-60"
-                              title="Move this syllabus back to draft so you can edit safely before publishing again."
+                              onClick={openGenerateModal}
+                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
                             >
-                              {publishing ? (
-                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <PencilIcon className="w-4 h-4" />
-                              )}
-                              Reopen &amp; Edit
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => togglePublish(true)}
-                              disabled={publishing}
-                              className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all disabled:opacity-60"
-                              title="Publish this syllabus to school, students, and parents."
-                            >
-                              {publishing ? (
-                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircleIcon className="w-4 h-4" />
-                              )}
-                              Publish to School
+                              <ArrowPathIcon className="w-3.5 h-3.5" /> Regenerate
                             </button>
                           )}
                         </div>
-                      )}
-
-                      <Link
-                        href="/dashboard/curriculum/progress"
-                        className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-primary/50 text-xs font-bold transition-all text-muted-foreground hover:text-foreground"
-                      >
-                        <ChartBarIcon className="w-3.5 h-3.5 text-primary" /> Progress Dashboard
-                      </Link>
-                      {canGenerate && (
-                        <>
-                          <Link
-                            href="/dashboard/curriculum/learning-system"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border hover:border-cyan-500/40 text-xs font-bold transition-all text-muted-foreground hover:text-cyan-200"
-                            title="How spine, syllabus, and lessons connect"
-                          >
-                            <Squares2X2Icon className="w-3.5 h-3.5 text-cyan-400" /> System map
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={openGenerateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/50 text-sm font-bold transition-all shrink-0"
-                          >
-                            <ArrowPathIcon className="w-4 h-4 text-primary" /> Regenerate Syllabus
-                          </button>
-                        </>
-                      )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Term tabs */}
                   {termCount > 0 && (
-                    <div className="flex gap-1 bg-card border border-border p-1 w-fit">
+                    <div className="flex gap-2 bg-white/5 border border-white/10 p-1.5 w-fit rounded-xl backdrop-blur-sm">
                       {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
                         const termTracking = tracking.filter(t => t.term_number === term.term);
                         const termWeeks = term.weeks?.length ?? 0;
                         const termDone = termTracking.filter(t => t.status === 'completed').length;
+                        const active = activeTerm === term.term;
                         return (
                           <button
                             key={term.term}
                             onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
-                            className={`flex flex-col items-center px-4 py-2 text-sm font-bold transition-colors ${activeTerm === term.term
-                              ? 'bg-primary text-white'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            className={`relative flex flex-col items-center px-6 py-2.5 rounded-lg transition-all duration-300 ${active
+                              ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                               }`}
                           >
-                            <span>Term {term.term}</span>
-                            <span className={`text-[9px] font-black ${activeTerm === term.term ? 'text-white/70' : 'text-muted-foreground'}`}>
-                              {termDone}/{termWeeks} done
+                            <span className="text-xs font-black uppercase tracking-[0.1em]">Term {term.term}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest mt-0.5 opacity-60`}>
+                              {termDone}/{termWeeks} Ready
                             </span>
                           </button>
                         );
@@ -2452,8 +2442,9 @@ export default function CurriculumPage() {
                         return (
                           <div
                             key={week.week}
-                            className={`border transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}
+                            className={`group relative border transition-all duration-500 ${isActive ? 'border-primary/50 bg-primary/5 shadow-[0_0_30px_rgba(255,107,0,0.1)]' : 'border-white/5 bg-card/40 hover:border-white/10 hover:bg-card/60 hover:shadow-xl'}`}
                           >
+                            <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${isActive ? 'bg-primary' : 'bg-transparent group-hover:bg-primary/20'}`} />
                             {editingWeekKey === `term${activeTerm}-week${week.week}` ? (
                               <div className="p-3 space-y-2" onClick={e => e.stopPropagation()}>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Week {week.week} · Edit</p>
@@ -2488,22 +2479,25 @@ export default function CurriculumPage() {
                               </div>
                             ) : (
                               <button
-                                className="text-left p-4 w-full space-y-2 hover:bg-muted/10"
+                                className="text-left p-5 w-full space-y-3"
                                 onClick={() => { setActiveWeek(week); setNotesDraft(''); setAssignResult(null); }}
                               >
                                 {/* Week number + type badge */}
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                  <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">
                                     Week {week.week}
                                   </span>
-                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${meta.color}`}>
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border ${meta.color}`}>
                                     {meta.label}
                                   </span>
                                 </div>
 
-                                {/* Topic */}
-                                <WeekIcon className={`w-5 h-5 ${meta.color.split(' ')[0]}`} />
-                                <p className="text-sm font-bold leading-snug line-clamp-2">{week.topic}</p>
+                                <div className="flex items-start gap-3">
+                                  <div className={`p-2 rounded-lg bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors`}>
+                                    <WeekIcon className={`w-4 h-4 ${meta.color.split(' ')[0]}`} />
+                                  </div>
+                                  <h3 className="text-[13px] font-black text-foreground leading-tight group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5em]">{week.topic}</h3>
+                                </div>
 
                                 {/* Subtopics preview */}
                                 {(week.subtopics ?? []).length > 0 && (
@@ -2614,31 +2608,38 @@ export default function CurriculumPage() {
                     <Link
                       key={plan.id}
                       href={`/dashboard/lesson-plans/${plan.id}`}
-                      className="group bg-card border border-border hover:border-primary/50 p-5 transition-all flex flex-col gap-4"
+                      className="group relative bg-card border border-white/5 hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1"
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowRightIcon className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex items-start justify-between relative z-10">
                         <div className="min-w-0">
-                          <h5 className="text-sm font-black group-hover:text-primary transition-colors truncate">{plan.classes?.name || 'Unnamed Class'}</h5>
-                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{plan.term || 'No Term'}</p>
+                          <h5 className="text-[15px] font-black group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.1em]">{plan.term || 'No Term'}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                            plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-zinc-500/30 text-zinc-400 bg-zinc-500/5'
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${
+                            plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'
                           }`}>
                             {plan.status || 'draft'}
                           </span>
                           <button
                             onClick={(e) => deleteImplementation(plan.id, e)}
                             disabled={deletingImpl === plan.id}
-                            className="p-1 text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-30"
+                            className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all disabled:opacity-30"
+                            title="Delete this implementation"
                           >
-                            <TrashIcon className="w-3.5 h-3.5" />
+                            <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3 h-3" /> {new Date(plan.term_start).toLocaleDateString()}</span>
-                        <span className="flex items-center gap-1.5"><RocketLaunchIcon className="w-3 h-3" /> {plan.sessions_per_week || 0} sessions</span>
+                      <div className="mt-auto flex items-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.15em] opacity-70">
+                        <span className="flex items-center gap-2"><CalendarDaysIcon className="w-3.5 h-3.5" /> {new Date(plan.term_start).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-2"><RocketLaunchIcon className="w-3.5 h-3.5" /> {plan.sessions_per_week || 0} sessions</span>
                       </div>
                     </Link>
                   ))}
