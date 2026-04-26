@@ -68,6 +68,7 @@ interface LessonPlan {
   status?: string | null;
   version?: number | null;
   plan_data?: { weeks?: WeekEntry[] } | null;
+  metadata?: Record<string, unknown> | null;
   objectives?: string | null;
   activities?: string | null;
   created_at: string;
@@ -436,6 +437,13 @@ export default function LessonPlanDetailPage() {
     type: 'lessons' | 'assignments' | 'projects';
     preview: { total_weeks: number; projected_generations: number; projected_skips: number };
   } | null>(null);
+  const [lmsOpen, setLmsOpen] = useState(false);
+  const [lmsSettings, setLmsSettings] = useState<{
+    enabled: boolean;
+    types: ('lessons' | 'assignments' | 'projects')[];
+    maxWeeksPerBatch: number;
+  }>({ enabled: false, types: ['lessons', 'assignments'], maxWeeksPerBatch: 0 });
+  const [savingLms, setSavingLms] = useState(false);
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
 
   const load = useCallback(async () => {
@@ -451,6 +459,12 @@ export default function LessonPlanDetailPage() {
       const p: LessonPlan = j.data;
       setPlan(p);
       setWeeks([...(p.plan_data?.weeks ?? []) as WeekEntry[]].sort((a, b) => a.week - b.week));
+      const ags = (p.metadata?.auto_generate_settings ?? {}) as { enabled?: boolean; types?: string[]; maxWeeksPerBatch?: number };
+      setLmsSettings({
+        enabled: ags.enabled ?? false,
+        types: ((ags.types ?? ['lessons', 'assignments']) as string[]).filter((t): t is 'lessons' | 'assignments' | 'projects' => ['lessons', 'assignments', 'projects'].includes(t)),
+        maxWeeksPerBatch: ags.maxWeeksPerBatch ?? 0,
+      });
       if (lessonsRes.ok) {
         const lj = await lessonsRes.json();
         setLinkedLessons(lj.data ?? []);
@@ -785,10 +799,11 @@ export default function LessonPlanDetailPage() {
     setGenProgress({ generated: 0, total: weeks.length, status: 'Starting...' });
 
     try {
+      const batchSize = lmsSettings.maxWeeksPerBatch > 0 ? lmsSettings.maxWeeksPerBatch : undefined;
       const res = await fetch(`/api/lesson-plans/${id}/generate-${type}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dry_run: false }),
+        body: JSON.stringify({ dry_run: false, ...(batchSize ? { max_weeks: batchSize } : {}) }),
       });
       if (!res.ok) throw new Error('Generation failed');
 
@@ -821,6 +836,8 @@ export default function LessonPlanDetailPage() {
                 ),
                 duration: 8000,
               });
+            } else if (data.truncated) {
+              toast.success(`Generated ${data.generated} ${type} (batch limit — run again for remaining weeks)`);
             } else {
               toast.success(`Generated ${data.generated} ${type}, skipped ${data.skipped}`);
             }
@@ -840,6 +857,23 @@ export default function LessonPlanDetailPage() {
     }
   }
 
+
+  async function saveLmsSettings() {
+    setSavingLms(true);
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { auto_generate_settings: lmsSettings } }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      toast.success('LMS settings saved');
+    } catch {
+      toast.error('Failed to save LMS settings');
+    } finally {
+      setSavingLms(false);
+    }
+  }
 
   function getProgressionWeeksCount() {
     return weeks.length > 0 ? weeks.length : 8;
@@ -2326,14 +2360,14 @@ export default function LessonPlanDetailPage() {
                         </section>
                       </div>
 
-                      <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5">
+                      <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4 sm:p-5 space-y-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Step 5</p>
-                            <h4 className="text-base font-black text-card-foreground mt-1">Generate day-to-day content</h4>
-                            <p className="text-xs text-card-foreground/60 mt-2">Once the route is ready, create lessons, assignments, and projects from the same plan.</p>
+                            <h4 className="text-base font-black text-card-foreground mt-1">Bulk generate week-by-week content</h4>
+                            <p className="text-xs text-card-foreground/60 mt-2">Create lessons, assignments, and projects from the same plan. Use LMS settings to control batch size and auto-generation.</p>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 items-start">
                             <button
                               onClick={() => bulkGenerate('lessons')}
                               disabled={generating !== null}
@@ -2369,8 +2403,90 @@ export default function LessonPlanDetailPage() {
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate Flashcards
                             </button>
+                            <button
+                              onClick={() => setLmsOpen((o) => !o)}
+                              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-2xl transition-all border ${lmsOpen ? 'bg-white/10 border-white/20 text-card-foreground' : 'bg-transparent border-white/[0.12] text-card-foreground/60 hover:text-card-foreground hover:border-white/20'}`}
+                            >
+                              <BoltIcon className="w-4 h-4" /> LMS Settings
+                            </button>
                           </div>
                         </div>
+
+                        {lmsOpen && (
+                          <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] p-4 space-y-4">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                              <div>
+                                <p className="text-sm font-black text-card-foreground">Auto-generate week-by-week</p>
+                                <p className="text-xs text-card-foreground/55 mt-0.5">When enabled, the system auto-generates content each week as the term progresses.</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setLmsSettings((s) => ({ ...s, enabled: !s.enabled }))}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${lmsSettings.enabled ? 'bg-violet-500' : 'bg-white/10'}`}
+                                role="switch"
+                                aria-checked={lmsSettings.enabled}
+                              >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${lmsSettings.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              <p className="text-xs font-black uppercase tracking-wider text-card-foreground/45">Content types</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(['lessons', 'assignments', 'projects'] as const).map((t) => {
+                                  const checked = lmsSettings.types.includes(t);
+                                  return (
+                                    <button
+                                      key={t}
+                                      type="button"
+                                      onClick={() => setLmsSettings((s) => ({
+                                        ...s,
+                                        types: checked
+                                          ? s.types.filter((x) => x !== t)
+                                          : [...s.types, t],
+                                      }))}
+                                      className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all capitalize ${checked ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10'}`}
+                                    >
+                                      {checked ? '✓ ' : ''}{t}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <p className="text-xs font-black uppercase tracking-wider text-card-foreground/45">Weeks per batch <span className="normal-case font-normal opacity-60">(0 = all)</span></p>
+                              <div className="flex flex-wrap gap-2">
+                                {([0, 1, 3, 5, 10] as const).map((n) => (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    onClick={() => setLmsSettings((s) => ({ ...s, maxWeeksPerBatch: n }))}
+                                    className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all ${lmsSettings.maxWeeksPerBatch === n ? 'bg-violet-500 text-white' : 'bg-white/5 text-card-foreground/60 border border-white/10 hover:bg-white/10'}`}
+                                  >
+                                    {n === 0 ? 'All' : `${n} week${n > 1 ? 's' : ''}`}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-1 pb-[max(0px,env(safe-area-inset-bottom))]">
+                              <button
+                                type="button"
+                                onClick={saveLmsSettings}
+                                disabled={savingLms}
+                                className="px-4 py-2 text-sm font-black rounded-2xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-all"
+                              >
+                                {savingLms ? 'Saving…' : 'Save LMS Settings'}
+                              </button>
+                              <p className="text-[11px] text-card-foreground/40">
+                                {lmsSettings.enabled
+                                  ? `Auto-generate ${lmsSettings.types.join(', ')} · ${lmsSettings.maxWeeksPerBatch === 0 ? 'all weeks' : `${lmsSettings.maxWeeksPerBatch} week${lmsSettings.maxWeeksPerBatch > 1 ? 's' : ''} per batch`}`
+                                  : 'Auto-generate is off — use the buttons above to generate manually.'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </section>
                     </>
                   ) : (
