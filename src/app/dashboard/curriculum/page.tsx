@@ -13,7 +13,7 @@ import {
   AcademicCapIcon, UserGroupIcon, ExclamationTriangleIcon, ArrowPathIcon,
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
-  Squares2X2Icon,
+  Squares2X2Icon, PlusIcon, CalendarDaysIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -264,6 +264,19 @@ export default function CurriculumPage() {
 
   // Optional QA week spine: show DB template + class rotation preview before apply
   const [qaSpineOpen, setQaSpineOpen] = useState(false);
+  const [showImplement, setShowImplement] = useState(false);
+  const [implementing, setImplementing] = useState(false);
+  const [implForm, setImplForm] = useState({
+    school_id: '',
+    class_id: '',
+    term: '1',
+    term_start: new Date().toISOString().split('T')[0],
+    term_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    sessions_per_week: '2',
+  });
+  const [implClasses, setImplClasses] = useState<{ id: string; name: string; school_id: string }[]>([]);
+  const [implError, setImplError] = useState('');
+  const [implementationList, setImplementationList] = useState<any[]>([]);
   const [qaTmplLoading, setQaTmplLoading] = useState(false);
   const [qaTmplErr, setQaTmplErr] = useState('');
   const [qaTmplMeta, setQaTmplMeta] = useState<{
@@ -679,6 +692,56 @@ export default function CurriculumPage() {
       setQaPreviewLoading(false);
     }
   }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp]);
+
+  // Auto-load implementations when tab active or course changes
+  useEffect(() => {
+    if (activeTab === 'implementations' && selectedCourse) {
+      fetch(`/api/lesson-plans?course_id=${selectedCourse.id}`)
+        .then(r => r.json())
+        .then(j => setImplementationList(j.data || []))
+        .catch(() => setImplementationList([]));
+    }
+  }, [selectedCourse, activeTab]);
+
+  const deployToClass = useCallback(async () => {
+    if (!curriculum || !selectedCourse) return;
+    if (!implForm.class_id) {
+      setImplError('Please select a class to implement this syllabus.');
+      return;
+    }
+    setImplementing(true);
+    setImplError('');
+    try {
+      const res = await fetch('/api/lesson-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          curriculum_version_id: curriculum.id,
+          course_id: selectedCourse.id,
+          school_id: implForm.school_id,
+          class_id: implForm.class_id,
+          term: `Term ${implForm.term}`,
+          term_start: implForm.term_start,
+          term_end: implForm.term_end,
+          sessions_per_week: implForm.sessions_per_week,
+          status: 'draft',
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setImplError(j.error || 'Failed to implement syllabus');
+        return;
+      }
+      toast.success(`Successfully implemented to ${implClasses.find(c => c.id === implForm.class_id)?.name || 'class'}`);
+      setShowImplement(false);
+      // Redirect to the newly created lesson plan
+      router.push(`/dashboard/lesson-plans/${j.data.id}`);
+    } catch {
+      setImplError('Network error while implementing');
+    } finally {
+      setImplementing(false);
+    }
+  }, [curriculum, selectedCourse, implForm, implClasses, router]);
 
   const applyQaSpine = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
@@ -1544,36 +1607,18 @@ export default function CurriculumPage() {
         <div className="shrink-0 border-b border-primary/20 bg-primary/5 px-4 py-4">
           <div className="max-w-[1800px] mx-auto space-y-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">How to build a syllabus — step by step</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">Step 1 — Pick a course</p>
-                <p className="text-muted-foreground">Click any course in the left panel. If you don't see any, go to Programs → Courses and create one first.</p>
+                <p className="font-black text-primary">1. Planning Phase</p>
+                <p className="text-muted-foreground">Build your Syllabus here. Once ready, use the <strong>"Implement to Class"</strong> button to create an active Lesson Plan for your students.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">Step 2 — Generate the syllabus</p>
-                <p className="text-muted-foreground">On the Syllabus tab, click "Generate Syllabus". The AI will create a full term-by-term week plan. You can regenerate as many times as you like.</p>
+                <p className="font-black text-primary">2. Teaching Phase</p>
+                <p className="text-muted-foreground">Use the Lesson Engine and Activity Studio to build the actual content based on your approved syllabus.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">Step 3 — Generate lesson plans</p>
-                <p className="text-muted-foreground">Go to Lesson Plans in the sidebar. Link this course and syllabus, pick a class and term, then generate week-by-week lesson plans from it.</p>
-              </div>
-              <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">Step 4 — Track delivery</p>
-                <p className="text-muted-foreground">As you teach each week, mark it as "In Progress" or "Completed" on the Syllabus tab. This feeds the Delivery Progress report.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-foreground">Syllabus copies</p>
-                <p className="text-muted-foreground">Each school can have its own version of a syllabus. The dropdown at the top lets you switch between them. Use "Delete" to wipe one and start fresh.</p>
-              </div>
-              <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-foreground">School scope</p>
-                <p className="text-muted-foreground">The "School" dropdown sets which school's copy you're editing. "Platform template" is the shared master — changes there affect all schools that haven't customised it.</p>
-              </div>
-              <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-foreground">Publish to school</p>
-                <p className="text-muted-foreground">The "Publish" toggle on the syllabus makes it visible to the school's staff. Until you publish, only teachers and admins can see it.</p>
+                <p className="font-black text-primary">3. Delivery Phase</p>
+                <p className="text-muted-foreground">Mark weeks as completed. This automatically updates reports for the School and Parents.</p>
               </div>
             </div>
           </div>
@@ -1782,6 +1827,19 @@ export default function CurriculumPage() {
                   <button
                     type="button"
                     role="tab"
+                    aria-selected={activeTab === 'implementations'}
+                    onClick={() => setActiveTab('implementations')}
+                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'implementations'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:bg-muted/30'
+                      }`}
+                  >
+                    <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
+                    <span className="whitespace-nowrap">2. Implementations</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
                     aria-selected={activeTab === 'delivery'}
                     onClick={() => setActiveTab('delivery')}
                     className={`snap-start shrink-0 flex items-center gap-2 min-h-[48px] px-4 sm:px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-colors touch-manipulation ${activeTab === 'delivery'
@@ -1790,7 +1848,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">3. Delivery</span>
+                    <span className="whitespace-nowrap">3. Progress</span>
                   </button>
                   <button
                     type="button"
@@ -1822,26 +1880,27 @@ export default function CurriculumPage() {
               />
               {/* Always show Step-2 link when at least one syllabus exists for this course */}
               {(curriculum?.id ?? curriculumList[0]?.id) && (
-                <div className="mt-3 pt-3 border-t border-border/60">
-                  <Link
-                    href={(() => {
-                      const currId = curriculum?.id ?? curriculumList[0]?.id;
-                      const q = new URLSearchParams({
-                        course_id: selectedCourse!.id,
-                        ...(currId ? { curriculum_id: currId } : {}),
-                      });
-                      const pid = selectedCourse!.program_id ?? selectedProgram?.id;
-                      if (pid) q.set('program_id', pid);
-                      return `/dashboard/lesson-plans?${q.toString()}`;
-                    })()}
-                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide bg-violet-500/15 border border-violet-500/35 text-violet-200 hover:bg-violet-500/25 transition-colors"
+                <div className="mt-3 pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <button
+                    onClick={() => {
+                      setImplError('');
+                      setImplForm(f => ({ ...f, school_id: curriculum?.school_id || assignedSchools[0]?.id || '' }));
+                      setShowImplement(true);
+                      // Load classes for the school
+                      const sid = curriculum?.school_id || assignedSchools[0]?.id;
+                      if (sid) {
+                        fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-black uppercase tracking-wide bg-violet-600 hover:bg-violet-700 text-white transition-all shadow-lg shadow-violet-500/20"
                   >
-                    <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
-                    Create term lesson plan from this syllabus (week-by-week)
-                  </Link>
-                  <p className="text-[10px] text-muted-foreground mt-1.5 max-w-xl">
-                    Opens Lesson Plans with this course and syllabus pre-linked. Pick term and class, save — weeks copy from the syllabus in order. Then generate lessons from the plan page.
-                  </p>
+                    <RocketLaunchIcon className="w-4 h-4 shrink-0" />
+                    Implement Syllabus to Class
+                  </button>
+                  <div>
+                    <p className="text-[11px] font-bold text-foreground">Planning Phase: Ready for Implementation</p>
+                    <p className="text-[10px] text-muted-foreground">One click to create an active Lesson Plan for your students using this syllabus blueprint.</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -2418,6 +2477,68 @@ export default function CurriculumPage() {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Implementations Tab ── */}
+          {activeTab === 'implementations' && selectedCourse && (
+            <div className="mx-4 sm:mx-6 mb-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Class Implementations</h4>
+                  <p className="text-[10px] text-muted-foreground">Active lesson plans created from this syllabus</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setImplError('');
+                    setImplForm(f => ({ ...f, school_id: curriculum?.school_id || assignedSchools[0]?.id || '' }));
+                    setShowImplement(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  <PlusIcon className="w-3 h-3" />
+                  New Implementation
+                </button>
+              </div>
+
+              {implementationList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-2xl gap-3">
+                  <ClipboardDocumentListIcon className="w-12 h-12 text-muted-foreground/20" />
+                  <p className="text-xs font-bold text-muted-foreground">No classes are using this syllabus yet.</p>
+                  <button
+                    onClick={() => setShowImplement(true)}
+                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
+                  >
+                    Create the first implementation
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {implementationList.map((plan: any) => (
+                    <Link
+                      key={plan.id}
+                      href={`/dashboard/lesson-plans/${plan.id}`}
+                      className="group bg-card border border-border hover:border-primary/50 p-5 transition-all flex flex-col gap-4"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h5 className="text-sm font-black group-hover:text-primary transition-colors">{plan.classes?.name || 'Unnamed Class'}</h5>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{plan.term || 'No Term'}</p>
+                        </div>
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                          plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-zinc-500/30 text-zinc-400 bg-zinc-500/5'
+                        }`}>
+                          {plan.status || 'draft'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                        <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3 h-3" /> {new Date(plan.term_start).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-1.5"><RocketLaunchIcon className="w-3 h-3" /> {plan.sessions_per_week || 0} sessions</span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
@@ -3114,6 +3235,150 @@ export default function CurriculumPage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Implementation Modal — The Bridge */}
+      <AnimatePresence>
+        {showImplement && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !implementing && setShowImplement(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-card border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Implement Syllabus</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Push this blueprint to a specific class & schedule</p>
+                </div>
+                <button
+                  onClick={() => setShowImplement(false)}
+                  disabled={implementing}
+                  className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">School</label>
+                    <select
+                      value={implForm.school_id}
+                      onChange={e => {
+                        const sid = e.target.value;
+                        setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                        fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                      }}
+                      className={SELECT_CLS}
+                    >
+                      {assignedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class / Group</label>
+                    <select
+                      value={implForm.class_id}
+                      onChange={e => setImplForm(f => ({ ...f, class_id: e.target.value }))}
+                      className={SELECT_CLS}
+                    >
+                      <option value="">— Select Class —</option>
+                      {implClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Term</label>
+                    <select
+                      value={implForm.term}
+                      onChange={e => setImplForm(f => ({ ...f, term: e.target.value }))}
+                      className={SELECT_CLS}
+                    >
+                      <option value="1">First Term</option>
+                      <option value="2">Second Term</option>
+                      <option value="3">Third Term</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sessions Per Week</label>
+                    <input
+                      type="number"
+                      value={implForm.sessions_per_week}
+                      onChange={e => setImplForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                      className={INPUT_CLS}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Date</label>
+                    <input
+                      type="date"
+                      value={implForm.term_start}
+                      onChange={e => setImplForm(f => ({ ...f, term_start: e.target.value }))}
+                      className={INPUT_CLS}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Date</label>
+                    <input
+                      type="date"
+                      value={implForm.term_end}
+                      onChange={e => setImplForm(f => ({ ...f, term_end: e.target.value }))}
+                      className={INPUT_CLS}
+                    />
+                  </div>
+                </div>
+
+                {implError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{implError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowImplement(false)}
+                  disabled={implementing}
+                  className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deployToClass}
+                  disabled={implementing}
+                  className="flex items-center gap-2 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
+                >
+                  {implementing ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      Implementing…
+                    </>
+                  ) : (
+                    <>
+                      <RocketLaunchIcon className="w-4 h-4" />
+                      Push to Class
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

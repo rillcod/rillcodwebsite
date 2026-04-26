@@ -122,11 +122,10 @@ export default function DashboardNavigation() {
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
 
-          // Step 1 → Step 2 → Step 3
-          { divider: true, label: 'Content Pipeline' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: SparklesIcon },
+          // Step 1 & 2 Unified
+          { divider: true, label: 'Planning' },
+          { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
+          { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
 
@@ -187,11 +186,10 @@ export default function DashboardNavigation() {
       case 'teacher':
         return [
           ...base,
-          // Step 1 → Step 2 → Step 3
-          { divider: true, label: 'Content Pipeline' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
-          { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: SparklesIcon },
+          // Step 1 & 2 Unified
+          { divider: true, label: 'Planning' },
+          { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
+          { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
 
@@ -308,7 +306,7 @@ export default function DashboardNavigation() {
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
 
           { divider: true, label: 'Curriculum' },
-          { name: 'Course & Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
+          { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Course Progress', href: '/dashboard/curriculum/progress', icon: ChartBarIcon },
 
           { divider: true, label: 'Reports' },
