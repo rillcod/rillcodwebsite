@@ -345,14 +345,14 @@ export default function Curriculum() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-primary">
+        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-4 border-t-primary">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
             <div className="w-20 h-20 bg-background border border-border rounded-none flex items-center justify-center ring-1 ring-primary/50 ring-offset-4 ring-offset-card shadow-sm">
               <GraduationCap className="w-10 h-10 text-primary" />
             </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">12-Year AI-Integrated <span className="text-primary italic">Curriculum.</span></h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">12-Year AI-Powered <span className="text-primary italic">Curriculum.</span></h1>
           <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-12 font-medium italic leading-relaxed border-l-2 border-primary pl-8 mx-auto inline-block text-left">
             A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future of Rillcod Technologies.
           </p>
@@ -398,7 +398,7 @@ export default function Curriculum() {
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-primary transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
-                  placeholder="SEARCH CURRICULUM..."
+                  placeholder="Search curriculum..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary transition-all shadow-inner"
@@ -485,7 +485,7 @@ export default function Curriculum() {
         </div>
 
         {/* Success Stories */}
-        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
+        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl border-l-4 border-l-blue-500">
           <h2 className="text-xl font-black text-foreground mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
              <span className="w-12 h-[1px] bg-blue-500"></span>
              Student Success Stories
@@ -635,7 +635,7 @@ export default function Curriculum() {
                                 <p className="text-xs font-bold text-foreground uppercase italic">{session.careerPath}</p>
                             </div>
                         </div>
-                        <Link href="/contact" className="px-8 py-4 bg-primary text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20">
+                        <Link href="/contact" className="px-8 py-4 bg-primary text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-primary transition-all ">
                             Request Syllabus
                         </Link>
                     </div>
@@ -647,9 +647,9 @@ export default function Curriculum() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-card border border-border border-t-8 border-t-primary rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
+        <div className="bg-card border border-border border-t-4 border-t-primary rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-foreground">Initialize Your <span className="text-primary italic">Journey.</span></h2>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-foreground">Start Your <span className="text-primary italic">Journey.</span></h2>
           <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground leading-relaxed">
             Join thousands of Nigerian students already building their future with our comprehensive 12-year AI curriculum at Rillcod Technologies.
           </p>
