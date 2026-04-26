@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -63,6 +63,10 @@ interface CanvaEditorProps {
 
 export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
     const [previewMode, setPreviewMode] = useState(false);
+    const [aiImageModal, setAiImageModal] = useState(false);
+    const [aiImagePrompt, setAiImagePrompt] = useState('');
+    const [aiImageLoading, setAiImageLoading] = useState(false);
+    const aiImageInputRef = useRef<HTMLInputElement>(null);
 
     const addBlock = (type: Block['type']) => {
         const newBlock: Block = { type, content: '', id: Date.now().toString() };
@@ -114,12 +118,22 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
         onChange(next);
     };
 
+    const openAiImageModal = () => {
+        setAiImagePrompt('');
+        setAiImageModal(true);
+        setTimeout(() => aiImageInputRef.current?.focus(), 50);
+    };
+
     const handleAiImage = async () => {
-        const prompt = window.prompt("What image should AI generate? (e.g. A robot soldering a circuit)");
+        const prompt = aiImagePrompt.trim();
         if (!prompt) return;
+        setAiImageLoading(true);
         const id = Date.now().toString();
         const newBlock: Block = { id, type: 'image', content: '', caption: prompt, url: '' };
         onChange([...layout, newBlock]);
+        setAiImageModal(false);
+        setAiImagePrompt('');
+        setAiImageLoading(false);
         try {
             const res = await fetch('/api/ai/image', {
                 method: 'POST',
@@ -139,6 +153,55 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
 
     return (
         <div className="space-y-4">
+            {/* AI Image Generation Modal */}
+            {aiImageModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-zinc-900 border border-violet-500/30 shadow-2xl shadow-violet-500/10 w-full max-w-md p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-violet-400/70 mb-0.5">AI Image Generator</p>
+                                <h3 className="text-sm font-black text-white">Describe your image</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => { setAiImageModal(false); setAiImagePrompt(''); }}
+                                className="p-1.5 text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <input
+                            ref={aiImageInputRef}
+                            type="text"
+                            value={aiImagePrompt}
+                            onChange={e => setAiImagePrompt(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleAiImage(); }}
+                            placeholder="e.g. A robot soldering a circuit on a workbench"
+                            className="w-full bg-black/40 border border-white/10 focus:border-violet-500/50 focus:outline-none px-3 py-2.5 text-sm text-white placeholder:text-white/30 rounded-none"
+                        />
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => { setAiImageModal(false); setAiImagePrompt(''); }}
+                                className="flex-1 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 border border-white/10 hover:bg-white/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAiImage}
+                                disabled={!aiImagePrompt.trim() || aiImageLoading}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-violet-600/30 hover:bg-violet-600/50 text-violet-300 border border-violet-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Wand2Icon className="w-3.5 h-3.5" />
+                                Generate
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-white/20 leading-relaxed">Powered by Gemini Imagen · Falls back to Pollinations AI for instant results</p>
+                    </div>
+                </div>
+            )}
+
             {/* Toolbar */}
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -189,7 +252,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <div className="h-6 w-px bg-white/10 mx-1 self-center" />
                     <button
                         type="button"
-                        onClick={handleAiImage}
+                        onClick={openAiImageModal}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-none text-[10px] font-bold transition-all border border-violet-500/20"
                     >
                         <Wand2Icon className="w-3.5 h-3.5" />

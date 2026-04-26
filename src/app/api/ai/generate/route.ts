@@ -76,7 +76,7 @@ VISUAL & DIAGRAMS:
 CHARTS & DATA:
 - 'd3-chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', dataset: number[], labels?: string[] } — D3 data chart
 - 'chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', data: number[], labels?: string[] } — Recharts data chart (simpler)
-- 'motion-graphics': { animationType: 'flow'|'orbit'|'particles'|'network'|'timeline', config: { labels?: string[], nodes?: number }, title?: string } — Animated diagram
+- 'motion-graphics': { animationType: 'flow'|'orbit'|'particles'|'network'|'timeline'|'wave'|'pulse', config: { labels?: string[], nodes?: number }, title?: string } — Animated diagram. Use 'flow' for step-by-step processes, 'network' for concept maps, 'orbit' for solar-system-style hierarchy, 'timeline' for chronological sequences, 'wave' for frequency/signal topics, 'pulse' for generic emphasis
 
 CODING & INTERACTIVE:
 - 'code': { content: string, language: 'python'|'javascript'|'html'|'robotics' } — Runnable code in Monaco editor
@@ -288,7 +288,7 @@ Return ONLY this JSON (nothing else):
 }`;
       }
 
-      return `Write clear, well-structured study notes for a Rillcod Technologies student.
+      return `Write engaging, human-feeling study notes for a Rillcod Technologies student.
 Topic: "${req.topic}"
 Grade: ${grade}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
@@ -296,29 +296,30 @@ Duration: ${req.durationMinutes ?? 60} minutes
 ${notesContextLine ? `Context: ${notesContextLine}` : ''}
 ${notesModeStyle}
 
-MANDATORY STRUCTURE — follow this exact section order:
-1. ## Introduction — 2-3 paragraphs introducing the topic with a real-world hook
-2. ## What is [Topic]? — clear definition + key concept explanation
-3. ## How it Works — step-by-step explanation with bullet points
-4. ## Real-World Examples — 2-3 Nigerian/African examples (phones, tech, everyday life)
-${req.courseName ? `5. ## In Your Course — how "${req.topic}" connects to "${req.courseName}"` : '5. ## Why It Matters — practical applications'}
-6. ## Key Points — bullet list of 6-8 most important facts
-7. ## Quick Recap 📌 — exactly 5 bullet point summary statements
+CONTENT GUIDE (adapt freely to the topic — this is a suggestion, not a rigid template):
+- Open with a short punchy hook or surprising fact — no heading needed for the first paragraph
+- Use ## and ### headings that naturally fit the topic (invent your own heading names, don't use generic ones like "Introduction" or "What Is X?")
+- Mix short punchy sentences with fuller explanations — vary the rhythm
+- Include 1-2 real Nigerian or African real-world use cases woven naturally into the text
+- For coding topics: include ONE code example in a \`\`\`language fence
+- Optionally embed ONE relevant illustrative image inline using: ![description](https://image.pollinations.ai/prompt/DESCRIPTION_URL_ENCODED?nologo=true&width=900&height=500&model=flux) — encode spaces as %20
+- End with a brief "What to remember" summary (3-5 bullets) — give it a topic-specific heading
+${req.courseName ? `- Connect at least one section specifically to "${req.courseName}"` : ''}
+${req.programName ? `- Mention the "${req.programName}" programme naturally once` : ''}
 
-STRICT RULES:
-- ALWAYS use ## for main sections, ### for sub-sections — this is non-negotiable
-- Keep paragraphs to 3-4 sentences maximum
-- Use bullet points (- item) for ALL lists
-- For coding topics: include ONE code block using \`\`\`language fences
-- Tone: encouraging, clear, British English
-- Total length: 900-1200 words
-- DO NOT use bold (**) for headings — headings must use ## only
-${req.courseName ? `- Frame every example within the context of "${req.courseName}"` : ''}
-${req.programName ? `- Naturally mention the "${req.programName}" programme once in the introduction` : ''}
+WRITING STYLE RULES — follow these strictly:
+- Write like a sharp, enthusiastic human tutor — NOT like a textbook or an AI
+- Use contractions (you'll, it's, we're), rhetorical questions, and occasional exclamations
+- Never start two consecutive paragraphs with the same word
+- DO NOT use heading names like "Introduction", "What is [Topic]?", "How it Works", "Key Points", "Quick Recap" — these are AI fingerprints
+- Use ## for sections, ### for subsections — no bold (**) as a substitute for headings
+- Paragraphs: 2-4 sentences maximum; lists: max 8 items
+- Total length: 900-1300 words — do not truncate
+- British English throughout
 
-Return ONLY this JSON (nothing else — no preamble, no explanation):
+Return ONLY this JSON (nothing else):
 {
-  "lesson_notes": "## Introduction\\n\\n[content here...]\\n\\n## What is ${req.topic}?\\n\\n[content...]"
+  "lesson_notes": "your markdown here"
 }`; }
 
     case 'lesson': {
@@ -1049,7 +1050,7 @@ export async function POST(req: NextRequest) {
           "meta-llama/llama-3.1-8b-instruct:free", // Last resort
         ];
         adaptiveTemperature = 0.6;
-        adaptiveMaxTokens = 2000; // Reduced to stay within free-tier credit limits
+        adaptiveMaxTokens = 3500;
         break;
 
       case 'code-generation':

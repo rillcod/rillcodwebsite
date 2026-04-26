@@ -17,6 +17,8 @@ import {
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import VideoPlayer from '@/components/media/VideoPlayer';
 import Editor from '@monaco-editor/react';
@@ -371,7 +373,7 @@ function MermaidRenderer({ code }: { code: string }) {
         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
         <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.3em]">Our Learning Adventure Map</p>
       </div>
-      <div className="bg-white/95 p-8 sm:p-12 rounded-none sm:rounded-none flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px]">
+      <div className="bg-card p-8 sm:p-12 rounded-none flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px] [&_svg]:max-w-full [&_.label]:!text-foreground/80 [&_text]:!fill-current"  style={{ colorScheme: 'dark' }}>
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         {svg ? (
           <div
@@ -674,32 +676,38 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
           </div>
         )}
 
-        {/* ── ORBIT — enhanced planetary rings ── */}
+        {/* ── ORBIT — planetary rings with labels ── */}
         {type === 'orbit' && (
-          <div className="relative flex items-center justify-center" style={{ width: 240, height: 240 }}>
-            {[...Array(config?.nodes || 3)].map((_, i) => {
-              const r = (i + 1) * 40;
+          <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
+            {effectiveLabels.slice(1, Math.min(effectiveLabels.length, 5)).map((label, i) => {
+              const r = (i + 1) * 50;
               const col = MOTION_COLORS[i % MOTION_COLORS.length];
               return (
                 <div key={i}>
                   <div className={`absolute rounded-full border ${col.border} opacity-15`} style={{ width: r * 2, height: r * 2, left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }} />
                   <motion.div
                     animate={{ rotate: i % 2 === 0 ? 360 : -360 }}
-                    transition={{ duration: 5 + i * 2.5, repeat: Infinity, ease: 'linear' }}
+                    transition={{ duration: 6 + i * 3, repeat: Infinity, ease: 'linear' }}
                     className="absolute"
                     style={{ width: r * 2, height: r * 2, left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
                   >
-                    <div className={`absolute w-3 h-3 ${col.bg} border ${col.border} top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg`} />
+                    <motion.div
+                      animate={{ rotate: i % 2 === 0 ? -360 : 360 }}
+                      transition={{ duration: 6 + i * 3, repeat: Infinity, ease: 'linear' }}
+                      className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 ${col.bg} border ${col.border} px-1.5 py-0.5 shadow-lg flex items-center justify-center min-w-[48px]`}
+                    >
+                      <p className={`text-[7px] font-black ${col.text} text-center leading-tight`}>{label}</p>
+                    </motion.div>
                   </motion.div>
                 </div>
               );
             })}
             <motion.div
-              animate={{ scale: [1, 1.12, 1], rotate: 360 }}
-              transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-              className="absolute w-14 h-14 bg-primary/25 border-2 border-primary/50 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)] z-10"
+              animate={{ scale: [1, 1.12, 1] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute w-16 h-16 bg-primary/25 border-2 border-primary/50 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)] z-10 text-center px-1"
             >
-              <div className="w-4 h-4 rounded-full bg-primary" />
+              <p className="text-[8px] font-black text-primary leading-tight">{effectiveLabels[0] || 'Core'}</p>
             </motion.div>
           </div>
         )}
@@ -742,8 +750,38 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
           </div>
         )}
 
+        {/* ── TIMELINE — vertical milestones ── */}
+        {type === 'timeline' && (
+          <div className="w-full max-w-md space-y-0 relative px-4">
+            <div className="absolute left-[28px] top-4 bottom-4 w-px bg-gradient-to-b from-cyan-500/60 via-violet-500/40 to-transparent" />
+            {effectiveLabels.slice(0, 7).map((label, i) => {
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.18, type: 'spring', stiffness: 160 }}
+                  className="flex items-start gap-4 pb-6 last:pb-0 relative"
+                >
+                  <motion.div
+                    animate={{ boxShadow: [`0 0 0px ${col.glow}`, `0 0 12px ${col.glow}`, `0 0 0px ${col.glow}`] }}
+                    transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                    className={`shrink-0 w-7 h-7 ${col.bg} border ${col.border} flex items-center justify-center text-[10px] font-black z-10`}
+                  >
+                    <span className={col.text}>{i + 1}</span>
+                  </motion.div>
+                  <div className={`flex-1 p-2.5 ${col.bg} border ${col.border} border-l-4`}>
+                    <p className={`text-[10px] font-black ${col.text} uppercase tracking-wider leading-tight`}>{label}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
         {/* ── PULSE — concentric rings with center glow ── */}
-        {(type === 'pulse' || (!['flow','network','orbit','particles','wave'].includes(type))) && (
+        {(type === 'pulse' || (!['flow','network','orbit','particles','wave','timeline'].includes(type))) && (
           <div className="relative flex items-center justify-center">
             {[...Array(3)].map((_, i) => (
               <motion.div
@@ -1247,6 +1285,97 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
   );
 }
 
+// ── ImageBlock: image with loading skeleton + error fallback ─────────────────
+function ImageBlock({ url, caption }: { url?: string; caption?: string }) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(!url ? 'loading' : 'loading');
+
+  if (!url) {
+    return (
+      <div className="space-y-4">
+        <div className="w-full aspect-video bg-card border border-border flex flex-col items-center justify-center gap-3 animate-pulse">
+          <div className="w-8 h-8 border-2 border-cyan-500/40 border-t-cyan-500 rounded-full animate-spin" />
+          <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">Generating image…</p>
+        </div>
+        {caption && <p className="text-center text-[10px] text-muted-foreground/50 italic">{caption}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="relative overflow-hidden border border-border shadow-2xl hover:border-cyan-500/20 transition-colors duration-500 group">
+        {status === 'loading' && (
+          <div className="absolute inset-0 bg-card flex items-center justify-center z-10">
+            <div className="w-8 h-8 border-2 border-cyan-500/40 border-t-cyan-500 rounded-full animate-spin" />
+          </div>
+        )}
+        {status === 'error' ? (
+          <div className="w-full aspect-video bg-rose-500/5 border border-rose-500/10 flex flex-col items-center justify-center gap-2">
+            <PhotoIcon className="w-8 h-8 text-rose-400/30" />
+            <p className="text-[10px] font-black text-rose-400/40 uppercase tracking-widest">Image unavailable</p>
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt={caption || ''}
+            className={`w-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ${status === 'loading' ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}`}
+            onLoad={() => setStatus('loaded')}
+            onError={() => setStatus('error')}
+            loading="lazy"
+          />
+        )}
+      </div>
+      {caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{caption}</p>}
+    </div>
+  );
+}
+
+// ── BlockMarkdown: lightweight markdown for block content (text, callouts, etc) ─
+function BlockMarkdown({ content, className }: { content: string; className?: string }) {
+  if (!content) return null;
+  return (
+    <div className={className}>
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <p className="text-base font-black text-foreground mb-1">{children}</p>,
+          h2: ({ children }) => <p className="text-sm font-black text-foreground mb-1">{children}</p>,
+          h3: ({ children }) => <p className="text-sm font-bold text-foreground/80 mb-0.5">{children}</p>,
+          p: ({ children }) => <p className="text-sm text-muted-foreground leading-relaxed mb-1.5 last:mb-0">{children}</p>,
+          ul: ({ children }) => <ul className="list-none space-y-1 my-1.5">{children}</ul>,
+          ol: ({ children }) => <ol className="list-none space-y-1 my-1.5">{children}</ol>,
+          li: ({ children }) => (
+            <li className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+              <span className="text-cyan-500/70 shrink-0 mt-1 text-[10px]">▸</span>
+              <span>{children}</span>
+            </li>
+          ),
+          strong: ({ children }) => <strong className="font-black text-foreground">{children}</strong>,
+          em: ({ children }) => <em className="italic text-foreground/70">{children}</em>,
+          del: ({ children }) => <del className="opacity-40">{children}</del>,
+          code: ({ children, className: cls }: any) => {
+            if (cls) return <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">{children}</code>;
+            return <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">{children}</code>;
+          },
+          pre: ({ children }: any) => {
+            const code = String((children as any)?.props?.children || '').replace(/\n$/, '');
+            return <pre className="my-2 p-3 bg-black/30 border border-border text-[12px] font-mono text-cyan-300 overflow-x-auto rounded-none leading-relaxed">{code}</pre>;
+          },
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline decoration-primary/30 hover:decoration-primary underline-offset-2 transition-all">{children}</a>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-violet-500/50 pl-3 my-1.5 italic text-foreground/60">{children}</blockquote>
+          ),
+        }}
+      >
+        {content}
+      </Markdown>
+    </div>
+  );
+}
+
 // ── AnimatedBlock: scroll-triggered entrance for every lesson block ──────────
 // Premium entrance: slight scale + rise + fade; gpu-accelerated via transform.
 // Stagger is capped so later blocks don't feel laggy during rapid scrolling.
@@ -1309,10 +1438,8 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'text':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-violet-500/30 transition-colors duration-300">
-                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
-                    {block.content}
-                  </p>
+                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-violet-500/30 transition-colors duration-300 selection:bg-cyan-500/30">
+                  <BlockMarkdown content={block.content || ''} className="text-sm sm:text-base font-medium break-words" />
                 </div>
               </AnimatedBlock>
             );
@@ -1329,12 +1456,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'image':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="overflow-hidden border border-border shadow-2xl hover:border-cyan-500/20 transition-colors duration-500 group">
-                    <img src={block.url} alt={block.caption} className="w-full object-cover group-hover:scale-[1.02] transition-transform duration-700" />
-                  </div>
-                  {block.caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
-                </div>
+                <ImageBlock url={block.url} caption={block.caption} />
               </AnimatedBlock>
             );
 
@@ -1355,7 +1477,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
                         {isWarning ? 'Important Note' : 'Key Insight'}
                       </p>
-                      <p className="text-sm sm:text-base font-bold text-foreground leading-relaxed">{block.content}</p>
+                      <BlockMarkdown content={block.content || ''} className="text-sm sm:text-base font-bold text-foreground" />
                     </div>
                   </div>
                 </div>
@@ -1383,9 +1505,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       <ActivitySteps steps={block.steps} isCoding={block.is_coding} />
                     ) : (
                       <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
-                        <p className="text-base font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
-                          {block.instructions || 'Follow the experiential learning prompt below.'}
-                        </p>
+                        <BlockMarkdown content={block.instructions || 'Follow the experiential learning prompt below.'} className="text-base font-medium italic opacity-80" />
                       </div>
                     )}
                   </div>
@@ -1559,7 +1679,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       </div>
                     </div>
                     <div className="p-6 bg-muted/50 border border-border shadow-lg">
-                      <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap mb-6">{block.instructions}</p>
+                      <BlockMarkdown content={block.instructions || ''} className="text-sm font-medium mb-6" />
                       {block.deliverables && block.deliverables.length > 0 && (
                         <div className="space-y-3 pt-4 border-t border-emerald-500/20">
                           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Required Deliverables</p>
@@ -1643,7 +1763,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         </div>
                         <div className="space-y-1 min-w-0">
                           <p className="text-sm font-black text-amber-300 tracking-tight">{t.term || t.label || t.word}</p>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{t.definition || t.value || t.meaning}</p>
+                          <BlockMarkdown content={t.definition || t.value || t.meaning || ''} className="text-sm" />
                         </div>
                         {onExplainRequest && (
                           <button
@@ -1668,7 +1788,9 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="relative pl-8 py-6 border-l-4 border-violet-500/60 bg-violet-500/5 overflow-hidden group">
                   <div className="absolute top-3 right-4 text-5xl font-black text-violet-500/10 leading-none select-none">"</div>
                   <blockquote className="text-base sm:text-lg font-semibold text-foreground/80 italic leading-relaxed mb-3">
-                    "{block.content || block.quote}"
+                    <span className="select-none text-violet-400/50 mr-1">"</span>
+                    <BlockMarkdown content={block.content || block.quote || ''} className="inline" />
+                    <span className="select-none text-violet-400/50 ml-0.5">"</span>
                   </blockquote>
                   {(block.author || block.source) && (
                     <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
@@ -1704,9 +1826,10 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                         <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                           {idx + 1}
                         </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors pt-0.5">
-                          {typeof step === 'string' ? step : step.text || step.content || step.label || JSON.stringify(step)}
-                        </p>
+                        <BlockMarkdown
+                          content={typeof step === 'string' ? step : step.text || step.content || step.label || ''}
+                          className="text-sm text-muted-foreground group-hover:text-foreground transition-colors pt-0.5"
+                        />
                       </motion.div>
                     ))}
                   </div>
@@ -1778,9 +1901,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                             {col.title || col.heading || col.label}
                           </p>
                         )}
-                        <p className="text-sm text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
-                          {col.content || col.text || col.value || col.body || ''}
-                        </p>
+                        <BlockMarkdown content={col.content || col.text || col.value || col.body || ''} className="group-hover:text-foreground transition-colors" />
                       </motion.div>
                     );
                   })}
@@ -1909,178 +2030,135 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
   );
 }
 
-function renderMarkdownNotes(md: string): React.ReactNode[] {
-  const lines = md.split('\n');
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
-  let key = 0;
-
-  const inline = (text: string, k: number | string) => {
-    const html = text
-      .replace(/`([^`]+)`/g, '<code style="background:rgba(6,182,212,0.1);color:var(--inline-code-color,#0e7490);padding:2px 7px;border-radius:4px;font-size:0.83em;font-family:monospace;border:1px solid rgba(6,182,212,0.25)">$1</code>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--foreground);font-weight:900">$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>')
-      .replace(/~~(.+?)~~/g, '<s style="opacity:0.4">$1</s>');
-    return <span key={k} dangerouslySetInnerHTML={{ __html: html }} />;
-  };
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Fenced code block
-    if (line.trim().startsWith('```')) {
-      const lang = line.trim().slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
-      nodes.push(<NoteCodeBlock key={key++} lang={lang} code={codeLines.join('\n')} />);
-      i++; continue;
-    }
-
-    // Blockquote / callout (> prefix)
-    if (line.trim().startsWith('> ')) {
-      const quotes: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('> ')) { quotes.push(lines[i].slice(lines[i].indexOf('> ') + 2)); i++; }
-      nodes.push(
-        <motion.blockquote
-          key={key++}
-          initial={{ opacity: 0, x: -8 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.35 }}
-          className="my-4 pl-5 border-l-4 border-violet-500/50 bg-violet-500/5 py-3 pr-4"
-        >
-          <p className="text-sm text-foreground/70 italic leading-relaxed">{inline(quotes.join(' '), 'bq')}</p>
-        </motion.blockquote>
-      );
-      continue;
-    }
-
-    // Headings with scroll-triggered fade-in
-    if (/^### /.test(line)) {
-      nodes.push(
-        <motion.h3 key={key++} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.3 }}
-          className="text-base font-black text-foreground/80 pt-5 pb-1 flex items-center gap-2">
-          <span className="w-1 h-1 rounded-full bg-cyan-500 inline-block" />
-          {inline(line.slice(4), 'h3')}
-        </motion.h3>
-      );
-      i++; continue;
-    }
-    if (/^## /.test(line)) {
-      nodes.push(
-        <motion.h2 key={key++} initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.35 }}
-          className="text-lg font-black text-foreground pt-8 pb-2 border-b border-border uppercase tracking-widest mt-4">
-          {inline(line.slice(3), 'h2')}
-        </motion.h2>
-      );
-      i++; continue;
-    }
-    if (/^# /.test(line)) {
-      nodes.push(
-        <motion.h1 key={key++} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }}
-          className="text-2xl font-black text-foreground pt-6 pb-2 bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">
-          {inline(line.slice(2), 'h1')}
-        </motion.h1>
-      );
-      i++; continue;
-    }
-
-    // Bullet list
-    if (/^[-*] /.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^[-*] /.test(lines[i])) { items.push(lines[i].slice(2)); i++; }
-      nodes.push(
-        <ul key={key++} className="list-none space-y-2 pl-0 my-3">
-          {items.map((item, ii) => (
-            <motion.li key={ii} initial={{ opacity: 0, x: -6 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              transition={{ delay: ii * 0.05, duration: 0.3 }}
-              className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
-            >
+function MarkdownNotes({ content }: { content: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ children }) => (
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.4 }}
+            className="text-2xl font-black text-foreground pt-6 pb-2 border-b border-border/50 mt-4"
+          >{children}</motion.h1>
+        ),
+        h2: ({ children }) => (
+          <motion.h2
+            initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.35 }}
+            className="text-lg font-black text-foreground pt-8 pb-2 border-b border-border uppercase tracking-widest mt-4"
+          >{children}</motion.h2>
+        ),
+        h3: ({ children }) => (
+          <motion.h3
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+            viewport={{ once: true }} transition={{ duration: 0.3 }}
+            className="text-base font-black text-foreground/80 pt-5 pb-1 flex items-center gap-2"
+          >
+            <span className="w-1 h-1 rounded-full bg-cyan-500 inline-block shrink-0" />
+            {children}
+          </motion.h3>
+        ),
+        h4: ({ children }) => (
+          <h4 className="text-sm font-black text-foreground/70 pt-3 pb-1 uppercase tracking-wider">{children}</h4>
+        ),
+        p: ({ children }) => (
+          <p className="text-sm text-muted-foreground leading-relaxed my-1.5">{children}</p>
+        ),
+        ul: ({ children }) => (
+          <ul className="list-none space-y-2 pl-0 my-3">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="list-none space-y-2 pl-0 my-3 [counter-reset:li]">{children}</ol>
+        ),
+        li: ({ children, ordered, index }: any) => (
+          <motion.li
+            initial={{ opacity: 0, x: -6 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ delay: (index ?? 0) * 0.04, duration: 0.3 }}
+            className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
+          >
+            {ordered ? (
+              <span className="w-5 h-5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                {(index ?? 0) + 1}
+              </span>
+            ) : (
               <span className="text-cyan-500/70 mt-1.5 shrink-0 text-xs">▸</span>
-              <span className="flex-1">{inline(item, ii)}</span>
-            </motion.li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Numbered list
-    if (/^\d+\. /.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++; }
-      nodes.push(
-        <ol key={key++} className="list-none space-y-2 pl-0 my-3">
-          {items.map((item, ii) => (
-            <motion.li key={ii} initial={{ opacity: 0, x: -6 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              transition={{ delay: ii * 0.05, duration: 0.3 }}
-              className="flex gap-3 items-start text-sm text-muted-foreground leading-relaxed"
-            >
-              <span className="w-5 h-5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{ii + 1}</span>
-              <span className="flex-1">{inline(item, ii)}</span>
-            </motion.li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Markdown table
-    if (line.trim().startsWith('|')) {
-      const tableLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        if (!/^[\s|:-]+$/.test(lines[i])) tableLines.push(lines[i]);
-        i++;
-      }
-      if (tableLines.length > 0) {
-        const rows = tableLines.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
-        nodes.push(
-          <div key={key++} className="overflow-x-auto my-4 border border-border">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="bg-muted/50">
-                  {(rows[0] || []).map((cell, ci) => (
-                    <th key={ci} className="px-4 py-2.5 text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">{cell}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(1).map((row, ri) => (
-                  <tr key={ri} className="border-b border-border hover:bg-muted/30 transition-colors">
-                    {row.map((cell, ci) => (
-                      <td key={ci} className={`px-4 py-2.5 text-sm ${ci === 0 ? 'font-semibold text-foreground/80' : 'text-muted-foreground'}`}>{inline(cell, ci)}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            )}
+            <span className="flex-1">{children}</span>
+          </motion.li>
+        ),
+        blockquote: ({ children }) => (
+          <motion.blockquote
+            initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.35 }}
+            className="my-4 pl-5 border-l-4 border-violet-500/50 bg-violet-500/5 py-3 pr-4"
+          >
+            <div className="text-sm text-foreground/70 italic leading-relaxed [&>p]:my-0">{children}</div>
+          </motion.blockquote>
+        ),
+        pre: ({ children }: any) => {
+          const codeEl = (children as any)?.props;
+          const match = /language-(\w+)/.exec(codeEl?.className || '');
+          const code = String(codeEl?.children || '').replace(/\n$/, '');
+          return <NoteCodeBlock lang={match?.[1] || ''} code={code} />;
+        },
+        code: ({ children, className }: any) => {
+          if (className) return null; // handled by pre
+          return (
+            <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">
+              {children}
+            </code>
+          );
+        },
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline decoration-primary/30 hover:decoration-primary underline-offset-2 transition-all"
+          >{children}</a>
+        ),
+        img: ({ src, alt }) => (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.97 }} whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }} transition={{ duration: 0.4 }}
+            className="block my-4"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt || ''}
+              className="rounded-none max-w-full border border-border shadow-lg"
+              loading="lazy"
+            />
+            {alt && <span className="block text-[11px] text-muted-foreground/60 text-center mt-2 italic">{alt}</span>}
+          </motion.span>
+        ),
+        table: ({ children }) => (
+          <div className="overflow-x-auto my-4 border border-border">
+            <table className="w-full text-xs border-collapse">{children}</table>
           </div>
-        );
-      }
-      continue;
-    }
-
-    // Empty line
-    if (!line.trim()) { i++; continue; }
-
-    // Paragraph
-    const paraLines: string[] = [];
-    while (
-      i < lines.length && lines[i].trim() &&
-      !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) &&
-      !/^\d+\. /.test(lines[i]) && !lines[i].trim().startsWith('```') &&
-      !lines[i].trim().startsWith('|') && !lines[i].trim().startsWith('> ')
-    ) { paraLines.push(lines[i]); i++; }
-    if (paraLines.length > 0) {
-      nodes.push(
-        <p key={key++} className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap my-1.5">
-          {inline(paraLines.join('\n'), 'p')}
-        </p>
-      );
-    }
-  }
-  return nodes;
+        ),
+        thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+        tbody: ({ children }) => <tbody>{children}</tbody>,
+        tr: ({ children }) => (
+          <tr className="border-b border-border hover:bg-muted/30 transition-colors">{children}</tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-4 py-2.5 text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">{children}</th>
+        ),
+        td: ({ children }) => (
+          <td className="px-4 py-2.5 text-sm text-muted-foreground first:font-semibold first:text-foreground/80">{children}</td>
+        ),
+        hr: () => <hr className="my-6 border-border/50" />,
+        strong: ({ children }) => <strong className="font-black text-foreground">{children}</strong>,
+        em: ({ children }) => <em className="text-foreground/70 italic">{children}</em>,
+        del: ({ children }) => <del className="opacity-40">{children}</del>,
+      }}
+    >
+      {content}
+    </Markdown>
+  );
 }
 
 const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
@@ -2134,6 +2212,7 @@ export default function LessonDetailPage() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactions, setInteractions] = useState<Set<number>>(new Set());
   const [explainRequest, setExplainRequest] = useState<string | undefined>(undefined);
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   const handleInteraction = (idx: number) => {
     setInteractions(prev => {
@@ -2341,16 +2420,22 @@ export default function LessonDetailPage() {
       <Script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" strategy="afterInteractive" onLoad={() => {
         (window as any).mermaid?.initialize({
           startOnLoad: false,
-          theme: 'base',
+          theme: 'dark',
           themeVariables: {
-            primaryColor: '#4f46e5',
-            primaryTextColor: '#1e293b',
+            background: '#0d0d1a',
+            mainBkg: '#1a1a2e',
+            nodeBorder: '#4f46e5',
+            clusterBkg: '#16213e',
+            titleColor: '#e2e8f0',
+            edgeLabelBackground: '#1a1a2e',
+            primaryColor: '#312e81',
+            primaryTextColor: '#e2e8f0',
             primaryBorderColor: '#4f46e5',
             lineColor: '#6366f1',
-            secondaryColor: '#06b6d4',
-            tertiaryColor: '#f8fafc',
+            secondaryColor: '#164e63',
+            tertiaryColor: '#1e293b',
             fontFamily: 'Inter, sans-serif',
-            fontSize: '12px'
+            fontSize: '13px',
           },
           securityLevel: 'loose',
           flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' }
@@ -2553,119 +2638,184 @@ export default function LessonDetailPage() {
             {/* Display Area */}
             <div className="min-h-[50vh]">
               {activeTab === 'content' && (
-                <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-20">
-                  {/* Lesson Intro Strip */}
-                  <div className="flex items-center gap-4 p-5 bg-card border border-border">
-                    <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                      <BookOpenIcon className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Now viewing</p>
-                      <p className="text-sm font-bold text-foreground truncate">{lesson.title}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{lesson.duration_minutes || 60} min</span>
-                      {lesson.duration_minutes && (
-                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest border-l border-border pl-3">
-                          ~{Math.ceil((lesson.lesson_notes?.split(' ').length || 0) / 200)} min read
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-16 sm:space-y-24">
 
-                  {/* PRIMARY: Study Notes First */}
-                  <div className="space-y-12">
-                    <div className="flex items-center gap-4">
-                      <div className="h-px bg-indigo-500/20 w-12" />
-                      <h3 className="text-[11px] font-bold uppercase text-indigo-400 tracking-widest">Study Notes</h3>
-                      <div className="h-px flex-1 bg-indigo-500/10" />
-                      <div className="flex items-center gap-2 ml-auto">
-                        {lesson.lesson_notes && (
-                          <NeuralVoiceReader content={lesson.lesson_notes} title={lesson.title} />
+                  {/* ── STAGE 1: HOOK — cinematic opener ────────────────── */}
+                  <AnimatePresence>
+                    {(hookLoading || lessonHook) && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                        className="relative overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-indigo-500/5 to-amber-500/5"
+                      >
+                        {/* Animated scanline */}
+                        <motion.div
+                          animate={{ x: ['-100%', '200%'] }}
+                          transition={{ duration: 3.5, repeat: Infinity, ease: 'linear', repeatDelay: 4 }}
+                          className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-primary/8 to-transparent pointer-events-none z-0"
+                        />
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+                        {hookLoading ? (
+                          <div className="p-8 sm:p-12 flex items-center gap-4">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                            <div className="space-y-1.5">
+                              <div className="h-2 w-48 bg-primary/20 rounded animate-pulse" />
+                              <div className="h-2 w-72 bg-muted/30 rounded animate-pulse" />
+                            </div>
+                          </div>
+                        ) : lessonHook && (
+                          <div className="relative z-10 p-8 sm:p-12 space-y-6">
+                            <div className="flex items-start gap-4">
+                              <div className="shrink-0 w-10 h-10 bg-primary/20 border border-primary/30 flex items-center justify-center text-lg">🔥</div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-black text-primary/70 uppercase tracking-[0.4em]">Lesson Hook</p>
+                                <h3 className="text-lg sm:text-xl font-black text-foreground leading-snug tracking-tight">{lessonHook.hook_title}</h3>
+                              </div>
+                            </div>
+                            <BlockMarkdown content={lessonHook.hook} className="text-sm sm:text-base text-muted-foreground leading-relaxed pl-14" />
+                            <div className="grid sm:grid-cols-2 gap-3 pl-14">
+                              {lessonHook.real_world_example && (
+                                <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/15">
+                                  <span className="shrink-0 mt-0.5">🌍</span>
+                                  <div>
+                                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Real-World Connection</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">{lessonHook.real_world_example}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {lessonHook.challenge_question && (
+                                <div className="flex gap-3 p-4 bg-indigo-500/8 border border-indigo-500/15">
+                                  <span className="shrink-0 mt-0.5">💭</span>
+                                  <div>
+                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About It</p>
+                                    <p className="text-sm font-semibold text-foreground italic leading-relaxed">{lessonHook.challenge_question}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ── STAGE 2: OBJECTIVES — scannable before diving in ─ */}
+                  {lesson.objectives?.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }} transition={{ duration: 0.5 }}
+                      className="space-y-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-px w-8 bg-emerald-500/40" />
+                        <p className="text-[10px] font-black text-emerald-400/70 uppercase tracking-[0.4em]">What You'll Learn</p>
+                        <div className="h-px flex-1 bg-emerald-500/10" />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {lesson.objectives.slice(0, 6).map((obj: string, oi: number) => (
+                          <motion.div
+                            key={oi}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: oi * 0.06, type: 'spring', stiffness: 200 }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/8 border border-emerald-500/15 hover:border-emerald-500/30 transition-colors group"
+                          >
+                            <CheckCircleIcon className="w-3 h-3 text-emerald-500/60 shrink-0 group-hover:text-emerald-400 transition-colors" />
+                            <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{obj}</span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ── STAGE 3: VISUAL JOURNEY — the main lesson experience */}
+                  {(lesson.content_layout || []).length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-px w-8 bg-cyan-500/40" />
+                        <p className="text-[10px] font-black text-cyan-400/70 uppercase tracking-[0.4em]">Lesson Content</p>
+                        <div className="h-px flex-1 bg-cyan-500/10" />
+                        <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">{lesson.content_layout.length} blocks</span>
+                      </div>
+                      <CanvaRenderer
+                        blocks={lesson.content_layout || []}
+                        lessonType={lesson.lesson_type}
+                        onInteraction={handleInteraction}
+                        onExplainRequest={(text) => setExplainRequest(`${text}__${Date.now()}`)}
+                        lessonContext={{
+                          lessonTitle: lesson.title,
+                          courseTitle: lesson.courses?.title ?? undefined,
+                          gradeLevel: lesson.grade_level ?? undefined,
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* ── STAGE 4: STUDY NOTES — collapsible deep-dive ────── */}
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => setNotesExpanded(e => !e)}
+                      className="w-full flex items-center gap-4 group text-left"
+                    >
+                      <div className="h-px w-8 bg-indigo-500/40" />
+                      <p className="text-[10px] font-black text-indigo-400/70 uppercase tracking-[0.4em] group-hover:text-indigo-400 transition-colors">Study Notes & Reference</p>
+                      <div className="h-px flex-1 bg-indigo-500/10" />
+                      <div className="flex items-center gap-2 ml-auto shrink-0">
                         {isStaff && (
                           <button
-                            onClick={handleGenerateNotes}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleGenerateNotes(); }}
                             disabled={generatingNotes}
-                            className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-50"
                           >
-                            {generatingNotes ? (
-                              <><div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Generating...</>
-                            ) : (
-                              <><span className="text-base">✦</span> {lesson.lesson_notes ? 'Regenerate' : 'Generate Notes'}</>
-                            )}
+                            {generatingNotes ? <><div className="w-2.5 h-2.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Generating…</> : <><span>✦</span>{lesson.lesson_notes ? 'Regen' : 'Generate'}</>}
                           </button>
                         )}
+                        <motion.div
+                          animate={{ rotate: notesExpanded ? 90 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                        >
+                          <ChevronRightIcon className="w-3.5 h-3.5" />
+                        </motion.div>
                       </div>
-                    </div>
-                    {/* ── Lesson Hook Banner ── */}
-                    {hookLoading && (
-                      <div className="flex items-center gap-3 px-1 py-6 text-muted-foreground/50">
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Loading lesson intro...</span>
-                      </div>
-                    )}
-                    {lessonHook && (
-                      <div className="rounded-none border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-amber-500/5 overflow-hidden mb-8">
-                        <div className="flex items-center gap-3 px-6 py-3 border-b border-primary/15 bg-primary/5">
-                          <span className="text-base">🔥</span>
-                          <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">{lessonHook.hook_title}</p>
-                        </div>
-                        <div className="p-6 sm:p-8 space-y-5">
-                          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                            {lessonHook.hook}
-                          </div>
-                          {lessonHook.real_world_example && (
-                            <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/20 rounded-none">
-                              <span className="text-amber-400 shrink-0 mt-0.5">🌍</span>
-                              <div>
-                                <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Real-World Connection</p>
-                                <p className="text-sm text-muted-foreground">{lessonHook.real_world_example}</p>
-                              </div>
-                            </div>
-                          )}
-                          {lessonHook.challenge_question && (
-                            <div className="flex gap-3 p-4 bg-indigo-500/8 border border-indigo-500/20 rounded-none">
-                              <span className="text-indigo-400 shrink-0 mt-0.5">💭</span>
-                              <div>
-                                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About It</p>
-                                <p className="text-sm font-semibold text-foreground italic">{lessonHook.challenge_question}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    </button>
 
-                    {lesson.lesson_notes ? (
-                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-none border border-border shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden group/notes">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[120px] pointer-events-none" />
-                        <div className="text-muted-foreground leading-relaxed text-base font-medium space-y-4">
-                          {renderMarkdownNotes(lesson.lesson_notes)}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-none border border-dashed border-indigo-500/20 flex flex-col items-center justify-center gap-6 text-center min-h-[200px]">
-                        <div className="text-4xl opacity-30">📖</div>
-                        <div>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">No study notes yet</p>
-                          <p className="text-sm text-muted-foreground font-medium">{isStaff ? 'Click "Generate Notes" above to create in-depth study material for this lesson.' : 'Detailed study notes will appear here once published by your instructor.'}</p>
-                        </div>
-                      </div>
+                    <AnimatePresence>
+                      {notesExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                          className="overflow-hidden"
+                        >
+                          {lesson.lesson_notes ? (
+                            <div className="bg-card border border-border border-t-2 border-t-indigo-500/40 p-8 sm:p-16 relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.25)]">
+                              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] pointer-events-none" />
+                              <div className="space-y-4">
+                                <MarkdownNotes content={lesson.lesson_notes} />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-card border border-dashed border-indigo-500/20 p-12 flex flex-col items-center justify-center gap-4 text-center min-h-[160px]">
+                              <div className="text-3xl opacity-30">📖</div>
+                              <p className="text-sm text-muted-foreground">{isStaff ? 'Click "Generate" above to create study notes.' : 'Study notes will appear here once published.'}</p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {!notesExpanded && lesson.lesson_notes && (
+                      <p className="text-[10px] text-muted-foreground/30 font-black uppercase tracking-widest text-center">
+                        ~{Math.ceil((lesson.lesson_notes.split(' ').length || 0) / 200)} min read · click to expand
+                      </p>
                     )}
                   </div>
-
-                  <CanvaRenderer
-                    blocks={lesson.content_layout || []}
-                    lessonType={lesson.lesson_type}
-                    onInteraction={handleInteraction}
-                    onExplainRequest={(text) => setExplainRequest(`${text}__${Date.now()}`)}
-                    lessonContext={{
-                      lessonTitle: lesson.title,
-                      courseTitle: lesson.courses?.title ?? undefined,
-                      gradeLevel: lesson.grade_level ?? undefined,
-                    }}
-                  />
 
 
                   {/* Logic: Interaction Progress Check */}
