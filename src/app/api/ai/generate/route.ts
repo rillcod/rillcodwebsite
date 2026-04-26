@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isPlatformStaffRole, isPartnerSchoolRole, PARTNER_SCHOOL_AI_GENERATE_TYPES } from '@/lib/dashboard/route-access';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
@@ -914,17 +915,23 @@ RULES:
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isCronCall = isValidCronSecret(extractCronSecret(req));
+    let role: string | undefined;
 
-    const { data: profile } = await supabase
-      .from('portal_users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    if (isCronCall) {
+      role = 'admin';
+    } else {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      const { data: profile } = await supabase
+        .from('portal_users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      role = profile?.role;
+    }
 
-    const role = profile?.role;
-    const isPlatform = isPlatformStaffRole(role);
+    const isPlatform = isCronCall || isPlatformStaffRole(role);
     const isSchoolPartner = isPartnerSchoolRole(role);
     const isStudent = role === 'student';
     const isParent = role === 'parent';

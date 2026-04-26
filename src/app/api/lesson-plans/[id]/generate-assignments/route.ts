@@ -11,6 +11,7 @@ import { validateLessonPlanForGeneration } from '@/lib/api-guards';
 import { extractLessonPlanOperationWeeks, getWeekCompositeKey, parseWeekTermRefs } from '@/lib/progression/lessonPlanOperation';
 import { requireStaffUser } from '@/app/api/lesson-plans/authz';
 import { createSSEResponse } from '@/lib/sse-stream';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export async function POST(
   req: NextRequest,
@@ -20,7 +21,9 @@ export async function POST(
 
   try {
     const supabase = await createServerClient();
-    const staff = await requireStaffUser(supabase);
+    const cronSecret = extractCronSecret(req);
+    const isCron = isValidCronSecret(cronSecret);
+    const staff = isCron ? { id: 'cron', role: 'admin' } : await requireStaffUser(supabase);
     if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: plan, error: planErr } = await (supabase as any)
@@ -37,6 +40,8 @@ export async function POST(
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
+    const maxWeeks = typeof body.max_weeks === 'number' && body.max_weeks > 0 ? body.max_weeks : undefined;
+    const extraHeaders = isCron ? { 'x-cron-secret': cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
       week: number;
       topic: string;
@@ -136,7 +141,7 @@ export async function POST(
               planWeekObjectives: typeof week.objectives === 'string' ? week.objectives : '',
               planWeekActivities: typeof week.activities === 'string' ? week.activities : '',
               priorAssignmentTitlesThisRun: [...titlesThisRun],
-            });
+            }, extraHeaders);
           } catch (err) {
             const reason = err instanceof AIFetchError ? err.reason : 'Unexpected AI error';
             failures.push({ week: week.week, topic: week.topic, reason });
@@ -178,6 +183,7 @@ export async function POST(
           titlesThisRun.push((d.title || `${week.topic} Assignment`) as string);
           generated++;
           emit({ generated, total, current: week.week, status: `Generated Week ${week.week}` });
+          if (maxWeeks && generated >= maxWeeks) break;
         } catch (err: unknown) {
           console.error(`Error generating assignment for week ${week.week}:`, err);
           failures.push({ week: week.week, topic: week.topic, reason: 'Unexpected error' });
@@ -193,7 +199,7 @@ export async function POST(
         } as any).eq('id', id);
       }
 
-      emit({ done: true, generated, skipped, total, failures });
+      emit({ done: true, generated, skipped, total, failures, truncated: maxWeeks ? generated >= maxWeeks : false });
     });
   } catch (err: unknown) {
     console.error('Bulk assignment generation error:', err);
