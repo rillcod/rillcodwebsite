@@ -167,7 +167,7 @@ export default function StudentProjectsPage() {
       {/* Stats Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:gap-8 text-center">
             <div className="bg-blue-50 p-6 rounded-xl">
               <div className="text-3xl font-bold text-blue-600 mb-2">{projects.length}+</div>
               <div className="text-gray-600">Projects Created</div>
@@ -211,7 +211,7 @@ export default function StudentProjectsPage() {
       {/* Projects Grid */}
       <section className="py-16 md:py-24 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             {projects.map((project) => (
               <div key={project.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
                 <div className="relative h-48 w-full">
@@ -322,7 +322,7 @@ export default function StudentProjectsPage() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             <div className="bg-white p-6 rounded-xl text-center shadow-lg">
               <TrophyIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-800 mb-2">National Coding Competition</h3>

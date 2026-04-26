@@ -225,25 +225,28 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Staff only' }, { status: 403 });
     }
 
-    const url = new URL(req.url);
-    const id  = url.searchParams.get('id');
+    const url   = new URL(req.url);
+    const id    = url.searchParams.get('id');
+    const force = url.searchParams.get('force') === 'true';
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
 
-    // B3 · Project group delete — active submission guard
-    // Check if there are any submissions for this group before allowing delete
-    const { count, error: countErr } = await (admin as any)
-      .from('project_submissions')
-      .select('*', { count: 'exact', head: true })
-      .eq('group_id', id);
+    // Block deletion when students have graded work unless admin overrides with ?force=true
+    if (!force) {
+      const { count, error: countErr } = await (admin as any)
+        .from('project_submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', id);
 
-    if (countErr) {
-      console.error('[project-group-delete] submission check failed:', countErr);
-    } else if (count && count > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete group with active submissions' 
-      }, { status: 409 });
+      if (countErr) {
+        console.error('[project-group-delete] submission check failed:', countErr);
+      } else if (count && count > 0) {
+        return NextResponse.json(
+          { error: `This group has ${count} submission(s). Pass ?force=true to delete anyway (admin only).` },
+          { status: 409 },
+        );
+      }
     }
 
     const { error } = await admin.from('project_groups').delete().eq('id', id);

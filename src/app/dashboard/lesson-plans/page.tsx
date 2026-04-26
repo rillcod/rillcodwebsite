@@ -720,7 +720,7 @@ function LessonPlansPageInner() {
                 {filterCourseId ? `Plans for ${courses.find(c => c.id === filterCourseId)?.title}` : 'Term Lesson Plans'}
               </span>
             </div>
-            <h1 className="text-3xl lg:text-4xl font-black text-foreground tracking-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight break-words">
               {filterCourseId ? 'Course Plans' : 'Lesson Plans'}
             </h1>
             <p className="text-muted-foreground mt-2 max-w-2xl">
@@ -898,7 +898,7 @@ function LessonPlansPageInner() {
                           </span>
                         )}
                       </div>
-                      <h3 className="font-black text-card-foreground text-base truncate">
+                      <h3 className="font-black text-card-foreground text-base line-clamp-2 break-words">
                         {plan.term ?? 'Term Plan'} {plan.classes?.name ? `— ${plan.classes.name}` : ''}
                       </h3>
                     </div>
@@ -1251,7 +1251,7 @@ function LessonPlansPageInner() {
               ) : null}
             </div>
 
-            <div className="flex gap-3 p-6 border-t border-white/[0.08] bg-white/5">
+            <div className="flex gap-3 p-6 border-t border-white/[0.08] bg-white/5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={() => setPlanToDelete(null)}
                 className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]"
@@ -1318,7 +1318,7 @@ function LessonPlansPageInner() {
               </div>
             </div>
 
-            <div className="flex gap-3 p-5 border-t border-white/[0.08] bg-white/5">
+            <div className="flex gap-3 p-5 border-t border-white/[0.08] bg-white/5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               <button onClick={() => setEditingPlan(null)}
                 className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]">
                 Cancel
@@ -1367,7 +1367,7 @@ function ChipGroup({
       </span>
       <button
         onClick={() => onChange('')}
-        className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+        className={`px-2.5 py-2 min-h-[36px] sm:min-h-[44px] rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
           value === '' ? t.active : t.idle
         }`}
       >
@@ -1377,7 +1377,7 @@ function ChipGroup({
         <button
           key={it.id}
           onClick={() => onChange(it.id)}
-          className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
+          className={`px-2.5 py-2 min-h-[36px] sm:min-h-[44px] rounded-full border text-[10px] font-black uppercase tracking-widest transition ${
             value === it.id ? t.active : t.idle
           }`}
         >
