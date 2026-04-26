@@ -82,6 +82,16 @@ export function extractLessonPlanOperationWeeks(
   return asWeekArray(root.weeks).sort((a, b) => getWeekNumber(a) - getWeekNumber(b));
 }
 
+export function parseWeekTermRefs(
+  week: { syllabus_ref?: { year_number?: number; term_number?: number } },
+  planTermNum: number,
+): { yearNumber: number; termNumber: number; effectiveTermNum: number } {
+  const yearNumber = Number(week.syllabus_ref?.year_number ?? 0);
+  const termNumber = Number(week.syllabus_ref?.term_number ?? planTermNum);
+  const effectiveTermNum = Number.isFinite(termNumber) && termNumber > 0 ? termNumber : planTermNum;
+  return { yearNumber, termNumber, effectiveTermNum };
+}
+
 export function syncWeeksIntoProgression(
   currentPlanData: unknown,
   proposedWeeks: Array<Record<string, unknown>>,

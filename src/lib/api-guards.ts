@@ -13,6 +13,20 @@ export function hasPlanBindings(plan: { course_id?: string | null; school_id?: s
   return Boolean(plan.course_id && plan.school_id);
 }
 
+export function validateLessonPlanForGeneration(
+  plan: unknown,
+): { error: string; status: number } | null {
+  if (!plan) return { error: 'Lesson plan not found', status: 404 };
+  const p = plan as { status?: string; course_id?: string | null; school_id?: string | null };
+  if (p.status !== 'published') {
+    return { error: 'Only published plans can generate content', status: 422 };
+  }
+  if (!hasPlanBindings(p)) {
+    return { error: 'Lesson plan is missing course or school binding', status: 422 };
+  }
+  return null;
+}
+
 export function isConversationInScope(
   caller: { role: string; school_id: string | null },
   conversation: { school_id: string | null },
