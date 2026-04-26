@@ -1878,7 +1878,7 @@ export default function CurriculumPage() {
                   }`}
               >
                 <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap">1. Syllabus</span>
+                <span className="whitespace-nowrap">Syllabus</span>
               </button>
               {canTrack && (
                 <button
@@ -1892,7 +1892,7 @@ export default function CurriculumPage() {
                     }`}
                 >
                   <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">2. Create Content</span>
+                  <span className="whitespace-nowrap">Create Content</span>
                 </button>
               )}
               {curriculum && canTrack && (
@@ -1908,7 +1908,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">3. Implement</span>
+                    <span className="whitespace-nowrap">Implement</span>
                   </button>
                   <button
                     type="button"
@@ -1921,7 +1921,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">4. Progress</span>
+                    <span className="whitespace-nowrap">Progress</span>
                   </button>
                   <button
                     type="button"
@@ -1934,7 +1934,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">4. Tools</span>
+                    <span className="whitespace-nowrap">Tools</span>
                   </button>
                 </>
               )}
@@ -1995,7 +1995,7 @@ export default function CurriculumPage() {
               {/* Week selector */}
               <div className="bg-card border border-border">
                 <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 1 — Choose a Week</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Choose a Week</p>
                 </div>
                 <div className="p-5 space-y-3">
                   {loadingCurr ? (
@@ -2051,7 +2051,7 @@ export default function CurriculumPage() {
               {genWeek && curriculum && (
                 <div className="bg-card border border-border">
                   <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Step 2 — What to Create</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">What to Create</p>
                   </div>
                   <div className="p-5 space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">

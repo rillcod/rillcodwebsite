@@ -1040,71 +1040,24 @@ function LessonPlansPageInner() {
               </button>
             </div>
 
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            <div className="p-5 space-y-5 overflow-y-auto flex-1">
 
-              {/* ── Step 1: When ── */}
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">1 · When</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Academic Year <span className="text-rose-400">*</span></label>
-                  <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value, term_start: '', term_end: '' }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Term <span className="text-rose-400">*</span></label>
-                  <select value={form.term} onChange={e => setForm(f => ({ ...f, term: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    <option value="">Select term…</option>
-                    <option value="First Term">First Term</option>
-                    <option value="Second Term">Second Term</option>
-                    <option value="Third Term">Third Term</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Date range — auto-filled, but editable */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                    Start Date <span className="text-rose-400">*</span>
-                    {form.term && <span className="ml-1 text-violet-400 normal-case font-normal">(auto-filled)</span>}
-                  </label>
-                  <input type="date" value={form.term_start} onChange={e => setForm(f => ({ ...f, term_start: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                    End Date <span className="text-rose-400">*</span>
-                    {form.term && <span className="ml-1 text-violet-400 normal-case font-normal">(auto-filled)</span>}
-                  </label>
-                  <input type="date" value={form.term_end} onChange={e => setForm(f => ({ ...f, term_end: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
-                </div>
-              </div>
-
-              {/* ── Step 2: What — Programme → Course → Syllabus ── */}
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 pt-1">2 · What</p>
-
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                  Programme <span className="text-card-foreground/30 normal-case font-normal">(scope the course list)</span>
-                </label>
-                <select
-                  value={form.program_id}
-                  onChange={e => setForm(f => ({ ...f, program_id: e.target.value, course_id: '', curriculum_version_id: '' }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
-                >
-                  <option value="">All programmes</option>
-                  {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
+              {/* ── Course ── */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">
                   Course <span className="text-rose-400">*</span>
                 </label>
+                {/* Programme filter — subtle, above the course dropdown */}
+                {programOptions.length > 1 && (
+                  <select
+                    value={form.program_id}
+                    onChange={e => setForm(f => ({ ...f, program_id: e.target.value, course_id: '', curriculum_version_id: '' }))}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-card-foreground/60 focus:outline-none focus:border-violet-500/50 min-h-[40px]"
+                  >
+                    <option value="">All programmes</option>
+                    {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                )}
                 <select
                   value={form.course_id}
                   disabled={!!form.program_id && programCoursesLoading}
@@ -1112,11 +1065,7 @@ function LessonPlansPageInner() {
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px] disabled:opacity-50"
                 >
                   <option value="">
-                    {form.program_id && programCoursesLoading
-                      ? 'Loading courses for this programme…'
-                      : coursesForForm.length === 0
-                        ? (form.program_id ? 'No courses in this programme' : 'No courses available')
-                        : 'Select course…'}
+                    {form.program_id && programCoursesLoading ? 'Loading…' : 'Select course…'}
                   </option>
                   {groupedCourses.groups.map(g => (
                     <optgroup key={g.programName} label={g.programName}>
@@ -1129,146 +1078,130 @@ function LessonPlansPageInner() {
                     </optgroup>
                   )}
                 </select>
-                {!form.program_id && coursesForForm.length > 8 && (
-                  <p className="text-[11px] text-card-foreground/40 mt-1.5">Tip · Pick a programme to shorten this list.</p>
+                {/* Syllabus auto-pick badge */}
+                {form.course_id && form.curriculum_version_id && (
+                  <p className="text-xs text-emerald-400 flex items-center gap-1">
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    Syllabus linked — week topics will auto-fill
+                  </p>
                 )}
-                {form.program_id && programCoursesLoading && (
-                  <p className="text-[11px] text-violet-300/90 mt-1.5">Loading courses for the selected programme…</p>
+                {form.course_id && !form.curriculum_version_id && visibleCurricula.length === 0 && (
+                  <p className="text-[11px] text-amber-400">
+                    No syllabus yet — <Link href={`/dashboard/curriculum?course_id=${form.course_id}`} className="underline">generate one</Link> for richer plans.
+                  </p>
                 )}
               </div>
 
-              {/* Import from syllabus — only when course is chosen */}
-              {form.course_id && (
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                    Import weeks from syllabus <span className="text-card-foreground/30 normal-case font-normal">(optional)</span>
-                  </label>
-                  <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                    <option value="">{visibleCurricula.length === 0 ? 'No syllabus available for this school scope' : '— Skip, start blank —'}</option>
-                    {visibleCurricula.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.school_id ? (c.schools?.name ?? 'School') : 'Platform template'} — v{c.version}
-                      </option>
-                    ))}
-                  </select>
-                  {visibleCurricula.length === 0 && (
-                    <p className="text-[11px] text-amber-400 mt-1.5">
-                      No syllabus for this course yet — <Link href={`/dashboard/curriculum?course=${form.course_id}`} className="underline">generate one first</Link> for richer prefills.
-                    </p>
-                  )}
-                  {form.curriculum_version_id && (
-                    <p className="text-xs text-emerald-400 mt-1.5">✓ Week topics will be pre-filled from this syllabus.</p>
+              {/* ── Term ── */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">
+                  Term <span className="text-rose-400">*</span>
+                </label>
+                <div className="flex gap-2">
+                  {(['First Term', 'Second Term', 'Third Term'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, term: t }))}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-black border transition-all min-h-[44px] ${
+                        form.term === t
+                          ? 'bg-violet-600 border-violet-500 text-white'
+                          : 'bg-white/5 border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/10'
+                      }`}
+                    >
+                      {t.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+                {form.term && form.term_start && form.term_end && (
+                  <p className="text-[11px] text-card-foreground/40">
+                    {new Date(form.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(form.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    <span className="ml-2 text-violet-400">· {form.academic_year}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* ── Class ── */}
+              <div className="space-y-2" ref={scheduleStepRef}>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">Class</label>
+                  {autoPickedClassId && form.class_id === autoPickedClassId && (
+                    <span className="text-[10px] text-emerald-400 font-bold">Auto-matched</span>
                   )}
                 </div>
-              )}
-
-              {form.course_id && form.curriculum_version_id && syllabusWeeksPreview.weeks.length > 0 && (
-                <details className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-3">
-                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-violet-300">
-                    <span>Syllabus preview — {syllabusWeeksPreview.termLabel}</span>
-                    <span className="text-[10px] font-bold text-violet-400/80 normal-case">tap to expand</span>
-                  </summary>
-                  <p className="text-[11px] text-muted-foreground mt-2 mb-2">
-                    Saving this plan copies these weeks in order into the term plan. Then open the plan: publish when ready, run <strong>Generate lessons / assignments / projects</strong> from there. For the progression library route, use <strong>Generate progression</strong> on the same plan.
-                  </p>
-                  <ol className="max-h-48 overflow-y-auto text-xs space-y-1 list-decimal pl-4 text-card-foreground/90">
-                    {syllabusWeeksPreview.weeks.slice(0, 40).map((w) => (
-                      <li key={w.week}>
-                        Week {w.week}: {w.topic || '—'}
-                      </li>
-                    ))}
-                  </ol>
-                  {syllabusWeeksPreview.weeks.length > 40 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      …and {syllabusWeeksPreview.weeks.length - 40} more weeks
-                    </p>
-                  )}
-                </details>
-              )}
-
-              {/* ── Step 3: Who ── */}
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 pt-1">3 · Who</p>
-              {isAdmin && schools.length > 0 && (
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">School</label>
+                {isAdmin && schools.length > 0 && (
                   <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
                     <option value="">All schools</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  {!form.school_id && (
-                    <p className="text-[11px] text-amber-400 mt-1.5">
-                      Select a school first so Step 3 can load the right class list.
-                    </p>
-                  )}
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                  Class <span className="text-card-foreground/30 normal-case font-normal">(optional)</span>
-                </label>
+                )}
                 <select
                   value={form.class_id}
-                  onChange={e => {
-                    const next = e.target.value;
-                    setForm(f => ({ ...f, class_id: next }));
-                    if (next) setAutoClassMatch(false);
-                  }}
+                  onChange={e => { setForm(f => ({ ...f, class_id: e.target.value })); if (e.target.value) setAutoClassMatch(false); }}
                   disabled={isAdmin && !form.school_id}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
-                  <option value="">
-                    {isAdmin && !form.school_id ? 'Select school first…' : '— Not assigned to a class —'}
-                  </option>
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px] disabled:opacity-50"
+                >
+                  <option value="">{isAdmin && !form.school_id ? 'Select school first…' : '— No class (plan for all) —'}</option>
                   {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <label className="inline-flex items-center gap-2 text-[11px] text-card-foreground/60">
-                    <input
-                      type="checkbox"
-                      checked={autoClassMatch}
-                      onChange={e => setAutoClassMatch(e.target.checked)}
-                      className="accent-violet-500"
-                    />
-                    Auto-match class from syllabus/course grade
-                  </label>
-                  {autoPickedClassId && form.class_id === autoPickedClassId && (
-                    <span className="text-[11px] text-emerald-400">Auto-selected class; you can still change it manually.</span>
-                  )}
-                </div>
-                {classesNarrowedByGrade && (
-                  <p className="text-[10px] text-cyan-300/80 mt-1.5 flex items-center gap-1">
-                    <span className="font-black uppercase tracking-widest text-cyan-400/80">Grade-matched</span>
-                    <span className="text-card-foreground/50">
-                      Showing classes matching the course&apos;s grade tags
-                      ({(courses.find(c => c.id === form.course_id)?.metadata?.grade_levels ?? []).join(', ')}).
-                    </span>
-                  </p>
-                )}
               </div>
 
-              {/* ── Step 4: Schedule ── */}
-              <p ref={scheduleStepRef} className="text-[10px] font-black uppercase tracking-widest text-violet-400 pt-1">4 · Schedule</p>
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">
-                  Lessons per week
-                </label>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="1" max="5" value={form.sessions_per_week}
-                    onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                    className="flex-1 accent-violet-500" />
-                  <span className="w-8 text-center font-black text-card-foreground text-sm">{form.sessions_per_week}</span>
+              {/* ── Advanced (collapsed) ── */}
+              <details className="group">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-card-foreground/40 hover:text-card-foreground/60 transition-colors select-none">
+                  <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                  Advanced options
+                </summary>
+                <div className="pt-3 space-y-4">
+                  {/* Academic year */}
+                  <div>
+                    <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Academic Year</label>
+                    <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value, term_start: '', term_end: '' }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                      {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  {/* Custom dates */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
+                      <input type="date" value={form.term_start} onChange={e => setForm(f => ({ ...f, term_start: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
+                      <input type="date" value={form.term_end} onChange={e => setForm(f => ({ ...f, term_end: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    </div>
+                  </div>
+                  {/* Syllabus picker — only when multiple options */}
+                  {form.course_id && visibleCurricula.length > 1 && (
+                    <div>
+                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Syllabus version</label>
+                      <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                        <option value="">— Start blank —</option>
+                        {visibleCurricula.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.school_id ? (c.schools?.name ?? 'School') : 'Platform template'} — v{c.version}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {/* Sessions per week */}
+                  <div>
+                    <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Lessons per week</label>
+                    <div className="flex items-center gap-3">
+                      <input type="range" min="1" max="5" value={form.sessions_per_week}
+                        onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
+                        className="flex-1 accent-violet-500" />
+                      <span className="w-8 text-center font-black text-card-foreground text-sm">{form.sessions_per_week}</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[10px] text-violet-400/60 mt-1 font-medium">
-                  Standard: 5 sessions per week (Monday – Friday). Max allowed: 5.
-                </p>
-                <p className="text-xs text-card-foreground/30 mt-1">
-                  {form.term_start && form.term_end && (() => {
-                    const weeks = Math.round((new Date(form.term_end).getTime() - new Date(form.term_start).getTime()) / (7 * 864e5));
-                    return `~${weeks} weeks × ${form.sessions_per_week} = ~${weeks * Number(form.sessions_per_week)} lessons total`;
-                  })()}
-                </p>
-              </div>
+              </details>
             </div>
 
             <div className="sticky bottom-0 flex gap-3 p-4 sm:p-5 border-t border-white/[0.08] bg-card pb-[max(1rem,env(safe-area-inset-bottom))]">
