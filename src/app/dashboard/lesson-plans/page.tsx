@@ -9,7 +9,7 @@ import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
-  SparklesIcon, AcademicCapIcon, TrashIcon,
+  SparklesIcon, AcademicCapIcon, TrashIcon, RocketLaunchIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -908,12 +908,16 @@ function LessonPlansPageInner() {
             )}
             <Link
               href="/dashboard/curriculum"
-              className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg min-h-[44px] flex items-center"
+              className="px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20 flex items-center gap-2"
             >
-              ← Step 1 · Syllabus
+              <RocketLaunchIcon className="w-4 h-4" />
+              Implement from Syllabus
             </Link>
-            <button onClick={() => setShowForm(true)} className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg min-h-[44px]">
-              + Create the first plan
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/70 text-xs font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all"
+            >
+              Custom Plan
             </button>
           </div>
         </div>
@@ -941,6 +945,12 @@ function LessonPlansPageInner() {
                       </p>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
+                        {plan.curriculum_version_id && (
+                          <span className="text-xs text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/30 flex items-center gap-1">
+                            <SparklesIcon className="w-3 h-3" />
+                            Syllabus-Aligned
+                          </span>
+                        )}
                         {(plan.version ?? 1) > 1 && (
                           <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
                         )}
