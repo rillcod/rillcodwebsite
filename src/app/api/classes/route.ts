@@ -74,7 +74,19 @@ export async function GET(request: NextRequest) {
       if (!caller.school_id) return NextResponse.json({ data: [] });
       query = query.eq('school_id', caller.school_id) as any;
     } else if (caller.role === 'teacher') {
-      const scopedIds = await teacherSchoolIds(caller);
+      // Check if isolation is enabled
+      const { data: isoSetting } = await admin
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'lms_teacher_isolation')
+        .maybeSingle();
+      const isIsolated = isoSetting?.value === 'true';
+
+      if (isIsolated) {
+        // Teacher ONLY sees classes they personally teach
+        query = query.eq('teacher_id', caller.id) as any;
+      } else {
+        const scopedIds = await teacherSchoolIds(caller);
 
       if (schoolFilter) {
         // Teacher requesting a specific school — must be in their scope
@@ -92,6 +104,7 @@ export async function GET(request: NextRequest) {
         query = query.eq('teacher_id', caller.id) as any;
       }
     }
+}
 
     const { data: classes, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
