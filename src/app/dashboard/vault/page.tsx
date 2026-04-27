@@ -455,9 +455,11 @@ export default function VaultPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <h3 className="font-bold text-foreground text-sm">{item.title}</h3>
+                        <span
                           className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded ${
                             LANGUAGE_COLORS[item.language] || 'bg-muted text-muted-foreground/70'
                           }`}
+                        >
                           {item.language}
                         </span>
                       </div>
