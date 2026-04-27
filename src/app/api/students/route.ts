@@ -200,8 +200,30 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Collect all school IDs from teacher_schools + teacher's own school_id
-      const schoolIds: string[] = [];
+      // Check if isolation is enabled
+      const { data: isoSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'lms_teacher_isolation')
+        .maybeSingle();
+      const isIsolated = isoSetting?.value === 'true';
+
+      if (isIsolated) {
+        // Teacher ONLY sees students in their own classes
+        // 1. Get all class IDs for this teacher
+        const { data: myClasses } = await supabase
+          .from('classes')
+          .select('id')
+          .eq('teacher_id', caller.id);
+        const myClassIds = (myClasses ?? []).map(c => c.id);
+
+        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
+
+        // 2. Filter students by those class IDs
+        query = query.in('class_id', myClassIds) as any;
+      } else {
+        // Collect all school IDs from teacher_schools + teacher's own school_id
+        const schoolIds: string[] = [];
       if (caller.school_id) schoolIds.push(caller.school_id);
 
       const { data: ts } = await supabase
@@ -233,6 +255,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     }
+  }
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

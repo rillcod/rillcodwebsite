@@ -38,6 +38,7 @@ export default function SettingsPage() {
           ...BASE_TABS,
           { id: 'ai-config',   label: 'AI Config',   icon: CpuChipIcon },
           { id: 'templates',   label: 'Templates',   icon: DocumentTextIcon },
+          { id: 'lms-config',  label: 'LMS Config',  icon: CogIcon },
           { id: 'moderation',  label: 'Moderation',  icon: ExclamationCircleIcon },
           { id: 'audit-log',   label: 'Audit Log',   icon: TableCellsIcon },
         ]
@@ -64,7 +65,7 @@ export default function SettingsPage() {
   const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
-    if (profile?.role !== 'admin' || tab !== 'ai-config') return;
+    if (profile?.role !== 'admin' || (tab !== 'ai-config' && tab !== 'lms-config')) return;
     setAiLoading(true);
     fetch('/api/app-settings')
       .then(r => r.json())
@@ -771,7 +772,69 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* ── Notification Templates tab (admin only) ── */}
+            {/* ── LMS Config tab (admin only) ── */}
+            {tab === 'lms-config' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CogIcon className="w-4 h-4 text-primary" />
+                    <div>
+                      <h2 className="font-bold text-foreground">LMS Policies</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">Control global learning management behavior and data access.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {aiLoading ? (
+                  <div className="p-10 flex justify-center">
+                    <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-6">
+                    <div className="flex items-start justify-between py-4 border-b border-border">
+                      <div className="max-w-md">
+                        <p className="font-bold text-foreground text-sm">Teacher Data Isolation</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                          When enabled, teachers will <strong>only</strong> see classes and students they are personally assigned to. 
+                          If disabled, teachers can see all data within their assigned school for collaboration.
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setAiSettings(p => ({ ...p, lms_teacher_isolation: p.lms_teacher_isolation === 'true' ? 'false' : 'true' }))}
+                        className={`relative w-11 h-6 rounded-full transition-all ${aiSettings.lms_teacher_isolation === 'true' ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${aiSettings.lms_teacher_isolation === 'true' ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-start justify-between py-4 border-b border-border">
+                      <div className="max-w-md">
+                        <p className="font-bold text-foreground text-sm">Automated Student Portals</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                          Automatically create portal user accounts for new student registrations.
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setAiSettings(p => ({ ...p, lms_auto_portals: p.lms_auto_portals === 'true' ? 'false' : 'true' }))}
+                        className={`relative w-11 h-6 rounded-full transition-all ${aiSettings.lms_auto_portals === 'true' ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${aiSettings.lms_auto_portals === 'true' ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={saveAiSettings}
+                      disabled={aiSaving}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-all">
+                      {aiSaving
+                        ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        : <CheckIcon className="w-4 h-4" />}
+                      {aiSaving ? 'Saving…' : 'Save LMS Settings'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {tab === 'templates' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2">
