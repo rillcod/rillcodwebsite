@@ -14,6 +14,7 @@ import {
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
+  BuildingOfficeIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -259,6 +260,7 @@ export default function CurriculumPage() {
   const [genGenerating, setGenGenerating] = useState(false);
   const [genTabError, setGenTabError] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [deleting, setDeleting] = useState(false);
   /** Filter sidebar programs / courses (builder mode). */
   const [catalogQuery, setCatalogQuery] = useState('');
   /** All syllabus rows for the selected course (global vs school-scoped, versions). */
@@ -1444,6 +1446,40 @@ export default function CurriculumPage() {
     }
   }
 
+  // ── Delete this curriculum version ──────────────────────────────────────
+  async function handleDeleteCurriculum() {
+    if (!curriculum) return;
+    if (!window.confirm('Are you sure you want to delete this curriculum version? This will also remove linked tracking and lesson plans. This action cannot be undone.')) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to delete curriculum');
+      }
+      toast.success('Curriculum version deleted');
+      
+      // Update local lists
+      const newList = curriculumList.filter(c => c.id !== curriculum.id);
+      setCurriculumList(newList);
+      
+      if (newList.length > 0) {
+        // Switch to the first available version
+        setCurriculum(newList[0]);
+      } else {
+        // No versions left, close the syllabus view
+        setCurriculum(null);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Deletion failed');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // ── Derived ──────────────────────────────────────────────────────────────
   const currentTermData = curriculum?.content?.terms?.find(t => t.term === activeTerm);
   const termCount = curriculum?.content?.terms?.length ?? 0;
@@ -2332,15 +2368,11 @@ export default function CurriculumPage() {
                                     e.stopPropagation();
                                     if (!confirm(`Delete "${c.content?.description || `Version ${c.version}`}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
                                     const res = await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
-                                    if (res.ok) {
-                                      const updated = curriculumList.filter(x => x.id !== c.id);
-                                      setCurriculumList(updated);
-                                      if (curriculum?.id === c.id) {
-                                        setCurriculum(updated[0] ?? null);
-                                        setTracking([]);
-                                      }
-                                      toast.success('Syllabus version deleted');
-                                    } else {
+                                      if (res.ok) {
+                                        const updated = curriculumList.filter(x => x.id !== c.id);
+                                        setCurriculumList(updated);
+                                        toast.success('Syllabus version deleted');
+                                      } else {
                                       const j = await res.json().catch(() => ({}));
                                       toast.error(j.error ?? 'Delete failed');
                                     }
@@ -2487,6 +2519,16 @@ export default function CurriculumPage() {
                               className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
                             >
                               <ArrowPathIcon className="w-3.5 h-3.5" /> Regenerate
+                            </button>
+                          )}
+                          {canGenerate && (
+                            <button
+                              onClick={handleDeleteCurriculum}
+                              disabled={deleting}
+                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all disabled:opacity-50"
+                            >
+                              {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
+                              Delete
                             </button>
                           )}
                         </div>
