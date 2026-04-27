@@ -2853,7 +2853,7 @@ export default function CurriculumPage() {
                   );
                 })}
               </div>
-              </div>
+            </div>
           )}
 
           {/* ── Tools Tab ── */}
