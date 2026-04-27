@@ -1328,8 +1328,24 @@ export default function SettingsPage() {
                           {suggestions.map((s: any) => (
                             <div key={s.student_id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                               <div className="min-w-0 flex-1 mr-4">
-                                <p className="text-sm font-bold text-foreground truncate">{s.student_name}</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-bold text-foreground truncate">{s.student_name}</p>
+                                  <div className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                                    s.score >= 100 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                  }`}>
+                                    {s.score}% Match
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {s.evidence?.map((e: string) => (
+                                    <span key={e} className="text-[8px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded-full font-bold uppercase">
+                                      {e}
+                                    </span>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                   <div className="space-y-1">
                                     <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Current Location</p>
                                     <div className="flex flex-col gap-1">
@@ -1342,7 +1358,7 @@ export default function SettingsPage() {
                                     </div>
                                   </div>
                                   <div className="space-y-1">
-                                    <p className="text-[9px] font-black uppercase text-primary tracking-wider">Historical Batch</p>
+                                    <p className="text-[9px] font-black uppercase text-primary tracking-wider">Smart Recommendation</p>
                                     <div className="flex flex-col gap-1">
                                       <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold truncate">
                                         {s.suggested.school_name}
@@ -1356,7 +1372,7 @@ export default function SettingsPage() {
                               </div>
                               <button 
                                 onClick={() => runRepair('restore_from_history', [s.student_id])}
-                                className="p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg transition-all shrink-0" title="Restore to History"
+                                className="p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg transition-all shrink-0" title="Restore to Recommended"
                               >
                                 <ArrowPathIcon className="w-4 h-4" />
                               </button>

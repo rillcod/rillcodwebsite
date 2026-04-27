@@ -95,43 +95,89 @@ export async function PATCH(request: NextRequest) {
     const { data: histResults } = await admin.from('registration_results').select('email, batch_id');
     const batchIds = [...new Set(histResults?.map(r => r.batch_id) ?? [])];
     const { data: batches } = await admin.from('registration_batches').select('*').in('id', batchIds);
+    
+    // Forensic: Fetch activity indicators
+    const { data: activityLogs } = await admin
+      .from('activity_logs')
+      .select('user_id, school_id')
+      .in('user_id', students?.map(s => s.id) ?? [])
+      .not('school_id', 'is', null);
+
     const { data: allSchools } = await admin.from('schools').select('id, name');
     const { data: allClasses } = await admin.from('classes').select('id, name, school_id');
 
     const batchMap = new Map(batches?.map(b => [b.id, b]) ?? []);
     const studentHistMap = new Map(histResults?.map(r => [r.email.toLowerCase(), r.batch_id]) ?? []);
     const schoolMap = new Map(allSchools?.map(s => [s.id, s.name]) ?? []);
-    const classMap = new Map(allClasses?.map(c => [c.id, c]) ?? []);
+    
+    // Map activity logs to counts per school per user
+    const activityMap = new Map<string, Map<string, number>>();
+    (activityLogs ?? []).forEach(log => {
+      const userSchools = activityMap.get(log.user_id) || new Map<string, number>();
+      userSchools.set(log.school_id, (userSchools.get(log.school_id) || 0) + 1);
+      activityMap.set(log.user_id, userSchools);
+    });
 
     const suggestions = (students ?? []).map(s => {
-      const batchId = studentHistMap.get(s.email?.toLowerCase() || '');
-      if (!batchId) return null;
-      const batch = batchMap.get(batchId);
-      if (!batch) return null;
+      const emailKey = s.email?.toLowerCase() || '';
+      const batchId = studentHistMap.get(emailKey);
+      const batch = batchId ? batchMap.get(batchId) : null;
+      const userActivity = activityMap.get(s.id);
 
-      // Historical target school
-      const targetSchoolId = batch.school_id;
-      const targetSchoolName = batch.school_name || schoolMap.get(targetSchoolId);
+      // Scoring Heuristic
+      let bestSchoolId = s.school_id;
+      let score = 0;
+      const evidence: string[] = [];
 
-      // Historical target class (priority: batch.class_id, then resolve batch.class_name in that school)
-      let targetClassId = batch.class_id;
-      let targetClassName = batch.class_name;
+      // 1. History (Weight 100)
+      if (batch) {
+        bestSchoolId = batch.school_id;
+        score += 100;
+        evidence.push('Original Registration Record');
+      }
 
-      if (!targetClassId && targetClassName && targetSchoolId) {
-        const matchedClass = allClasses?.find(c => c.school_id === targetSchoolId && c.name === targetClassName);
-        if (matchedClass) {
-          targetClassId = matchedClass.id;
+      // 2. Activity (Weight 40 per school match)
+      if (userActivity) {
+        let topActivitySchool = '';
+        let maxLogs = 0;
+        for (const [schId, count] of userActivity.entries()) {
+          if (count > maxLogs) {
+            maxLogs = count;
+            topActivitySchool = schId;
+          }
+        }
+        if (topActivitySchool) {
+          if (topActivitySchool === bestSchoolId) {
+            score += 50;
+            evidence.push(`Recent Academic Activity (${maxLogs} events)`);
+          } else if (score < 50) {
+             // If history is missing, trust activity
+             bestSchoolId = topActivitySchool;
+             score += 50;
+             evidence.push(`Primary School Activity Found (${maxLogs} events)`);
+          }
         }
       }
 
-      const schoolMismatch = s.school_id !== targetSchoolId;
-      const classMismatch = s.class_id !== targetClassId;
+      // 3. Class Match (Weight 30)
+      const currentClassId = s.class_id;
+      const targetClassId = batch?.class_id || null;
+      let finalTargetClassId = targetClassId;
 
-      if (schoolMismatch || classMismatch) {
+      if (!finalTargetClassId && batch?.class_name) {
+        const matchedClass = allClasses?.find(c => c.school_id === bestSchoolId && c.name === batch.class_name);
+        if (matchedClass) finalTargetClassId = matchedClass.id;
+      }
+
+      const needsRepair = s.school_id !== bestSchoolId || s.class_id !== finalTargetClassId;
+
+      if (needsRepair) {
         return {
           student_id: s.id,
           student_name: s.full_name,
           email: s.email,
+          score,
+          evidence,
           current: {
             school_id: s.school_id,
             school_name: s.school_name,
@@ -139,10 +185,10 @@ export async function PATCH(request: NextRequest) {
             class_name: s.section_class,
           },
           suggested: {
-            school_id: targetSchoolId,
-            school_name: targetSchoolName,
-            class_id: targetClassId,
-            class_name: targetClassName,
+            school_id: bestSchoolId,
+            school_name: schoolMap.get(bestSchoolId || '') || batch?.school_name || 'Unknown School',
+            class_id: finalTargetClassId,
+            class_name: batch?.class_name || (finalTargetClassId ? allClasses?.find(c => c.id === finalTargetClassId)?.name : null),
           },
           batch_id: batchId
         };
