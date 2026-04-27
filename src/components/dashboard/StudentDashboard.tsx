@@ -35,6 +35,7 @@ export default function StudentDashboard() {
     recentActivity: any[]; isEnrolled: boolean;
     upcomingDue: { id: string; title: string; due_date: string; course: string | null }[];
     recentGrades: { id: string; title: string; grade: number | null; max_points: number | null; submitted_at: string | null }[];
+    lmsSettings: Record<string, string>;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
