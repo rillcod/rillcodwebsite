@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
     { label: 'A (75–100)', value: 0, color: CHART_COLORS.emerald },
     { label: 'B (65–74)',  value: 0, color: CHART_COLORS.blue    },
     { label: 'C (50–64)',  value: 0, color: CHART_COLORS.amber   },
-    { label: 'D (40–49)',  value: 0, color: CHART_COLORS.orange  },
+    { label: 'D (40–49)',  value: 0, color: CHART_COLORS.primary  },
     { label: 'F (0–39)',   value: 0, color: CHART_COLORS.rose    },
   ];
 
@@ -183,7 +183,7 @@ export default function AnalyticsPage() {
               value={overview.totalStudents.toLocaleString()}
               subValue="Registered system-wide"
               sparkData={trendSpark(overview.totalStudents, 7)}
-              color={CHART_COLORS.orange}
+              color={CHART_COLORS.primary}
               icon={UserGroupIcon}
             />
             <SparkCard
@@ -365,7 +365,7 @@ export default function AnalyticsPage() {
                 Enrolled: p.enrollments?.length ?? 0,
               }))}
               xKey="name"
-              bars={[{ key: 'Enrolled', label: 'Enrolled', color: CHART_COLORS.orange }]}
+              bars={[{ key: 'Enrolled', label: 'Enrolled', color: CHART_COLORS.primary }]}
               height={240}
               formatValue={v => `${v}`}
             />

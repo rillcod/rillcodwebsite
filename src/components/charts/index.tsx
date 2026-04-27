@@ -242,7 +242,7 @@ export function StackedBarChart({
 
 // ── 6. Radial Progress Rings (no recharts — pure CSS SVG) ────────────────────
 export function RadialRing({
-  value, max = 100, size = 80, strokeWidth = 8, color = CHART_COLORS.orange,
+  value, max = 100, size = 80, strokeWidth = 8, color = CHART_COLORS.primary,
   label, subLabel,
 }: {
   value: number; max?: number; size?: number; strokeWidth?: number;
@@ -277,7 +277,7 @@ export function RadialRing({
 
 // ── 7. Mini Sparkline ─────────────────────────────────────────────────────────
 export function Sparkline({
-  values, color = CHART_COLORS.orange, height = 32, width = 80,
+  values, color = CHART_COLORS.primary, height = 32, width = 80,
 }: {
   values: number[]; color?: string; height?: number; width?: number;
 }) {
@@ -332,7 +332,7 @@ export function GaugeBar({
 
 // ── 9. Stat Card with Sparkline ───────────────────────────────────────────────
 export function SparkCard({
-  label, value, subValue, sparkData, color = CHART_COLORS.orange, icon: Icon,
+  label, value, subValue, sparkData, color = CHART_COLORS.primary, icon: Icon,
 }: {
   label: string; value: string | number; subValue?: string;
   sparkData?: number[]; color?: string; icon?: React.ElementType;

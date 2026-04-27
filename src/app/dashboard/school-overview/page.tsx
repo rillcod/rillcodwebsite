@@ -301,7 +301,7 @@ export default function SchoolOverviewPage() {
 
       {/* SparkCard KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <SparkCard label="Total Students"   value={stats.total}                         subValue={`${stats.active} active`}      color={CHART_COLORS.orange}  icon={UserGroupIcon}            sparkData={[stats.total - 5, stats.total - 3, stats.total - 1, stats.total]} />
+        <SparkCard label="Total Students"   value={stats.total}                         subValue={`${stats.active} active`}      color={CHART_COLORS.primary}  icon={UserGroupIcon}            sparkData={[stats.total - 5, stats.total - 3, stats.total - 1, stats.total]} />
         <SparkCard label="Avg Score"        value={`${stats.avgScore.toFixed(0)}%`}     subValue="Across all assignments"        color={CHART_COLORS.amber}   icon={TrophyIcon}               sparkData={[40, 55, stats.avgScore * 0.8, stats.avgScore * 0.9, stats.avgScore]} />
         <SparkCard label="Avg Attendance"   value={`${stats.avgAttendance.toFixed(0)}%`} subValue="Present rate"                 color={CHART_COLORS.emerald} icon={ClipboardDocumentCheckIcon} sparkData={[60, 70, stats.avgAttendance * 0.85, stats.avgAttendance]} />
         <SparkCard label="Active Learners"  value={stats.active}                        subValue="Portal students"               color={CHART_COLORS.blue}    icon={AcademicCapIcon}          sparkData={[stats.active - 3, stats.active - 1, stats.active]} />
@@ -334,7 +334,7 @@ export default function SchoolOverviewPage() {
             data={[
               { label: 'High (75+)', color: CHART_COLORS.blue,   value: students.filter(s => s.attendance >= 75).length },
               { label: 'Mid (50–74)', color: CHART_COLORS.violet, value: students.filter(s => s.attendance >= 50 && s.attendance < 75).length },
-              { label: 'Low (<50)',  color: CHART_COLORS.orange, value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
+              { label: 'Low (<50)',  color: CHART_COLORS.primary, value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
               { label: 'No Record', color: '#374151',             value: students.filter(s => s.attendance === 0).length },
             ]}
             centerLabel="Avg Attend"
@@ -363,7 +363,7 @@ export default function SchoolOverviewPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-foreground truncate">{s.full_name?.split(' ')[0]}</p>
                     <div className="h-1 bg-muted rounded-full mt-1 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${s.avgGrade}%`, background: CHART_COLORS.orange }} />
+                      <div className="h-full rounded-full" style={{ width: `${s.avgGrade}%`, background: CHART_COLORS.primary }} />
                     </div>
                   </div>
                   <ScoreBadge score={s.avgGrade} />

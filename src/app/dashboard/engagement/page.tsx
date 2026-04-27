@@ -291,7 +291,7 @@ export default function EngagementPage() {
             data={[
               { label: 'Active',   value: counts.safe,     color: CHART_COLORS.emerald },
               { label: 'Watch',    value: counts.watch,    color: CHART_COLORS.amber   },
-              { label: 'At Risk',  value: counts.at_risk,  color: CHART_COLORS.orange  },
+              { label: 'At Risk',  value: counts.at_risk,  color: CHART_COLORS.primary  },
               { label: 'Critical', value: counts.critical, color: CHART_COLORS.rose    },
             ]}
             centerLabel="Students"
@@ -307,7 +307,7 @@ export default function EngagementPage() {
           {([
             { key: 'safe',     label: 'Active',   count: counts.safe,     color: 'text-emerald-400', bg: 'bg-emerald-500/5  border-emerald-500/20', barColor: CHART_COLORS.emerald },
             { key: 'watch',    label: 'Watch',    count: counts.watch,    color: 'text-amber-400',   bg: 'bg-amber-500/5   border-amber-500/20',   barColor: CHART_COLORS.amber   },
-            { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-primary',  bg: 'bg-primary/5  border-primary/20',  barColor: CHART_COLORS.orange  },
+            { key: 'at_risk',  label: 'At Risk',  count: counts.at_risk,  color: 'text-primary',  bg: 'bg-primary/5  border-primary/20',  barColor: CHART_COLORS.primary  },
             { key: 'critical', label: 'Critical', count: counts.critical, color: 'text-rose-400',    bg: 'bg-rose-500/5    border-rose-500/20',    barColor: CHART_COLORS.rose    },
           ] as const).map(s => (
             <button
