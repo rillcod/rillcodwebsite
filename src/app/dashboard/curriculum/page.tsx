@@ -193,7 +193,7 @@ const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> =
 
 const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any }> = {
   pending: { label: 'Pending', color: 'text-muted-foreground', icon: ClockIcon },
-  in_progress: { label: 'In Progress', color: 'text-blue-400', icon: ArrowPathIcon },
+  in_progress: { label: 'In Progress', color: 'text-primary', icon: ArrowPathIcon },
   completed: { label: 'Completed', color: 'text-emerald-400', icon: CheckCircleIcon },
   skipped: { label: 'Skipped', color: 'text-muted-foreground', icon: ExclamationTriangleIcon },
 };
@@ -2911,7 +2911,7 @@ export default function CurriculumPage() {
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
                           </span>
                           <span className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> {inProgress} In Progress
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary" /> {inProgress} In Progress
                           </span>
                           <span className="flex items-center gap-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
@@ -3252,7 +3252,7 @@ export default function CurriculumPage() {
                     <button
                       onClick={() => createCbtFromWeek(activeWeek)}
                       disabled={creatingCbt}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[40px]"
                     >
                       <BoltIcon className="w-3.5 h-3.5" />
                       Create CBT Quiz
