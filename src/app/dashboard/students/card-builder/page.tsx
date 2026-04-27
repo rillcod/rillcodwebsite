@@ -39,6 +39,8 @@ interface CardConfig {
   showLogo: boolean;
   showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
+  width: string;  // e.g. "85.6mm"
+  height: string; // e.g. "54mm"
   fields: FieldConfig[];
   typo: {
     orgName:    TypoStyle;
@@ -66,15 +68,15 @@ const DEFAULT_TYPO: CardConfig['typo'] = {
   orgName:     { fontSize: '2.5mm', fontWeight: '900', color: '#ffffff', fontFamily: 'sans' },
   orgWebsite:  { fontSize: '1.6mm', fontWeight: '700', color: 'rgba(255,255,255,0.85)', fontFamily: 'sans' },
   studentName: { fontSize: '3.8mm', fontWeight: '900', color: '#111827', fontFamily: 'sans' },
-  school:      { fontSize: '1.9mm', fontWeight: '900', color: '#ea580c', fontFamily: 'sans' },
-  fieldLabel:  { fontSize: '1.5mm', fontWeight: '700', color: '#9ca3af', fontFamily: 'sans' },
+  school:      { fontSize: '1.9mm', fontWeight: '900', color: '#1A3A8F', fontFamily: 'sans' },
+  fieldLabel:  { fontSize: '1.5mm', fontWeight: '700', color: '#C41E3A', fontFamily: 'sans' },
   fieldValue:  { fontSize: '2.1mm', fontWeight: '700', color: '#111827', fontFamily: 'mono' },
-  accentValue: { fontSize: '2.2mm', fontWeight: '800', color: '#ea580c', fontFamily: 'mono' },
+  accentValue: { fontSize: '2.2mm', fontWeight: '800', color: '#1A3A8F', fontFamily: 'mono' },
   footer:      { fontSize: '1.5mm', fontWeight: '600', color: '#9ca3af', fontFamily: 'sans' },
 };
 
 const DEFAULT_CONFIG: CardConfig = {
-  accentColor: '#ea580c',
+  accentColor: '#1A3A8F',
   headerStyle: 'band',
   orgName: 'RILLCOD TECHNOLOGIES',
   orgWebsite: 'www.rillcod.com',
@@ -86,6 +88,8 @@ const DEFAULT_CONFIG: CardConfig = {
   showLogo: true,
   showPhotoSlot: false,
   cardOrientation: 'portrait',
+  width: '54mm',
+  height: '85.6mm',
   fields: DEFAULT_FIELDS,
   typo: DEFAULT_TYPO,
 };
@@ -127,7 +131,7 @@ const TEMPLATES: { name: string; description: string; config: Partial<CardConfig
     name: 'Formal Orange',
     description: 'Full-width orange header band — the default official look',
     config: {
-      accentColor: '#ea580c',
+      accentColor: '#1A3A8F',
       headerStyle: 'band',
       fields: DEFAULT_FIELDS,
     },
@@ -154,7 +158,7 @@ const TEMPLATES: { name: string; description: string; config: Partial<CardConfig
     name: 'Classic Border',
     description: 'Subtle left-border accent — minimal and clean',
     config: {
-      accentColor: '#ea580c',
+      accentColor: '#1A3A8F',
       headerStyle: 'border',
       fields: DEFAULT_FIELDS,
     },
@@ -172,7 +176,7 @@ const TEMPLATES: { name: string; description: string; config: Partial<CardConfig
     name: 'Credentials Only',
     description: 'Email + password only — no personal info shown',
     config: {
-      accentColor: '#ea580c',
+      accentColor: '#1A3A8F',
       headerStyle: 'band',
       fields: DEFAULT_FIELDS.map(f => ({ ...f, visible: ['email','password','qr'].includes(f.key) })),
     },
@@ -215,7 +219,8 @@ TEMPLATES.push(
 );
 
 const PRESET_COLORS = [
-  { label: 'Orange',  value: '#ea580c' },
+  { label: 'Navy',    value: '#1A3A8F' },
+  { label: 'Crimson', value: '#C41E3A' },
   { label: 'Indigo',  value: '#4f46e5' },
   { label: 'Emerald', value: '#059669' },
   { label: 'Rose',    value: '#e11d48' },
@@ -223,9 +228,7 @@ const PRESET_COLORS = [
   { label: 'Amber',   value: '#d97706' },
   { label: 'Violet',  value: '#7c3aed' },
   { label: 'Teal',    value: '#0f766e' },
-  { label: 'Navy',    value: '#1d4ed8' },
   { label: 'Green',   value: '#15803d' },
-  { label: 'Crimson', value: '#b91c1c' },
   { label: 'Gold',    value: '#b45309' },
 ];
 
@@ -322,24 +325,39 @@ function CardPreview({ cfg }: { cfg: CardConfig }) {
   };
 
   return (
-    <div style={{ border: '1px solid #d1d5db', borderLeft: cfg.headerStyle === 'border' ? `4px solid ${acc}` : '1px solid #d1d5db', width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff', color: '#111827' }}>
+    <div style={{
+      border: '1px solid #d1d5db',
+      borderLeft: cfg.headerStyle === 'border' ? `4px solid ${acc}` : '1px solid #d1d5db',
+      width: cfg.width,
+      height: cfg.height,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      background: '#fff',
+      color: '#111827',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+      margin: '0 auto',
+      zoom: '1.2'
+    }}>
       <Header />
-      <div style={{ display: 'flex', flex: 1 }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, borderRight: vis('qr') ? '1px solid #f3f4f6' : 'none', overflow: 'hidden' }}>
           <div style={ts(t.studentName, { textTransform: 'uppercase', lineHeight: 1.15 })}>{SAMPLE.name}</div>
           <div style={{ height: 1, background: '#f3f4f6' }} />
-          {infoFields.map(f => (
-            <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <div style={ts(t.fieldLabel, { textTransform: 'uppercase', letterSpacing: 0.5 })}>{f.label}</div>
-              <div style={ts(isAccentField(f.key) ? t.accentValue : f.key === 'school' ? t.school : t.fieldValue, { wordBreak: 'break-all' })}>
-                {sampleVal(f.key)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+            {infoFields.map(f => (
+              <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <div style={ts(t.fieldLabel, { textTransform: 'uppercase', letterSpacing: 0.5 })}>{f.label}</div>
+                <div style={ts(isAccentField(f.key) ? t.accentValue : f.key === 'school' ? t.school : t.fieldValue, { wordBreak: 'break-all', lineHeight: 1.1 })}>
+                  {sampleVal(f.key)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
         {vis('qr') && (
-          <div style={{ width: '30%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '10px 8px', background: '#fafafa', flexShrink: 0 }}>
-            <QrPlaceholder size={72} color={acc} />
+          <div style={{ width: '30%', minWidth: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '10px 8px', background: '#fafafa', flexShrink: 0 }}>
+            <QrPlaceholder size={54} color={acc} />
             <div style={ts(t.footer, { textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' })}>Scan to verify</div>
             <div style={ts(t.accentValue, { textAlign: 'center' })}>{SAMPLE.id}</div>
           </div>
@@ -571,7 +589,7 @@ export default function CardBuilderPage() {
       * { box-sizing:border-box; }
       body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
       .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8mm; }
-      .card { width:100%; min-height:62mm; border:1px solid #e5e7eb; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor||'#fff'}; }
+      .card { width:${cfg.width}; height:${cfg.height}; border:1px solid #e5e7eb; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor||'#fff'}; margin-bottom:8mm; }
       .hdr-band { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
       .hdr-border { border-left:2.5mm solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
       .hdr-min { border-bottom:1px solid #e5e7eb; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
@@ -584,9 +602,9 @@ export default function CardBuilderPage() {
       .school { color:${acc}; font-size:1.8mm; font-weight:900; text-transform:uppercase; }
       .name { font-size:4mm; font-weight:900; margin:.8mm 0 1.2mm; text-transform:uppercase; line-height:1.2; }
       .row { margin:.6mm 0; }
-      .lbl { color:#9ca3af; font-size:1.5mm; text-transform:uppercase; }
-      .val { font-size:2mm; font-weight:700; }
-      .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${acc}; }
+      .lbl { color:${cfg.typo.fieldLabel.color}; font-size:1.5mm; text-transform:uppercase; }
+      .val { font-size:2mm; font-weight:700; color:${cfg.typo.fieldValue.color}; }
+      .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${cfg.typo.accentValue.color}; }
       .right { width:22mm; background:#fafafa; padding:2mm; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1mm; }
       .qr { width:15mm; height:15mm; border:1px solid #e5e7eb; }
       .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; }
@@ -695,34 +713,34 @@ export default function CardBuilderPage() {
     <style>
       @page { size: A4 portrait; margin: 20mm; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family:'Inter','Segoe UI',system-ui,sans-serif; background:#fff; display:flex; justify-content:center; }
-      .card { border:1px solid #d1d5db; ${cfg.headerStyle === 'border' ? `border-left:4px solid ${acc};` : ''} width:100%; max-width:480px; display:flex; flex-direction:column; overflow:hidden; }
-      .chdr { background:${acc}; padding:12px 18px; display:flex; align-items:center; gap:10px; }
-      .cbadge { margin-left:auto; background:rgba(0,0,0,0.22); color:#fff; padding:5px 12px; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:1px; flex-shrink:0; }
-      .org-name { font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; line-height:1; }
-      .org-web { font-size:9px; color:rgba(255,255,255,0.8); font-weight:700; margin-top:3px; }
-      .bhdr { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid #f3f4f6; }
-      .org-name-b { font-size:13px; font-weight:900; color:#111; text-transform:uppercase; line-height:1; }
-      .org-web-b { font-size:8px; color:${acc}; font-weight:700; margin-top:2px; }
-      .bbadge { margin-left:auto; background:${acc}; color:#fff; padding:4px 10px; font-size:9px; font-weight:900; text-transform:uppercase; flex-shrink:0; }
-      .mhdr { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:2px solid ${acc}; }
-      .org-name-m { font-size:11px; font-weight:900; color:#111; text-transform:uppercase; }
-      .mbadge { margin-left:auto; font-size:9px; font-weight:900; color:${acc}; text-transform:uppercase; flex-shrink:0; }
-      .logo { width:32px; height:32px; object-fit:contain; flex-shrink:0; }
-      .cbody { display:flex; min-height:160px; }
-      .info { flex:1; padding:18px 20px; display:flex; flex-direction:column; gap:10px; border-right:1px solid #f3f4f6; overflow:hidden; }
-      .sname { font-size:22px; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; }
+      body { font-family:'Inter','Segoe UI',system-ui,sans-serif; background:#fff; display:flex; justify-content:center; padding-top: 20mm; }
+      .card { border:1px solid #d1d5db; ${cfg.headerStyle === 'border' ? `border-left:4px solid ${acc};` : ''} width:${cfg.width}; height:${cfg.height}; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor}; }
+      .chdr { background:${acc}; padding:10px 14px; display:flex; align-items:center; gap:8px; }
+      .cbadge { margin-left:auto; background:rgba(0,0,0,0.22); color:#fff; padding:3px 8px; font-size:7px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; flex-shrink:0; }
+      .org-name { font-size:11px; font-weight:900; color:#fff; text-transform:uppercase; line-height:1; }
+      .org-web { font-size:7px; color:rgba(255,255,255,0.8); font-weight:700; margin-top:2px; }
+      .bhdr { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid #f3f4f6; }
+      .org-name-b { font-size:10px; font-weight:900; color:#111; text-transform:uppercase; line-height:1; }
+      .org-web-b { font-size:7px; color:${acc}; font-weight:700; margin-top:1.5px; }
+      .bbadge { margin-left:auto; background:${acc}; color:#fff; padding:3px 8px; font-size:7px; font-weight:900; text-transform:uppercase; flex-shrink:0; }
+      .mhdr { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:2px solid ${acc}; }
+      .org-name-m { font-size:10px; font-weight:900; color:#111; text-transform:uppercase; }
+      .mbadge { margin-left:auto; font-size:8px; font-weight:900; color:${acc}; text-transform:uppercase; flex-shrink:0; }
+      .logo { width:24px; height:24px; object-fit:contain; flex-shrink:0; }
+      .cbody { display:flex; flex: 1; overflow: hidden; }
+      .info { flex:1; padding:12px 14px; display:flex; flex-direction:column; gap:6px; border-right:1px solid #f3f4f6; overflow:hidden; }
+      .sname { font-size:16px; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; }
       .sep { height:1px; background:#f3f4f6; }
-      .field { display:flex; flex-direction:column; gap:3px; }
-      .lbl { font-size:7.5px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; }
-      .val { font-size:13px; font-weight:700; font-family:monospace; color:#111; word-break:break-all; }
-      .val-a { font-size:13px; font-weight:800; font-family:monospace; color:${acc}; word-break:break-all; }
-      .qrp { width:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:18px 16px; background:#fafafa; flex-shrink:0; }
-      .qr { width:130px; height:130px; border:1px solid #e5e7eb; display:block; }
-      .qrl { font-size:7px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; text-align:center; font-weight:600; }
-      .qrc { font-size:9px; font-weight:900; font-family:monospace; color:${acc}; text-align:center; }
-      .cftr { display:flex; justify-content:space-between; align-items:center; padding:8px 18px; border-top:1px solid #f3f4f6; font-size:7.5px; color:#9ca3af; font-weight:600; background:#fafafa; }
-      .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:8px; }
+      .field { display:flex; flex-direction:column; gap:2px; }
+      .lbl { font-size:6px; font-weight:700; color:${cfg.typo.fieldLabel.color}; text-transform:uppercase; letter-spacing:0.5px; }
+      .val { font-size:10px; font-weight:700; font-family:monospace; color:${cfg.typo.fieldValue.color}; word-break:break-all; }
+      .val-a { font-size:10px; font-weight:800; font-family:monospace; color:${cfg.typo.accentValue.color}; word-break:break-all; }
+      .qrp { width:25%; min-width: 20mm; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:12px 10px; background:#fafafa; flex-shrink:0; }
+      .qr { width:100%; max-width: 25mm; height:auto; aspect-ratio: 1; border:1px solid #e5e7eb; display:block; }
+      .qrl { font-size:6px; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; text-align:center; font-weight:600; }
+      .qrc { font-size:7px; font-weight:900; font-family:monospace; color:${acc}; text-align:center; }
+      .cftr { display:flex; justify-content:space-between; align-items:center; padding:6px 14px; border-top:1px solid #f3f4f6; font-size:7px; color:#9ca3af; font-weight:600; background:#fafafa; }
+      .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:7px; }
       @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
     </style></head><body>
     <div class="card">
@@ -731,11 +749,13 @@ export default function CardBuilderPage() {
         <div class="info">
           <div class="sname">${SAMPLE.name}</div>
           <div class="sep"></div>
-          ${infoFields.map(f => {
-            const val = sampleData[f.key as keyof typeof sampleData] ?? '';
-            const accent = ['password','studentId','programme','school'].includes(f.key);
-            return `<div class="field"><div class="lbl">${f.label}</div><div class="${accent ? 'val-a' : 'val'}">${val}</div></div>`;
-          }).join('')}
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${infoFields.map(f => {
+              const val = sampleData[f.key as keyof typeof sampleData] ?? '';
+              const accent = ['password','studentId','programme','school'].includes(f.key);
+              return `<div class="field"><div class="lbl">${f.label}</div><div class="${accent ? 'val-a' : 'val'}">${val}</div></div>`;
+            }).join('')}
+          </div>
         </div>
         ${vis('qr') ? `
         <div class="qrp">
@@ -772,7 +792,8 @@ export default function CardBuilderPage() {
     const b = (hex: string) => parseInt(hex.slice(5,7),16);
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const cardW = 130, cardX = (210 - cardW) / 2;
+    const cardW = parseFloat(cfg.width), cardH = parseFloat(cfg.height);
+    const cardX = (210 - cardW) / 2;
     const cardY = 30;
 
     // Card border
@@ -818,7 +839,8 @@ export default function CardBuilderPage() {
 
     let fy = bodyY + 14;
     infoFields.forEach(f => {
-      doc.setFontSize(5.5); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal');
+      const labelCol = cfg.typo.fieldLabel.color;
+      doc.setFontSize(5.5); doc.setTextColor(r(labelCol), g(labelCol), b(labelCol)); doc.setFont('helvetica','normal');
       doc.text(f.label.toUpperCase(), cardX + 4, fy);
       doc.setFontSize(7.5); doc.setFont('courier','bold');
       const isAccent = ['password','studentId','programme','school'].includes(f.key);
@@ -852,8 +874,7 @@ export default function CardBuilderPage() {
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const marginX = 8, marginY = 8, gap = 3;
-    const cardW = (210 - marginX * 2 - gap) / 2;
-    const cardH = (297 - marginY * 2 - gap * 3) / 4;
+    const cardW = parseFloat(cfg.width), cardH = parseFloat(cfg.height);
 
     // Print 8 sample cards (2 cols × 4 rows)
     for (let i = 0; i < 8; i++) {
@@ -897,7 +918,8 @@ export default function CardBuilderPage() {
 
       let fy2 = bodyY + 10;
       infoFields.slice(0, 3).forEach(f => {
-        doc.setFontSize(3.5); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal');
+        const labelCol = cfg.typo.fieldLabel.color;
+        doc.setFontSize(3.5); doc.setTextColor(r(labelCol), g(labelCol), b(labelCol)); doc.setFont('helvetica','normal');
         doc.text(f.label.toUpperCase(), ix, fy2);
         doc.setFontSize(5); doc.setFont('courier','bold');
         const isAccent = ['password','studentId','programme','school'].includes(f.key);
@@ -994,13 +1016,13 @@ export default function CardBuilderPage() {
                     {/* Mini preview swatch */}
                     <div className="w-full h-10 mb-3 overflow-hidden border border-border/50">
                       {(t.config.headerStyle ?? 'band') === 'band' && (
-                        <div style={{ background: t.config.accentColor ?? '#ea580c', height: '100%', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6 }}>
+                        <div style={{ background: t.config.accentColor ?? '#1A3A8F', height: '100%', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6 }}>
                           <div style={{ width: 12, height: 12, background: 'rgba(255,255,255,0.3)', borderRadius: 2 }} />
                           <div style={{ height: 6, background: 'rgba(255,255,255,0.6)', borderRadius: 2, flex: 1 }} />
                         </div>
                       )}
                       {(t.config.headerStyle ?? 'band') === 'border' && (
-                        <div style={{ borderLeft: `4px solid ${t.config.accentColor ?? '#ea580c'}`, height: '100%', background: '#fff', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6 }}>
+                        <div style={{ borderLeft: `4px solid ${t.config.accentColor ?? '#1A3A8F'}`, height: '100%', background: '#fff', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6 }}>
                           <div style={{ height: 6, background: '#e5e7eb', borderRadius: 2, flex: 1 }} />
                         </div>
                       )}
@@ -1126,6 +1148,51 @@ export default function CardBuilderPage() {
                     <input type="text" value={cfg.bgColor}
                       onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ bgColor: e.target.value })}
                       className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50" />
+                  </div>
+                </div>
+
+                {/* Card Dimensions */}
+                <div className="bg-card border border-border p-5">
+                  <h2 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-4">Card Dimensions</h2>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-[8px] uppercase text-muted-foreground mb-1">Width (mm)</label>
+                      <input
+                        type="text"
+                        value={cfg.width.replace('mm','')}
+                        onChange={e => update({ width: e.target.value + 'mm' })}
+                        className="w-full px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] uppercase text-muted-foreground mb-1">Height (mm)</label>
+                      <input
+                        type="text"
+                        value={cfg.height.replace('mm','')}
+                        onChange={e => update({ height: e.target.value + 'mm' })}
+                        className="w-full px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => update({ width: '54mm', height: '85.6mm', cardOrientation: 'portrait' })}
+                      className={`px-3 py-1.5 text-[8px] font-bold uppercase border transition-all ${cfg.width === '54mm' && cfg.height === '85.6mm' ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    >
+                      CR80 Portrait
+                    </button>
+                    <button
+                      onClick={() => update({ width: '85.6mm', height: '54mm', cardOrientation: 'landscape' })}
+                      className={`px-3 py-1.5 text-[8px] font-bold uppercase border transition-all ${cfg.width === '85.6mm' && cfg.height === '54mm' ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    >
+                      CR80 Landscape
+                    </button>
+                    <button
+                      onClick={() => update({ width: '70mm', height: '100mm', cardOrientation: 'portrait' })}
+                      className={`px-3 py-1.5 text-[8px] font-bold uppercase border transition-all ${cfg.width === '70mm' && cfg.height === '100mm' ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    >
+                      A7 Large
+                    </button>
                   </div>
                 </div>
 
