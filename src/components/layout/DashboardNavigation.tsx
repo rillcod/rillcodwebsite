@@ -17,8 +17,9 @@ import {
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
   CreditCardIcon, ChatBubbleLeftEllipsisIcon, ChatBubbleLeftRightIcon,
-  SparklesIcon, BoltIcon, QuestionMarkCircleIcon,
+  SparklesIcon, BoltIcon, QuestionMarkCircleIcon, ChevronDownIcon,
 } from '@/lib/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '@/components/ThemeToggle';
 import ViewAsSwitcher from './ViewAsSwitcher';
 
@@ -480,53 +481,42 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Links */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-px">
-          {navEntries.map((entry, idx) => {
-            if (isDivider(entry)) {
-              return (
-                <div key={`divider-${idx}`} className="pt-5 pb-2 px-3">
-                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-sidebar-foreground/35 mb-2">{entry.label}</p>
-                  <div className="h-px bg-gradient-to-r from-sidebar-foreground/[0.1] to-transparent" />
-                </div>
-              );
-            }
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 custom-scrollbar">
+          {(() => {
+            const groups: { label: string; items: NavItem[] }[] = [];
+            let currentGroup: { label: string; items: NavItem[] } | null = null;
 
-            const { name, href, icon: Icon } = entry;
-            const active = pathname === href || pathname?.startsWith(href + '/');
-            return (
-              <Link
-                key={name}
-                href={href}
-                onClick={() => setMobileOpen(false)}
-                className={`relative flex items-center gap-3 px-3 py-2.5 text-[13px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${active
-                    ? 'bg-primary/[0.08] text-sidebar-foreground'
-                    : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]'
-                  }`}
-              >
-                {active && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-brand-red-600 shadow-[0_0_12px_rgba(196,30,58,0.6)]" />
-                )}
-                <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${active
-                    ? 'text-primary drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]'
-                    : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
-                  }`} />
-                <span className="truncate">{name}</span>
-                {name === 'WhatsApp Inbox' && unreadCount > 0 && (
-                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-brand-red-600 text-white text-[8px] font-black min-w-[1.1rem] text-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-                {name === 'Notifications' && notifUnread > 0 && (
-                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-brand-red-600 text-white text-[8px] font-black min-w-[1.1rem] text-center">
-                    {notifUnread > 9 ? '9+' : notifUnread}
-                  </span>
-                )}
-                {active && (
-                  <div className="ml-auto w-1 h-1 rounded-full bg-brand-red-600/80 flex-shrink-0" />
-                )}
-              </Link>
-            );
-          })}
+            navEntries.forEach((entry) => {
+              if (isDivider(entry)) {
+                currentGroup = { label: entry.label, items: [] };
+                groups.push(currentGroup);
+              } else if (currentGroup) {
+                currentGroup.items.push(entry);
+              } else {
+                // Base items before first divider (e.g. Dashboard)
+                groups.push({ label: '', items: [entry] });
+              }
+            });
+
+            return groups.map((group, gIdx) => {
+              const isFirst = gIdx === 0 && !group.label;
+              if (isFirst) {
+                return group.items.map((item) => (
+                  <NavLink key={item.name} item={item} active={pathname === item.href || pathname?.startsWith(item.href + '/')} setMobileOpen={setMobileOpen} />
+                ));
+              }
+
+              return (
+                <NavSection
+                  key={group.label}
+                  label={group.label}
+                  items={group.items}
+                  pathname={pathname}
+                  setMobileOpen={setMobileOpen}
+                />
+              );
+            });
+          })()}
         </div>
 
         {/* Bottom */}
@@ -606,5 +596,78 @@ export default function DashboardNavigation() {
         </button>
       </div>
     </>
+  );
+}
+
+function NavLink({ item, active, setMobileOpen, sub = false }: { item: NavItem; active: boolean; setMobileOpen: (o: boolean) => void; sub?: boolean }) {
+  const { name, href, icon: Icon } = item;
+  return (
+    <Link
+      href={href}
+      onClick={() => setMobileOpen(false)}
+      className={`relative flex items-center gap-3 px-3 py-2 text-[12px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${active
+        ? 'bg-primary/[0.08] text-sidebar-foreground'
+        : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]'
+        } ${sub ? 'ml-4 py-1.5' : 'py-2.5'}`}
+    >
+      {active && (
+        <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-brand-red-600 shadow-[0_0_12px_rgba(196,30,58,0.6)]" />
+      )}
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${active ? 'bg-primary/10 shadow-lg scale-110' : 'bg-transparent group-hover:bg-sidebar-foreground/5'}`}>
+        <Icon className={`w-3.5 h-3.5 flex-shrink-0 transition-all ${active
+          ? 'text-primary drop-shadow-[0_0_6px_rgba(26,58,143,0.7)]'
+          : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
+          }`} />
+      </div>
+      <span className="truncate">{name}</span>
+      {active && (
+        <div className="ml-auto w-1 h-1 rounded-full bg-brand-red-600/80 flex-shrink-0" />
+      )}
+    </Link>
+  );
+}
+
+function NavSection({ label, items, pathname, setMobileOpen }: { label: string; items: NavItem[]; pathname: string; setMobileOpen: (o: boolean) => void }) {
+  const [isOpen, setIsOpen] = useState(() => {
+    // Auto-expand if any item inside is active
+    return items.some(item => pathname === item.href || pathname?.startsWith(item.href + '/'));
+  });
+
+  return (
+    <div className="space-y-px">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-3 py-2 mt-4 group hover:bg-sidebar-foreground/[0.03] transition-colors"
+      >
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-sidebar-foreground/35 group-hover:text-sidebar-foreground/60 transition-colors">
+          {label}
+        </p>
+        <ChevronDownIcon className={`w-3 h-3 text-sidebar-foreground/20 group-hover:text-sidebar-foreground/40 transition-all ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-px">
+              {items.map((item) => (
+                <NavLink
+                  key={item.name}
+                  item={item}
+                  active={pathname === item.href || pathname?.startsWith(item.href + '/')}
+                  setMobileOpen={setMobileOpen}
+                  sub
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

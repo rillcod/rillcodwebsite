@@ -1538,13 +1538,15 @@ export default function StudentsPage() {
                 return true;
               }).map(({ label, sub, href, icon: Icon, color, danger }) => (
                 <Link key={label} href={href}
-                  className={`group flex flex-col gap-2 p-4 border rounded-none transition-all ${color}`}
+                  className={`group flex flex-col gap-4 p-5 border rounded-2xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${color}`}
                   title={danger ? '⚠️ This permanently deletes student data' : label}
                 >
-                  <Icon className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 shadow-lg">
+                    <Icon className="w-5 h-5" />
+                  </div>
                   <div>
-                    <p className={`text-[10px] font-black uppercase tracking-widest leading-tight ${danger ? 'text-rose-400' : 'text-foreground'}`}>{label}</p>
-                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>
+                    <p className={`text-[11px] font-black uppercase tracking-widest leading-tight ${danger ? 'text-rose-400' : 'text-foreground'}`}>{label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed font-medium opacity-80 group-hover:opacity-100 transition-opacity">{sub}</p>
                   </div>
                 </Link>
               ))}

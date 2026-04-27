@@ -102,14 +102,14 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-// DELETE /api/curricula/[id] — permanently delete a syllabus (admin only)
+// DELETE /api/curricula/[id] — cascade delete: syllabus + tracking + linked lesson plans
 export async function DELETE(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const caller = await requireTeacher();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (caller.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  // Both admin and teacher can delete (teacher only their own school's curricula)
 
   const { id } = await context.params;
   const admin = createAdminClient() as any;
@@ -122,10 +122,18 @@ export async function DELETE(
   if (rowErr) return NextResponse.json({ error: rowErr.message }, { status: 500 });
   if (!row) return NextResponse.json({ error: 'Curriculum not found' }, { status: 404 });
 
-  // Also delete related week tracking
-  await admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
+  // Teachers can only delete curricula scoped to their school
+  const ok = await callerCanManageCurriculumSchool(admin, caller, row.school_id ?? null);
+  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  // Cascade delete in order:
+  // 1. Week tracking
+  await admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
+  // 2. Lesson plans linked to this curriculum version
+  await admin.from('lesson_plans').delete().eq('curriculum_version_id', id);
+  // 3. The curriculum itself
   const { error } = await admin.from('course_curricula').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+
+  return NextResponse.json({ success: true, deleted: { curriculum: id } });
 }

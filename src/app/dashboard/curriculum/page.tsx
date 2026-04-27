@@ -2010,7 +2010,6 @@ export default function CurriculumPage() {
           {/* Syllabus Tab (or no course selected) */}
           {(activeTab === 'syllabus' || !selectedCourse) && (
             <motion.div 
-              key={selectedCourse?.id || 'hub'}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -2271,9 +2270,28 @@ export default function CurriculumPage() {
                   </div>
                   {curriculumList.length > 0 && (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-primary">
-                        <ClockIcon className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Blueprint History</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-primary">
+                          <ClockIcon className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syllabus History</span>
+                        </div>
+                        {canGenerate && curriculumList.length > 1 && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete ALL ${curriculumList.length} syllabus versions for "${selectedCourse?.title}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
+                              for (const c of curriculumList) {
+                                await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
+                              }
+                              setCurriculumList([]);
+                              setCurriculum(null);
+                              setTracking([]);
+                              toast.success('All syllabus versions deleted');
+                            }}
+                            className="text-[10px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors"
+                          >
+                            Delete All
+                          </button>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {curriculumList.map((c) => {
@@ -2281,33 +2299,59 @@ export default function CurriculumPage() {
                           const terms = c.content?.terms?.length ?? 0;
                           const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
                           return (
-                            <button
-                              key={c.id}
-                              onClick={() => { void selectCurriculumVersion(c.id); }}
-                              className="group text-left bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
-                                    {schoolName} Scope
-                                  </p>
-                                  <h3 className="text-sm font-black text-white group-hover:text-primary transition-colors">
-                                    {c.content?.description || `Version ${c.version}`}
-                                  </h3>
+                            <div key={c.id} className="group relative bg-card border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5">
+                              <button
+                                onClick={() => { void selectCurriculumVersion(c.id); }}
+                                className="w-full text-left p-5 space-y-4"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
+                                      {schoolName}
+                                    </p>
+                                    <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                                      {c.content?.description || `Version ${c.version}`}
+                                    </h3>
+                                  </div>
+                                  <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1">
+                                    v{c.version}
+                                  </span>
                                 </div>
-                                <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded">
-                                  v{c.version}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
-                                <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> {new Date(c.created_at).toLocaleDateString()}</span>
-                                <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {terms} Terms</span>
-                              </div>
-                              <div className="pt-2 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Open Blueprint →</span>
-                                <span className="text-[9px] text-muted-foreground">{weeks} Weeks total</span>
-                              </div>
-                            </button>
+                                <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
+                                  <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> {new Date(c.created_at).toLocaleDateString()}</span>
+                                  <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {terms} Terms · {weeks} Weeks</span>
+                                </div>
+                                <div className="pt-1 flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Open Syllabus →</span>
+                                </div>
+                              </button>
+                              {/* Delete button — always visible, bottom right */}
+                              {canGenerate && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm(`Delete "${c.content?.description || `Version ${c.version}`}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
+                                    const res = await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
+                                    if (res.ok) {
+                                      const updated = curriculumList.filter(x => x.id !== c.id);
+                                      setCurriculumList(updated);
+                                      if (curriculum?.id === c.id) {
+                                        setCurriculum(updated[0] ?? null);
+                                        setTracking([]);
+                                      }
+                                      toast.success('Syllabus version deleted');
+                                    } else {
+                                      const j = await res.json().catch(() => ({}));
+                                      toast.error(j.error ?? 'Delete failed');
+                                    }
+                                  }}
+                                  className="absolute bottom-3 right-3 text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10"
+                                  title="Delete this syllabus version"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
@@ -2329,6 +2373,11 @@ export default function CurriculumPage() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                           {scopeLabel} Scope
                         </span>
+                        {(curriculum as any)?.schools?.name && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
+                            <BuildingOfficeIcon className="w-3 h-3" /> {(curriculum as any).schools.name}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-1">
