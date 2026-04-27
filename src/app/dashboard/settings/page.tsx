@@ -11,7 +11,7 @@ import {
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BuildingOfficeIcon, MapPinIcon, StarIcon, CpuChipIcon,
   DocumentTextIcon, ExclamationCircleIcon, TableCellsIcon,
-  CommandLineIcon, XMarkIcon,
+  CommandLineIcon, XMarkIcon, CheckBadgeIcon,
 } from '@/lib/icons';
 
 const BASE_TABS = [
@@ -69,7 +69,9 @@ export default function SettingsPage() {
 
   // ── Repair Tools state (admin only) ──────────────────────────
   const [mismatches, setMismatches] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [repairLoading, setRepairLoading] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [repairing, setRepairing] = useState(false);
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (profile?.role !== 'admin' || tab !== 'repair') return;
     loadMismatches();
+    loadSuggestions();
   }, [profile?.role, tab]);
 
   const loadMismatches = async () => {
@@ -134,7 +137,20 @@ export default function SettingsPage() {
     }
   };
 
-  const runRepair = async (action: 'align_student' | 'unenroll', studentIds: string[]) => {
+  const loadSuggestions = async () => {
+    setSuggestionsLoading(true);
+    try {
+      const r = await fetch('/api/admin/fix-school-mismatch', { method: 'PATCH' });
+      const d = await r.json();
+      setSuggestions(d.suggestions ?? []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const runRepair = async (action: 'align_student' | 'unenroll' | 'restore_from_history', studentIds: string[]) => {
     if (!confirm(`Are you sure you want to apply "${action}" to ${studentIds.length} records?`)) return;
     setRepairing(true);
     try {
@@ -147,6 +163,7 @@ export default function SettingsPage() {
       if (d.success) {
         showToast(`Successfully repaired ${d.applied} records`);
         loadMismatches();
+        loadSuggestions();
       } else {
         throw new Error(d.error || 'Repair failed');
       }
@@ -1265,6 +1282,84 @@ export default function SettingsPage() {
                                   <XMarkIcon className="w-4 h-4" />
                                 </button>
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  {/* Historical Restoration Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">Registration Session Recovery</h3>
+                        <p className="text-xs text-muted-foreground">Restore students to their original school and class from bulk registration history.</p>
+                      </div>
+                      <button onClick={loadSuggestions} disabled={suggestionsLoading} className="p-2 hover:bg-muted rounded-lg transition-colors">
+                        <ArrowPathIcon className={`w-4 h-4 ${suggestionsLoading ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+
+                    {suggestionsLoading ? (
+                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
+                    ) : suggestions.length === 0 ? (
+                      <div className="py-8 text-center bg-white/[0.02] border border-border rounded-xl">
+                        <CheckBadgeIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-sm font-bold text-muted-foreground">All Clear</p>
+                        <p className="text-xs text-muted-foreground/60">No drifted students found in registration history.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between">
+                          <p className="text-xs font-bold text-primary">Detected {suggestions.length} students who have moved from their original registration batch settings.</p>
+                          <button 
+                            onClick={() => runRepair('restore_from_history', suggestions.map(s => s.student_id))}
+                            disabled={repairing}
+                            className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50"
+                          >
+                            Restore All
+                          </button>
+                        </div>
+
+                        <div className="max-h-[400px] overflow-y-auto border border-border rounded-xl divide-y divide-border">
+                          {suggestions.map((s: any) => (
+                            <div key={s.student_id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                              <div className="min-w-0 flex-1 mr-4">
+                                <p className="text-sm font-bold text-foreground truncate">{s.student_name}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                  <div className="space-y-1">
+                                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Current Location</p>
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded font-bold truncate">
+                                        {s.current.school_name || 'No School'}
+                                      </span>
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded font-bold truncate">
+                                        {s.current.class_name || 'No Class'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-[9px] font-black uppercase text-primary tracking-wider">Historical Batch</p>
+                                    <div className="flex flex-col gap-1">
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold truncate">
+                                        {s.suggested.school_name}
+                                      </span>
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold truncate">
+                                        {s.suggested.class_name || 'No Class'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => runRepair('restore_from_history', [s.student_id])}
+                                className="p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg transition-all shrink-0" title="Restore to History"
+                              >
+                                <ArrowPathIcon className="w-4 h-4" />
+                              </button>
                             </div>
                           ))}
                         </div>

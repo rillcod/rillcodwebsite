@@ -71,6 +71,91 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// GET /api/admin/fix-school-mismatch/suggestions
+// Cross-references current students with bulk registration history to suggest restoration.
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const admin = adminClient();
+    const { data: caller } = await admin.from('portal_users').select('role').eq('id', user.id).single();
+    if (!caller || caller.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Fetch all students
+    const { data: students } = await admin
+      .from('portal_users')
+      .select('id, full_name, email, school_id, school_name, class_id, section_class')
+      .eq('role', 'student');
+
+    // Fetch registration history
+    const { data: histResults } = await admin.from('registration_results').select('email, batch_id');
+    const batchIds = [...new Set(histResults?.map(r => r.batch_id) ?? [])];
+    const { data: batches } = await admin.from('registration_batches').select('*').in('id', batchIds);
+    const { data: allSchools } = await admin.from('schools').select('id, name');
+    const { data: allClasses } = await admin.from('classes').select('id, name, school_id');
+
+    const batchMap = new Map(batches?.map(b => [b.id, b]) ?? []);
+    const studentHistMap = new Map(histResults?.map(r => [r.email.toLowerCase(), r.batch_id]) ?? []);
+    const schoolMap = new Map(allSchools?.map(s => [s.id, s.name]) ?? []);
+    const classMap = new Map(allClasses?.map(c => [c.id, c]) ?? []);
+
+    const suggestions = (students ?? []).map(s => {
+      const batchId = studentHistMap.get(s.email?.toLowerCase() || '');
+      if (!batchId) return null;
+      const batch = batchMap.get(batchId);
+      if (!batch) return null;
+
+      // Historical target school
+      const targetSchoolId = batch.school_id;
+      const targetSchoolName = batch.school_name || schoolMap.get(targetSchoolId);
+
+      // Historical target class (priority: batch.class_id, then resolve batch.class_name in that school)
+      let targetClassId = batch.class_id;
+      let targetClassName = batch.class_name;
+
+      if (!targetClassId && targetClassName && targetSchoolId) {
+        const matchedClass = allClasses?.find(c => c.school_id === targetSchoolId && c.name === targetClassName);
+        if (matchedClass) {
+          targetClassId = matchedClass.id;
+        }
+      }
+
+      const schoolMismatch = s.school_id !== targetSchoolId;
+      const classMismatch = s.class_id !== targetClassId;
+
+      if (schoolMismatch || classMismatch) {
+        return {
+          student_id: s.id,
+          student_name: s.full_name,
+          email: s.email,
+          current: {
+            school_id: s.school_id,
+            school_name: s.school_name,
+            class_id: s.class_id,
+            class_name: s.section_class,
+          },
+          suggested: {
+            school_id: targetSchoolId,
+            school_name: targetSchoolName,
+            class_id: targetClassId,
+            class_name: targetClassName,
+          },
+          batch_id: batchId
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    return NextResponse.json({ suggestions });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 // POST /api/admin/fix-school-mismatch
 // Repairs mismatches. 
 // Body: { action: 'align_student' | 'unenroll', studentIds: string[] }
@@ -94,7 +179,56 @@ export async function POST(request: NextRequest) {
     let successCount = 0;
     const errors: string[] = [];
 
-    if (action === 'align_student') {
+    if (action === 'restore_from_history') {
+      const { data: students } = await admin.from('portal_users').select('id, email').in('id', studentIds);
+      const emails = students?.map(s => s.email?.toLowerCase()).filter(Boolean) as string[];
+      
+      const { data: histResults } = await admin.from('registration_results').select('email, batch_id').in('email', emails);
+      const batchIds = [...new Set(histResults?.map(r => r.batch_id) ?? [])];
+      const { data: batches } = await admin.from('registration_batches').select('*').in('id', batchIds);
+      const { data: allClasses } = await admin.from('classes').select('id, name, school_id');
+
+      const batchMap = new Map(batches?.map(b => [b.id, b]) ?? []);
+      const studentHistMap = new Map(histResults?.map(r => [r.email.toLowerCase(), r.batch_id]) ?? []);
+
+      for (const s of (students ?? [])) {
+        try {
+          const batchId = studentHistMap.get(s.email?.toLowerCase() || '');
+          if (!batchId) {
+            errors.push(`No history for ${s.email}`);
+            continue;
+          }
+          const batch = batchMap.get(batchId);
+          if (!batch) {
+             errors.push(`Batch ${batchId} not found for ${s.email}`);
+             continue;
+          }
+
+          let targetClassId = batch.class_id;
+          let targetClassName = batch.class_name;
+
+          // Resolve class by name if ID missing
+          if (!targetClassId && targetClassName && batch.school_id) {
+            const matchedClass = allClasses?.find(c => c.school_id === batch.school_id && c.name === targetClassName);
+            if (matchedClass) targetClassId = matchedClass.id;
+          }
+
+          const update = {
+            school_id: batch.school_id,
+            school_name: batch.school_name,
+            class_id: targetClassId || null,
+            section_class: targetClassName || null,
+          };
+
+          await admin.from('portal_users').update(update).eq('id', s.id);
+          await admin.from('students').update(update).eq('user_id', s.id);
+          
+          successCount++;
+        } catch (e: any) {
+          errors.push(`Failed for ${s.id}: ${e.message}`);
+        }
+      }
+    } else if (action === 'align_student') {
       // Update student's school to match their current class
       for (const sid of studentIds) {
         try {
