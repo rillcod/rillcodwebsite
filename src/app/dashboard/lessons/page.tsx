@@ -18,7 +18,7 @@ import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  active: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  active: 'bg-primary/20 text-primary border-primary/30',
   scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   draft: 'bg-muted text-muted-foreground border-border',
 };
@@ -50,7 +50,7 @@ const TYPE_COLOR: Record<string, string> = {
   article: 'bg-slate-500/10 text-muted-foreground/70',
   project: 'bg-yellow-500/10 text-yellow-500',
   live: 'bg-red-500/10 text-red-500',
-  lesson: 'bg-blue-500/10 text-blue-400',
+  lesson: 'bg-primary/10 text-primary',
 };
 
 export default function LessonsPage() {
@@ -280,7 +280,7 @@ export default function LessonsPage() {
         {isStaff && (
           <Link
             href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex-shrink-0"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30 flex-shrink-0"
           >
             <PlusIcon className="w-4 h-4" /> Add Lesson
             {lessonPlanId && <span className="text-[10px] opacity-70 uppercase tracking-widest">· for Plan</span>}
@@ -290,7 +290,7 @@ export default function LessonsPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-none">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
           <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-300">Retry</button>
@@ -301,12 +301,12 @@ export default function LessonsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Lessons', value: lessons.length, icon: BookOpenIcon, bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Active', value: active, icon: BoltIcon, bg: 'bg-blue-500/10', color: 'text-blue-400' },
+          { label: 'Active', value: active, icon: BoltIcon, bg: 'bg-primary/10', color: 'text-primary' },
           { label: 'Completed', value: completed, icon: CheckCircleIcon, bg: 'bg-emerald-500/10', color: 'text-emerald-400' },
           { label: 'Completion Rate', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, bg: 'bg-purple-500/10', color: 'text-purple-400' },
         ].map(s => (
-          <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-            <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+          <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
             <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -317,7 +317,7 @@ export default function LessonsPage() {
 
       {/* Lesson plan filter banner */}
       {lessonPlanId && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/30 text-violet-400 text-sm font-bold">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary text-sm font-bold">
           <SparklesIcon className="w-4 h-4 shrink-0" />
           <span>Showing lessons from lesson plan</span>
           <Link href="/dashboard/lessons" className="ml-auto text-xs underline hover:text-violet-300 transition-colors">
@@ -335,13 +335,13 @@ export default function LessonsPage() {
             placeholder="Search by lesson or course name..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
@@ -352,7 +352,7 @@ export default function LessonsPage() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
         >
           <option value="all">All Types</option>
           {Object.keys(TYPE_COLOR).map(t => (
@@ -394,7 +394,7 @@ export default function LessonsPage() {
 
       {/* Lessons list */}
       {filtered.length === 0 ? (
-        <div className="bg-card shadow-sm border border-border rounded-none p-16 flex flex-col items-center justify-center text-center">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-16 flex flex-col items-center justify-center text-center">
           <div className="w-12 h-12 bg-primary/10 flex items-center justify-center mb-4">
             <BookOpenIcon className="w-6 h-6 text-primary" />
           </div>
@@ -407,7 +407,7 @@ export default function LessonsPage() {
           {isStaff && !search && filterStatus === 'all' && (
             <Link
               href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
-              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors"
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Lesson
             </Link>
@@ -420,11 +420,11 @@ export default function LessonsPage() {
             const typeColor = TYPE_COLOR[lesson.lesson_type] ?? 'bg-muted text-muted-foreground';
             const statusColor =
               lesson.status === 'active' ? 'bg-emerald-500' :
-                lesson.status === 'completed' ? 'bg-blue-500' :
+                lesson.status === 'completed' ? 'bg-primary' :
                   lesson.status === 'scheduled' ? 'bg-amber-500' : 'bg-muted';
 
             return (
-              <div key={lesson.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col overflow-hidden">
+              <div key={lesson.id} className="bg-card shadow-sm border border-border rounded-xl flex flex-col overflow-hidden">
                 {/* Top accent bar by type */}
                 <div className={`h-1 w-full ${lesson.lesson_type === 'video' ? 'bg-rose-500' : lesson.lesson_type === 'coding' ? 'bg-emerald-500' : lesson.lesson_type === 'interactive' ? 'bg-amber-500' : 'bg-primary'}`} />
 
@@ -478,7 +478,7 @@ export default function LessonsPage() {
                   <div className="flex sm:flex-col items-center gap-2 flex-shrink-0 sm:justify-center">
                     <Link
                       href={`/dashboard/lessons/${lesson.id}`}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-card shadow-sm hover:bg-primary/10 hover:text-primary border border-border text-xs font-bold text-muted-foreground rounded-none transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-card shadow-sm hover:bg-primary/10 hover:text-primary border border-border text-xs font-bold text-muted-foreground rounded-xl transition-colors"
                     >
                       <EyeIcon className="w-3.5 h-3.5" /> View
                     </Link>
@@ -486,14 +486,14 @@ export default function LessonsPage() {
                       <div className="flex gap-2">
                         <Link
                           href={`/dashboard/lessons/${lesson.id}/edit`}
-                          className="flex items-center justify-center w-8 h-8 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground rounded-none transition-colors"
+                          className="flex items-center justify-center w-8 h-8 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground rounded-xl transition-colors"
                         >
                           <PencilIcon className="w-3.5 h-3.5" />
                         </Link>
                         <button
                           onClick={() => handleDelete(lesson.id, lesson.title)}
                           disabled={deleting === lesson.id}
-                          className="flex items-center justify-center w-8 h-8 bg-rose-500/5 hover:bg-rose-500/15 border border-rose-500/20 text-rose-400 rounded-none transition-colors disabled:opacity-40"
+                          className="flex items-center justify-center w-8 h-8 bg-rose-500/5 hover:bg-rose-500/15 border border-rose-500/20 text-rose-400 rounded-xl transition-colors disabled:opacity-40"
                         >
                           {deleting === lesson.id
                             ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -511,19 +511,19 @@ export default function LessonsPage() {
 
       {/* Quick Actions */}
       {isStaff && (
-        <div className="bg-card shadow-sm border border-border rounded-none p-6">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
           <h2 className="text-sm font-bold text-foreground mb-4">Teaching Tools</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Add Lesson', desc: 'Create lesson content', icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/lessons/add' },
-              { label: 'Assignments', desc: 'Tasks & assessments', icon: DocumentTextIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/assignments/new' },
+              { label: 'Assignments', desc: 'Tasks & assessments', icon: DocumentTextIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/assignments/new' },
               { label: 'CBT Exams', desc: 'Online examinations', icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/cbt' },
               { label: 'Classes', desc: 'Manage class groups', icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/classes' },
             ].map(a => (
               <Link
                 key={a.label}
                 href={a.href}
-                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-none group"
+                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-xl group"
               >
                 <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
                   <a.icon className={`w-4 h-4 ${a.color}`} />
@@ -540,7 +540,7 @@ export default function LessonsPage() {
 
       {/* AI Lesson Plan Generator — quick shortcut (not part of the main pipeline) */}
       {isStaff && (
-        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+        <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
           <button
             type="button"
             onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
@@ -606,7 +606,7 @@ export default function LessonsPage() {
                 type="button"
                 onClick={handleGeneratePlan}
                 disabled={planGenerating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-60 text-white font-bold text-sm rounded-none transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-colors"
               >
                 {planGenerating
                   ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -736,7 +736,7 @@ export default function LessonsPage() {
                           type="button"
                           onClick={handleSavePlan}
                           disabled={savingPlan || !planCourseId}
-                          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold text-sm rounded-none transition-colors"
+                          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-colors"
                         >
                           {savingPlan
                             ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>

@@ -27,7 +27,7 @@ function ScoreSlider({
   const pct = Math.round(value);
   const color = pct >= 75 ? 'emerald' : pct >= 60 ? 'blue' : pct >= 50 ? 'amber' : pct >= 40 ? 'orange' : 'rose';
   const colorMap: Record<string, string> = {
-    emerald: 'accent-emerald-500', blue: 'accent-blue-500',
+    emerald: 'accent-emerald-500', blue: 'accent-primary',
     amber: 'accent-amber-500', orange: 'accent-primary', rose: 'accent-rose-500',
   };
   return (
@@ -38,7 +38,7 @@ function ScoreSlider({
           <p className="text-[10px] text-muted-foreground">{description}</p>
         </div>
         <div className={`text-lg font-black ${
-          pct >= 75 ? 'text-emerald-400' : pct >= 60 ? 'text-blue-400' :
+          pct >= 75 ? 'text-emerald-400' : pct >= 60 ? 'text-primary' :
           pct >= 50 ? 'text-amber-400' : pct >= 40 ? 'text-primary' : 'text-rose-400'
         }`}>{pct}</div>
       </div>

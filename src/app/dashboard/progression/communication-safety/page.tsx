@@ -33,7 +33,7 @@ export default function CommunicationSafetyPage() {
         <p className="text-sm text-muted-foreground mt-1">See abuse blocks, open reports, escalations, and recurring risk reasons.</p>
         <div className="mt-3 flex gap-2 flex-wrap">
           <Link href="/dashboard/progression/settings" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">Back to LMS Settings</Link>
-          <Link href="/dashboard/progression/communication-reports" className="px-3 py-2 text-xs font-bold rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10">Open reports queue</Link>
+          <Link href="/dashboard/progression/communication-reports" className="px-3 py-2 text-xs font-bold rounded-lg border border-primary/30 text-violet-300 hover:bg-primary/10">Open reports queue</Link>
         </div>
       </div>
 

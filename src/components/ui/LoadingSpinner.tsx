@@ -16,8 +16,8 @@ const sizeMap = {
 };
 
 const variantMap = {
-  default: { ring: 'border-t-violet-500',  inner: 'border-t-indigo-400',  dot: 'bg-violet-400',  text: 'text-white/50' },
-  primary: { ring: 'border-t-violet-500',  inner: 'border-t-indigo-400',  dot: 'bg-violet-400',  text: 'text-violet-300' },
+  default: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-white/50' },
+  primary: { ring: 'border-t-primary',  inner: 'border-t-indigo-400',  dot: 'bg-primary',  text: 'text-violet-300' },
   white:   { ring: 'border-t-white',       inner: 'border-t-white/60',    dot: 'bg-card',       text: 'text-white/70' },
 };
 
@@ -34,7 +34,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     <div className={cn('flex flex-col items-center justify-center gap-3', className)}>
       <div className={cn('relative', s.outer)}>
         {/* Track */}
-        <div className={cn('absolute inset-0 rounded-full border-violet-500/15', s.border, 'border')} />
+        <div className={cn('absolute inset-0 rounded-full border-primary/15', s.border, 'border')} />
         {/* Outer spin */}
         <div className={cn('absolute inset-0 rounded-full border-transparent animate-spin', s.border, 'border', v.ring)} />
         {/* Inner counter-spin */}

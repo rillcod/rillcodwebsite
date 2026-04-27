@@ -39,8 +39,8 @@ interface AuditLog {
 const EVENT_COLORS: Record<string, string> = {
   login:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   logout:  'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30',
-  signup:  'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  create:  'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  signup:  'bg-primary/20 text-primary border-primary/30',
+  create:  'bg-primary/20 text-primary border-primary/30',
   update:  'bg-amber-500/20 text-amber-400 border-amber-500/30',
   delete:  'bg-rose-500/20 text-rose-400 border-rose-500/30',
   view:    'bg-sky-500/20 text-sky-400 border-sky-500/30',
@@ -106,7 +106,7 @@ export default function ActivityLogsPage() {
   useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
   if (authLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   if (!isStaff) {
@@ -139,7 +139,7 @@ export default function ActivityLogsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-            <ClipboardDocumentListIcon className="w-7 h-7 text-violet-400" />
+            <ClipboardDocumentListIcon className="w-7 h-7 text-primary" />
             Activity & Audit Logs
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
@@ -155,7 +155,7 @@ export default function ActivityLogsPage() {
       <div className="flex gap-2 bg-white/[0.03] border border-white/[0.08] rounded-xl p-1 w-fit">
         {([['activity', 'Activity Logs', ClipboardDocumentListIcon], ['audit', 'Audit Trail', ShieldCheckIcon]] as const).map(([t, label, Icon]) => (
           <button key={t} onClick={() => { setType(t); setPage(1); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${type === t ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${type === t ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -167,20 +167,20 @@ export default function ActivityLogsPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search logs…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50" />
+            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
         <input value={eventFilter} onChange={e => { setEventFilter(e.target.value); setPage(1); }}
           placeholder={type === 'activity' ? 'Filter by event type…' : 'Filter by action…'}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50" />
+          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         <input type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
+          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
         <input type="date" value={to} onChange={e => { setTo(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50" />
+          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filteredLogs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <DocumentTextIcon className="w-16 h-16 text-card-foreground/10" />

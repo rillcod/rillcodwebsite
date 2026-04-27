@@ -52,7 +52,7 @@ export default function RoleBasedRoute({
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-violet-400" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-white/50">Verifying permissions...</p>
         </div>
       </div>

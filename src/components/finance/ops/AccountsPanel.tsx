@@ -267,7 +267,7 @@ function AccountGroup({
 }) {
   const accentMap: Record<string, string> = {
     emerald: 'border-emerald-500/30 bg-emerald-500/5',
-    violet: 'border-violet-500/30 bg-violet-500/5',
+    violet: 'border-primary/30 bg-primary/5',
   };
 
   return (

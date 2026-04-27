@@ -31,7 +31,7 @@ function nextTerm(label: string): string {
 const DECISION_META: Record<PromotionDecision, { label: string; cls: string; icon: any }> = {
   promote:  { label: 'Promote',  cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', icon: ArrowRightIcon },
   repeat:   { label: 'Repeat',   cls: 'bg-amber-500/10  text-amber-400  border-amber-500/30',    icon: ArrowPathIcon },
-  complete: { label: 'Complete', cls: 'bg-violet-500/10 text-violet-400 border-violet-500/30',   icon: CheckCircleIcon },
+  complete: { label: 'Complete', cls: 'bg-primary/10 text-primary border-primary/30',   icon: CheckCircleIcon },
   withdraw: { label: 'Withdraw', cls: 'bg-rose-500/10   text-rose-400   border-rose-500/30',     icon: ExclamationTriangleIcon },
 };
 
@@ -115,7 +115,7 @@ export default function ProgressionPage() {
 
   if (authLoading || !profile) return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!isStaff) return (
@@ -130,8 +130,8 @@ export default function ProgressionPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center shrink-0">
-            <ArrowRightIcon className="w-5 h-5 text-violet-400" />
+          <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+            <ArrowRightIcon className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-black text-foreground">Term Review</h1>
@@ -143,7 +143,7 @@ export default function ProgressionPage() {
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <Link
             href="/dashboard/curriculum/progress"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-violet-500/10 border border-violet-500/30 text-violet-400 hover:bg-violet-500/20 transition-colors rounded-lg"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors rounded-lg"
           >
             <PresentationChartLineIcon className="w-3.5 h-3.5" /> Delivery Progress
           </Link>
@@ -160,8 +160,8 @@ export default function ProgressionPage() {
 
       {/* School read-only notice */}
       {profile.role === 'school' && (
-        <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl text-sm">
-          <UserGroupIcon className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
+          <UserGroupIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <p className="text-blue-300">
             You are viewing progression records for your school's students.
             Promotion decisions can only be made by the assigned teacher or admin.
@@ -171,10 +171,10 @@ export default function ProgressionPage() {
 
       {/* LMS settings tools control center — admin/teacher only */}
       {canPromote && (
-        <div className="p-5 sm:p-6 rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.03] to-fuchsia-500/[0.03]">
+        <div className="p-5 sm:p-6 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.03] to-fuchsia-500/[0.03]">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-              <RocketLaunchIcon className="w-5 h-5 text-violet-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <RocketLaunchIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/90">
@@ -260,10 +260,10 @@ export default function ProgressionPage() {
             
             <Link
               href="/dashboard/lesson-plans"
-              className="lg:col-span-4 p-3 rounded-xl border border-dashed border-border hover:border-violet-500/50 hover:bg-violet-500/[0.02] transition-all flex items-center justify-center gap-3 group"
+              className="lg:col-span-4 p-3 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-primary/[0.02] transition-all flex items-center justify-center gap-3 group"
             >
-              <div className="w-6 h-6 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                <PlusIcon className="w-3 h-3 text-violet-400" />
+              <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                <PlusIcon className="w-3 h-3 text-primary" />
               </div>
               <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground">Open Lesson Plan Generation Pipeline</span>
             </Link>
@@ -401,7 +401,7 @@ export default function ProgressionPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Level {course?.level_order ?? '?'} — {course?.title ?? 'Unknown Course'}
                     {course?.programs?.delivery_type === 'optional' && (
-                      <span className="ml-2 text-violet-400 font-bold">Elective</span>
+                      <span className="ml-2 text-primary font-bold">Elective</span>
                     )}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
@@ -469,7 +469,7 @@ export default function ProgressionPage() {
           <button
             onClick={submitAll}
             disabled={submitting}
-            className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-900/30 rounded-xl"
+            className="w-full py-4 bg-primary hover:bg-primary disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-900/30 rounded-xl"
           >
             {submitting ? (
               <>

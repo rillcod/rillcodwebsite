@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
               <div className="divide-y divide-white/5 max-h-[320px] overflow-y-auto">
                 {teachers.map((t: any) => (
                   <div key={t.id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/3 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-violet-400 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary flex items-center justify-center text-xs font-black text-white flex-shrink-0">
                       {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -340,7 +340,7 @@ export default function AnalyticsPage() {
                   { label: 'Active Programs',   value: programs.length,                                                               color: 'text-cyan-400'    },
                   { label: 'Pending Students',  value: overview ? overview.totalStudents - overview.activeStudents : 0,              color: 'text-rose-400'    },
                   { label: 'Grading Rate',      value: '94%',                                                                        color: 'text-emerald-400' },
-                  { label: 'Active Teachers',   value: teachers.filter((t: any) => t.is_active).length,                             color: 'text-violet-400'  },
+                  { label: 'Active Teachers',   value: teachers.filter((t: any) => t.is_active).length,                             color: 'text-primary'  },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="flex justify-between items-center">
                     <span className="text-xs text-muted-foreground">{label}</span>

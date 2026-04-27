@@ -352,9 +352,9 @@ export function SchoolInvoiceBuilderPanel() {
   }
 
   return (
-    <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
-      <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-violet-500/20">
-        <p className="text-xs font-black text-violet-400 uppercase tracking-widest mb-0.5">
+    <div className="bg-primary/5 border border-primary/20 rounded-2xl overflow-hidden">
+      <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-primary/20">
+        <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">
           School Invoice Builder
         </p>
         <p className="text-foreground font-bold text-sm">
@@ -656,7 +656,7 @@ export function SchoolInvoiceBuilderPanel() {
         </div>
 
         {/* Live preview */}
-        <div className="w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-violet-500/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6">
+        <div className="w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6">
           <ScaledIframePreview html={previewHtml} label="Live Invoice Preview" />
         </div>
       </div>

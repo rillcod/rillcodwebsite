@@ -22,7 +22,7 @@ import {
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
-  loading: () => <div className="h-[200px] bg-black/20 animate-pulse rounded-none" />,
+  loading: () => <div className="h-[200px] bg-black/20 animate-pulse rounded-xl" />,
 });
 
 interface VaultItem {
@@ -47,7 +47,7 @@ type VaultLanguage =
 
 const LANGUAGE_COLORS: Record<string, string> = {
   javascript: 'bg-yellow-500/15 text-yellow-400',
-  python: 'bg-blue-500/15 text-blue-400',
+  python: 'bg-primary/15 text-primary',
   html: 'bg-primary/15 text-primary',
   css: 'bg-pink-500/15 text-pink-400',
   typescript: 'bg-cyan-500/15 text-cyan-400',
@@ -258,7 +258,7 @@ export default function VaultPage() {
   if (authLoading || !profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -268,8 +268,8 @@ export default function VaultPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-violet-500/15 flex items-center justify-center rounded-none">
-            <ArchiveBoxIcon className="w-5 h-5 text-violet-400" />
+          <div className="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl">
+            <ArchiveBoxIcon className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black text-foreground tracking-tight">Vault</h1>
@@ -277,7 +277,7 @@ export default function VaultPage() {
           </div>
           <button
             onClick={openNew}
-            className="ml-auto flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-none transition-all"
+            className="ml-auto flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
           >
             <PlusIcon className="w-4 h-4" />
             New Snippet
@@ -297,11 +297,11 @@ export default function VaultPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'Total Snippets', value: stats.total, icon: <CodeBracketIcon className="w-4 h-4 text-violet-400" /> },
+            { label: 'Total Snippets', value: stats.total, icon: <CodeBracketIcon className="w-4 h-4 text-primary" /> },
             { label: 'Languages', value: stats.languages, icon: <ArchiveBoxIcon className="w-4 h-4 text-emerald-400" /> },
             { label: 'Last Saved', value: stats.lastSaved, icon: <ClockIcon className="w-4 h-4 text-amber-400" /> },
           ].map((stat) => (
-            <div key={stat.label} className="bg-card border border-border p-4">
+            <div key={stat.label} className="bg-card border border-border p-4 rounded-xl shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 {stat.icon}
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">{stat.label}</span>
@@ -317,7 +317,7 @@ export default function VaultPage() {
           <input
             type="text"
             placeholder="Search by title, language, or tag..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground placeholder:text-muted-foreground"
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -346,7 +346,7 @@ export default function VaultPage() {
                   <input
                     type="text"
                     placeholder="e.g. Debounce function"
-                    className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary text-foreground"
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   />
@@ -357,7 +357,7 @@ export default function VaultPage() {
                       Language
                     </label>
                     <select
-                      className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary text-foreground"
                       value={form.language}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, language: e.target.value as VaultLanguage }))
@@ -379,7 +379,7 @@ export default function VaultPage() {
                     <input
                       type="text"
                       placeholder="e.g. utility, async, DOM"
-                      className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground"
+                      className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary text-foreground"
                       value={form.tags}
                       onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
                     />
@@ -392,7 +392,7 @@ export default function VaultPage() {
                   <textarea
                     rows={2}
                     placeholder="Brief description of what this snippet does..."
-                    className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground resize-none"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary text-foreground resize-none"
                     value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   />
@@ -414,14 +414,14 @@ export default function VaultPage() {
               <div className="flex items-center gap-3 px-5 py-4 border-t border-border">
                 <button
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border border-border text-muted-foreground hover:text-foreground text-sm font-bold rounded-none transition-all"
+                  className="px-4 py-2 border border-border text-muted-foreground hover:text-foreground text-sm font-bold rounded-xl transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || !form.title.trim() || !form.code.trim()}
-                  className="ml-auto px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-none transition-all disabled:opacity-50"
+                  className="ml-auto px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : editId ? 'Save Changes' : 'Save Snippet'}
                 </button>
@@ -433,7 +433,7 @@ export default function VaultPage() {
         {/* Snippet list */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-20">
@@ -448,18 +448,16 @@ export default function VaultPage() {
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item) => (
-              <div key={item.id} className="bg-card border border-border border-l-2 border-l-brand-red-600">
+              <div key={item.id} className="bg-card border border-border border-l-4 border-l-brand-red-600 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 {/* Card header */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <h3 className="font-bold text-foreground text-sm">{item.title}</h3>
-                        <span
-                          className={`px-2 py-0.5 text-xs font-bold ${
-                            LANGUAGE_COLORS[item.language] || 'bg-slate-500/15 text-muted-foreground/70'
+                          className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded ${
+                            LANGUAGE_COLORS[item.language] || 'bg-muted text-muted-foreground/70'
                           }`}
-                        >
                           {item.language}
                         </span>
                       </div>
@@ -487,7 +485,7 @@ export default function VaultPage() {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => toggleExpand(item.id)}
-                        className="p-1.5 text-muted-foreground hover:text-violet-400 border border-border hover:border-violet-500/50 transition-all"
+                        className="p-1.5 text-muted-foreground hover:text-primary border border-border hover:border-primary/50 transition-all rounded-lg"
                         title={expandedItems.has(item.id) ? 'Hide code' : 'Show code'}
                       >
                         <EyeIcon className="w-4 h-4" />
@@ -495,21 +493,21 @@ export default function VaultPage() {
                       <button
                         onClick={() => handleAIExplain(item)}
                         disabled={aiExplaining === item.id}
-                        className="p-1.5 text-muted-foreground hover:text-amber-400 border border-border hover:border-amber-500/50 transition-all disabled:opacity-50"
+                        className="p-1.5 text-muted-foreground hover:text-amber-400 border border-border hover:border-amber-500/50 transition-all disabled:opacity-50 rounded-lg"
                         title="AI Explain"
                       >
                         <SparklesIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 text-muted-foreground hover:text-emerald-400 border border-border hover:border-emerald-500/50 transition-all"
+                        className="p-1.5 text-muted-foreground hover:text-emerald-400 border border-border hover:border-emerald-500/50 transition-all rounded-lg"
                         title="Edit"
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-muted-foreground hover:text-red-400 border border-border hover:border-red-500/50 transition-all"
+                        className="p-1.5 text-muted-foreground hover:text-rose-400 border border-border hover:border-rose-500/50 transition-all rounded-lg"
                         title="Delete"
                       >
                         <TrashIcon className="w-4 h-4" />

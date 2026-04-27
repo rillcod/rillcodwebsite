@@ -284,7 +284,7 @@ export default function IntegratedCodeRunner({
           <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 bg-black/20 shrink-0 gap-2">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${lang === 'python' ? 'bg-blue-400' : lang === 'javascript' ? 'bg-yellow-400' : 'bg-primary'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${lang === 'python' ? 'bg-primary' : lang === 'javascript' ? 'bg-yellow-400' : 'bg-primary'}`} />
                 <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest hidden sm:block">{lang}</span>
               </div>
               {lang === 'python' && (

@@ -179,18 +179,18 @@ export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: Op
         {profile?.role === 'admin' && (
           <Link
             href="/dashboard/finance/reconciliation"
-            className="group rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 hover:border-violet-500/60 transition-colors flex items-center gap-3"
+            className="group rounded-xl border border-primary/30 bg-primary/5 p-4 hover:border-primary/60 transition-colors flex items-center gap-3"
           >
-            <CheckBadgeIcon className="w-5 h-5 text-violet-400" />
+            <CheckBadgeIcon className="w-5 h-5 text-primary" />
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                 Reconciliation
               </p>
               <p className="text-sm font-black text-foreground">
                 Audit ledger: commission, stream splits, missing receipts.
               </p>
             </div>
-            <span className="text-[11px] font-black text-violet-400 group-hover:translate-x-0.5 transition-transform">
+            <span className="text-[11px] font-black text-primary group-hover:translate-x-0.5 transition-transform">
               Open →
             </span>
           </Link>

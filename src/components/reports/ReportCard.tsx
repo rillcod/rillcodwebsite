@@ -64,7 +64,7 @@ function SectionHeaderPremium({ title }: { title: string }) {
         <div className="flex items-center gap-4">
             <h3 className="text-[12px] font-black text-foreground uppercase tracking-[0.15em] shrink-0">{title}</h3>
             <div className="h-[2px] w-full bg-background flex items-center">
-                <div className="h-[2px] w-8 bg-violet-600/30" />
+                <div className="h-[2px] w-8 bg-primary/30" />
             </div>
         </div>
     );
@@ -197,7 +197,7 @@ export default function ReportCard({ report, orgSettings }: {
                             <h1 className="text-xl font-black tracking-tighter uppercase leading-none mb-1 text-foreground">
                                 {org.org_name || 'Rillcod Technologies'}
                             </h1>
-                            <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.3em]">
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-[0.3em]">
                                 {org.org_tagline || 'Pioneering Technical Excellence'}
                             </p>
                             {(org.org_phone || org.org_email) && (
@@ -452,7 +452,7 @@ export default function ReportCard({ report, orgSettings }: {
             </div>
 
             {/* Footer colour strip */}
-            <div className="absolute bottom-0 inset-x-0 h-2 bg-gradient-to-r from-violet-600 via-indigo-600 to-emerald-500" />
+            <div className="absolute bottom-0 inset-x-0 h-2 bg-gradient-to-r from-primary via-indigo-600 to-emerald-500" />
         </div>
     );
 }

@@ -5,7 +5,7 @@ import { BADGE_VISUAL } from '@/lib/grading';
 // ── Tier configuration ────────────────────────────────────────────────────────
 const TIER_META: Record<string, { label: string; glow: string; ring: string }> = {
   bronze:   { label: 'BRONZE',   glow: 'shadow-primary/20',  ring: 'border-primary/50' },
-  silver:   { label: 'SILVER',   glow: 'shadow-violet-500/20',  ring: 'border-white/20'      },
+  silver:   { label: 'SILVER',   glow: 'shadow-primary/20',  ring: 'border-white/20'      },
   gold:     { label: 'GOLD',     glow: 'shadow-amber-500/30',   ring: 'border-amber-400/60'  },
   platinum: { label: 'PLATINUM', glow: 'shadow-cyan-400/40',    ring: 'border-cyan-400/70'   },
 };

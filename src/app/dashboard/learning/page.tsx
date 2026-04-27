@@ -275,7 +275,7 @@ export default function StudentLearningPage() {
         emoji: '🎯',
         href: '/dashboard/cbt',
         done: false,
-        color: 'border-l-violet-500 bg-violet-400/5 text-violet-400'
+        color: 'border-l-primary bg-primary/5 text-primary'
       });
     }
 
@@ -402,7 +402,7 @@ export default function StudentLearningPage() {
               { label: 'Lessons Done', value: stats.lessonsDone, icon: CheckBadgeIcon, color: 'text-emerald-500', border: 'border-t-emerald-500' },
               { label: 'Week Streak',  value: stats.streak,      icon: FireIcon,       color: 'text-primary', border: 'border-t-primary' },
               { label: 'Total Points', value: stats.xp.toLocaleString(), icon: TrophyIcon, color: 'text-amber-500', border: 'border-t-amber-500' },
-              { label: 'Avg Score',    value: `${stats.avgScore}%`, icon: ChartBarIcon, color: 'text-blue-500', border: 'border-t-blue-500' },
+              { label: 'Avg Score',    value: `${stats.avgScore}%`, icon: ChartBarIcon, color: 'text-primary', border: 'border-t-primary' },
             ].slice(0, 2).map(({ label, value, icon: Icon, color, border }) => (
               <div key={label} className={`bg-card border border-border border-t-2 ${border} p-5 flex items-center gap-4`}>
                 <Icon className={`w-7 h-7 ${color} shrink-0`} />
@@ -569,7 +569,7 @@ export default function StudentLearningPage() {
                 const courses = coursesByProgram[prog.id] ?? [];
                 const accentColors = [
                   { border: 'border-t-primary', text: 'text-primary', bar: 'bg-primary' },
-                  { border: 'border-t-blue-500',   text: 'text-blue-500',   bar: 'bg-blue-500'   },
+                  { border: 'border-t-primary',   text: 'text-primary',   bar: 'bg-primary'   },
                   { border: 'border-t-emerald-500', text: 'text-emerald-500',bar: 'bg-emerald-500'},
                 ][pi % 3];
 

@@ -499,20 +499,20 @@ function AddLessonPageContent() {
 
       {/* Context banners — shown one at a time based on origin */}
       {termPlanId && !curriculumSource && (
-        <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-xl">
+        <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <div className="w-10 h-10 bg-violet-500/20 flex items-center justify-center rounded-xl border border-violet-500/30 shrink-0">
-              <BookOpen className="w-5 h-5 text-violet-400" aria-hidden />
+            <div className="w-10 h-10 bg-primary/20 flex items-center justify-center rounded-xl border border-primary/30 shrink-0">
+              <BookOpen className="w-5 h-5 text-primary" aria-hidden />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-violet-400 uppercase tracking-widest">Creating for Term Plan</p>
+              <p className="text-sm font-black text-primary uppercase tracking-widest">Creating for Term Plan</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 This lesson will be linked back to the Term Plan{curriculumWeek ? ` · Week ${curriculumWeek}` : ''}.
               </p>
             </div>
             <Link
               href={`/dashboard/lesson-plans/${termPlanId}`}
-              className="self-start sm:self-center px-3 py-2 sm:py-1.5 bg-violet-500/20 text-violet-400 text-xs font-bold uppercase tracking-widest rounded-lg border border-violet-500/30 whitespace-nowrap hover:bg-violet-500/30 transition-colors"
+              className="self-start sm:self-center px-3 py-2 sm:py-1.5 bg-primary/20 text-primary text-xs font-bold uppercase tracking-widest rounded-lg border border-primary/30 whitespace-nowrap hover:bg-primary/30 transition-colors"
             >
               View plan →
             </Link>
@@ -595,7 +595,7 @@ function AddLessonPageContent() {
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Mode</label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { id: 'academic', label: 'Academic', Icon: GraduationCap, desc: 'Deep theory, notes & curriculum', activeClass: 'border-violet-500 bg-violet-500/10', textClass: 'text-violet-400' },
+                  { id: 'academic', label: 'Academic', Icon: GraduationCap, desc: 'Deep theory, notes & curriculum', activeClass: 'border-primary bg-primary/10', textClass: 'text-primary' },
                   { id: 'project', label: 'Project', Icon: Hammer, desc: 'Builds, labs & capstone missions', activeClass: 'border-emerald-500 bg-emerald-500/10', textClass: 'text-emerald-400' },
                   { id: 'interactive', label: 'Interactive', Icon: Zap, desc: 'Quizzes, visualizers & animations', activeClass: 'border-cyan-500 bg-cyan-500/10', textClass: 'text-cyan-400' },
                 ] as const).map(({ id, label, Icon, desc, activeClass, textClass }) => (
@@ -671,7 +671,7 @@ function AddLessonPageContent() {
                 onClick={() => handleAiGenerate()}
                 disabled={aiGenerating || aiGeneratingNotes}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end ${
-                  aiMode === 'academic' ? 'bg-violet-600 hover:bg-violet-500' :
+                  aiMode === 'academic' ? 'bg-primary hover:bg-primary' :
                   aiMode === 'project'  ? 'bg-emerald-600 hover:bg-emerald-500' :
                                           'bg-cyan-600 hover:bg-cyan-500'
                 }`}
@@ -684,7 +684,7 @@ function AddLessonPageContent() {
             </div>
 
             <div className={`p-3 rounded-xl border text-[10px] leading-relaxed space-y-1.5 ${
-              aiMode === 'academic' ? 'bg-violet-500/5 border-violet-500/15 text-violet-300/70' :
+              aiMode === 'academic' ? 'bg-primary/5 border-primary/15 text-violet-300/70' :
               aiMode === 'project'  ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-300/70' :
                                       'bg-cyan-500/5 border-cyan-500/15 text-cyan-300/70'
             }`}>
@@ -706,9 +706,9 @@ function AddLessonPageContent() {
 
       {/* AI Generated preview banner */}
       {!aiOpen && !aiGenerating && form.title && (
-        <div className="bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 border border-violet-500/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="bg-gradient-to-br from-primary/15 to-fuchsia-500/10 border border-primary/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="shrink-0 w-9 h-9 rounded-xl bg-violet-500/25 flex items-center justify-center">
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-primary/25 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-violet-300" />
             </div>
             <div className="flex-1 min-w-0">
@@ -723,14 +723,14 @@ function AddLessonPageContent() {
             <button
               type="button"
               onClick={() => setShowLessonPreview(true)}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
             >
               <Eye className="w-3.5 h-3.5" /> Preview
             </button>
             <button
               type="button"
               onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-violet-500/30 hover:bg-violet-500/10 text-violet-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 border border-primary/30 hover:bg-primary/10 text-violet-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all min-h-[44px]"
             >
               <RefreshCw className="w-3 h-3" /> Regenerate
             </button>
@@ -904,7 +904,7 @@ function AddLessonPageContent() {
       {/* Content Builder */}
       <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-4">
         <div className="flex items-center gap-3 pb-3 border-b border-border">
-          <Layout className="w-4 h-4 text-violet-400" />
+          <Layout className="w-4 h-4 text-primary" />
           <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Content Builder</h2>
           <span className="text-[10px] text-muted-foreground font-medium ml-1">— visual blocks, quizzes &amp; activities</span>
         </div>

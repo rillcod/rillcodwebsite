@@ -509,7 +509,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', Icon: CheckCircleIcon },
     success: { label: 'Completed', cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', Icon: CheckCircleIcon },
     pending: { label: 'Pending', cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400', Icon: ClockIcon },
-    processing: { label: 'Processing', cls: 'bg-blue-500/10 border-blue-500/30 text-blue-400', Icon: ClockIcon },
+    processing: { label: 'Processing', cls: 'bg-primary/10 border-primary/30 text-primary', Icon: ClockIcon },
     failed: { label: 'Failed', cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400', Icon: XCircleIcon },
     refunded: { label: 'Refunded', cls: 'bg-purple-500/10 border-purple-500/30 text-purple-400', Icon: ArrowPathIcon },
   };

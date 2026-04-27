@@ -187,7 +187,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'excellent': return 'text-green-600 bg-green-100'
-      case 'good': return 'text-blue-600 bg-blue-100'
+      case 'good': return 'text-primary bg-blue-100'
       case 'improving': return 'text-yellow-600 bg-yellow-100'
       case 'needs-help': return 'text-red-600 bg-red-100'
       default: return 'text-muted-foreground bg-muted'
@@ -210,7 +210,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground flex items-center">
-              <ChartBarIcon className="h-8 w-8 mr-3 text-blue-600" />
+              <ChartBarIcon className="h-8 w-8 mr-3 text-primary" />
               Advanced Analytics Dashboard
             </h2>
             <p className="text-muted-foreground mt-1">Comprehensive insights for {role} role</p>
@@ -219,7 +219,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-4 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-border rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="week">This Week</option>
               <option value="month">This Month</option>
@@ -229,7 +229,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
             <select
               value={selectedView}
               onChange={(e) => setSelectedView(e.target.value)}
-              className="px-4 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2 border border-border rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="overview">Overview</option>
               <option value="performance">Performance</option>
@@ -242,7 +242,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
 
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-primary to-primary rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100">Total Students</p>
@@ -305,7 +305,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                 }`}>
                   <insight.icon className={`h-5 w-5 ${
                     insight.color === 'green' ? 'text-green-600' :
-                    insight.color === 'blue' ? 'text-blue-600' :
+                    insight.color === 'blue' ? 'text-primary' :
                     insight.color === 'yellow' ? 'text-yellow-600' :
                     'text-purple-600'
                   }`} />
@@ -417,7 +417,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-blue-600 font-semibold text-sm">#{index + 1}</span>
+                        <span className="text-primary font-semibold text-sm">#{index + 1}</span>
                       </div>
                       <div>
                         <p className="font-medium text-foreground">{student.name}</p>
@@ -430,7 +430,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                     <div className="flex items-center">
                       <div className="w-16 h-2 bg-muted rounded-full mr-2">
                         <div 
-                          className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                          className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${student.progress}%` }}
                         ></div>
                       </div>
@@ -443,7 +443,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 mr-3">
+                    <button className="text-primary hover:text-blue-900 mr-3">
                       <PlayIcon className="h-4 w-4" />
                     </button>
                     <button className="text-green-600 hover:text-green-900">
@@ -476,7 +476,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
             </div>
           </div>
           <div className="flex items-start">
-            <UserGroupIcon className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
+            <UserGroupIcon className="h-5 w-5 text-primary mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Peer Mentoring Program</p>
               <p className="text-sm text-muted-foreground">Pair advanced students with beginners for collaborative learning</p>

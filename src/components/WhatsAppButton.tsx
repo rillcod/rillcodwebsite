@@ -17,7 +17,7 @@ export default function WhatsAppButton() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex items-center justify-center w-14 h-14 bg-whatsapp-green text-white rounded-none border-2 border-border shadow-2xl hover:bg-whatsapp-green-hover transition-all duration-500 hover:scale-110 relative"
+        className="group flex items-center justify-center w-14 h-14 bg-whatsapp-green text-white rounded-xl border-2 border-border shadow-2xl hover:bg-whatsapp-green-hover transition-all duration-500 hover:scale-110 relative"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         aria-label="Contact us on WhatsApp"
@@ -36,7 +36,7 @@ export default function WhatsAppButton() {
         
         {/* Tooltip */}
         {isHovered && (
-          <div className="absolute right-20 bg-card border border-border text-foreground px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-2xl hidden lg:block">
+          <div className="absolute right-20 bg-card border border-border text-foreground px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-2xl hidden lg:block">
             Deploy WhatsApp Link
             <div className="absolute top-1/2 -right-1 transform -translate-y-1/2 w-2 h-2 bg-card border-t border-r border-border rotate-45"></div>
           </div>

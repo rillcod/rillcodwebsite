@@ -134,7 +134,7 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                 {/* Header Section */}
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-card dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-border dark:border-slate-800 gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-primary bg-clip-text text-transparent">
                             {exam.title}
                         </h1>
                         <p className="text-muted-foreground dark:text-muted-foreground/70 text-sm mt-1">
@@ -265,9 +265,9 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                         )}
 
                         <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30 text-center">
-                            <CheckCircle className="w-8 h-8 text-blue-500 mx-auto mb-3" />
+                            <CheckCircle className="w-8 h-8 text-primary mx-auto mb-3" />
                             <h4 className="font-bold text-blue-900 dark:text-blue-200">Auto-Save Enabled</h4>
-                            <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Your work is automatically saved every 30 seconds to the cloud.</p>
+                            <p className="text-xs text-primary dark:text-primary mt-1">Your work is automatically saved every 30 seconds to the cloud.</p>
                         </div>
                     </aside>
                 </div>

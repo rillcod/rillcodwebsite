@@ -172,7 +172,7 @@ export default function FlashcardsPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button 
                 onClick={() => setShowCreate(true)} 
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors shadow-lg"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors shadow-lg"
               >
                 <PlusIcon className="w-4 h-4" /> Create Deck
               </button>
@@ -186,7 +186,7 @@ export default function FlashcardsPage() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card border border-border rounded-none p-6 hover:border-primary/30 transition-all"
+              className="bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
@@ -203,11 +203,11 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-card border border-border rounded-none p-6 hover:border-blue-500/30 transition-all"
+              className="bg-card border border-border rounded-xl p-6 hover:border-primary/30 transition-all"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center">
-                  <StarIcon className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
+                  <StarIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-black text-foreground">
@@ -222,7 +222,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-card border border-border rounded-none p-6 hover:border-emerald-500/30 transition-all"
+              className="bg-card border border-border rounded-xl p-6 hover:border-emerald-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 flex items-center justify-center">
@@ -243,7 +243,7 @@ export default function FlashcardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-card border border-border rounded-none p-6 hover:border-purple-500/30 transition-all"
+              className="bg-card border border-border rounded-xl p-6 hover:border-purple-500/30 transition-all"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/10 flex items-center justify-center">
@@ -267,7 +267,7 @@ export default function FlashcardsPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-20 bg-card border border-border rounded-none"
+            className="text-center py-20 bg-card border border-border rounded-xl"
           >
             <div className="w-16 h-16 bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-4">
               <AcademicCapIcon className="w-8 h-8 text-primary" />
@@ -281,7 +281,7 @@ export default function FlashcardsPage() {
             {isTeacher && (
               <button 
                 onClick={() => setShowCreate(true)}
-                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-none transition-colors"
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-colors"
               >
                 Create First Deck
               </button>
@@ -298,7 +298,7 @@ export default function FlashcardsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="bg-card border border-border rounded-none overflow-hidden hover:border-primary/30 transition-all duration-200 group"
+                    className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 transition-all duration-200 group"
                   >
                     
                     {/* Card Header */}
@@ -311,14 +311,14 @@ export default function FlashcardsPage() {
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => openBuilder(deck.id)}
-                              className="p-2 hover:bg-muted rounded-none transition-colors"
+                              className="p-2 hover:bg-muted rounded-xl transition-colors"
                               title="Open Builder"
                             >
                               <DocumentTextIcon className="w-4 h-4 text-purple-400" />
                             </button>
                             <button
                               onClick={() => deleteDeck(deck.id, deck.title)}
-                              className="p-2 hover:bg-rose-500/10 rounded-none transition-colors"
+                              className="p-2 hover:bg-rose-500/10 rounded-xl transition-colors"
                               title="Delete Deck"
                             >
                               <TrashIcon className="w-4 h-4 text-rose-400" />
@@ -340,7 +340,7 @@ export default function FlashcardsPage() {
 
                       {(deck.lessons?.title || deck.courses?.name) && (
                         <div className="mb-4">
-                          <span className="inline-block px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-none">
+                          <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-xl">
                             {deck.lessons?.title || deck.courses?.name}
                           </span>
                         </div>
@@ -353,7 +353,7 @@ export default function FlashcardsPage() {
                         {profile?.role === 'student' && cardCount > 0 && (
                           <Link 
                             href={`/dashboard/flashcards/${deck.id}/review`}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors"
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors"
                           >
                             <ArrowPathIcon className="w-4 h-4" />
                             Start Review
@@ -364,14 +364,14 @@ export default function FlashcardsPage() {
                           <>
                             <button
                               onClick={() => openBuilder(deck.id)}
-                              className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-none transition-colors"
+                              className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl transition-colors"
                             >
                               <DocumentTextIcon className="w-4 h-4" />
                               Builder
                             </button>
                             <Link 
                               href={`/dashboard/flashcards/${deck.id}`}
-                              className="px-4 py-3 bg-card hover:bg-muted border border-border text-muted-foreground text-sm font-bold rounded-none transition-colors"
+                              className="px-4 py-3 bg-card hover:bg-muted border border-border text-muted-foreground text-sm font-bold rounded-xl transition-colors"
                               title="View Details"
                             >
                               <EyeIcon className="w-4 h-4" />
@@ -380,7 +380,7 @@ export default function FlashcardsPage() {
                         )}
                         
                         {profile?.role === 'student' && cardCount === 0 && (
-                          <div className="flex-1 flex items-center justify-center py-3 bg-muted/50 text-muted-foreground text-sm font-bold rounded-none">
+                          <div className="flex-1 flex items-center justify-center py-3 bg-muted/50 text-muted-foreground text-sm font-bold rounded-xl">
                             No Cards Yet
                           </div>
                         )}
@@ -406,7 +406,7 @@ export default function FlashcardsPage() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-card border border-border rounded-none w-full max-w-md p-6 space-y-6"
+                className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-6"
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-foreground">Create New Deck</h2>
@@ -450,14 +450,14 @@ export default function FlashcardsPage() {
                 <div className="flex gap-3">
                   <button 
                     onClick={() => setShowCreate(false)} 
-                    className="flex-1 py-3 bg-muted text-muted-foreground font-bold rounded-none hover:bg-muted/80 text-sm transition-colors"
+                    className="flex-1 py-3 bg-muted text-muted-foreground font-bold rounded-xl hover:bg-muted/80 text-sm transition-colors"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={createDeck} 
                     disabled={!newTitle.trim() || creating} 
-                    className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-none text-sm transition-colors"
+                    className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors"
                   >
                     {creating ? 'Creating...' : 'Create & Build'}
                   </button>

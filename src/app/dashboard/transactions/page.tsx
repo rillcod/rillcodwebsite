@@ -34,7 +34,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; className: strin
   completed: { label: 'Completed', icon: CheckCircleIcon, className: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
   success:   { label: 'Completed', icon: CheckCircleIcon, className: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
   pending:   { label: 'Pending',   icon: ClockIcon,       className: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
-  processing:{ label: 'Processing',icon: ClockIcon,       className: 'bg-blue-500/10 border-blue-500/20 text-blue-400' },
+  processing:{ label: 'Processing',icon: ClockIcon,       className: 'bg-primary/10 border-primary/20 text-primary' },
   failed:    { label: 'Failed',    icon: XCircleIcon,     className: 'bg-rose-500/10 border-rose-500/20 text-rose-400' },
   refunded:  { label: 'Refunded',  icon: ArrowPathIcon,   className: 'bg-purple-500/10 border-purple-500/20 text-purple-400' },
 };
@@ -253,7 +253,7 @@ export default function TransactionsPage() {
                         {METHOD_LABELS[tx.payment_method] ?? tx.payment_method}
                       </span>
                       {tx.courses?.title && (
-                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary">
                           {tx.courses.title}
                         </span>
                       )}

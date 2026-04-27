@@ -372,7 +372,7 @@ export default function DirectoryPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-400 rounded-xl flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary rounded-xl flex items-center justify-center shadow-lg">
             <UserGroupIcon className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -436,7 +436,7 @@ export default function DirectoryPage() {
           <div className="flex gap-2">
             <button
               onClick={printDirectory}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-lg transition-colors"
             >
               <PrinterIcon className="w-4 h-4" />
               Print
@@ -482,8 +482,8 @@ export default function DirectoryPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                          contact._type === 'student' ? 'bg-blue-500' :
-                          contact._type === 'parent' ? 'bg-emerald-500' : 'bg-violet-500'
+                          contact._type === 'student' ? 'bg-primary' :
+                          contact._type === 'parent' ? 'bg-emerald-500' : 'bg-primary'
                         }`}>
                           {contact.full_name?.[0]?.toUpperCase() || '?'}
                         </div>
@@ -519,9 +519,9 @@ export default function DirectoryPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
-                        contact._type === 'student' ? 'bg-blue-500/20 text-blue-400' :
+                        contact._type === 'student' ? 'bg-primary/20 text-primary' :
                         contact._type === 'parent' ? 'bg-emerald-500/20 text-emerald-400' :
-                        'bg-violet-500/20 text-violet-400'
+                        'bg-primary/20 text-primary'
                       }`}>
                         {contact._type}
                       </span>

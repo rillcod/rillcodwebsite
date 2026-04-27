@@ -299,7 +299,7 @@ export default function MoneyHubPage() {
             {isStaff && (
               <Link
                 href="/dashboard/finance"
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-900/20 min-h-[40px]"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-white shadow-lg shadow-violet-900/20 min-h-[40px]"
               >
                 Advanced <ChevronRight className="w-3.5 h-3.5" />
               </Link>
@@ -505,7 +505,7 @@ export default function MoneyHubPage() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Ref, method, invoice…"
-                  className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-violet-500 min-h-[40px]"
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-primary min-h-[40px]"
                 />
               </div>
               <div className="relative">
@@ -513,7 +513,7 @@ export default function MoneyHubPage() {
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-violet-500 cursor-pointer appearance-none min-h-[40px]"
+                  className="pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-primary cursor-pointer appearance-none min-h-[40px]"
                 >
                   <option value="all">All</option>
                   <option value="completed">Paid</option>
@@ -717,9 +717,9 @@ function ActionLink({ href, icon: Icon, label }: { href: string; icon: React.Com
   return (
     <Link
       href={href}
-      className="group inline-flex items-center gap-2 px-3 sm:px-4 py-3 rounded-xl border border-border bg-card hover:border-violet-500/40 hover:bg-muted/50 transition-all min-h-[52px]"
+      className="group inline-flex items-center gap-2 px-3 sm:px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/50 transition-all min-h-[52px]"
     >
-      <span className="w-8 h-8 rounded-lg bg-muted group-hover:bg-violet-500/15 inline-flex items-center justify-center transition-colors">
+      <span className="w-8 h-8 rounded-lg bg-muted group-hover:bg-primary/15 inline-flex items-center justify-center transition-colors">
         <Icon className="w-3.5 h-3.5 text-foreground" />
       </span>
       <span className="flex-1 text-[11px] sm:text-xs font-black uppercase tracking-widest text-foreground truncate">{label}</span>
@@ -739,7 +739,7 @@ function Th({ children, align = 'left' }: { children: React.ReactNode; align?: '
 function iconForMethod(method?: string | null) {
   const m = (method || '').toLowerCase();
   if (m.includes('transfer') || m.includes('bank')) return <Banknote className="w-3.5 h-3.5 text-emerald-400" />;
-  if (m.includes('paystack') || m.includes('card') || m.includes('stripe')) return <CreditCard className="w-3.5 h-3.5 text-violet-400" />;
+  if (m.includes('paystack') || m.includes('card') || m.includes('stripe')) return <CreditCard className="w-3.5 h-3.5 text-primary" />;
   if (m.includes('cash')) return <Wallet className="w-3.5 h-3.5 text-amber-400" />;
   return <Receipt className="w-3.5 h-3.5 text-muted-foreground" />;
 }

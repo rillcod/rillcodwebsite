@@ -27,7 +27,7 @@ import Link from 'next/link';
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
-  loading: () => <div className="h-[350px] bg-black/20 animate-pulse rounded-none" />,
+  loading: () => <div className="h-[350px] bg-black/20 animate-pulse rounded-xl" />,
 });
 
 import { PROTOCOL_PHASES, type RunnerLanguage, type ProtocolModule, type ProtocolPhase } from '@/data/protocol';
@@ -190,7 +190,7 @@ export default function ProtocolPage() {
               <p className="text-[11px] sm:text-sm text-muted-foreground font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
             </div>
           </div>
-          <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end bg-white/[0.03] md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-none border border-white/5 md:border-none">
+          <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end bg-white/[0.03] md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-xl border border-white/5 md:border-none">
             <div className="flex flex-col md:items-end">
               <div className="flex items-center gap-3 mb-1 sm:mb-2">
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Mastery</span>

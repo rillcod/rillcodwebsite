@@ -14,14 +14,14 @@ import {
 import ShareToParentModal from '@/components/share/ShareToParentModal';
 
 const TYPE_BADGE: Record<string, string> = {
-  quiz: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  quiz: 'bg-primary/20 text-primary border-primary/30',
   project: 'bg-primary/20 text-primary border-primary/30',
   homework: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   exam: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   cbt: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   presentation: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  essay: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  essay: 'bg-primary/20 text-primary border-primary/30',
   research: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   lab: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   discussion: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
@@ -29,14 +29,14 @@ const TYPE_BADGE: Record<string, string> = {
 
 // Left accent bar colors per type
 const TYPE_ACCENT: Record<string, string> = {
-  quiz: 'bg-blue-500',
+  quiz: 'bg-primary',
   project: 'bg-primary',
   homework: 'bg-cyan-500',
   exam: 'bg-rose-500',
   cbt: 'bg-rose-500',
   presentation: 'bg-amber-500',
   coding: 'bg-emerald-500',
-  essay: 'bg-violet-500',
+  essay: 'bg-primary',
   research: 'bg-indigo-500',
   lab: 'bg-teal-500',
   discussion: 'bg-pink-500',
@@ -44,7 +44,7 @@ const TYPE_ACCENT: Record<string, string> = {
 
 const SUB_BADGE: Record<string, string> = {
   graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  submitted: 'bg-primary/20 text-primary border-primary/30',
   late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   pending: 'bg-muted text-muted-foreground border-border',
@@ -52,7 +52,7 @@ const SUB_BADGE: Record<string, string> = {
 
 const SUB_ACCENT: Record<string, string> = {
   graded: 'bg-emerald-500',
-  submitted: 'bg-blue-500',
+  submitted: 'bg-primary',
   late: 'bg-amber-500',
   missing: 'bg-rose-500',
   pending: 'bg-muted',
@@ -314,7 +314,7 @@ export default function AssignmentsPage() {
               <div className="flex gap-px border border-border">
                 {[
                   { label: 'Total', value: totalItems, color: 'text-primary' },
-                  { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-blue-400' },
+                  { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-primary' },
                   { label: 'Graded', value: gradedCount, color: 'text-emerald-400' },
                   {
                     label: 'Overdue',
@@ -572,7 +572,7 @@ export default function AssignmentsPage() {
                           <span className="text-[11px] text-muted-foreground">{a.max_points ?? 100} pts</span>
                           {totalSubs > 0 && (
                             <>
-                              <span className="text-[11px] text-blue-400">{submittedCnt} pending</span>
+                              <span className="text-[11px] text-primary">{submittedCnt} pending</span>
                               <span className="text-[11px] text-emerald-400">{gradedCnt}/{totalSubs} graded</span>
                             </>
                           )}
@@ -607,7 +607,7 @@ export default function AssignmentsPage() {
                         </button>
                         <Link
                           href={`/dashboard/assignments/${a.id}`}
-                          className="p-2.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                          className="p-2.5 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                           title="View"
                         >
                           <EyeIcon className="w-4 h-4" />

@@ -39,7 +39,7 @@ type AnalyticsResponse = {
   }>;
 };
 
-function ScoreBar({ value, max = 100, color = 'bg-violet-500' }: { value: number; max?: number; color?: string }) {
+function ScoreBar({ value, max = 100, color = 'bg-primary' }: { value: number; max?: number; color?: string }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
   return (
     <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function ProgressionAnalyticsPage() {
 
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -98,7 +98,7 @@ export default function ProgressionAnalyticsPage() {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-xl font-black flex items-center gap-2">
-              <ChartBarIcon className="w-5 h-5 text-violet-400" />
+              <ChartBarIcon className="w-5 h-5 text-primary" />
               How Are Students Doing?
             </h1>
             <p className="text-sm text-muted-foreground mt-1">

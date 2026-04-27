@@ -134,7 +134,7 @@ export default function GamificationPage() {
   }
 
   if (authLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const filteredBadges = badges.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()));
@@ -163,7 +163,7 @@ export default function GamificationPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Badges', value: badges.length, icon: CheckBadgeIcon, color: 'text-yellow-400' },
-          { label: 'Students Ranked', value: leaderboard.length, icon: UserGroupIcon, color: 'text-violet-400' },
+          { label: 'Students Ranked', value: leaderboard.length, icon: UserGroupIcon, color: 'text-primary' },
           { label: 'Top Points', value: leaderboard[0]?.total_points?.toLocaleString() ?? '—', icon: BoltIcon, color: 'text-emerald-400' },
           { label: 'Platinum Users', value: leaderboard.filter(u => u.achievement_level === 'Platinum').length, icon: SparklesIcon, color: 'text-cyan-400' },
         ].map(s => (

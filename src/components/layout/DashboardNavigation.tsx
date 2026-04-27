@@ -91,7 +91,7 @@ export default function DashboardNavigation() {
       <span className="text-sidebar-foreground/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
       <div className="flex items-center gap-3">
         <a href="/login"
-          className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
+          className="text-xs font-bold text-primary hover:text-violet-300 transition-colors underline underline-offset-2">
           Sign In
         </a>
         <button
@@ -469,7 +469,7 @@ export default function DashboardNavigation() {
             </span>
           </div>
           {unreadCount > 0 && (
-            <span className="ml-auto flex-shrink-0 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-none flex items-center justify-center">
+            <span className="ml-auto flex-shrink-0 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-xl flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}

@@ -32,7 +32,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
           <button onClick={onRefresh} disabled={dataLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all disabled:opacity-40">
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-all disabled:opacity-40">
             <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
@@ -40,17 +40,17 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {dataLoading
             ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
-                <div className="h-10 w-10 bg-muted rounded-none mb-4" />
+              <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-5 sm:p-6 animate-pulse">
+                <div className="h-10 w-10 bg-muted rounded-xl mb-4" />
                 <div className="h-8 bg-muted rounded w-1/2 mb-2" />
                 <div className="h-4 bg-card shadow-sm rounded w-2/3" />
               </div>
             ))
             : stats.map(({ label, value, icon: Icon, gradient }) => (
-              <div key={label} className="bg-card shadow-sm border border-border border-t-2 border-t-brand-red-600 rounded-none p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
+              <div key={label} className="bg-card shadow-sm border border-border border-t-2 border-t-brand-red-600 rounded-xl p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
                 <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
                 <div className="flex items-start justify-between mb-5 relative z-10">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
                   </div>
                   <span className="text-[8px] sm:text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] bg-brand-red-600/5 px-2 py-0.5 rounded-full border border-brand-red-600/20">Live</span>
@@ -68,13 +68,13 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
 
         {/* Left: Quick Actions + Recent Activity */}
         <div className="xl:col-span-2 space-y-6">
-          <div className="bg-card shadow-sm border border-border rounded-none p-6">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-6">
             <h2 className="text-lg font-bold text-foreground mb-5">Quick Actions</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quickActions.map(({ name, href, icon: Icon, desc }) => (
                 <Link key={name} href={href}
-                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
-                  <div className="w-10 h-10 rounded-none bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                  className="group flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div>
@@ -86,14 +86,14 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             </div>
           </div>
 
-          <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl">
+          <div className="bg-background border border-border rounded-xl p-6 sm:p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-xl font-black text-foreground tracking-tight">Recent Activity</h2>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
               </div>
               <button onClick={onRefresh}
-                className="p-3 rounded-none bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group">
+                className="p-3 rounded-xl bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group">
                 <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
               </button>
             </div>
@@ -101,7 +101,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
               <div className="space-y-4">
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} className="flex items-center gap-4 animate-pulse">
-                    <div className="w-11 h-11 bg-card shadow-sm rounded-none flex-shrink-0" />
+                    <div className="w-11 h-11 bg-card shadow-sm rounded-xl flex-shrink-0" />
                     <div className="flex-1 space-y-3">
                       <div className="h-4 bg-card shadow-sm rounded w-3/4" />
                       <div className="h-3 bg-card shadow-sm rounded w-1/2 opacity-50" />
@@ -110,7 +110,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                 ))}
               </div>
             ) : activities.length === 0 ? (
-              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-border rounded-none">
+              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-border rounded-xl">
                 <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
                   <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground" />
                 </div>
@@ -119,8 +119,8 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
             ) : (
               <div className="space-y-2">
                 {activities.map((a) => (
-                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-none hover:bg-white/[0.03] transition-all border border-transparent hover:border-border">
-                    <div className={`w-11 h-11 rounded-none flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
+                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-xl hover:bg-white/[0.03] transition-all border border-transparent hover:border-border">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
                       <a.icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -139,9 +139,9 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
 
         {/* Right Sidebar */}
         <div className="space-y-5">
-          <div className="bg-gradient-to-br from-primary/20 to-primary/20 border border-primary/20 rounded-none p-6">
+          <div className="bg-gradient-to-br from-primary/20 to-primary/20 border border-primary/20 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                 {(profile.full_name ?? 'S')[0].toUpperCase()}
               </div>
               <div>
@@ -161,14 +161,14 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
           </div>
 
           {/* Upcoming Schedule */}
-          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-foreground text-sm">What's Next</h3>
               <Link href="/dashboard/timetable" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Full View</Link>
             </div>
             <div className="space-y-2">
               {upcomingSlots.length > 0 ? upcomingSlots.map(slot => (
-                <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-none relative overflow-hidden">
+                <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 bottom-0 w-1 bg-primary" />
                   <div className="flex justify-between items-start gap-2">
                     <p className="text-xs font-bold text-foreground truncate">{slot.subject}</p>
@@ -180,7 +180,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                   </p>
                 </div>
               )) : (
-                <div className="text-center py-6 border border-dashed border-border rounded-none">
+                <div className="text-center py-6 border border-dashed border-border rounded-xl">
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">No classes today</p>
                 </div>
               )}
@@ -218,7 +218,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
           })()}
 
           {/* Navigate To */}
-          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-5">
             <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
             <div className="space-y-1">
               {[
@@ -227,7 +227,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                 { label: 'Reports', href: '/dashboard/results', icon: DocumentTextIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
                   <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />

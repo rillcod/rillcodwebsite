@@ -89,7 +89,7 @@ export function DiscussionTopic({ topic }: TopicProps) {
                         <ThumbsUp className="w-4 h-4" />
                         <span className="font-bold">{topic.upvotes}</span>
                     </Button>
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50/50 rounded-full h-8 px-4">
+                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary hover:bg-blue-50/50 rounded-full h-8 px-4">
                         <MessageCircle className="w-4 h-4" />
                         <span className="font-bold">{topic.reply_count}</span>
                     </Button>
@@ -128,7 +128,7 @@ export function DiscussionReply({ reply, isAccepted = false }: { reply: any, isA
                         <button className="text-[10px] font-black text-muted-foreground/70 hover:text-teal-600 flex items-center gap-1 uppercase tracking-widest">
                             <ThumbsUp className="w-3 h-3" /> {reply.upvotes}
                         </button>
-                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-blue-600 flex items-center gap-1 uppercase tracking-widest">
+                        <button className="text-[10px] font-black text-muted-foreground/70 hover:text-primary flex items-center gap-1 uppercase tracking-widest">
                             <ReplyIcon className="w-3 h-3" /> Reply
                         </button>
                         <button className="text-[10px] font-black text-muted-foreground/70 hover:text-red-500 flex items-center gap-1 uppercase tracking-widest ml-auto">

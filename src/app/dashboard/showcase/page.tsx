@@ -31,8 +31,8 @@ interface ShowcaseItem {
 }
 
 const TYPE_META = {
-  project:    { label: 'Project',    color: 'text-violet-400 bg-violet-500/10 border-violet-500/30',  icon: RocketLaunchIcon },
-  assignment: { label: 'Assignment', color: 'text-blue-400   bg-blue-500/10   border-blue-500/30',    icon: BookOpenIcon },
+  project:    { label: 'Project',    color: 'text-primary bg-primary/10 border-primary/30',  icon: RocketLaunchIcon },
+  assignment: { label: 'Assignment', color: 'text-primary   bg-primary/10   border-primary/30',    icon: BookOpenIcon },
   assessment: { label: 'Assessment', color: 'text-amber-400  bg-amber-500/10  border-amber-500/30',   icon: TrophyIcon },
 };
 
@@ -164,7 +164,7 @@ function ShowcaseCard({ item, canManage, onPin, onTogglePublish }: {
       {item.thumbnail_url ? (
         <img src={item.thumbnail_url} alt={item.title} className="w-full h-36 object-cover" />
       ) : (
-        <div className="w-full h-28 bg-gradient-to-br from-primary/5 via-violet-500/5 to-transparent flex items-center justify-center border-b border-border">
+        <div className="w-full h-28 bg-gradient-to-br from-primary/5 via-primary/5 to-transparent flex items-center justify-center border-b border-border">
           <Icon className="w-10 h-10 text-muted-foreground/40" />
         </div>
       )}
@@ -360,7 +360,7 @@ export default function ShowcasePage() {
         {[
           { label: 'Total Showcased', value: items.length, color: 'text-foreground' },
           { label: 'Featured', value: items.filter(i => i.is_pinned).length, color: 'text-amber-400' },
-          { label: 'Projects', value: items.filter(i => i.item_type === 'project').length, color: 'text-violet-400' },
+          { label: 'Projects', value: items.filter(i => i.item_type === 'project').length, color: 'text-primary' },
           { label: 'Published', value: items.filter(i => i.is_published).length, color: 'text-emerald-400' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-border p-4">

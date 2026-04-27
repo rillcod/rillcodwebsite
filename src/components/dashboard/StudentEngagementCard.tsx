@@ -89,7 +89,7 @@ export default function StudentEngagementCard({ studentId }: Props) {
   return (
     <div className="bg-card border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/5 to-violet-500/5">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/5 to-primary/5">
         <div className="flex items-center gap-2">
           <BoltIcon className="w-4 h-4 text-primary" />
           <span className="text-xs font-black uppercase tracking-widest text-primary">My Engagement</span>

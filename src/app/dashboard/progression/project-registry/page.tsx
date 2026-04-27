@@ -194,7 +194,7 @@ export default function ProjectRegistryPage() {
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -272,7 +272,7 @@ export default function ProjectRegistryPage() {
         <button
           type="button"
           onClick={() => setShowCreate((v) => !v)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-violet-600 text-white rounded-xl hover:bg-violet-500"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-primary text-white rounded-xl hover:bg-primary"
         >
           <PlusIcon className="w-4 h-4" /> {showCreate ? 'Close create' : 'Create row'}
         </button>

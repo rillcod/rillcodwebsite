@@ -65,7 +65,7 @@ class ErrorBoundary extends Component<Props, State> {
                 
                 <Link
                   href="/"
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-border text-sm font-medium rounded-md text-foreground/80 bg-card hover:bg-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-border text-sm font-medium rounded-md text-foreground/80 bg-card hover:bg-background focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 >
                   <Home className="w-4 h-4 mr-2" />
                   Go Home

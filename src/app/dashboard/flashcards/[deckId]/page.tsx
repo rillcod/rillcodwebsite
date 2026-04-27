@@ -341,7 +341,7 @@ export default function FlashcardDeckPage() {
                 </button>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Question (Front)</label>
+                <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Question (Front)</label>
                 <textarea value={presEditForm.front} onChange={e => setPresEditForm(p => ({ ...p, front: e.target.value }))}
                   rows={4} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-primary transition-colors placeholder:text-white/20"
                   placeholder="Enter the question…" />
@@ -503,7 +503,7 @@ export default function FlashcardDeckPage() {
             {isTeacher && (
               <>
                 <button onClick={() => setShowBuilder(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl transition-colors">
+                  className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-xs font-black rounded-xl transition-colors">
                   <SparklesIcon className="w-4 h-4" />
                   <span className="hidden sm:inline">Add Cards</span>
                   <span className="sm:hidden">Add</span>
@@ -528,7 +528,7 @@ export default function FlashcardDeckPage() {
             </p>
             {isTeacher && (
               <button onClick={() => setShowBuilder(true)}
-                className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl transition-colors">
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-black rounded-xl transition-colors">
                 Add First Card
               </button>
             )}
@@ -554,7 +554,7 @@ export default function FlashcardDeckPage() {
                         </button>
                       </div>
                       <div>
-                        <label className="block text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Question</label>
+                        <label className="block text-[9px] font-black text-primary uppercase tracking-widest mb-1">Question</label>
                         <textarea value={editForm.front} onChange={e => setEditForm(p => ({ ...p, front: e.target.value }))}
                           rows={3} className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary transition-colors" />
                       </div>
@@ -591,7 +591,7 @@ export default function FlashcardDeckPage() {
                         <AnimatePresence mode="wait">
                           {!flippedCards.has(card.id) ? (
                             <motion.div key="f" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-                              <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Question</p>
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-2">Question</p>
                               <div className="text-sm font-medium text-foreground leading-relaxed line-clamp-4">
                                 <FlashcardMarkdown content={card.front} />
                               </div>
@@ -660,7 +660,7 @@ export default function FlashcardDeckPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: cards.length * 0.04 }}
                 onClick={() => setShowBuilder(true)}
-                className="border-2 border-dashed border-border hover:border-violet-500/50 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-violet-400 transition-all min-h-[130px] group"
+                className="border-2 border-dashed border-border hover:border-primary/50 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary transition-all min-h-[130px] group"
               >
                 <PlusIcon className="w-8 h-8 group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-black uppercase tracking-widest">Add Card</span>

@@ -7,7 +7,7 @@ import { contactInfo } from '@/config/brand';
 
 const contactCards = [
   { icon: Mail, title: 'Email Us', value: contactInfo.email, sub: 'Partnership Inquiries', accent: 'text-primary', bg: 'bg-primary/10' },
-  { icon: Phone, title: 'Call Us', value: contactInfo.phone, sub: 'Mon – Fri, 8am – 5pm', accent: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: Phone, title: 'Call Us', value: contactInfo.phone, sub: 'Mon – Fri, 8am – 5pm', accent: 'text-primary', bg: 'bg-primary/10' },
   { icon: MapPin, title: 'Our Office', value: 'Benin City, Edo State', sub: 'Nigeria', accent: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 ];
 
@@ -48,15 +48,15 @@ const Contact: React.FC = () => {
   return (
     <section id="contact" className="py-24 bg-background relative overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-none" />
+      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-xl" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-xl" />
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
 
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
           <div>
-              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
+              <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                  <Sparkles className="w-4 h-4 text-primary" />
                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Get In Touch</span>
               </div>
@@ -75,8 +75,8 @@ const Contact: React.FC = () => {
           {/* Info Side (4 Cols) */}
           <div className="lg:col-span-4 space-y-4">
             {contactCards.map((c, i) => (
-              <div key={i} className="group flex items-center gap-5 bg-card border border-border rounded-none p-6 hover:bg-muted transition-all border-l-2 border-l-transparent hover:border-l-primary shadow-sm">
-                 <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-none flex items-center justify-center shrink-0`}>
+              <div key={i} className="group flex items-center gap-5 bg-card border border-border rounded-xl p-6 hover:bg-muted transition-all border-l-2 border-l-transparent hover:border-l-primary shadow-sm">
+                 <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-xl flex items-center justify-center shrink-0`}>
                     <c.icon className="w-6 h-6" />
                  </div>
                  <div>
@@ -88,7 +88,7 @@ const Contact: React.FC = () => {
             ))}
 
             {/* Response Notice */}
-            <div className="mt-8 p-8 bg-card border border-border rounded-none relative overflow-hidden group border-t-2 border-t-primary shadow-2xl">
+            <div className="mt-8 p-8 bg-card border border-border rounded-xl relative overflow-hidden group border-t-2 border-t-primary shadow-2xl">
                <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-primary/5 rotate-12" />
                <h5 className="text-foreground font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-3">
                  <ShieldCheck className="w-4 h-4 text-primary" /> Quick Response
@@ -101,8 +101,8 @@ const Contact: React.FC = () => {
 
           {/* Form Side (8 Cols) */}
           <div className="lg:col-span-8">
-             <div className="bg-card border border-border rounded-none p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-primary">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-none blur-[100px] pointer-events-none" />
+             <div className="bg-card border border-border rounded-xl p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-primary">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-xl blur-[100px] pointer-events-none" />
                 
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                    <div className="grid md:grid-cols-2 gap-8">
@@ -111,7 +111,7 @@ const Contact: React.FC = () => {
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Full Name / School Name"
-                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
+                          className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                       <div className="space-y-3">
@@ -119,7 +119,7 @@ const Contact: React.FC = () => {
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="your@email.com"
-                          className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
+                          className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                    </div>
@@ -129,13 +129,13 @@ const Contact: React.FC = () => {
                       <textarea
                         name="message" value={formData.message} onChange={handleChange} required rows={5}
                         placeholder="Tell us about your school or request..."
-                        className="w-full bg-background border border-border px-6 py-5 rounded-none text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
+                        className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
                       />
                    </div>
 
                    <button
                      type="submit" disabled={sending}
-                     className="group flex items-center justify-center gap-4 w-full md:w-auto px-12 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
+                     className="group flex items-center justify-center gap-4 w-full md:w-auto px-12 py-6 bg-primary text-white font-black text-xs uppercase tracking-[0.4em] rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
                    >
                      {sending ? 'Sending...' : 'Send Message'}
                      <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />

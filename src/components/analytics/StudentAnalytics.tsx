@@ -141,14 +141,14 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
       <div className="bg-card rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-foreground flex items-center">
-            <ChartBarIcon className="h-6 w-6 mr-2 text-blue-600" />
+            <ChartBarIcon className="h-6 w-6 mr-2 text-primary" />
             Detailed Student Analytics
           </h2>
           <div className="flex gap-4">
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-3 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-border rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="week">This Week</option>
               <option value="month">This Month</option>
@@ -158,7 +158,7 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
             <select
               value={selectedMetric}
               onChange={(e) => setSelectedMetric(e.target.value)}
-              className="px-3 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-border rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="performance">Performance</option>
               <option value="engagement">Engagement</option>
@@ -360,7 +360,7 @@ export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
             </div>
           </div>
           <div className="flex items-start">
-            <ArrowTrendingUpIcon className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
+            <ArrowTrendingUpIcon className="h-5 w-5 text-primary mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Leverage Web Development Success</p>
               <p className="text-sm text-muted-foreground">Apply similar hands-on project approaches to other subjects</p>

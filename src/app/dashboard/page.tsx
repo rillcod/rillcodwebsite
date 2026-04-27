@@ -151,14 +151,14 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => { void refreshProfile(); }}
-              className="px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition"
+              className="px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition"
             >
               Try again
             </button>
             <button
               type="button"
               onClick={() => { void signOut(); }}
-              className="px-5 py-2.5 border border-border text-foreground font-bold text-sm rounded-none hover:bg-muted transition"
+              className="px-5 py-2.5 border border-border text-foreground font-bold text-sm rounded-xl hover:bg-muted transition"
             >
               Sign out
             </button>
@@ -185,13 +185,13 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <WelcomeBanner profile={profile} now={now} />
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-6 text-center">
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 text-center">
           <ExclamationTriangleIcon className="w-12 h-12 text-rose-400 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-foreground mb-2">Failed to Load Dashboard</h3>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
           <button
             onClick={() => refetch()}
-            className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded-none transition-all"
+            className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded-xl transition-all"
           >
             Retry
           </button>
@@ -268,12 +268,12 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
   const role = profile.role;
   
   return (
-    <div className="bg-background border border-border rounded-none shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
+    <div className="bg-background border border-border rounded-xl shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
       <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-brand-red-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-        <div className="flex-shrink-0 p-4 bg-muted backdrop-blur-md rounded-none border border-border shadow-2xl">
+        <div className="flex-shrink-0 p-4 bg-muted backdrop-blur-md rounded-xl border border-border shadow-2xl">
           <img src="/images/logo.png" alt="Rillcod Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
         </div>
         <div>
@@ -294,7 +294,7 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
         </div>
       </div>
 
-      <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-card shadow-sm backdrop-blur-xl border border-border rounded-none p-4 sm:p-6 shadow-2xl">
+      <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-card shadow-sm backdrop-blur-xl border border-border rounded-xl p-4 sm:p-6 shadow-2xl">
         <div className="text-3xl sm:text-5xl font-black text-foreground tracking-tighter tabular-nums">
           {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
         </div>

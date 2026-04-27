@@ -154,7 +154,7 @@ export function StudentPicker({
                 className={`w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-all border-b border-border last:border-b-0 flex items-center gap-2 ${isSelected ? 'bg-primary/10' : ''}`}
               >
                 {multi && (
-                  <span className={`w-3.5 h-3.5 border rounded-none flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-primary border-primary text-white' : 'border-border'}`}>
+                  <span className={`w-3.5 h-3.5 border rounded-xl flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-primary border-primary text-white' : 'border-border'}`}>
                     {isSelected ? '✓' : ''}
                   </span>
                 )}
@@ -176,7 +176,7 @@ export function StudentPicker({
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
           {selected.grade_level && <span className="text-muted-foreground ml-1">· {selected.grade_level}</span>}
           {selected.parent_email && (
-            <p className="text-blue-400 mt-0.5">ℹ Already has a parent ({selected.parent_email}). New parent will become primary contact.</p>
+            <p className="text-primary mt-0.5">ℹ Already has a parent ({selected.parent_email}). New parent will become primary contact.</p>
           )}
         </div>
       )}

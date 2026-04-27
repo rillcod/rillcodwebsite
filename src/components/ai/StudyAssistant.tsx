@@ -136,7 +136,7 @@ export default function StudyAssistant({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full sm:w-[360px] bg-card border border-border sm:rounded-2xl rounded-none shadow-2xl flex flex-col overflow-hidden"
+            className="w-full sm:w-[360px] bg-card border border-border sm:rounded-2xl rounded-xl shadow-2xl flex flex-col overflow-hidden"
             style={{ height: 'min(500px, calc(80dvh - 80px))' }}
           >
             {/* Header */}
@@ -237,7 +237,7 @@ export default function StudyAssistant({
         onClick={isOpen ? handleClose : handleOpen}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.95 }}
-        className={`flex items-center gap-2 px-4 py-3 text-white text-sm font-black rounded-none sm:rounded-2xl shadow-xl transition-all border m-4 sm:m-0 ${
+        className={`flex items-center gap-2 px-4 py-3 text-white text-sm font-black rounded-xl sm:rounded-2xl shadow-xl transition-all border m-4 sm:m-0 ${
           isOpen
             ? 'bg-muted border-border text-foreground'
             : 'bg-primary border-primary/40 shadow-primary/20'

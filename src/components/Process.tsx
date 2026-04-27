@@ -20,7 +20,7 @@ const Process: React.FC = () => {
       icon: <Rocket className="w-10 h-10" />,
       title: "Space Cadet",
       description: "Fly higher with new skills! Build more complex projects and learn advanced concepts.",
-      color: "bg-blue-500"
+      color: "bg-primary"
     },
     {
       icon: <Crown className="w-10 h-10" />,
@@ -44,7 +44,7 @@ const Process: React.FC = () => {
         <div className="relative">
           {/* Path connecting the steps */}
           <div className="hidden md:block absolute top-1/2 left-0 w-full h-4 bg-muted rounded-full transform -translate-y-1/2 z-0">
-            <div className="h-full bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 rounded-full w-0 transition-all duration-1000" style={{ width: '100%' }}></div>
+            <div className="h-full bg-gradient-to-r from-green-500 via-primary to-purple-500 rounded-full w-0 transition-all duration-1000" style={{ width: '100%' }}></div>
           </div>
           
           {/* Steps */}

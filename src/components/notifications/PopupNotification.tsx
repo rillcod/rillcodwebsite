@@ -32,12 +32,12 @@ interface PopupNotificationProps {
 const typeConfig = {
   info: {
     icon: InformationCircleIcon,
-    bgGradient: 'bg-gradient-to-br from-blue-500/15 via-blue-400/10 to-cyan-500/5',
-    borderColor: 'border-blue-500/40',
-    textColor: 'text-blue-400 dark:text-blue-300',
-    iconColor: 'text-blue-500 dark:text-blue-400',
-    glowColor: 'shadow-blue-500/20',
-    progressColor: 'bg-gradient-to-r from-blue-500 to-cyan-400',
+    bgGradient: 'bg-gradient-to-br from-primary/15 via-primary/10 to-cyan-500/5',
+    borderColor: 'border-primary/40',
+    textColor: 'text-primary dark:text-blue-300',
+    iconColor: 'text-primary dark:text-primary',
+    glowColor: 'shadow-primary/20',
+    progressColor: 'bg-gradient-to-r from-primary to-cyan-400',
     emoji: '💡'
   },
   success: {
@@ -92,7 +92,7 @@ const typeConfig = {
   },
   celebration: {
     icon: SparklesIcon,
-    bgGradient: 'bg-gradient-to-br from-purple-500/20 via-pink-400/15 to-violet-500/10',
+    bgGradient: 'bg-gradient-to-br from-purple-500/20 via-pink-400/15 to-primary/10',
     borderColor: 'border-purple-500/50',
     textColor: 'text-purple-600 dark:text-purple-300',
     iconColor: 'text-purple-700 dark:text-purple-400',

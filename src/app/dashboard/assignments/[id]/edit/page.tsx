@@ -181,13 +181,13 @@ export default function EditAssignmentPage() {
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+                <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
 
                     {/* Title */}
                     <div>
@@ -196,7 +196,7 @@ export default function EditAssignmentPage() {
                         </label>
                         <input type="text" required value={form.title}
                             onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                     </div>
 
                     {/* Course */}
@@ -206,7 +206,7 @@ export default function EditAssignmentPage() {
                         </label>
                         <select required value={form.course_id}
                             onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                             <option value="">Select a course…</option>
                             {courses.map(c => (
                                 <option key={c.id} value={c.id}>{c.title}{(c.programs as any)?.name ? ` — ${(c.programs as any).name}` : ''}</option>
@@ -220,7 +220,7 @@ export default function EditAssignmentPage() {
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Type</label>
                             <select value={form.assignment_type}
                                 onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                                 <option value="homework">Homework</option>
                                 <option value="project">Project</option>
                                 <option value="quiz">Quiz</option>
@@ -235,14 +235,14 @@ export default function EditAssignmentPage() {
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
                                 <input type="number" min="1" max="1000" value={form.max_points}
                                     onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Report Weight (pts)</label>
                                 <input type="number" min="0" max="200" value={form.weight}
                                     onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
                                     placeholder="0"
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                                 <p className="text-[10px] text-white/30 mt-1">Points toward final report (0 = excluded)</p>
                             </div>
                         </div>
@@ -254,7 +254,7 @@ export default function EditAssignmentPage() {
                             </label>
                             <input type="datetime-local" value={form.due_date}
                                 onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                         </div>
                     </div>
 
@@ -275,7 +275,7 @@ export default function EditAssignmentPage() {
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
                         <textarea rows={3} value={form.description}
                             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
                     </div>
 
                     {/* Instructions */}
@@ -283,7 +283,7 @@ export default function EditAssignmentPage() {
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Instructions</label>
                         <textarea rows={4} value={form.instructions}
                             onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
                     </div>
 
                     {/* ── Question Canvas ── */}
@@ -297,13 +297,13 @@ export default function EditAssignmentPage() {
                                 <p className="text-[10px] text-muted-foreground mt-0.5">Edit questions for this assignment</p>
                             </div>
                             <button type="button" onClick={addQuestion}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none transition-colors">
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
                                 <PlusIcon className="w-3.5 h-3.5" /> Add Question
                             </button>
                         </div>
 
                         {questions.map((q, qi) => (
-                            <div key={qi} className="bg-white/3 border border-border rounded-none overflow-hidden">
+                            <div key={qi} className="bg-white/3 border border-border rounded-xl overflow-hidden">
                                 <div className="flex items-center justify-between px-4 py-2 bg-card shadow-sm border-b border-border">
                                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Q{qi + 1}</span>
                                     <div className="flex items-center gap-1">
@@ -325,14 +325,14 @@ export default function EditAssignmentPage() {
                                     <textarea rows={2} value={q.question_text}
                                         onChange={(e) => updateQuestion(qi, { question_text: e.target.value })}
                                         placeholder="Enter question text…"
-                                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+                                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
 
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                                             <select value={q.question_type}
                                                 onChange={(e) => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
-                                                className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none cursor-pointer">
+                                                className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none cursor-pointer">
                                                 <option value="multiple_choice">Multiple Choice</option>
                                                 <option value="true_false">True / False</option>
                                                 <option value="fill_blank">Fill in Blank</option>
@@ -343,14 +343,14 @@ export default function EditAssignmentPage() {
                                             <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                                             <input type="number" min="1" value={q.points}
                                                 onChange={(e) => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
-                                                className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none" />
+                                                className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none" />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Correct Answer</label>
                                             {q.question_type === 'true_false' ? (
                                                 <select value={q.correct_answer}
                                                     onChange={(e) => updateQuestion(qi, { correct_answer: e.target.value })}
-                                                    className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none cursor-pointer">
+                                                    className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none cursor-pointer">
                                                     <option value="">Select…</option>
                                                     <option value="True">True</option>
                                                     <option value="False">False</option>
@@ -359,7 +359,7 @@ export default function EditAssignmentPage() {
                                                 <input type="text" value={q.correct_answer}
                                                     onChange={(e) => updateQuestion(qi, { correct_answer: e.target.value })}
                                                     placeholder="Correct answer…"
-                                                    className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                                                    className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                                             )}
                                         </div>
                                     </div>
@@ -372,7 +372,7 @@ export default function EditAssignmentPage() {
                                                     <input type="text" value={opt}
                                                         onChange={(e) => updateOption(qi, oi, e.target.value)}
                                                         placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                                                        className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                                                        className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                                                 </div>
                                             ))}
                                         </div>
@@ -384,17 +384,17 @@ export default function EditAssignmentPage() {
 
                     <div className="flex items-center gap-3 pt-2">
                         <button type="button" onClick={handleDelete} disabled={deleting}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                             <TrashIcon className="w-4 h-4" />
                             {deleting ? 'Deleting…' : 'Delete'}
                         </button>
                         <div className="flex-1" />
                         <Link href={`/dashboard/assignments/${id}`}
-                            className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none transition-colors">
+                            className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
                             Cancel
                         </Link>
                         <button type="submit" disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
+                            className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                             {saving ? 'Saving…' : 'Save Changes'}
                         </button>

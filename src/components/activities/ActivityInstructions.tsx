@@ -106,8 +106,8 @@ function parseInstructions(raw: string): ParsedInstructions {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const CATEGORY_COLOR: Record<string, string> = {
-    coding:       'bg-violet-500/15 border-violet-500/30 text-violet-300',
-    web:          'bg-blue-500/15 border-blue-500/30 text-blue-300',
+    coding:       'bg-primary/15 border-primary/30 text-violet-300',
+    web:          'bg-primary/15 border-primary/30 text-blue-300',
     ai:           'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
     design:       'bg-pink-500/15 border-pink-500/30 text-pink-300',
     research:     'bg-amber-500/15 border-amber-500/30 text-amber-300',

@@ -57,7 +57,7 @@ const CONTENT_TYPES = [
     key: 'lesson' as const,
     label: 'Lesson Plan',
     icon: BookOpenIcon,
-    active: 'text-violet-400 border-violet-500/40 bg-violet-500/10 ring-1 ring-violet-500/40',
+    active: 'text-primary border-primary/40 bg-primary/10 ring-1 ring-primary/40',
     idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
     desc: 'Full lesson plan with objectives, activities & classwork — saved to Lesson Plans',
   },
@@ -186,7 +186,7 @@ interface Program { id: string; name: string; courses: Course[] }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> = {
-  lesson: { label: 'Lesson', color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', icon: BookOpenIcon },
+  lesson: { label: 'Lesson', color: 'text-primary bg-primary/10 border-primary/30', icon: BookOpenIcon },
   assessment: { label: 'Assessment', color: 'text-amber-400  bg-amber-500/10  border-amber-500/30', icon: ClipboardDocumentListIcon },
   examination: { label: 'Examination', color: 'text-rose-400   bg-rose-500/10   border-rose-500/30', icon: DocumentTextIcon },
 };
@@ -1883,7 +1883,7 @@ export default function CurriculumPage() {
                     aria-selected={activeTab === 'delivery'}
                     onClick={() => setActiveTab('delivery')}
                     className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'delivery'
-                      ? 'border-violet-500 text-violet-400 bg-violet-500/5 shadow-[inset_0_-2px_0_0_rgba(139,92,246,0.5)]'
+                      ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(139,92,246,0.5)]'
                       : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
                       }`}
                   >
@@ -2024,7 +2024,7 @@ export default function CurriculumPage() {
                   type="button"
                   onClick={handleGenerate}
                   disabled={genGenerating}
-                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-none"
+                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-xl"
                 >
                   {genGenerating ? (
                     <>
@@ -2125,8 +2125,8 @@ export default function CurriculumPage() {
                                 title: 'Deploy to a class',
                                 desc: 'Assign the syllabus to a specific class and term.',
                                 icon: RocketLaunchIcon,
-                                color: 'text-violet-400',
-                                bg: 'bg-violet-500/10 border-violet-500/20',
+                                color: 'text-primary',
+                                bg: 'bg-primary/10 border-primary/20',
                               },
                               {
                                 step: '4',
@@ -2158,7 +2158,7 @@ export default function CurriculumPage() {
                     )}
                     {globalImplementationList.length > 0 && !lastVisited && (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-violet-400">
+                        <div className="flex items-center gap-2 text-primary">
                           <PresentationChartLineIcon className="w-4 h-4" />
                           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Class Plans</span>
                         </div>
@@ -2167,23 +2167,23 @@ export default function CurriculumPage() {
                             <Link
                               key={plan.id}
                               href={`/dashboard/lesson-plans/${plan.id}`}
-                              className="group bg-card border border-white/5 hover:border-violet-500/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-violet-500/5 hover:-translate-y-1 rounded-xl"
+                              className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-1">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
                                     {plan.classes?.name}
                                   </p>
-                                  <h5 className="text-sm font-black text-white group-hover:text-violet-400 transition-colors truncate">
+                                  <h5 className="text-sm font-black text-white group-hover:text-primary transition-colors truncate">
                                     {plan.courses?.title}
                                   </h5>
                                 </div>
-                                <span className="bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-black px-2 py-1 rounded">
+                                <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded">
                                   {plan.term}
                                 </span>
                               </div>
                               <div className="pt-2 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity">Launch Class Plan →</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Launch Class Plan →</span>
                                 <span className="text-[9px] text-muted-foreground">Active Implementation</span>
                               </div>
                             </Link>
@@ -2716,7 +2716,7 @@ export default function CurriculumPage() {
 
                   {/* ── Push to Class CTA — bottom of Syllabus tab ── */}
                   {canTrack && (
-                    <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-violet-600/10 border border-violet-500/20">
+                    <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-primary/10 border border-primary/20">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-black text-foreground">Ready to teach this syllabus?</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">Push it to a class to create a live Lesson Plan your students can follow.</p>
@@ -2737,7 +2737,7 @@ export default function CurriculumPage() {
                             else setImplClasses([]);
                             setShowImplement(true);
                           }}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
                         >
                           <RocketLaunchIcon className="w-4 h-4 shrink-0" />
                           Push to Class
@@ -2754,14 +2754,14 @@ export default function CurriculumPage() {
           {activeTab === 'implementations' && selectedCourse && (
             <div className="mx-4 sm:mx-6 mb-6 space-y-6">
               {/* Explanation banner */}
-              <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-4 flex items-start gap-3">
-                <ClipboardDocumentListIcon className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+                <ClipboardDocumentListIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-black text-violet-400 uppercase tracking-widest mb-1">What are Class Plans?</p>
+                  <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">What are Class Plans?</p>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     Each entry below is a <strong className="text-foreground">Lesson Plan</strong> — this syllabus deployed to a specific class for a specific term.
                     Click any card to open the week-by-week planner. You can also manage all plans from the{' '}
-                    <Link href="/dashboard/lesson-plans" className="text-violet-400 hover:underline font-bold">Lesson Plans page</Link>.
+                    <Link href="/dashboard/lesson-plans" className="text-primary hover:underline font-bold">Lesson Plans page</Link>.
                   </p>
                 </div>
               </div>
@@ -2780,7 +2780,7 @@ export default function CurriculumPage() {
                     else setImplClasses([]);
                     setShowImplement(true);
                   }}
-                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all"
                 >
                   <PlusIcon className="w-3 h-3" />
                   Deploy to Another Class
@@ -2794,7 +2794,7 @@ export default function CurriculumPage() {
                   <p className="text-[10px] text-muted-foreground max-w-xs text-center">Deploy this syllabus to a class to start planning lessons week by week.</p>
                   <button
                     onClick={() => setShowImplement(true)}
-                    className="text-violet-400 text-xs font-black uppercase tracking-widest hover:underline"
+                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
                   >
                     Deploy to a Class →
                   </button>
@@ -2844,9 +2844,9 @@ export default function CurriculumPage() {
 
               {/* Next Step hint: prompt to implement when no class uses this syllabus yet */}
               {curriculum && canTrack && implementationList.length === 0 && (
-                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl">
+                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <RocketLaunchIcon className="w-5 h-5 text-violet-400 shrink-0" />
+                    <RocketLaunchIcon className="w-5 h-5 text-primary shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-black text-violet-300">Syllabus ready — next step is to push it to a class</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">Pick a school, a class, and a term to create a lesson plan from this syllabus.</p>
@@ -2861,7 +2861,7 @@ export default function CurriculumPage() {
                       else setImplClasses([]);
                       setShowImplement(true);
                     }}
-                    className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-violet-600 hover:bg-violet-500 text-white transition-all"
+                    className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white transition-all"
                   >
                     <RocketLaunchIcon className="w-4 h-4" />
                     Push to Class
@@ -2874,11 +2874,11 @@ export default function CurriculumPage() {
           {/* ── Progress Tab ── */}
           {activeTab === 'delivery' && curriculum && (
             <div className="mx-4 sm:mx-6 mb-6 space-y-6">
-              <div className="bg-violet-600/5 border border-violet-500/20 p-4 rounded-xl">
+              <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/20">
-                      <ChartBarIcon className="w-5 h-5 text-violet-400" />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                      <ChartBarIcon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Curriculum Progress</h4>
@@ -2898,11 +2898,11 @@ export default function CurriculumPage() {
                       <div className="flex-1 max-w-md space-y-2">
                         <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
                           <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
-                          <span className="text-violet-400">{pct}%</span>
+                          <span className="text-primary">{pct}%</span>
                         </div>
-                        <div className="h-2 bg-violet-500/10 rounded-full overflow-hidden border border-violet-500/20">
+                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden border border-primary/20">
                           <div
-                            className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 ease-out"
+                            className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-1000 ease-out"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -2932,10 +2932,10 @@ export default function CurriculumPage() {
                     <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
-                        <span className="text-xs font-black text-violet-400">{termPct}%</span>
+                        <span className="text-xs font-black text-primary">{termPct}%</span>
                       </div>
                       <div className="h-1 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-violet-500" style={{ width: `${termPct}%` }} />
+                        <div className="h-full bg-primary" style={{ width: `${termPct}%` }} />
                       </div>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
                     </div>
@@ -3151,7 +3151,7 @@ export default function CurriculumPage() {
             className="absolute inset-0 bg-black/50"
             onClick={() => setActiveWeek(null)}
           />
-          <div className="relative w-full md:max-w-2xl bg-background md:border-l border-t md:border-t-0 border-border flex flex-col max-h-[92vh] md:h-full overflow-hidden shadow-2xl rounded-t-2xl md:rounded-none">
+          <div className="relative w-full md:max-w-2xl bg-background md:border-l border-t md:border-t-0 border-border flex flex-col max-h-[92vh] md:h-full overflow-hidden shadow-2xl rounded-t-2xl md:rounded-xl">
             {/* Drag handle on mobile */}
             <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
               <div className="w-10 h-1 rounded-full bg-border" />
@@ -3208,8 +3208,8 @@ export default function CurriculumPage() {
 
                 {/* Assign this week */}
                 {activeWeek.type === 'lesson' && activeWeek.lesson_plan && (
-                  <div className="bg-violet-500/5 border border-violet-500/20 p-3 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-violet-400">Publish to Students</p>
+                  <div className="bg-primary/5 border border-primary/20 p-3 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">Publish to Students</p>
                     <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
                       {activeWeek.lesson_plan.assignment?.title && (
                         <span className="bg-muted border border-border px-2 py-0.5 font-bold">
@@ -3230,7 +3230,7 @@ export default function CurriculumPage() {
                     <button
                       onClick={() => assignWeek(activeWeek)}
                       disabled={assigning || (!activeWeek.lesson_plan?.assignment?.title && !activeWeek.lesson_plan?.project?.title)}
-                      className="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold transition-colors"
+                      className="w-full py-2 bg-primary hover:bg-primary disabled:opacity-40 text-white text-xs font-bold transition-colors"
                     >
                       {assigning ? 'Publishing…' : '⚡ Assign This Week'}
                     </button>
@@ -3660,7 +3660,7 @@ export default function CurriculumPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Start Date <span className="text-violet-400 normal-case font-normal">(auto-filled)</span>
+                      Start Date <span className="text-primary normal-case font-normal">(auto-filled)</span>
                     </label>
                     <input
                       type="date"
@@ -3671,7 +3671,7 @@ export default function CurriculumPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      End Date <span className="text-violet-400 normal-case font-normal">(auto-filled)</span>
+                      End Date <span className="text-primary normal-case font-normal">(auto-filled)</span>
                     </label>
                     <input
                       type="date"
@@ -3692,7 +3692,7 @@ export default function CurriculumPage() {
                       max="5"
                       value={implForm.sessions_per_week}
                       onChange={e => setImplForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                      className="flex-1 accent-violet-500"
+                      className="flex-1 accent-primary"
                     />
                     <span className="w-8 text-center font-black text-foreground text-sm">{implForm.sessions_per_week}</span>
                   </div>
@@ -3717,7 +3717,7 @@ export default function CurriculumPage() {
                 <button
                   onClick={deployToClass}
                   disabled={implementing}
-                  className="flex items-center gap-2 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-50"
                 >
                   {implementing ? (
                     <>
@@ -3768,11 +3768,11 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
 
       {/* Objectives */}
       {plan.objectives?.length > 0 && (
-        <Section label="Learning Objectives" color="text-violet-400" icon={BoltIcon}>
+        <Section label="Learning Objectives" color="text-primary" icon={BoltIcon}>
           <ol className="space-y-2">
             {plan.objectives.map((o, i) => (
               <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                <span className="text-violet-400 font-black shrink-0 w-5 flex items-center justify-center bg-violet-400/10 text-[10px] h-5 border border-violet-400/20">{i + 1}</span>
+                <span className="text-primary font-black shrink-0 w-5 flex items-center justify-center bg-primary/10 text-[10px] h-5 border border-primary/20">{i + 1}</span>
                 <span className="leading-snug">{o}</span>
               </li>
             ))}
@@ -3796,11 +3796,11 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
             </Section>
           )}
           {plan.student_activities?.length > 0 && (
-            <Section label="Student Interaction" color="text-blue-400" icon={AcademicCapIcon}>
+            <Section label="Student Interaction" color="text-primary" icon={AcademicCapIcon}>
               <ul className="space-y-2">
                 {plan.student_activities.map((a, i) => (
                   <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                    <span className="text-blue-400 shrink-0 select-none opacity-50">#</span>
+                    <span className="text-primary shrink-0 select-none opacity-50">#</span>
                     <span>{a}</span>
                   </li>
                 ))}

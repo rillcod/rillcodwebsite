@@ -45,7 +45,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
   }
 
   return (
-    <div className={`bg-card shadow-sm border rounded-none overflow-hidden hover:border-primary/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
+    <div className={`bg-card shadow-sm border rounded-xl overflow-hidden hover:border-primary/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
       <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2">
@@ -82,14 +82,14 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
           return (
             <div className="flex flex-wrap items-center gap-1 mb-2">
               {subject && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-none border bg-violet-500/10 text-violet-300 border-violet-500/25">
+                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-primary/10 text-violet-300 border-primary/25">
                   {subject}
                 </span>
               )}
               {grades.slice(0, 4).map((g) => (
                 <span
                   key={g}
-                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-none border bg-cyan-500/10 text-cyan-300 border-cyan-500/25"
+                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-xl border bg-cyan-500/10 text-cyan-300 border-cyan-500/25"
                   title={`Target grade: ${g}`}
                 >
                   {g}
@@ -121,13 +121,13 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
         </div>
         <div className="flex gap-2 mt-auto">
           <Link href={`/dashboard/courses/${course.id}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-none transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors">
             <EyeIcon className="w-3.5 h-3.5" /> View
           </Link>
           {canEdit && (
             <>
               <Link href={`/dashboard/courses/${course.id}/edit`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors">
                 <PencilIcon className="w-3.5 h-3.5" /> Edit
               </Link>
               <button
@@ -140,7 +140,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
                       ? 'Unlock course for students'
                       : 'Lock course from students'
                 }
-                className={`p-2 rounded-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`p-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   isAlwaysPublic
                     ? 'text-sky-400 bg-sky-500/10'
                     : course.is_locked
@@ -156,7 +156,7 @@ function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssign
               <button
                 onClick={() => onDelete(course.id, course.title)}
                 disabled={deleting === course.id}
-                className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
+                className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
                 <TrashIcon className="w-3.5 h-3.5" />
               </button>
             </>
@@ -342,7 +342,7 @@ export default function CoursesPage() {
           </div>
           {canEdit && (
             <Link href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> Add Course
             </Link>
           )}
@@ -350,12 +350,12 @@ export default function CoursesPage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
         )}
 
         {/* Visibility policy explainer (staff-only) */}
         {canEdit && (
-          <div className="bg-sky-500/5 border border-sky-500/20 rounded-none px-5 py-3 flex items-start gap-3">
+          <div className="bg-sky-500/5 border border-sky-500/20 rounded-xl px-5 py-3 flex items-start gap-3">
             <GlobeAltIcon className="w-5 h-5 text-sky-400 mt-0.5 flex-shrink-0" />
             <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
               <span className="font-black text-sky-400 uppercase tracking-widest mr-1">Visibility policy:</span>
@@ -368,7 +368,7 @@ export default function CoursesPage() {
 
         {/* Uncategorised alert banner */}
         {canEdit && courses.filter(c => !c.program_id).length > 0 && (
-          <div className="flex items-center justify-between gap-4 bg-rose-500/10 border border-rose-500/30 rounded-none px-5 py-3">
+          <div className="flex items-center justify-between gap-4 bg-rose-500/10 border border-rose-500/30 rounded-xl px-5 py-3">
             <div className="flex items-center gap-3">
               <span className="text-rose-400 text-lg font-black">⚠</span>
               <div>
@@ -380,7 +380,7 @@ export default function CoursesPage() {
             </div>
             <button
               onClick={() => setBulkFixOpen(true)}
-              className="flex-shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest rounded-none transition-colors"
+              className="flex-shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors"
             >
               Fix All →
             </button>
@@ -390,7 +390,7 @@ export default function CoursesPage() {
         {/* Bulk fix modal */}
         {bulkFixOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-            <div className="bg-card border border-border rounded-none w-full max-w-md p-6 space-y-4">
+            <div className="bg-card border border-border rounded-xl w-full max-w-md p-6 space-y-4">
               <h2 className="text-base font-black text-foreground uppercase tracking-widest">Assign Program to All Uncategorised Courses</h2>
               <p className="text-sm text-muted-foreground">
                 This will assign <span className="font-black text-foreground">{courses.filter(c => !c.program_id).length} courses</span> to the selected program at once. You can move individual courses later from their edit pages.
@@ -400,13 +400,13 @@ export default function CoursesPage() {
                 <select
                   value={bulkProgramId}
                   onChange={e => setBulkProgramId(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
                 >
                   <option value="">— Choose a program —</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              <div className="bg-muted/30 border border-border rounded-none p-3 max-h-40 overflow-y-auto space-y-1">
+              <div className="bg-muted/30 border border-border rounded-xl p-3 max-h-40 overflow-y-auto space-y-1">
                 {courses.filter(c => !c.program_id).map(c => (
                   <p key={c.id} className="text-xs text-muted-foreground truncate">• {c.title}</p>
                 ))}
@@ -414,14 +414,14 @@ export default function CoursesPage() {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => { setBulkFixOpen(false); setBulkProgramId(''); }}
-                  className="flex-1 py-2.5 bg-card border border-border text-foreground text-xs font-black uppercase tracking-widest rounded-none hover:bg-muted transition-colors"
+                  className="flex-1 py-2.5 bg-card border border-border text-foreground text-xs font-black uppercase tracking-widest rounded-xl hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBulkFix}
                   disabled={!bulkProgramId || bulkFixing}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest rounded-none transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   {bulkFixing ? (
                     <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Assigning…</>
@@ -437,19 +437,19 @@ export default function CoursesPage() {
           const statItems = isStaff ? [
             { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Active', value: courses.filter((c: any) => c.is_active).length, icon: BoltIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Total Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: AcademicCapIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Total Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Submissions', value: courses.reduce((s: number, c: any) => s + (c.assignment_submissions?.length ?? 0), 0), icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ] : [
             { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'In Progress', value: courses.filter((c: any) => c.status === 'active').length, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'In Progress', value: courses.filter((c: any) => c.status === 'active').length, icon: ClockIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Completed', value: courses.filter((c: any) => c.status === 'completed').length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ];
           return (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {statItems.map((s) => (
-                <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-                  <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+                <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+                  <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                     <s.icon className={`w-5 h-5 ${s.color}`} />
                   </div>
                   <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -466,7 +466,7 @@ export default function CoursesPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input type="text" placeholder="Search courses…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           {isStaff && programs.length > 0 && (
             <select
@@ -484,7 +484,7 @@ export default function CoursesPage() {
 
         {/* Empty */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-24 bg-card shadow-sm border border-border rounded-xl">
             <BookOpenIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">No courses found</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -529,10 +529,10 @@ export default function CoursesPage() {
             {filtered.map((enr: any, i: number) => {
               const prog = enr.programs;
               return (
-                <div key={enr.id} className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-border transition-all">
+                <div key={enr.id} className="bg-card shadow-sm border border-border rounded-xl overflow-hidden hover:border-border transition-all">
                   <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
                   <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                    <div className={`w-14 h-14 rounded-none bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center flex-shrink-0`}>
+                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center flex-shrink-0`}>
                       <BookOpenIcon className="w-7 h-7 text-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -567,7 +567,7 @@ export default function CoursesPage() {
                     <div className="flex-shrink-0">
                       <Link
                         href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-none transition-all ${enr.status === 'completed'
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${enr.status === 'completed'
                           ? 'bg-muted text-muted-foreground hover:bg-muted'
                           : 'bg-primary text-foreground hover:bg-primary'
                         }`}>

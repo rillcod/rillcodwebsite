@@ -283,9 +283,9 @@ export default function ProgressPage() {
           <div className="h-8 bg-muted rounded w-64" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-32 animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-32 animate-pulse" />)}
         </div>
-        {[1, 2].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-40 animate-pulse" />)}
+        {[1, 2].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-40 animate-pulse" />)}
       </div>
 
       <style jsx global>{`
@@ -307,7 +307,7 @@ export default function ProgressPage() {
           .text-foreground, .text-foreground\/60, .text-foreground\/40, .text-foreground\/30 { color: #111827 !important; }
           .border-border\/10, .border-border\/20, .border-border\/5 { border-color: #e5e7eb !important; }
           .max-w-7xl { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .shadow-xl, .shadow-lg, .shadow-blue-600\/20, .shadow-2xl { box-shadow: none !important; }
+          .shadow-xl, .shadow-lg, .shadow-primary\/20, .shadow-2xl { box-shadow: none !important; }
           .print\:hidden { display: none !important; }
           button, .fixed, .z-50 { display: none !important; }
           h1, h2, h3 { color: #111827 !important; }
@@ -329,7 +329,7 @@ export default function ProgressPage() {
           
           /* Page break controls */
           h3 { page-break-after: avoid; }
-          .rounded-none { border-radius: 0 !important; border: none !important; border-bottom: 2px solid #f3f4f6 !important; }
+          .rounded-xl { border-radius: 0 !important; border: none !important; border-bottom: 2px solid #f3f4f6 !important; }
         }
       `}</style>
     </div>
@@ -358,7 +358,7 @@ export default function ProgressPage() {
           </div>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all shadow-lg"
+            className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl border border-border transition-all shadow-lg"
           >
             <ClipboardDocumentCheckIcon className="w-4 h-4" /> Print Analytics
           </button>
@@ -389,34 +389,34 @@ export default function ProgressPage() {
 
         {/* Filter Bar (Staff/Admin only) */}
         {isStaff && (
-          <div className="bg-card shadow-sm border border-border rounded-none p-4 flex flex-wrap gap-4 items-center print:hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-4 flex flex-wrap gap-4 items-center print:hidden">
             <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
                 placeholder="Search student or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             {role === 'admin' ? (
               <select
                 value={selectedSchool}
                 onChange={(e) => setSelectedSchool(e.target.value)}
-                className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="all">All Schools</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             ) : (
-                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-none text-xs font-black text-primary/60 uppercase tracking-widest flex items-center gap-2">
+                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-black text-primary/60 uppercase tracking-widest flex items-center gap-2">
                     <BuildingOfficeIcon className="w-3 h-3" /> {schools.find(s => s.id === profile?.school_id)?.name || profile?.school_name || 'My School'}
                 </div>
             )}
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">All Classes</option>
               {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
@@ -424,7 +424,7 @@ export default function ProgressPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-[#161625] border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">Any Status</option>
               <option value="active">Active</option>
@@ -436,7 +436,7 @@ export default function ProgressPage() {
         )}
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
@@ -447,7 +447,7 @@ export default function ProgressPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Ring & Mastery Chart */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-card shadow-sm border border-border rounded-none p-6 flex flex-col items-center justify-center gap-3 relative overflow-hidden group">
+              <div className="bg-card shadow-sm border border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12" />
                 <div className="relative">
                   <RingProgress pct={avgScore ?? 0} size={140} stroke={12}
@@ -466,7 +466,7 @@ export default function ProgressPage() {
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Cumulative Mastery</p>
               </div>
 
-              <div className="bg-card shadow-sm border border-border rounded-none p-4 h-[280px]">
+              <div className="bg-card shadow-sm border border-border rounded-xl p-4 h-[280px]">
                 <div className="flex items-center gap-2 mb-2 px-2">
                   <SparklesIcon className="w-4 h-4 text-cyan-400" />
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Skill Mastery</span>
@@ -498,15 +498,15 @@ export default function ProgressPage() {
             <div className="lg:col-span-3 space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Submitted', value: submissions.length, icon: ClipboardDocumentCheckIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                  { label: 'Submitted', value: submissions.length, icon: ClipboardDocumentCheckIcon, color: 'text-primary', bg: 'bg-primary/10' },
                   { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                   { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
                   { label: 'Best Score', value: best != null ? `${best}%` : '—', icon: TrophyIcon, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
                   { label: 'Enrolled', value: enrollments.length, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10' },
                   { label: 'Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon, color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-muted-foreground', bg: 'bg-card shadow-sm' },
                 ].map(s => (
-                  <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 group hover:border-border transition-all">
-                    <div className={`w-8 h-8 ${s.bg} rounded-none flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
+                  <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:border-border transition-all">
+                    <div className={`w-8 h-8 ${s.bg} rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
                       <s.icon className={`w-4 h-4 ${s.color}`} />
                     </div>
                     <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -516,8 +516,8 @@ export default function ProgressPage() {
               </div>
 
               {/* Weekly Trend Placeholder or Insight */}
-              <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-none p-6 sm:p-8 flex items-center gap-6">
-                 <div className="shrink-0 p-4 bg-primary/20 rounded-none text-primary">
+              <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-xl p-6 sm:p-8 flex items-center gap-6">
+                 <div className="shrink-0 p-4 bg-primary/20 rounded-xl text-primary">
                     <ArrowTrendingUpIcon className="w-8 h-8" />
                  </div>
                  <div className="space-y-1">
@@ -540,11 +540,11 @@ export default function ProgressPage() {
               { label: 'Awaiting Grade', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
               {
                 label: 'Scoped Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon,
-                color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-muted-foreground', bg: 'bg-blue-500/10'
+                color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-muted-foreground', bg: 'bg-primary/10'
               },
             ].map(s => (
-              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-                <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+              <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+                <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                   <s.icon className={`w-5 h-5 ${s.color}`} />
                 </div>
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -556,7 +556,7 @@ export default function ProgressPage() {
 
         {/* Enrollments */}
         {enrollments.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground flex items-center gap-2">
                 <BookOpenIcon className="w-5 h-5 text-primary" />
@@ -584,7 +584,7 @@ export default function ProgressPage() {
                     <div className="flex-shrink-0 text-right">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize
                         ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                          e.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                          e.status === 'completed' ? 'bg-primary/20 text-primary border-primary/30' :
                             'bg-muted text-muted-foreground border-border'}`}>
                         {e.status}
                       </span>
@@ -598,7 +598,7 @@ export default function ProgressPage() {
 
         {/* Score Trends from Progress Reports */}
         {scoreReports.length > 0 && (
-          <div className="bg-card border border-border rounded-none overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center gap-2">
               <ArrowTrendingUpIcon className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-foreground">
@@ -633,7 +633,7 @@ export default function ProgressPage() {
 
         {/* Recent submissions */}
         {submissions.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground flex items-center gap-2">
                 <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-400" />
@@ -678,7 +678,7 @@ export default function ProgressPage() {
         )}
 
         {submissions.length === 0 && enrollments.length === 0 && !error && (
-          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
             <ChartBarIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">No progress data yet</p>
             <p className="text-sm text-muted-foreground mt-1">

@@ -21,7 +21,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
   subtitle
 }) => {
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
+    blue: 'bg-blue-50 text-primary',
     green: 'bg-green-50 text-green-600',
     purple: 'bg-purple-50 text-purple-600',
     orange: 'bg-orange-50 text-primary',
@@ -34,7 +34,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
   };
 
   return (
-    <div className="bg-card rounded-none shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-xl shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
@@ -58,7 +58,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
           )}
         </div>
         
-        <div className={`w-12 h-12 rounded-none flex items-center justify-center ${colorClasses[color]}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClasses[color]}`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>

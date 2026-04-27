@@ -65,7 +65,7 @@
 }
 
 :root {
-  --radius: 0px;
+  --radius: 12px;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0D1B2A;
   --background: #F8FAFC;

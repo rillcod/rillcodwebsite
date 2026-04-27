@@ -61,7 +61,7 @@ export default function FloatingRegistrationButton() {
         className={`w-14 h-14 rounded-full shadow-lg transform transition-all duration-300 hover:scale-110 hover:shadow-xl flex items-center justify-center ${
           isOpen 
             ? 'bg-red-600 hover:bg-red-700' 
-            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+            : 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary hover:to-purple-700'
         }`}
         aria-label="Registration Menu"
       >
@@ -74,7 +74,7 @@ export default function FloatingRegistrationButton() {
 
       {/* Pulse Animation Ring */}
       {!isOpen && (
-        <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-20"></div>
+        <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20"></div>
       )}
     </div>
   )

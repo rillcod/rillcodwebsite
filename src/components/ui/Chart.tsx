@@ -390,7 +390,7 @@ export default function Chart({
     if (defaultColor) return defaultColor;
 
     const colors = [
-      'bg-blue-500',
+      'bg-primary',
       'bg-green-500',
       'bg-yellow-500',
       'bg-red-500',
@@ -458,7 +458,7 @@ export default function Chart({
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-blue-500"
+          className="text-primary"
           points={data.map((point, index) => {
             const x = (index / (data.length - 1)) * (data.length * 100);
             const y = height - ((point.value - minValue) / (maxValue - minValue)) * height;
@@ -475,7 +475,7 @@ export default function Chart({
               cx={x}
               cy={y}
               r="4"
-              className="fill-blue-500"
+              className="fill-primary"
             />
           );
         })}

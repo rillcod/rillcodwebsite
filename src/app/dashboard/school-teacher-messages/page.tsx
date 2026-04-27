@@ -143,7 +143,7 @@ export default function SchoolTeacherMessagesPage() {
           {(profile?.role === 'school' || profile?.role === 'admin') && (
             <button
               onClick={() => setShowNewConversation(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white rounded-none text-sm font-bold transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white rounded-xl text-sm font-bold transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               New Conversation
@@ -153,7 +153,7 @@ export default function SchoolTeacherMessagesPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
           {/* Conversation list */}
-          <div className="lg:col-span-1 bg-card border border-border rounded-none overflow-y-auto">
+          <div className="lg:col-span-1 bg-card border border-border rounded-xl overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -197,7 +197,7 @@ export default function SchoolTeacherMessagesPage() {
           </div>
 
           {/* Chat area */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-none flex flex-col">
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl flex flex-col">
             {!selected ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
@@ -227,7 +227,7 @@ export default function SchoolTeacherMessagesPage() {
                               {msg.sender?.full_name} ({msg.sender?.role})
                             </p>
                           )}
-                          <div className={`px-3 py-2 rounded-none text-sm ${
+                          <div className={`px-3 py-2 rounded-xl text-sm ${
                             isOwn 
                               ? 'bg-primary/90 text-white' 
                               : 'bg-muted border border-border text-foreground'
@@ -252,12 +252,12 @@ export default function SchoolTeacherMessagesPage() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Type a message…"
-                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
+                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
                   <button 
                     onClick={sendMessage} 
                     disabled={!input.trim() || sending} 
-                    className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-none transition-colors"
+                    className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-xl transition-colors"
                   >
                     <PaperAirplaneIcon className="w-4 h-4" />
                   </button>
@@ -270,7 +270,7 @@ export default function SchoolTeacherMessagesPage() {
         {/* New Conversation Modal */}
         {showNewConversation && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card border border-border rounded-none p-6 w-full max-w-md mx-4">
+            <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
               <h3 className="text-lg font-bold mb-4">Start New Conversation</h3>
               <div className="space-y-3 max-h-60 overflow-y-auto">
                 {profile?.role === 'school' ? (
@@ -281,7 +281,7 @@ export default function SchoolTeacherMessagesPage() {
                       <button
                         key={teacher.id}
                         onClick={() => createConversation(teacher.id)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-none text-left transition-colors"
+                        className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-xl text-left transition-colors"
                       >
                         <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary">
                           <AcademicCapIcon className="w-4 h-4" />
@@ -301,7 +301,7 @@ export default function SchoolTeacherMessagesPage() {
                       <button
                         key={school.id}
                         onClick={() => createConversation(school.id)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-none text-left transition-colors"
+                        className="w-full flex items-center gap-3 p-3 hover:bg-muted border border-border rounded-xl text-left transition-colors"
                       >
                         <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-xs font-bold text-primary">
                           <BuildingOfficeIcon className="w-4 h-4" />
@@ -320,7 +320,7 @@ export default function SchoolTeacherMessagesPage() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setShowNewConversation(false)}
-                  className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-muted rounded-none transition-colors"
+                  className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-muted rounded-xl transition-colors"
                 >
                   Cancel
                 </button>

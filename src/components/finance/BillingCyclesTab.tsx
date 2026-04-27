@@ -333,7 +333,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
     <div className="space-y-4">
       {/* Show admin-only note; school sees a cleaner header */}
       {isAdmin && (
-        <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card/50 p-4 text-sm text-muted-foreground">
           <p className="font-bold text-foreground">Term billing cycles</p>
           <p className="mt-1 text-xs">
             Each row is a subscription term window with a due date, rollup amount, and optional linked invoice. Reminder weeks 6–8 are driven by the billing-reminders cron.
@@ -341,7 +341,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
         </div>
       )}
       {isPayingRole && (
-        <div className="rounded-none border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card/50 p-4 text-sm text-muted-foreground">
           <p className="font-bold text-foreground">Your Billing Schedule</p>
           <p className="mt-1 text-xs">
             View current and upcoming billing cycles. Click <strong>Pay Now</strong> on any due cycle to pay online via Paystack or upload a bank transfer evidence.
@@ -355,7 +355,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
             title="Filter by school"
             value={adminSchoolId}
             onChange={e => setAdminSchoolId(e.target.value)}
-            className="w-full sm:w-56 px-3 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
+            className="w-full sm:w-56 px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
           >
             <option value="">All schools</option>
             {schools.map(s => (
@@ -367,7 +367,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           title="Filter by status"
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="w-full sm:w-44 px-3 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
+          className="w-full sm:w-44 px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
         >
           <option value="all">All statuses</option>
           {STATUS_OPTIONS.map(s => (
@@ -377,7 +377,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
         <button
           type="button"
           onClick={() => void load()}
-          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-muted hover:bg-muted/80 border border-border rounded-none text-sm font-bold"
+          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-muted hover:bg-muted/80 border border-border rounded-xl text-sm font-bold"
         >
           <ArrowPathIcon className="w-4 h-4" /> Refresh
         </button>
@@ -385,7 +385,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
           <button
             type="button"
             onClick={startCreate}
-            className="inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-primary text-primary-foreground hover:opacity-90 border border-primary rounded-none text-sm font-bold"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2.5 bg-primary text-primary-foreground hover:opacity-90 border border-primary rounded-xl text-sm font-bold"
           >
             Add cycle
           </button>
@@ -406,7 +406,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
             const isDue = ['due', 'past_due'].includes(row.status);
             const showingPayment = payingRow === row.id;
             return (
-              <div key={row.id} className="border border-border bg-card rounded-none overflow-hidden">
+              <div key={row.id} className="border border-border bg-card rounded-xl overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setExpanded(open ? null : row.id)}
@@ -428,7 +428,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     <span className="font-black text-foreground text-sm tabular-nums">
                       {fmt(row.currency, Number(row.amount_due ?? 0))}
                     </span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-none ${
+                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-xl ${
                       row.status === 'paid' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
                       row.status === 'past_due' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
                       row.status === 'due' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
@@ -449,7 +449,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); setPayingRow(showingPayment ? null : row.id); }}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
                     >
                       {showingPayment ? 'Hide' : 'Pay Now'}
                     </button>
@@ -553,7 +553,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     {items.length > 0 && (
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Line items ({items.length})</p>
-                        <ul className="space-y-1 max-h-40 overflow-y-auto border border-border bg-background p-2 rounded-none">
+                        <ul className="space-y-1 max-h-40 overflow-y-auto border border-border bg-background p-2 rounded-xl">
                           {items.map((it, i) => (
                             <li key={i} className="text-[11px] text-foreground flex justify-between gap-2">
                               <span className="truncate">{String(it.student_name ?? it.invoice_number ?? 'Item')}</span>
@@ -568,7 +568,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         <button
                           type="button"
                           onClick={() => startEdit(row)}
-                          className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-none"
+                          className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-xl"
                         >
                           Edit
                         </button>
@@ -577,7 +577,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                             type="button"
                             disabled={deleting === row.id}
                             onClick={() => void deleteCycle(row.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-none"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
                             {deleting === row.id ? 'Deleting…' : 'Delete'}
@@ -596,7 +596,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                               if (!confirm(`Set this cycle to "${st.replace(/_/g, ' ')}"?`)) return;
                               void patchStatus(row.id, st);
                             }}
-                            className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted disabled:opacity-40 rounded-none"
+                            className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted disabled:opacity-40 rounded-xl"
                           >
                             {st.replace(/_/g, ' ')}
                           </button>
@@ -616,60 +616,60 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
 
       {isAdmin && showForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl border border-border bg-background rounded-none p-4 sm:p-5 space-y-4">
+          <div className="w-full max-w-2xl border border-border bg-background rounded-xl p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="font-black text-foreground">{editingId ? 'Edit billing cycle' : 'Add billing cycle'}</p>
-              <button type="button" onClick={() => setShowForm(false)} className="text-xs border border-border px-2 py-1 rounded-none">Close</button>
+              <button type="button" onClick={() => setShowForm(false)} className="text-xs border border-border px-2 py-1 rounded-xl">Close</button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-muted-foreground">Owner type
-                <select value={form.owner_type} onChange={e => setForm(prev => ({ ...prev, owner_type: e.target.value, owner_school_id: '', owner_user_id: '' }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                <select value={form.owner_type} onChange={e => setForm(prev => ({ ...prev, owner_type: e.target.value, owner_school_id: '', owner_user_id: '' }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
                   <option value="school">School</option>
                   <option value="individual">Individual</option>
                 </select>
               </label>
               {form.owner_type === 'school' ? (
                 <label className="text-xs text-muted-foreground">School
-                  <select value={form.owner_school_id} onChange={e => setForm(prev => ({ ...prev, owner_school_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                  <select value={form.owner_school_id} onChange={e => setForm(prev => ({ ...prev, owner_school_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
                     <option value="">Select school</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </label>
               ) : (
                 <label className="text-xs text-muted-foreground">Individual
-                  <select value={form.owner_user_id} onChange={e => setForm(prev => ({ ...prev, owner_user_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                  <select value={form.owner_user_id} onChange={e => setForm(prev => ({ ...prev, owner_user_id: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
                     <option value="">Select student/parent</option>
                     {contactUsers.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email || u.id} {u.role ? `(${u.role})` : ''}</option>)}
                   </select>
                 </label>
               )}
               <label className="text-xs text-muted-foreground">Term label
-                <input value={form.term_label} onChange={e => setForm(prev => ({ ...prev, term_label: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+                <input value={form.term_label} onChange={e => setForm(prev => ({ ...prev, term_label: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground" />
               </label>
               <label className="text-xs text-muted-foreground">Term start date
-                <input type="date" value={form.term_start_date} onChange={e => setForm(prev => ({ ...prev, term_start_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+                <input type="date" value={form.term_start_date} onChange={e => setForm(prev => ({ ...prev, term_start_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground" />
               </label>
               <label className="text-xs text-muted-foreground">Due date
-                <input type="date" value={form.due_date} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+                <input type="date" value={form.due_date} onChange={e => setForm(prev => ({ ...prev, due_date: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground" />
               </label>
               <label className="text-xs text-muted-foreground">Amount due
-                <input type="number" min="0" value={form.amount_due} onChange={e => setForm(prev => ({ ...prev, amount_due: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground" />
+                <input type="number" min="0" value={form.amount_due} onChange={e => setForm(prev => ({ ...prev, amount_due: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground" />
               </label>
               <label className="text-xs text-muted-foreground">Currency
-                <select value={form.currency} onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                <select value={form.currency} onChange={e => setForm(prev => ({ ...prev, currency: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
                   <option value="NGN">NGN</option>
                   <option value="USD">USD</option>
                 </select>
               </label>
               <label className="text-xs text-muted-foreground">Status
-                <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground">
+                <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
                   {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                 </select>
               </label>
             </div>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 border border-border rounded-none text-sm font-bold">Cancel</button>
-              <button type="button" disabled={savingForm} onClick={() => void submitForm()} className="px-3 py-2 border border-primary bg-primary text-primary-foreground rounded-none text-sm font-bold disabled:opacity-60">
+              <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 border border-border rounded-xl text-sm font-bold">Cancel</button>
+              <button type="button" disabled={savingForm} onClick={() => void submitForm()} className="px-3 py-2 border border-primary bg-primary text-primary-foreground rounded-xl text-sm font-bold disabled:opacity-60">
                 {savingForm ? 'Saving...' : editingId ? 'Save changes' : 'Create cycle'}
               </button>
             </div>

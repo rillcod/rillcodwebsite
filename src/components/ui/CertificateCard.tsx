@@ -260,7 +260,7 @@ export function CertificateCard({ cert }: CertificateProps) {
                     style={{ aspectRatio: '1122/794', transformStyle: 'preserve-3d', touchAction: 'none' }}
                 >
                     <motion.div 
-                        className="absolute inset-0 rounded-none pointer-events-none -z-10 blur-xl"
+                        className="absolute inset-0 rounded-xl pointer-events-none -z-10 blur-xl"
                         animate={{ backgroundColor: templateColors[template] }}
                         transition={{ duration: 0.8 }}
                     />

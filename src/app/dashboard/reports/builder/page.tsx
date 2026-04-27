@@ -206,7 +206,7 @@ function getMilestoneSuggestions(courseName: string): string[] {
     return MILESTONE_SUGGESTIONS.default;
 }
 
-const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
+const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
@@ -219,7 +219,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
     return (
-        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+        <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.03] border-b border-border">
                 <span>{icon}</span>
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</h3>
@@ -1197,7 +1197,7 @@ function ReportBuilderInner() {
                 You do not have permission to create or edit progress reports.
                 Please visit the <Link href="/dashboard/results" className="text-primary font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
             </p>
-            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-none transition-all shadow-lg shadow-orange-900/20">
+            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all shadow-lg shadow-orange-900/20">
                 <EyeIcon className="w-4 h-4" /> Go to Results Centre
             </Link>
         </div>
@@ -1205,7 +1205,7 @@ function ReportBuilderInner() {
 
     // ── Session summary bar (shown in pick/edit steps) ────────────────────────
     const SessionSummaryBar = () => (
-        <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+        <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden">
             <button
                 onClick={() => setSessionExpanded(e => !e)}
                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-card shadow-sm transition-colors"
@@ -1393,7 +1393,7 @@ function ReportBuilderInner() {
                                     setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
                                     setMilestoneInput('');
                                 }}
-                                className="px-4 py-2 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0">
+                                className="px-4 py-2 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-xl transition-colors flex-shrink-0">
                                 Add
                             </button>
                         </div>
@@ -1444,7 +1444,7 @@ function ReportBuilderInner() {
 
                     <div className="flex justify-end">
                         <button onClick={() => setSessionExpanded(false)}
-                            className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-xs font-bold rounded-none transition-colors">
+                            className="px-4 py-2 bg-primary hover:bg-primary text-foreground text-xs font-bold rounded-xl transition-colors">
                             <CheckIcon className="w-3.5 h-3.5 inline mr-1" /> Done — Collapse
                         </button>
                     </div>
@@ -1459,7 +1459,7 @@ function ReportBuilderInner() {
 
                 {/* ── Step progress bar ── */}
                 {['session','pick','edit'].includes(step) && (
-                    <div className="flex items-center gap-0 overflow-hidden rounded-none">
+                    <div className="flex items-center gap-0 overflow-hidden rounded-xl">
                         {[
                             { key: 'session', num: 1, label: 'Session Setup' },
                             { key: 'pick',    num: 2, label: 'Pick Student' },
@@ -1514,17 +1514,17 @@ function ReportBuilderInner() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setShowSettings(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-none transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-colors">
                             <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
                         </button>
                         {step === 'edit' && selectedStudent && (
                             <>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
                                     <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
                                 <Link href={`/dashboard/results?student=${selectedStudent.id}`}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-none transition-colors">
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-colors">
                                     <EyeIcon className="w-3.5 h-3.5" /> View Result
                                 </Link>
                             </>
@@ -1539,7 +1539,7 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'session' && (
                     <div className="space-y-4">
-                        <div className="bg-primary/10 border border-primary/20 rounded-none px-5 py-4">
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
                             <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
                             <p className="text-primary/60 text-xs mt-0.5">
                                 Enter details that are shared for ALL students in this grading session.
@@ -1548,7 +1548,7 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Session fields */}
-                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>📋</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Session Info</h3>
@@ -1560,7 +1560,7 @@ function ReportBuilderInner() {
                                     {(['school', 'bootcamp', 'online'] as const).map(type => (
                                         <button key={type} type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, school_section: type }))}
-                                            className={`flex-1 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                                            className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
                                             {type === 'school' ? '🏫 School' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
                                         </button>
                                     ))}
@@ -1613,7 +1613,7 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
-                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>🏫</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">School & Class</h3>
@@ -1646,7 +1646,7 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Payment / Fee Section — optional, won't appear on report if left blank */}
-                        <div className="bg-white/[0.03] border border-border rounded-none overflow-hidden">
+                        <div className="bg-white/[0.03] border border-border rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.02] border-b border-border">
                                 <span>💳</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Payment / Fee Info</h3>
@@ -1692,7 +1692,7 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
-                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>📖</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
@@ -1763,7 +1763,7 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Learning Milestones */}
-                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-3">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-3">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>🎯</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Learning Milestones</h3>
@@ -1791,7 +1791,7 @@ function ReportBuilderInner() {
                                         setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
                                         setMilestoneInput('');
                                     }}
-                                    className="px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
+                                    className="px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-30 text-foreground text-xs font-bold rounded-xl transition-colors flex-shrink-0"
                                 >
                                     + Add
                                 </button>
@@ -1824,7 +1824,7 @@ function ReportBuilderInner() {
                                 setClassFilter(sessionConfig.section_class); // pre-filter by selected class
                                 setStep('pick');
                             }}
-                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-none transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
+                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
                             <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
                         </button>
                     </div>
@@ -1835,7 +1835,7 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'pick' && (
                     <div className="space-y-4">
-                        <div className="bg-primary/10 border border-primary/20 rounded-none px-5 py-3">
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-3">
                             <p className="text-primary font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
                             <p className="text-primary/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
                         </div>
@@ -1844,7 +1844,7 @@ function ReportBuilderInner() {
                         <SessionSummaryBar />
 
                         {/* Student grid */}
-                        <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                             <div className="flex items-center gap-3 mb-4 flex-wrap">
                                 <h2 className="font-bold text-foreground flex items-center gap-2">
                                     <UserGroupIcon className="w-5 h-5 text-primary" /> Students
@@ -1854,7 +1854,7 @@ function ReportBuilderInner() {
                                     <button
                                         onClick={handleBulkBuild}
                                         disabled={isBulkBuilding}
-                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-lg shadow-orange-900/20 group"
+                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-orange-900/20 group"
                                     >
                                         {isBulkBuilding ? (
                                             <>
@@ -1876,13 +1876,13 @@ function ReportBuilderInner() {
                                 <input
                                     type="search" placeholder="Search student by name or email… (2+ chars shows all matching)"
                                     value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
+                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
 
                                 {/* Override toggle + Manual entry */}
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <button
                                         onClick={() => { setOverrideFilters(v => !v); setClassFilter(''); setSearch(''); }}
-                                        className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border rounded-none transition-all ${overrideFilters ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                                        className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border rounded-xl transition-all ${overrideFilters ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
                                         {overrideFilters ? '✓ Showing All Students' : '⚡ Override — Show All Students'}
                                     </button>
                                     {overrideFilters && (
@@ -1904,7 +1904,7 @@ function ReportBuilderInner() {
                                             return (
                                                 <button key={c}
                                                     onClick={() => setClassFilter(classFilter === c ? '' : c)}
-                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-primary text-foreground border-primary' : isTeacherClass ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-primary text-foreground border-primary' : isTeacherClass ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                                     title={isTeacherClass ? 'Teacher-created class' : undefined}
                                                 >
                                                     {isTeacherClass && <span className="mr-1">🏫</span>}{c}
@@ -1928,14 +1928,14 @@ function ReportBuilderInner() {
                                                     value={manualName}
                                                     onChange={e => setManualName(e.target.value)}
                                                     placeholder="Enter student full name manually…"
-                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
+                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
                                                 <button
                                                     disabled={!manualName.trim()}
                                                     onClick={() => {
                                                         const fake = { id: `manual-${Date.now()}`, full_name: manualName.trim(), email: '', school_name: sessionConfig.school_name, school_id: sessionConfig.school_id, role: 'student' } as any;
                                                         selectStudent(fake as PortalUser, -1);
                                                     }}
-                                                    className="w-full py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground text-xs font-bold rounded-none transition-all">
+                                                    className="w-full py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground text-xs font-bold rounded-xl transition-all">
                                                     Continue with Manual Entry →
                                                 </button>
                                             </div>
@@ -1968,7 +1968,7 @@ function ReportBuilderInner() {
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {(items as any[]).map(({ s, idx }) => (
                                                         <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
-                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-none transition-all">
+                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-primary/50 hover:bg-primary/10 rounded-xl transition-all">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                                     {s.full_name ? s.full_name[0] : '?'}
@@ -2000,7 +2000,7 @@ function ReportBuilderInner() {
                 {step === 'edit' && selectedStudent && (
                     <div className="space-y-4">
                         {/* Step label */}
-                        <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-none px-5 py-3 flex items-center gap-3">
+                        <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-xl px-5 py-3 flex items-center gap-3">
                             <div className="flex-1">
                                 <p className="text-emerald-300 font-bold text-sm">Step 3 of 3 — Enter Student Scores</p>
                                 <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
@@ -2014,7 +2014,7 @@ function ReportBuilderInner() {
                         <SessionSummaryBar />
 
                         {/* Student navigator */}
-                        <div className="bg-[#0d1526] border border-border rounded-none px-4 py-3 flex items-center gap-3">
+                        <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 flex items-center gap-3">
                             <button onClick={() => setStep('pick')}
                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5" />
@@ -2027,7 +2027,7 @@ function ReportBuilderInner() {
                                     const idx = currentStudentIdx - 1;
                                     if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
-                                className="p-1.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5" />
                             </button>
                             <div className="flex-1 flex items-center gap-2 min-w-0">
@@ -2049,7 +2049,7 @@ function ReportBuilderInner() {
                                     const idx = currentStudentIdx + 1;
                                     if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
-                                className="p-1.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
                             </button>
                         </div>
@@ -2072,8 +2072,8 @@ function ReportBuilderInner() {
                                         <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
                                         <p className="text-[8px] text-muted-foreground">Assignment avg</p>
                                     </div>
-                                    <div className="bg-violet-500/5 border border-violet-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-violet-400 uppercase tracking-widest mb-1">Practical (25%)</p>
+                                    <div className="bg-primary/5 border border-primary/20 px-2.5 py-2">
+                                        <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Practical (25%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.projects} project{studentStats.projects !== 1 ? 's' : ''}</p>
                                         <p className="text-[8px] text-muted-foreground">Lab + portfolio</p>
                                     </div>
@@ -2103,7 +2103,7 @@ function ReportBuilderInner() {
 
                         {/* Alerts */}
                         {error && (
-                            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                                 <p className="text-rose-400 text-sm">{error}</p>
                                 <button onClick={() => setError('')} className="ml-auto text-rose-400/50 hover:text-rose-400 transition-colors flex-shrink-0">
@@ -2112,7 +2112,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         {success && (
-                            <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4">
+                            <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                                 <CheckIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                                 <p className="text-emerald-400 text-sm font-semibold">{success}</p>
                             </div>
@@ -2126,7 +2126,7 @@ function ReportBuilderInner() {
 
                                 <Section title="Report Design" icon="🎨">
                                     <div className="flex flex-col gap-4">
-                                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-none overflow-hidden">
+                                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl overflow-hidden">
                                             <button onClick={() => setReportStyle('standard')}
                                                 className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
                                                 Standard
@@ -2177,7 +2177,7 @@ function ReportBuilderInner() {
                                 <Section title="Student Identity" icon="👤">
                                     <div className="flex flex-col sm:flex-row items-start gap-6">
                                         <div className="relative group">
-                                            <div className="w-28 h-28 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-primary/50">
+                                            <div className="w-28 h-28 rounded-xl bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-primary/50">
                                                 {form.photo_url ? (
                                                     <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" />
                                                 ) : (
@@ -2189,7 +2189,7 @@ function ReportBuilderInner() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-none border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
+                                            <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-xl border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
                                                 <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                                 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                                             </label>
@@ -2199,11 +2199,11 @@ function ReportBuilderInner() {
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
                                             <div className="grid grid-cols-2 gap-3">
-                                                <div className="p-3 bg-white/[0.03] border border-border rounded-none">
+                                                <div className="p-3 bg-white/[0.03] border border-border rounded-xl">
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
                                                 </div>
-                                                <div className="p-3 bg-white/[0.03] border border-border rounded-none">
+                                                <div className="p-3 bg-white/[0.03] border border-border rounded-xl">
                                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Class</label>
                                                     <select
                                                         value={form.section_class}
@@ -2271,7 +2271,7 @@ function ReportBuilderInner() {
                                                             <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
                                                             <input type="number" min="0" max="100" value={String(form[key])}
                                                                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
+                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-xl text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
                                                             <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
                                                             <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
                                                         </div>
@@ -2364,7 +2364,7 @@ function ReportBuilderInner() {
                                                 key={p}
                                                 type="button"
                                                 onClick={() => setForm(f => ({ ...f, proficiency_level: p }))}
-                                                className={`py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-none ${
+                                                className={`py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-xl ${
                                                     form.proficiency_level === p
                                                         ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-white'
                                                             : p === 'intermediate' ? 'bg-primary border-primary text-white'
@@ -2430,32 +2430,32 @@ function ReportBuilderInner() {
                             )}
                             <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-3 p-3 sm:p-4">
                                 <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-none transition-all disabled:opacity-50 flex-shrink-0">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
                                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                                     <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Draft'}</span>
                                     <span className="sm:hidden">{saving ? '…' : 'Draft'}</span>
                                 </button>
                                 <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
                                     {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
                                     {publishing ? 'Publishing…' : 'Publish'}
                                 </button>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
                                     <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
                                 </button>
 
                                 <div className="ml-auto flex-shrink-0">
                                     {currentStudentIdx < filteredStudents.length - 1 ? (
                                         <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             <span className="hidden sm:inline">Next Student</span>
                                             <span className="sm:hidden">Next</span>
                                             <ChevronRightIcon className="w-4 h-4" />
                                         </button>
                                     ) : (
                                         <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             <span className="hidden sm:inline">Finish All</span>
                                             <span className="sm:hidden">Done</span>
                                             <CheckCircleIcon className="w-4 h-4" />
@@ -2479,15 +2479,15 @@ function ReportBuilderInner() {
                                     <h3 className="text-xl font-extrabold text-foreground">Branding Settings</h3>
                                     <p className="text-muted-foreground text-xs mt-0.5">Configure report header & organization details</p>
                                 </div>
-                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted rounded-none transition-colors">
+                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted rounded-xl transition-colors">
                                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                                 </button>
                             </div>
 
                             <div className="p-6 overflow-y-auto space-y-5">
-                                <div className="flex items-center gap-4 p-5 bg-card shadow-sm border border-border rounded-none">
+                                <div className="flex items-center gap-4 p-5 bg-card shadow-sm border border-border rounded-xl">
                                     <div className="relative group">
-                                        <div className="w-20 h-20 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
+                                        <div className="w-20 h-20 rounded-xl bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
                                             {branding.logo_url ? (
                                                 <img src={branding.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
                                             ) : (
@@ -2499,7 +2499,7 @@ function ReportBuilderInner() {
                                                 </div>
                                             )}
                                         </div>
-                                        <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-none border border-border cursor-pointer transition-colors shadow-lg">
+                                        <label className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary p-2 rounded-xl border border-border cursor-pointer transition-colors shadow-lg">
                                             <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                                 const file = e.target.files?.[0];
@@ -2575,7 +2575,7 @@ function ReportBuilderInner() {
                                     } finally {
                                         setSaving(false);
                                     }
-                                }} className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
+                                }} className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-900/40">
                                     <CheckIcon className="w-4 h-4" /> Save Branding
                                 </button>
                             </div>
@@ -2588,7 +2588,7 @@ function ReportBuilderInner() {
             {showPreview && (
                 <div className="fixed inset-0 z-50 flex flex-col bg-background">
                     <div className="flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
-                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-none transition-colors">
+                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
                             <ArrowLeftIcon className="w-6 h-6 text-muted-foreground" />
                         </button>
                         <div className="flex-1">
@@ -2641,7 +2641,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-xl shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>
@@ -2669,7 +2669,7 @@ function ReportBuilderInner() {
                                     }
                                 } finally { setIsSharingPdf(false); }
                             }}
-                            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-black rounded-none shadow-xl shadow-green-900/30 transition-all whitespace-nowrap"
+                            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-black rounded-xl shadow-xl shadow-green-900/30 transition-all whitespace-nowrap"
                         >
                             {isSharingPdf
                                 ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

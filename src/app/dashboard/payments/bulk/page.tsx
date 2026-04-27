@@ -129,13 +129,13 @@ function LineItemEditor({ items, onChange, accentColor = 'violet' }: {
         <div key={idx} className="flex gap-2 items-center">
           <input type="text" placeholder="Description" value={item.description}
             onChange={e => update(idx, 'description', e.target.value)}
-            className="flex-1 px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+            className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
           <input type="number" placeholder="Qty" min="1" value={item.quantity}
             onChange={e => update(idx, 'quantity', e.target.value)}
-            className="w-14 px-2 py-2 bg-background border border-border rounded-none text-sm text-center text-foreground focus:outline-none focus:border-primary" />
+            className="w-14 px-2 py-2 bg-background border border-border rounded-xl text-sm text-center text-foreground focus:outline-none focus:border-primary" />
           <input type="number" placeholder="Unit ₦" min="0" value={item.unit_price || ''}
             onChange={e => update(idx, 'unit_price', e.target.value)}
-            className="w-28 px-3 py-2 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+            className="w-28 px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
           <span className="text-sm font-black text-primary w-24 text-right flex-shrink-0">
             ₦{(item.quantity * item.unit_price).toLocaleString()}
           </span>
@@ -439,20 +439,20 @@ export default function BulkPaymentsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/payments?tab=billing"
-          className="p-2 bg-card border border-border rounded-none hover:bg-muted transition-colors">
+          className="p-2 bg-card border border-border rounded-xl hover:bg-muted transition-colors">
           <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-black text-foreground tracking-tight">Bulk Invoice &amp; Receipt Generator</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Create invoices or receipts for multiple students at once</p>
         </div>
-        <div className="flex gap-1 bg-card border border-border rounded-none p-1">
+        <div className="flex gap-1 bg-card border border-border rounded-xl p-1">
           <button onClick={() => setActiveTab('generate')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-none transition-all ${activeTab === 'generate' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'generate' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
             Generate
           </button>
           <button onClick={() => setActiveTab('archive')}
-            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-none transition-all flex items-center gap-1.5 ${activeTab === 'archive' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'archive' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
             <ArchiveBoxIcon className="w-3.5 h-3.5" /> Archive
           </button>
         </div>
@@ -470,13 +470,13 @@ export default function BulkPaymentsPage() {
                 <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Document Type</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button onClick={() => setDocType('invoice')}
-                    className={`p-5 border-2 rounded-none text-left transition-all ${docType === 'invoice' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
+                    className={`p-5 border-2 rounded-xl text-left transition-all ${docType === 'invoice' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
                     <DocumentTextIcon className={`w-7 h-7 mb-2 ${docType === 'invoice' ? 'text-primary' : 'text-muted-foreground'}`} />
                     <h3 className="font-black text-foreground text-sm mb-1">Bulk Invoices</h3>
                     <p className="text-xs text-muted-foreground">Each student gets a unique invoice with their name and a reference number.</p>
                   </button>
                   <button onClick={() => setDocType('receipt')}
-                    className={`p-5 border-2 rounded-none text-left transition-all ${docType === 'receipt' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
+                    className={`p-5 border-2 rounded-xl text-left transition-all ${docType === 'receipt' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
                     <ReceiptPercentIcon className={`w-7 h-7 mb-2 ${docType === 'receipt' ? 'text-primary' : 'text-muted-foreground'}`} />
                     <h3 className="font-black text-foreground text-sm mb-1">Bulk Receipts</h3>
                     <p className="text-xs text-muted-foreground">Issue payment receipts saved to each student's portal for download.</p>
@@ -488,25 +488,25 @@ export default function BulkPaymentsPage() {
                 <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">Recipient Source</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button onClick={() => { setSource('portal'); setSelected(new Set()); }}
-                    className={`p-5 border-2 rounded-none text-left transition-all ${source === 'portal' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
+                    className={`p-5 border-2 rounded-xl text-left transition-all ${source === 'portal' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
                     <UserGroupIcon className={`w-7 h-7 mb-2 ${source === 'portal' ? 'text-primary' : 'text-muted-foreground'}`} />
                     <h3 className="font-black text-foreground text-sm mb-1">Platform Students</h3>
                     <p className="text-xs text-muted-foreground">Active students with portal accounts. They can log in and view their documents.</p>
                     <p className="text-xs font-bold text-primary mt-1">{portalStudents.length} students</p>
                   </button>
                   <button onClick={() => { setSource('non-portal'); setSelected(new Set()); }}
-                    className={`p-5 border-2 rounded-none text-left transition-all ${source === 'non-portal' ? 'border-blue-500 bg-blue-500/10' : 'border-border bg-card hover:border-blue-500/40'}`}>
-                    <UserIcon className={`w-7 h-7 mb-2 ${source === 'non-portal' ? 'text-blue-400' : 'text-muted-foreground'}`} />
+                    className={`p-5 border-2 rounded-xl text-left transition-all ${source === 'non-portal' ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-primary/40'}`}>
+                    <UserIcon className={`w-7 h-7 mb-2 ${source === 'non-portal' ? 'text-primary' : 'text-muted-foreground'}`} />
                     <h3 className="font-black text-foreground text-sm mb-1">Non-Platform Students</h3>
                     <p className="text-xs text-muted-foreground">Registered students without portal accounts (from student records).</p>
-                    <p className="text-xs font-bold text-blue-400 mt-1">{nonPortalStudents.length} students</p>
+                    <p className="text-xs font-bold text-primary mt-1">{nonPortalStudents.length} students</p>
                   </button>
                 </div>
               </div>
 
               <div className="flex justify-end">
                 <button onClick={() => setStep(2)}
-                  className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-none transition-all">
+                  className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all">
                   Next: Select Recipients →
                 </button>
               </div>
@@ -522,11 +522,11 @@ export default function BulkPaymentsPage() {
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input type="text" placeholder="Search by name or email..." value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                    className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 {isAdmin && schools.length > 0 && (
                   <select value={schoolFilter} onChange={e => setSchoolFilter(e.target.value)}
-                    className="px-4 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
+                    className="px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">All Schools</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -548,7 +548,7 @@ export default function BulkPaymentsPage() {
                   No {source === 'portal' ? 'platform' : 'non-platform'} students found.
                 </div>
               ) : (
-                <div className="border border-border rounded-none overflow-hidden">
+                <div className="border border-border rounded-xl overflow-hidden">
                   <div className="max-h-[420px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted sticky top-0">
@@ -585,7 +585,7 @@ export default function BulkPaymentsPage() {
                               <td className="p-3 text-muted-foreground text-xs hidden md:table-cell">{student.school_name || '—'}</td>
                             )}
                             <td className="p-3">
-                              <span className={`px-2 py-0.5 text-[10px] font-black rounded-full uppercase ${student.source === 'portal' ? 'bg-primary/10 text-primary' : 'bg-blue-500/20 text-blue-400'}`}>
+                              <span className={`px-2 py-0.5 text-[10px] font-black rounded-full uppercase ${student.source === 'portal' ? 'bg-primary/10 text-primary' : 'bg-primary/20 text-primary'}`}>
                                 {student.source === 'portal' ? 'Portal' : 'Non-Portal'}
                               </span>
                             </td>
@@ -599,11 +599,11 @@ export default function BulkPaymentsPage() {
 
               <div className="flex gap-3 justify-between">
                 <button onClick={() => setStep(1)}
-                  className="px-6 py-3 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-none hover:bg-muted transition-all">
+                  className="px-6 py-3 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all">
                   ← Back
                 </button>
                 <button onClick={() => setStep(3)} disabled={selected.size === 0}
-                  className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-none transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                  className="px-8 py-3 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                   Next: Configure ({selected.size}) →
                 </button>
               </div>
@@ -617,13 +617,13 @@ export default function BulkPaymentsPage() {
                 <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest">
                   Configure {docType === 'invoice' ? 'Invoices' : 'Receipts'}
                 </h2>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl">
                   <UserGroupIcon className="w-4 h-4 text-primary" />
                   <span className="text-xs font-black text-primary">{selected.size} recipients</span>
                 </div>
               </div>
 
-              <div className="bg-card border border-border rounded-none p-5">
+              <div className="bg-card border border-border rounded-xl p-5">
                 <LineItemEditor
                   items={docType === 'invoice' ? invItems : rcptItems}
                   onChange={docType === 'invoice' ? setInvItems : setRcptItems}
@@ -634,24 +634,24 @@ export default function BulkPaymentsPage() {
               </div>
 
               {docType === 'invoice' ? (
-                <div className="bg-card border border-border rounded-none p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Due Date</label>
                     <input type="date" value={invDueDate} onChange={e => setInvDueDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
                     <input type="text" placeholder="e.g. First term 2025/2026" value={invNotes} onChange={e => setInvNotes(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                 </div>
               ) : (
-                <div className="bg-card border border-border rounded-none p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Method</label>
                     <select value={rcptPaymentMethod} onChange={e => setRcptPaymentMethod(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="bank_transfer">Bank Transfer</option>
                       <option value="cash">Cash</option>
                       <option value="pos">POS Terminal</option>
@@ -662,17 +662,17 @@ export default function BulkPaymentsPage() {
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Date</label>
                     <input type="date" value={rcptPaymentDate} onChange={e => setRcptPaymentDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Received By</label>
                     <input type="text" placeholder="e.g. Finance Officer" value={rcptReceivedBy} onChange={e => setRcptReceivedBy(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Deposited To Account</label>
                     <select value={rcptAccountId} onChange={e => setRcptAccountId(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="">— Select account —</option>
                       {accounts.map(a => <option key={a.id} value={a.id}>{a.label} — {a.bank_name}</option>)}
                     </select>
@@ -680,13 +680,13 @@ export default function BulkPaymentsPage() {
                   <div className="sm:col-span-2">
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
                     <input type="text" placeholder="e.g. First term 2025/2026 coding club payment" value={rcptNotes} onChange={e => setRcptNotes(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                 </div>
               )}
 
               {/* Summary + generate */}
-              <div className="bg-primary/10 border border-primary/20 rounded-none p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <p className="text-xs font-black text-primary uppercase tracking-widest">Ready to Generate</p>
                   <p className="text-sm text-white/80">
@@ -696,11 +696,11 @@ export default function BulkPaymentsPage() {
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(2)}
-                    className="px-5 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-none hover:bg-muted transition-all">
+                    className="px-5 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all">
                     ← Back
                   </button>
                   <button onClick={runBulk} disabled={running || totalAmount === 0}
-                    className="px-8 py-2.5 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-none transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                    className="px-8 py-2.5 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
                     {running ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Processing...</> : `⚡ Generate ${selected.size} ${docType === 'invoice' ? 'Invoice' : 'Receipt'}${selected.size !== 1 ? 's' : ''}`}
                   </button>
                 </div>
@@ -708,7 +708,7 @@ export default function BulkPaymentsPage() {
 
               {/* Live progress */}
               {(running || results.length > 0) && !done && (
-                <div className="bg-card border border-border rounded-none overflow-hidden">
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="p-3 bg-muted border-b border-border flex items-center justify-between">
                     <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Progress</p>
                     <p className="text-xs text-muted-foreground">{results.length} / {selected.size}</p>
@@ -740,7 +740,7 @@ export default function BulkPaymentsPage() {
           {/* Done state */}
           {done && (
             <div className="space-y-5">
-              <div className={`p-6 border-2 rounded-none ${errorCount === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+              <div className={`p-6 border-2 rounded-xl ${errorCount === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                 <div className="flex items-center gap-3 mb-2">
                   {errorCount === 0
                     ? <CheckCircleIcon className="w-8 h-8 text-emerald-400" />
@@ -761,7 +761,7 @@ export default function BulkPaymentsPage() {
                 </div>
               </div>
 
-              <div className="bg-card border border-border rounded-none overflow-hidden">
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
                 <div className="p-3 bg-muted border-b border-border">
                   <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Generation Results</p>
                 </div>
@@ -784,15 +784,15 @@ export default function BulkPaymentsPage() {
 
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => { setStep(1); setSelected(new Set()); setResults([]); setDone(false); }}
-                  className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-none transition-all flex items-center gap-2">
+                  className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all flex items-center gap-2">
                   <ArrowPathIcon className="w-4 h-4" /> Generate More
                 </button>
                 <button onClick={() => { loadBatches(); setActiveTab('archive'); }}
-                  className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-none hover:bg-muted transition-all flex items-center gap-2">
+                  className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all flex items-center gap-2">
                   <ArchiveBoxIcon className="w-4 h-4" /> View in Archive
                 </button>
                 <Link href="/dashboard/payments?tab=billing"
-                  className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-none hover:bg-muted transition-all">
+                  className="px-6 py-2.5 bg-card border border-border text-foreground font-black text-xs uppercase tracking-widest rounded-xl hover:bg-muted transition-all">
                   ← Back to Payments
                 </Link>
               </div>
@@ -807,7 +807,7 @@ export default function BulkPaymentsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-muted-foreground uppercase tracking-widest">Bulk Generation Archive</h2>
             <button onClick={loadBatches} disabled={loadingBatches}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-xs font-black text-muted-foreground uppercase tracking-widest rounded-none hover:bg-muted transition-all disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border text-xs font-black text-muted-foreground uppercase tracking-widest rounded-xl hover:bg-muted transition-all disabled:opacity-50">
               <ArrowPathIcon className={`w-3.5 h-3.5 ${loadingBatches ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
@@ -825,7 +825,7 @@ export default function BulkPaymentsPage() {
           ) : (
             <div className="space-y-2">
               {batches.map(batch => (
-                <div key={batch.id} className="bg-card border border-border rounded-none overflow-hidden">
+                <div key={batch.id} className="bg-card border border-border rounded-xl overflow-hidden">
                   <button
                     onClick={() => {
                       setExpandedBatch(expandedBatch === batch.id ? null : batch.id);
@@ -870,7 +870,7 @@ export default function BulkPaymentsPage() {
                               {status && (
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                                   status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
-                                  status === 'sent' ? 'bg-blue-500/20 text-blue-400' :
+                                  status === 'sent' ? 'bg-primary/20 text-primary' :
                                   'bg-muted text-muted-foreground'
                                 }`}>{status}</span>
                               )}

@@ -661,7 +661,7 @@ export default function ClassDetailPage() {
 
   if (!canView) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="bg-card shadow-sm border border-border rounded-none p-8 text-center max-w-sm">
+      <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
         <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/40 mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">You need staff access to view this page.</p>
       </div>
@@ -677,7 +677,7 @@ export default function ClassDetailPage() {
         <p className="text-rose-400 font-bold text-sm">{error ?? 'Class not found'}</p>
         <p className="text-muted-foreground text-xs">The class could not be loaded.</p>
       </div>
-      <Link href="/dashboard/classes" className="px-6 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-all">
+      <Link href="/dashboard/classes" className="px-6 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold transition-all">
         Back to Classes
       </Link>
     </div>
@@ -691,7 +691,7 @@ export default function ClassDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-none transition-colors">
+              <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-xl transition-colors">
                 <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
               </button>
               <AcademicCapIcon className="w-4 h-4 text-primary" />
@@ -714,15 +714,15 @@ export default function ClassDetailPage() {
                   setShowBroadcastModal(true);
                   loadReachableStudents();
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm rounded-none transition-colors shadow-lg">
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm rounded-xl transition-colors shadow-lg">
                 Broadcast (WhatsApp)
               </button>
               <Link href={`/dashboard/classes/${id}/edit`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-colors hover:border-primary/50">
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold transition-colors hover:border-primary/50">
                 <PencilIcon className="w-4 h-4 text-primary" /> Edit Class
               </Link>
               <Link href={`/dashboard/attendance?class_id=${id}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30">
                 <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
               </Link>
             </div>
@@ -733,11 +733,11 @@ export default function ClassDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Capacity', value: cls.max_students ?? '∞', icon: ChartBarIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Capacity', value: cls.max_students ?? '∞', icon: ChartBarIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Sessions', value: sessions.length, icon: CalendarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Level', value: cls.programs?.difficulty_level ?? 'N/A', icon: BoltIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
               <div className={`w-10 h-10 ${s.bg} flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
@@ -754,7 +754,7 @@ export default function ClassDetailPage() {
           <div className="lg:col-span-2 space-y-4">
 
             {/* Tab Bar */}
-            <div className="flex items-center overflow-x-auto gap-1 p-1 bg-card shadow-sm border border-border rounded-none no-scrollbar">
+            <div className="flex items-center overflow-x-auto gap-1 p-1 bg-card shadow-sm border border-border rounded-xl no-scrollbar">
               {[
                 { id: 'overview', label: 'Overview', icon: UserGroupIcon },
                 { id: 'lessons', label: 'Lessons', icon: BookOpenIcon },
@@ -765,7 +765,7 @@ export default function ClassDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-none text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
                       ? 'bg-primary text-white'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -780,7 +780,7 @@ export default function ClassDetailPage() {
             {activeTab === 'overview' && (
               <div className="space-y-4">
                 {/* Class Info */}
-                <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="flex items-center gap-3">
@@ -793,8 +793,8 @@ export default function ClassDetailPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <ClockIcon className="w-4 h-4 text-blue-400" />
+                      <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <ClockIcon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Schedule</p>
@@ -831,7 +831,7 @@ export default function ClassDetailPage() {
                 </div>
 
                 {isStaff && (
-                  <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                     <div>
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Path Visibility Control</h3>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -845,7 +845,7 @@ export default function ClassDetailPage() {
                         type="button"
                         onClick={() => saveClassPathMode('full')}
                         disabled={pathVisibilitySaving === 'class'}
-                        className={`px-3 py-1.5 text-xs font-bold border rounded-none transition-colors ${
+                        className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
                           pathClassMode === 'full'
                             ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
                             : 'bg-background border-border text-muted-foreground hover:text-foreground'
@@ -857,9 +857,9 @@ export default function ClassDetailPage() {
                         type="button"
                         onClick={() => saveClassPathMode('milestone')}
                         disabled={pathVisibilitySaving === 'class'}
-                        className={`px-3 py-1.5 text-xs font-bold border rounded-none transition-colors ${
+                        className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
                           pathClassMode === 'milestone'
-                            ? 'bg-violet-500/15 border-violet-500/30 text-violet-300'
+                            ? 'bg-primary/15 border-primary/30 text-violet-300'
                             : 'bg-background border-border text-muted-foreground hover:text-foreground'
                         }`}
                       >
@@ -900,7 +900,7 @@ export default function ClassDetailPage() {
                 )}
 
                 {/* Recent Sessions */}
-                <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Sessions</h3>
@@ -939,10 +939,10 @@ export default function ClassDetailPage() {
                           {s.notes && <p className="text-xs text-muted-foreground italic max-w-[160px] truncate hidden sm:block">{s.notes}</p>}
                           {isStaff && (
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-colors" title="Edit">
+                              <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="Edit">
                                 <PencilIcon className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-none text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
+                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
                                 <TrashIcon className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -964,13 +964,13 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">({items.lessons.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href={`/dashboard/lessons/add?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                    <Link href={`/dashboard/lessons/add?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
                       <PlusIcon className="w-3.5 h-3.5 text-primary" /> Add Lesson
                     </Link>
                   )}
                 </div>
                 {items.lessons.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <BookOpenIcon className="w-8 h-8 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">No lessons found for this programme.</p>
                   </div>
@@ -978,7 +978,7 @@ export default function ClassDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {items.lessons.map(lesson => isSchool ? (
                       <div key={lesson.id}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center gap-3 cursor-default">
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-3 cursor-default">
                         <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <BookOpenIcon className="w-5 h-5 text-primary" />
                         </div>
@@ -989,7 +989,7 @@ export default function ClassDetailPage() {
                       </div>
                     ) : (
                       <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-3">
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <BookOpenIcon className="w-5 h-5 text-primary" />
                         </div>
@@ -1009,18 +1009,18 @@ export default function ClassDetailPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ClipboardDocumentListIcon className="w-4 h-4 text-blue-400" />
+                    <ClipboardDocumentListIcon className="w-4 h-4 text-primary" />
                     <h2 className="text-sm font-bold text-foreground">Assignments</h2>
                     <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href={`/dashboard/assignments/new?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-blue-400" /> New Assignment
+                    <Link href={`/dashboard/assignments/new?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
+                      <PlusIcon className="w-3.5 h-3.5 text-primary" /> New Assignment
                     </Link>
                   )}
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">No assignments found for this programme.</p>
                   </div>
@@ -1028,9 +1028,9 @@ export default function ClassDetailPage() {
                   <div className="grid grid-cols-1 gap-3">
                     {items.assignments.map(a => isSchool ? (
                       <div key={a.id}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center gap-4 cursor-default">
-                        <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-4 cursor-default">
+                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
@@ -1042,12 +1042,12 @@ export default function ClassDetailPage() {
                       </div>
                     ) : (
                       <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-blue-500/50 transition-all flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-4">
+                        <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-semibold text-foreground group-hover:text-blue-400 transition-colors truncate">{a.title}</h4>
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
                           <p className="text-xs text-muted-foreground">
                             Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
                             {a.weight ? ` · ${a.weight} pts` : ''}
@@ -1070,13 +1070,13 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href="/dashboard/cbt/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                    <Link href="/dashboard/cbt/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
                       <PlusIcon className="w-3.5 h-3.5 text-amber-400" /> New Exam
                     </Link>
                   )}
                 </div>
                 {items.cbt.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">No CBT exams found for this programme.</p>
                   </div>
@@ -1084,7 +1084,7 @@ export default function ClassDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {items.cbt.map(ex => isSchool ? (
                       <div key={ex.id}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 cursor-default">
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                             <AcademicCapIcon className="w-4 h-4 text-amber-400" />
@@ -1100,7 +1100,7 @@ export default function ClassDetailPage() {
                       </div>
                     ) : (
                       <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`}
-                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
+                        className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                             <AcademicCapIcon className="w-4 h-4 text-amber-400" />
@@ -1129,7 +1129,7 @@ export default function ClassDetailPage() {
                     {isStaff && (
                       <button
                         onClick={() => setManualEntry(!manualEntry)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-none text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
                       >
                         {manualEntry ? <CheckIconOutline className="w-3.5 h-3.5" /> : <PencilSquareIconOutline className="w-3.5 h-3.5" />}
                         {manualEntry ? 'Done Editing' : 'Edit Grades'}
@@ -1140,7 +1140,7 @@ export default function ClassDetailPage() {
                     <Link href="/dashboard/grading" className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap">
                       Grading Queue →
                     </Link>
-                    <Link href="/dashboard/reports/builder" className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors whitespace-nowrap">
+                    <Link href="/dashboard/reports/builder" className="text-xs font-bold text-primary hover:text-violet-300 transition-colors whitespace-nowrap">
                       Build Report Cards →
                     </Link>
                     <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">
@@ -1149,12 +1149,12 @@ export default function ClassDetailPage() {
                   </div>
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <ChartBarIcon className="w-8 h-8 text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">No assignments to grade yet.</p>
                   </div>
                 ) : (
-                  <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden overflow-x-auto">
+                  <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
                         <tr className="border-b border-border bg-muted/30">
@@ -1233,7 +1233,7 @@ export default function ClassDetailPage() {
                                             setMatrixSaving(p => ({ ...p, [key]: false }));
                                           }
                                         }}
-                                        className="w-14 h-9 bg-card shadow-sm border border-border rounded-none text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
+                                        className="w-14 h-9 bg-card shadow-sm border border-border rounded-xl text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
                                       />
                                       {waec && (
                                         <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
@@ -1252,11 +1252,11 @@ export default function ClassDetailPage() {
                                           <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
                                         )}
                                         <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden">
-                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-blue-500' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-primary' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-primary' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-primary' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
                                         </div>
                                       </div>
                                     ) : (
-                                      <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-none border border-blue-500/10">Pending</span>
+                                      <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-xl border border-primary/10">Pending</span>
                                     )
                                   ) : (
                                     <span className="text-[10px] text-white/10 font-black uppercase tracking-widest">—</span>
@@ -1281,7 +1281,7 @@ export default function ClassDetailPage() {
                                         </div>
                                       </div>
                                     ) : (
-                                      <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-none border border-cyan-500/10 animate-pulse">Running</span>
+                                      <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-xl border border-cyan-500/10 animate-pulse">Running</span>
                                     )
                                   ) : (
                                     <span className="text-[10px] text-white/5 font-black uppercase tracking-widest">—</span>
@@ -1311,7 +1311,7 @@ export default function ClassDetailPage() {
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Quick Actions</h3>
                 </div>
                 {([
-                  { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                  { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
                   { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push(`/dashboard/lessons/add?class_id=${id}`) },
                   { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}`) },
                   { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
@@ -1392,7 +1392,7 @@ export default function ClassDetailPage() {
                       <button
                         onClick={() => setShowRegisterModal(true)}
                         title="Register new student"
-                        className="w-8 h-8 bg-card shadow-sm hover:bg-blue-600 hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                        className="w-8 h-8 bg-card shadow-sm hover:bg-primary hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
                       >
                         <UserPlusIcon className="w-4 h-4" />
                       </button>
@@ -1484,7 +1484,7 @@ export default function ClassDetailPage() {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowStudentModal(false)} />
-            <div className="bg-card border border-border rounded-none w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
 
               {/* Header */}
               <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -1492,20 +1492,20 @@ export default function ClassDetailPage() {
                   <h3 className="font-bold text-foreground">Enrol Students</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">{availableStudents.length} eligible · {selectedStudentIds.size} selected</p>
                 </div>
-                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); }} className="w-8 h-8 flex items-center justify-center bg-card shadow-sm rounded-none text-muted-foreground hover:text-foreground transition-colors text-lg">&times;</button>
+                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); }} className="w-8 h-8 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg">&times;</button>
               </div>
 
               {/* Mode tabs */}
               <div className="px-6 pt-4 pb-1 flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 py-2 rounded-none text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   Enrol into {cls?.name ?? 'this class'}
                 </button>
                 <button
                   onClick={() => setEnrolMode('create')}
-                  className={`flex-1 py-2 rounded-none text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   + Create New Class
                 </button>
@@ -1522,7 +1522,7 @@ export default function ClassDetailPage() {
                         placeholder="Search by name, email or school..."
                         value={studentSearch}
                         onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
-                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
                   )}
@@ -1535,7 +1535,7 @@ export default function ClassDetailPage() {
                             ? new Set()
                             : new Set(availableStudents.map((s: any) => s.id))
                         )}
-                        className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-none transition-all"
+                        className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-xl transition-all"
                       >
                         {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select All'}
                       </button>
@@ -1544,7 +1544,7 @@ export default function ClassDetailPage() {
                         <button
                           onClick={() => syncSelectedStudents()}
                           disabled={!!processingStudent}
-                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-foreground rounded-none transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-foreground rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
                         >
                           {processingStudent === 'loading'
                             ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
@@ -1596,7 +1596,7 @@ export default function ClassDetailPage() {
                         const isChecked = selectedStudentIds.has(student.id);
                         return (
                           <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); if (n.has(student.id)) n.delete(student.id); else n.add(student.id); return n; })}
-                            className={`flex items-center gap-3 p-3 border rounded-none cursor-pointer transition-all active:scale-[0.99] ${isChecked
+                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all active:scale-[0.99] ${isChecked
                               ? color === 'orange' ? 'bg-primary/15 border-primary/40' : 'bg-amber-500/10 border-amber-500/40'
                               : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'}`}>
                             <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked
@@ -1608,7 +1608,7 @@ export default function ClassDetailPage() {
                               <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-xs text-muted-foreground truncate">{student.email}</p>
-                                {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
+                                {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 flex-shrink-0">{student.school_name}</span>}
                                 {student.section_class && <span className="text-[9px] font-bold text-amber-400/60 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 flex-shrink-0">{student.section_class}</span>}
                               </div>
                               {student.class_id && <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>}
@@ -1646,7 +1646,7 @@ export default function ClassDetailPage() {
                           {hasMore && (
                             <button
                               onClick={() => setShowMoreStudents(true)}
-                              className="w-full py-3 text-xs font-bold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-none border border-border transition-all"
+                              className="w-full py-3 text-xs font-bold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-xl border border-border transition-all"
                             >
                               Show all {filtered.length} students
                             </button>
@@ -1658,7 +1658,7 @@ export default function ClassDetailPage() {
 
                   <div className="px-6 py-4 border-t border-border flex-shrink-0 flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{selectedStudentIds.size} selected</span>
-                    <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-all">
+                    <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-all">
                       Cancel
                     </button>
                   </div>
@@ -1677,12 +1677,12 @@ export default function ClassDetailPage() {
                     placeholder="Class name (e.g. JSS1, SS2A) *"
                     value={newClassForm.name}
                     onChange={e => setNewClassForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                   <select
                     value={newClassForm.program_id}
                     onChange={e => setNewClassForm(f => ({ ...f, program_id: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                   >
                     <option value="">— Programme *—</option>
                     {programsList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -1690,7 +1690,7 @@ export default function ClassDetailPage() {
                   <select
                     value={newClassForm.school_id}
                     onChange={e => setNewClassForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                   >
                     <option value="">— School (optional) —</option>
                     {schoolsList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1700,12 +1700,12 @@ export default function ClassDetailPage() {
                     placeholder="Max students (optional)"
                     value={newClassForm.max_students}
                     onChange={e => setNewClassForm(f => ({ ...f, max_students: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                   <button
                     onClick={createClassAndEnrol}
                     disabled={creatingNewClass || !newClassForm.name.trim() || !newClassForm.program_id || selectedStudentIds.size === 0}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                   >
                     {creatingNewClass
                       ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating & Enrolling…</>
@@ -1764,7 +1764,7 @@ export default function ClassDetailPage() {
       {editingSession && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !savingSession && setEditingSession(null)} />
-          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-none shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-xl shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-border">
               <h3 className="text-base font-bold text-foreground">
                 {editingSession.id === 'new' ? 'New Session' : 'Edit Session'}
@@ -1779,7 +1779,7 @@ export default function ClassDetailPage() {
                   value={sessionForm.topic}
                   onChange={(e) => setSessionForm({ ...sessionForm, topic: e.target.value })}
                   placeholder="e.g. Introduction to Variables"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1789,7 +1789,7 @@ export default function ClassDetailPage() {
                     type="date"
                     value={sessionForm.session_date}
                     onChange={(e) => setSessionForm({ ...sessionForm, session_date: e.target.value })}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors [color-scheme:dark]"
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors [color-scheme:dark]"
                   />
                 </div>
                 <div>
@@ -1797,11 +1797,11 @@ export default function ClassDetailPage() {
                   <div className="flex items-center gap-2">
                     <input type="time" value={sessionForm.start_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, start_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
+                      className="flex-1 bg-card shadow-sm border border-border rounded-xl px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                     <span className="text-muted-foreground text-xs">–</span>
                     <input type="time" value={sessionForm.end_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, end_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
+                      className="flex-1 bg-card shadow-sm border border-border rounded-xl px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                   </div>
                 </div>
               </div>
@@ -1810,14 +1810,14 @@ export default function ClassDetailPage() {
                 <textarea value={sessionForm.notes}
                   onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                   placeholder="Record notes, participation, or homework..."
                 />
               </div>
             </div>
             <div className="px-6 py-4 border-t border-border flex gap-3">
               <button onClick={() => setEditingSession(null)} disabled={savingSession}
-                className="flex-1 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold text-sm rounded-none transition-colors border border-border">
+                className="flex-1 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold text-sm rounded-xl transition-colors border border-border">
                 Cancel
               </button>
               <button
@@ -1841,7 +1841,7 @@ export default function ClassDetailPage() {
                   }
                 }}
                 disabled={savingSession}
-                className="flex-[2] py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
               >
                 {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                 {editingSession.id === 'new' ? 'Save Session' : 'Save Changes'}
@@ -1861,7 +1861,7 @@ export default function ClassDetailPage() {
               setBroadcastForm({ text: '', mediaUrl: '' });
             }
           }} />
-          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-none shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-xl shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-[#25D366]/20 bg-[#25D366]/5">
               <h3 className="text-base font-bold text-[#25D366] flex items-center gap-2">
                 WhatsApp Class Broadcast
@@ -1896,13 +1896,13 @@ export default function ClassDetailPage() {
                   value={broadcastForm.text}
                   onChange={(e) => setBroadcastForm({ ...broadcastForm, text: e.target.value })}
                   rows={5}
-                  className="w-full bg-background border border-border rounded-none px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#25D366] transition-colors resize-none"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#25D366] transition-colors resize-none"
                   placeholder="e.g. Hello class! Remember to submit your biology assignments by 5 PM tomorrow..."
                 />
               </div>
               
               {!loadingReachable && reachableStudents.length > 0 && (
-                <div className="border border-border rounded-none p-3 bg-muted/30">
+                <div className="border border-border rounded-xl p-3 bg-muted/30">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     Reachable Students ({reachableStudents.length})
                   </p>
@@ -1924,7 +1924,7 @@ export default function ClassDetailPage() {
               )}
               
               {!loadingReachable && enrollments.length > reachableStudents.length && (
-                <div className="border border-amber-500/20 rounded-none p-3 bg-amber-500/5">
+                <div className="border border-amber-500/20 rounded-xl p-3 bg-amber-500/5">
                   <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
                     Unreachable Students ({enrollments.length - reachableStudents.length})
                   </p>
@@ -1952,13 +1952,13 @@ export default function ClassDetailPage() {
                   setBroadcastForm({ text: '', mediaUrl: '' });
                 }} 
                 disabled={broadcasting}
-                className="flex-1 py-2.5 bg-card hover:bg-muted text-muted-foreground font-bold text-sm rounded-none border border-border">
+                className="flex-1 py-2.5 bg-card hover:bg-muted text-muted-foreground font-bold text-sm rounded-xl border border-border">
                 Cancel
               </button>
               <button
                 onClick={handleBroadcast}
                 disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0}
-                className="flex-[2] py-2.5 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-bold text-sm rounded-none shadow-lg flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg flex items-center justify-center gap-2"
               >
                 {broadcasting ? (
                   <>

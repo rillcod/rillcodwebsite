@@ -170,25 +170,25 @@ export default function ProgramsPage() {
           </div>
           {isAdmin && (
             <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory' }); setShowForm(true); }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-all shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> New Program
             </button>
           )}
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Programs', value: programs.length, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Active', value: programs.filter(p => p.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Total Slots', value: programs.reduce((s, p) => s + (p.max_students || 0), 0), icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Total Slots', value: programs.reduce((s, p) => s + (p.max_students || 0), 0), icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Avg Value', value: programs.length ? `₦${(programs.reduce((s, p) => s + (Number(p.price) || 0), 0) / programs.length).toLocaleString()}` : '—', icon: BanknotesIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -202,12 +202,12 @@ export default function ProgramsPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input type="text" placeholder="Search programs…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {['all', 'beginner', 'intermediate', 'advanced'].map(d => (
               <button key={d} onClick={() => setDiffFilter(d)}
-                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border rounded-none transition-all ${
+                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all ${
                   diffFilter === d
                     ? d === 'all' ? 'bg-primary text-foreground border-primary'
                       : d === 'beginner' ? 'bg-emerald-600 text-foreground border-emerald-600'
@@ -222,14 +222,14 @@ export default function ProgramsPage() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
             <AcademicCapIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground font-semibold text-lg">No programs found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(p => (
-              <div key={p.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col hover:border-primary/30 transition-all group">
+              <div key={p.id} className="bg-card shadow-sm border border-border rounded-xl flex flex-col hover:border-primary/30 transition-all group">
                 {/* Color bar by difficulty */}
                 <div className={`h-1 w-full ${p.difficulty_level === 'beginner' ? 'bg-emerald-500' : p.difficulty_level === 'intermediate' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                 <div className="p-6 flex flex-col flex-1">
@@ -241,16 +241,16 @@ export default function ProgramsPage() {
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {p.difficulty_level}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.delivery_type === 'optional' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.delivery_type === 'optional' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                         {p.delivery_type === 'optional' ? 'Elective' : 'Compulsory'}
                       </span>
                     </div>
                     {isAdmin && (
                       <div className="flex items-center gap-1">
-                        <button onClick={() => startEdit(p)} className="p-1.5 bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                        <button onClick={() => startEdit(p)} className="p-1.5 bg-card shadow-sm hover:bg-muted rounded-xl transition-colors">
                           <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
                         </button>
-                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors">
+                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
                           <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
                         </button>
                       </div>
@@ -261,15 +261,15 @@ export default function ProgramsPage() {
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-5 flex-1">{p.description?.split('→')[0]?.split('Prerequisite')[0]?.trim() || 'No description.'}</p>
 
                   <div className="grid grid-cols-3 gap-3 mb-5">
-                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                    <div className="bg-background rounded-xl p-2.5 text-center border border-border">
                       <p className="text-base font-black text-primary">{courseCounts[p.id] ?? 0}</p>
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Courses</p>
                     </div>
-                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                    <div className="bg-background rounded-xl p-2.5 text-center border border-border">
                       <p className="text-base font-black text-foreground">{p.duration_weeks ?? '—'}</p>
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Weeks</p>
                     </div>
-                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                    <div className="bg-background rounded-xl p-2.5 text-center border border-border">
                       <p className="text-base font-black text-foreground">{p.max_students ?? '∞'}</p>
                       <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Slots</p>
                     </div>
@@ -279,7 +279,7 @@ export default function ProgramsPage() {
                     <p className="text-lg font-black text-primary">₦{(p.price || 0).toLocaleString()}</p>
                     <Link
                       href={`/dashboard/courses?program=${p.id}`}
-                      className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-none transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl transition-all"
                     >
                       <BookOpenIcon className="w-3.5 h-3.5" /> View Courses <ArrowRightIcon className="w-3 h-3" />
                     </Link>
@@ -295,10 +295,10 @@ export default function ProgramsPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-background border border-border rounded-none p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="w-full max-w-xl bg-background border border-border rounded-xl p-6 sm:p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-extrabold text-foreground">{editing ? 'Edit Program' : 'New Program'}</h2>
-              <button onClick={() => setShowForm(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-none hover:bg-muted">✕</button>
+              <button onClick={() => setShowForm(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -306,21 +306,21 @@ export default function ProgramsPage() {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Program Name</label>
                 <input required value={form.name} onChange={e => setForm(s => ({ ...s, name: e.target.value }))}
                   placeholder="e.g. Creative Robotics & AI Masterclass"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</label>
                 <textarea rows={3} value={form.description} onChange={e => setForm(s => ({ ...s, description: e.target.value }))}
                   placeholder="Overview of the program curriculum..."
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-primary outline-none resize-none" />
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:border-primary outline-none resize-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Duration (Weeks)</label>
                   <input type="number" value={form.duration_weeks} onChange={e => setForm(s => ({ ...s, duration_weeks: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Difficulty</label>
@@ -332,12 +332,12 @@ export default function ProgramsPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Price (₦)</label>
                   <input type="number" step="0.01" value={form.price} onChange={e => setForm(s => ({ ...s, price: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Max Students</label>
                   <input type="number" value={form.max_students} onChange={e => setForm(s => ({ ...s, max_students: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:border-primary outline-none" />
                 </div>
               </div>
 
@@ -358,7 +358,7 @@ export default function ProgramsPage() {
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-muted-foreground hover:text-foreground font-bold transition-all">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-foreground font-black rounded-none transition-all shadow-lg shadow-orange-900/40">
+                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-foreground font-black rounded-xl transition-all shadow-lg shadow-orange-900/40">
                   {saving ? 'Saving...' : editing ? 'Update Program' : 'Create Program'}
                 </button>
               </div>

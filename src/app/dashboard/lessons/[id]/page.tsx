@@ -256,8 +256,8 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
 
 const TYPE_COLOR: Record<string, string> = {
   video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  'hands-on': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  hands_on: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'hands-on': 'bg-primary/20 text-primary border-primary/30',
+  hands_on: 'bg-primary/20 text-primary border-primary/30',
   interactive: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   workshop: 'bg-primary/20 text-primary border-primary/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -349,16 +349,16 @@ function MermaidRenderer({ code }: { code: string }) {
 
   if (error) {
     return (
-      <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-none sm:rounded-none text-center">
+      <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-xl sm:rounded-xl text-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="p-4 rounded-none bg-rose-500/20 text-rose-400">
+          <div className="p-4 rounded-xl bg-rose-500/20 text-rose-400">
             <ExclamationTriangleIcon className="w-8 h-8" />
           </div>
           <div className="space-y-1">
             <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Oops! A Tiny Snag</p>
             <p className="text-sm font-bold text-muted-foreground">The visual map is taking a quick nap. Refresh to wake it up!</p>
           </div>
-          <pre className="mt-4 w-full p-6 bg-card/80 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
+          <pre className="mt-4 w-full p-6 bg-card/80 rounded-xl text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
             {code}
           </pre>
           <p className="text-[10px] text-rose-400/40 font-black uppercase tracking-widest">Double check the blocks or hit refresh to see the path!</p>
@@ -373,7 +373,7 @@ function MermaidRenderer({ code }: { code: string }) {
         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
         <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.3em]">Our Learning Adventure Map</p>
       </div>
-      <div className="bg-card p-8 sm:p-12 rounded-none flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px] [&_svg]:max-w-full [&_.label]:!text-foreground/80 [&_text]:!fill-current"  style={{ colorScheme: 'dark' }}>
+      <div className="bg-card p-8 sm:p-12 rounded-xl flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px] [&_svg]:max-w-full [&_.label]:!text-foreground/80 [&_text]:!fill-current"  style={{ colorScheme: 'dark' }}>
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         {svg ? (
           <div
@@ -411,7 +411,7 @@ function MathRenderer({ formula }: { formula: string }) {
   }, [formula]);
 
   return (
-    <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-none sm:rounded-none relative overflow-hidden group shadow-3xl text-center">
+    <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-xl sm:rounded-xl relative overflow-hidden group shadow-3xl text-center">
       <div className="absolute -left-10 -top-10 w-48 h-48 bg-indigo-500/10 blur-3xl rounded-full group-hover:scale-125 transition-transform" />
       <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mb-10 relative z-10">Mathematical Synthesis</p>
       <div className="math-container text-2xl sm:text-5xl text-foreground relative z-10 overflow-x-auto py-4" dangerouslySetInnerHTML={{ __html: html }} />
@@ -538,7 +538,7 @@ function D3ChartRenderer({ type, dataset, labels }: { type: string; dataset: any
   };
 
   return (
-    <div className="p-5 bg-card border border-border rounded-none overflow-hidden">
+    <div className="p-5 bg-card border border-border rounded-xl overflow-hidden">
       <svg ref={containerRef} className="w-full h-auto" style={{ maxHeight: 340 }} />
     </div>
   );
@@ -546,7 +546,7 @@ function D3ChartRenderer({ type, dataset, labels }: { type: string; dataset: any
 
 const MOTION_COLORS = [
   { bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40',    text: 'text-cyan-400',    glow: 'rgba(6,182,212,0.5)'    },
-  { bg: 'bg-violet-500/20',  border: 'border-violet-500/40',  text: 'text-violet-400',  glow: 'rgba(139,92,246,0.5)'   },
+  { bg: 'bg-primary/20',  border: 'border-primary/40',  text: 'text-primary',  glow: 'rgba(139,92,246,0.5)'   },
   { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', glow: 'rgba(16,185,129,0.5)'   },
   { bg: 'bg-primary/20',  border: 'border-primary/40',  text: 'text-primary',  glow: 'rgba(249,115,22,0.5)'   },
   { bg: 'bg-rose-500/20',    border: 'border-rose-500/40',    text: 'text-rose-400',    glow: 'rgba(244,63,94,0.5)'    },
@@ -559,7 +559,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
   const effectiveLabels = labels.length > 0 ? labels : Array.from({ length: Math.min(nodeCount, 7) }, (_, i) => `Step ${i + 1}`);
 
   return (
-    <div className="my-10 relative rounded-none border border-border bg-card overflow-hidden" style={{ minHeight: '340px' }}>
+    <div className="my-10 relative rounded-xl border border-border bg-card overflow-hidden" style={{ minHeight: '340px' }}>
       {/* Layered gradient backdrops */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-transparent to-cyan-950/30 pointer-events-none" />
       <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/5 blur-3xl rounded-full pointer-events-none" />
@@ -600,7 +600,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
                     <motion.div
                       animate={{ boxShadow: [`0 0 0px ${col.glow}`, `0 0 18px ${col.glow}`, `0 0 0px ${col.glow}`] }}
                       transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.35 }}
-                      className={`w-14 h-14 ${col.bg} border ${col.border} flex items-center justify-center rounded-none`}
+                      className={`w-14 h-14 ${col.bg} border ${col.border} flex items-center justify-center rounded-xl`}
                     >
                       <span className={`text-lg font-black ${col.text}`}>{i + 1}</span>
                     </motion.div>
@@ -741,7 +741,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
               return (
                 <motion.div
                   key={i}
-                  className={`flex-1 ${col.bg} border-t ${col.border} min-w-[8px] rounded-none`}
+                  className={`flex-1 ${col.bg} border-t ${col.border} min-w-[8px] rounded-xl`}
                   animate={{ height: [12, Math.random() * 110 + 20, 12] }}
                   transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.07, ease: 'easeInOut' }}
                 />
@@ -753,7 +753,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
         {/* ── TIMELINE — vertical milestones ── */}
         {type === 'timeline' && (
           <div className="w-full max-w-md space-y-0 relative px-4">
-            <div className="absolute left-[28px] top-4 bottom-4 w-px bg-gradient-to-b from-cyan-500/60 via-violet-500/40 to-transparent" />
+            <div className="absolute left-[28px] top-4 bottom-4 w-px bg-gradient-to-b from-cyan-500/60 via-primary/40 to-transparent" />
             {effectiveLabels.slice(0, 7).map((label, i) => {
               const col = MOTION_COLORS[i % MOTION_COLORS.length];
               return (
@@ -786,7 +786,7 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
             {[...Array(3)].map((_, i) => (
               <motion.div
                 key={i}
-                className="absolute border border-cyan-500/30 rounded-none"
+                className="absolute border border-cyan-500/30 rounded-xl"
                 animate={{ scale: [1, 2.5 + i * 0.6], opacity: [0.5, 0] }}
                 transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.65, ease: 'easeOut' }}
                 style={{ width: 80, height: 80 }}
@@ -844,9 +844,9 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
   };
 
   return (
-    <div className="p-5 rounded-none border border-primary/20 bg-background space-y-5 relative overflow-hidden hover:border-primary/40 transition-all my-6 shadow-lg">
+    <div className="p-5 rounded-xl border border-primary/20 bg-background space-y-5 relative overflow-hidden hover:border-primary/40 transition-all my-6 shadow-lg">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-none bg-primary/10 text-primary flex-shrink-0">
+        <div className="p-2 rounded-xl bg-primary/10 text-primary flex-shrink-0">
           <QuestionMarkCircleIcon className="w-5 h-5" />
         </div>
         <div>
@@ -874,10 +874,10 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
                 onClick={() => handleSelect(optIdx)}
                 whileHover={!revealed ? { scale: 1.01 } : {}}
                 whileTap={!revealed ? { scale: 0.99 } : {}}
-                className={`p-3.5 rounded-none border transition-all text-left ${stateClass}`}
+                className={`p-3.5 rounded-xl border transition-all text-left ${stateClass}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-none border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                  <div className={`w-7 h-7 rounded-xl border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                       : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
                         : 'bg-card border-border text-muted-foreground'
                     }`}>
@@ -906,7 +906,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
               className="pt-4 border-t border-border"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-none flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                <div className={`p-2 rounded-xl flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                   {selected === block.correctAnswer ? <CheckBadgeIcon className="w-4 h-4" /> : <XMarkIcon className="w-4 h-4" />}
                 </div>
                 <p className="text-xs font-medium text-foreground flex-1">
@@ -920,7 +920,7 @@ function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?:
                 </button>
               </div>
               {selected !== block.correctAnswer && (
-                <div className="mt-3 rounded-none border border-indigo-500/20 bg-indigo-500/5 p-4">
+                <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <span>✦</span> AI Tutor Explanation
                   </p>
@@ -1008,10 +1008,10 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
       <motion.div
         initial={{ scale: 0.8, opacity: 0, y: 40 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="max-w-2xl w-full bg-background border border-border rounded-none p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
+        className="max-w-2xl w-full bg-background border border-border rounded-xl p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="w-32 h-32 rounded-none bg-gradient-to-br from-primary to-primary to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
+          <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-primary to-primary to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
             <TrophyIcon className="w-16 h-16" />
           </div>
         </div>
@@ -1027,7 +1027,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
         </div>
 
         {/* AI recap */}
-        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-none p-6 text-left min-h-[80px]">
+        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-6 text-left min-h-[80px]">
           <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span>✦</span> What You Mastered Today
           </p>
@@ -1044,11 +1044,11 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
         </div>
 
         <div className="grid grid-cols-2 gap-6">
-          <div className="bg-card shadow-sm border border-border rounded-none p-8">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-8">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">XP Earned</p>
             <p className="text-3xl font-black text-primary">+250 XP</p>
           </div>
-          <div className="bg-card shadow-sm border border-border rounded-none p-8">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-8">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Status</p>
             <p className="text-3xl font-black text-emerald-400">COMPLETE</p>
           </div>
@@ -1056,7 +1056,7 @@ function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel
 
         <button
           onClick={onDismiss}
-          className="w-full py-8 bg-primary hover:bg-primary text-white font-black uppercase tracking-[0.4em] text-xs rounded-none transition-all shadow-2xl active:scale-95"
+          className="w-full py-8 bg-primary hover:bg-primary text-white font-black uppercase tracking-[0.4em] text-xs rounded-xl transition-all shadow-2xl active:scale-95"
         >
           Continue
         </button>
@@ -1115,7 +1115,7 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
       ) : (
         <div className="grid gap-4">
           {steps.map((step, sIdx) => (
-            <div key={sIdx} className="flex gap-4 p-4 rounded-none bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
+            <div key={sIdx} className="flex gap-4 p-4 rounded-xl bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
               <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
                 {sIdx + 1}
               </div>
@@ -1275,7 +1275,7 @@ function BlocklyBlock({ xml, language, title }: { xml?: string; language?: strin
             {showCode ? 'Hide' : 'Show'} generated {language || 'python'} code
           </button>
           {showCode && (
-            <pre className="p-4 bg-card/80 border border-border text-xs font-mono text-emerald-300 overflow-x-auto rounded-none leading-relaxed">
+            <pre className="p-4 bg-card/80 border border-border text-xs font-mono text-emerald-300 overflow-x-auto rounded-xl leading-relaxed">
               {generatedCode}
             </pre>
           )}
@@ -1360,13 +1360,13 @@ function BlockMarkdown({ content, className }: { content: string; className?: st
           },
           pre: ({ children }: any) => {
             const code = String((children as any)?.props?.children || '').replace(/\n$/, '');
-            return <pre className="my-2 p-3 bg-black/30 border border-border text-[12px] font-mono text-cyan-300 overflow-x-auto rounded-none leading-relaxed">{code}</pre>;
+            return <pre className="my-2 p-3 bg-black/30 border border-border text-[12px] font-mono text-cyan-300 overflow-x-auto rounded-xl leading-relaxed">{code}</pre>;
           },
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline decoration-primary/30 hover:decoration-primary underline-offset-2 transition-all">{children}</a>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-violet-500/50 pl-3 my-1.5 italic text-foreground/60">{children}</blockquote>
+            <blockquote className="border-l-2 border-primary/50 pl-3 my-1.5 italic text-foreground/60">{children}</blockquote>
           ),
         }}
       >
@@ -1408,7 +1408,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
 
   const INFO_COLORS = [
     { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
-    { accent: 'border-l-violet-500',  num: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/5'  },
+    { accent: 'border-l-primary',  num: 'bg-primary',  text: 'text-primary',  bg: 'bg-primary/5'  },
     { accent: 'border-l-primary',  num: 'bg-primary',  text: 'text-primary',  bg: 'bg-primary/5'  },
     { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
     { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
@@ -1425,11 +1425,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             return (
               <AnimatedBlock key={i} i={i}>
                 <div className="relative group pt-4">
-                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-primary via-violet-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
+                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-primary via-primary to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
                   <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text">
                     {block.content}
                   </h2>
-                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-primary/50 via-violet-500/30 to-transparent transition-all duration-500" />
+                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-primary/50 via-primary/30 to-transparent transition-all duration-500" />
                 </div>
               </AnimatedBlock>
             );
@@ -1438,7 +1438,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'text':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-violet-500/30 transition-colors duration-300 selection:bg-cyan-500/30">
+                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-primary/30 transition-colors duration-300 selection:bg-cyan-500/30">
                   <BlockMarkdown content={block.content || ''} className="text-sm sm:text-base font-medium break-words" />
                 </div>
               </AnimatedBlock>
@@ -1785,15 +1785,15 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
           case 'quote':
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative pl-8 py-6 border-l-4 border-violet-500/60 bg-violet-500/5 overflow-hidden group">
-                  <div className="absolute top-3 right-4 text-5xl font-black text-violet-500/10 leading-none select-none">"</div>
+                <div className="relative pl-8 py-6 border-l-4 border-primary/60 bg-primary/5 overflow-hidden group">
+                  <div className="absolute top-3 right-4 text-5xl font-black text-primary/10 leading-none select-none">"</div>
                   <blockquote className="text-base sm:text-lg font-semibold text-foreground/80 italic leading-relaxed mb-3">
-                    <span className="select-none text-violet-400/50 mr-1">"</span>
+                    <span className="select-none text-primary/50 mr-1">"</span>
                     <BlockMarkdown content={block.content || block.quote || ''} className="inline" />
-                    <span className="select-none text-violet-400/50 ml-0.5">"</span>
+                    <span className="select-none text-primary/50 ml-0.5">"</span>
                   </blockquote>
                   {(block.author || block.source) && (
-                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                       — {block.author || block.source}
                     </p>
                   )}
@@ -1959,8 +1959,8 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 <div className="space-y-3">
                   {(block.title || block.concept) && (
                     <div className="flex items-center gap-3">
-                      <div className="w-1 h-4 bg-violet-500 rounded-full" />
-                      <p className="text-[10px] font-black text-violet-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+                      <div className="w-1 h-4 bg-primary rounded-full" />
+                      <p className="text-[10px] font-black text-primary/70 uppercase tracking-widest">{block.title || block.concept}</p>
                     </div>
                   )}
                   <div className="p-4 bg-card border border-border">
@@ -1999,8 +1999,8 @@ function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     javascript: 'text-yellow-400 bg-yellow-500/10',
     js: 'text-yellow-400 bg-yellow-500/10',
     html: 'text-primary bg-primary/10',
-    css: 'text-blue-400 bg-blue-500/10',
-    robotics: 'text-violet-400 bg-violet-500/10',
+    css: 'text-primary bg-primary/10',
+    robotics: 'text-primary bg-primary/10',
     bash: 'text-muted-foreground bg-muted/50',
     json: 'text-cyan-400 bg-cyan-500/10',
   };
@@ -2097,7 +2097,7 @@ function MarkdownNotes({ content }: { content: string }) {
           <motion.blockquote
             initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.35 }}
-            className="my-4 pl-5 border-l-4 border-violet-500/50 bg-violet-500/5 py-3 pr-4"
+            className="my-4 pl-5 border-l-4 border-primary/50 bg-primary/5 py-3 pr-4"
           >
             <div className="text-sm text-foreground/70 italic leading-relaxed [&>p]:my-0">{children}</div>
           </motion.blockquote>
@@ -2134,7 +2134,7 @@ function MarkdownNotes({ content }: { content: string }) {
             <img
               src={src}
               alt={alt || ''}
-              className="rounded-none max-w-full border border-border shadow-lg"
+              className="rounded-xl max-w-full border border-border shadow-lg"
               loading="lazy"
             />
             {alt && <span className="block text-[11px] text-muted-foreground/60 text-center mt-2 italic">{alt}</span>}
@@ -2168,7 +2168,7 @@ function MarkdownNotes({ content }: { content: string }) {
 }
 
 const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-none transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-primary to-primary to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-xl transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-primary to-primary to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
     <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${active ? 'text-foreground' : 'text-current'}`} />
     <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] shrink-0">{label}</span>
     {count !== undefined && count > 0 && (
@@ -2465,7 +2465,7 @@ export default function LessonDetailPage() {
       <ExclamationTriangleIcon className="w-16 h-16 text-rose-500/20" />
       <h2 className="text-2xl font-bold text-rose-400">Could not load lesson</h2>
       <p className="text-muted-foreground max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
-      <Link href="/dashboard/lessons" className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-none text-xs font-bold">Back to Lessons</Link>
+      <Link href="/dashboard/lessons" className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold">Back to Lessons</Link>
     </div>
   );
 
@@ -2490,7 +2490,7 @@ export default function LessonDetailPage() {
       {/* Mobile Header (Techy & Clean) */}
       <div className="md:hidden p-5 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(true)} className="p-3 bg-card shadow-sm rounded-none text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shadow-xl">
+          <button onClick={() => setSidebarOpen(true)} className="p-3 bg-card shadow-sm rounded-xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shadow-xl">
             <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
@@ -2518,13 +2518,13 @@ export default function LessonDetailPage() {
               </div>
               <p className="font-black text-foreground text-lg leading-tight truncate max-w-[200px]">{lesson.courses?.programs?.name || 'Academic Track'}</p>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-3 bg-card shadow-sm rounded-none text-muted-foreground hover:text-foreground transition-all hover:bg-rose-500/10 active:scale-95">
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-3 bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-all hover:bg-rose-500/10 active:scale-95">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-card/20">
-            <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-none mb-6 shadow-2xl relative overflow-hidden group">
+            <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-xl mb-6 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-600/10 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
               <h3 className="text-xs font-bold text-primary uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Course'}</h3>
               <div className="flex items-center gap-2 mt-2 relative z-10">
@@ -2540,10 +2540,10 @@ export default function LessonDetailPage() {
                 return (
                   <Link key={l.id} href={`/dashboard/lessons/${l.id}${classId ? `?class_id=${classId}` : ''}`}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-4 p-4 rounded-none transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
+                    className={`flex items-center gap-4 p-4 rounded-xl transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
                     {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_cyan]" />}
 
-                    <div className={`shrink-0 w-8 h-8 rounded-none border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-card text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
+                    <div className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-card text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
                       {isCompleted ? <CheckBadgeIcon className="w-4 h-4" /> : idx + 1}
                     </div>
 
@@ -2561,7 +2561,7 @@ export default function LessonDetailPage() {
           </div>
 
           <div className="p-8 border-t border-border bg-gradient-to-t from-black to-transparent">
-            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
+            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
               <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
               {classId ? 'Back to Class' : 'Back to Lessons'}
             </Link>
@@ -2593,13 +2593,13 @@ export default function LessonDetailPage() {
             {/* Header */}
             <header className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-top-12 duration-1000">
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-card shadow-sm border border-border rounded-xl text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
                   <BoltIcon className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                 </button>
                 {lesson.metadata?.lesson_plan_id && isStaff && (
                   <Link
                     href={`/dashboard/lesson-plans/${lesson.metadata.lesson_plan_id}`}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-[10px] font-black text-violet-400 hover:bg-violet-500/20 transition-all uppercase tracking-widest"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black text-primary hover:bg-primary/20 transition-all uppercase tracking-widest"
                   >
                     <AcademicCapIcon className="w-3.5 h-3.5" /> View Plan
                   </Link>
@@ -2615,7 +2615,7 @@ export default function LessonDetailPage() {
                 )}
                 <div className="flex-1"></div>
                 {completed && (
-                  <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-none border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
+                  <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-xl border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
                     <CheckBadgeIcon className="w-5 h-5 sm:w-6 sm:h-6" /> Mastery
                   </div>
                 )}
@@ -2634,7 +2634,7 @@ export default function LessonDetailPage() {
             </header>
             {/* Nav Tabs - Modern Glass Style */}
             <div className="sticky top-0 z-30 pt-4 pb-12 -mx-4 px-4 sm:-mx-12 sm:px-12 md:relative md:p-0 md:m-0 flex justify-center sm:justify-start">
-              <div className="flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-3xl p-2 rounded-none border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-3xl p-2 rounded-xl border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
                 <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={BookOpenIcon} label="Lesson" />
                 <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
                 <TabBtn active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ClipboardDocumentListIcon} label="Assignments" count={courseAssignments.length + programQuizzes.length} />
@@ -2835,7 +2835,7 @@ export default function LessonDetailPage() {
                           </span>
                           <span className="text-primary">{interactions.size} interactive blocks done</span>
                         </div>
-                        <div className="h-1 bg-muted/50 rounded-none overflow-hidden">
+                        <div className="h-1 bg-muted/50 rounded-xl overflow-hidden">
                           <motion.div
                             className="h-full bg-primary shadow-[0_0_15px_rgba(234,88,12,0.5)]"
                             initial={{ width: 0 }}
@@ -2849,10 +2849,10 @@ export default function LessonDetailPage() {
                     <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
                       {!completed && profile?.role === 'student' ? (
                         <div className="relative group">
-                          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary rounded-none sm:rounded-none blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary via-indigo-500 to-primary rounded-xl sm:rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
                           <button onClick={handleMarkComplete} disabled={marking}
-                            className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-none sm:rounded-none text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
-                            <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                            className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-xl sm:rounded-xl text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
+                            <div className="p-5 bg-cyan-500/20 rounded-xl text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
                               <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
                             </div>
                             <div>
@@ -2874,7 +2874,7 @@ export default function LessonDetailPage() {
                       )}
 
                       {nextLesson && (
-                        <div className="w-full max-w-4xl bg-background border border-border rounded-none p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
+                        <div className="w-full max-w-4xl bg-background border border-border rounded-xl p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
                           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
                           <div className="space-y-6 relative z-10">
                             <div className="flex items-center justify-center gap-4">
@@ -2889,7 +2889,7 @@ export default function LessonDetailPage() {
                             </div>
                           </div>
                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-card text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-card text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-xl hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
                             Start Lesson <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
                           </Link>
                         </div>
@@ -2913,19 +2913,19 @@ export default function LessonDetailPage() {
                               placeholder="Title"
                               value={newResource.title}
                               onChange={e => setNewResource(r => ({ ...r, title: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
                             />
                             <input
                               type="url"
                               placeholder="URL (video, PDF, doc, link…)"
                               value={newResource.file_url}
                               onChange={e => setNewResource(r => ({ ...r, file_url: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
                             />
                             <select
                               value={newResource.file_type}
                               onChange={e => setNewResource(r => ({ ...r, file_type: e.target.value }))}
-                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50"
+                              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary/50"
                             >
                               <option value="link">Link</option>
                               <option value="video">Video</option>
@@ -2952,7 +2952,7 @@ export default function LessonDetailPage() {
                       ) : (
                         <button
                           onClick={() => setAddingResource(true)}
-                          className="flex items-center gap-2 text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors"
+                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-violet-300 transition-colors"
                         >
                           <PlusIcon className="w-4 h-4" /> Add Resource (video, PDF, link…)
                         </button>
@@ -3003,7 +3003,7 @@ export default function LessonDetailPage() {
 
                   {/* Library link */}
                   <div className="flex items-center gap-2 pt-2">
-                    <Link href="/dashboard/library" className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors">
+                    <Link href="/dashboard/library" className="text-xs text-primary hover:text-violet-300 font-bold transition-colors">
                       Browse Content Library →
                     </Link>
                   </div>
@@ -3041,16 +3041,16 @@ export default function LessonDetailPage() {
                       <div className="grid grid-cols-1 gap-4">
                         {courseAssignments.map((a: any) => (
                           <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
-                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                            className="p-8 sm:p-10 bg-background border border-border rounded-xl hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-none text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <DocumentTextIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
                                 <h4 className="font-black text-2xl text-foreground group-hover:text-amber-400 transition-colors tracking-tight">{a.title}</h4>
                                 <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-amber-500/60 font-black">{a.assignment_type}</span>
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-xl text-amber-500/60 font-black">{a.assignment_type}</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
                                   <span className={a.due_date && new Date(a.due_date) < new Date() ? 'text-rose-400 animate-pulse' : 'text-muted-foreground'}>
                                     {a.due_date ? `Deadline: ${new Date(a.due_date).toLocaleDateString()}` : 'No deadline'}
@@ -3058,7 +3058,7 @@ export default function LessonDetailPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
                               <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
@@ -3077,22 +3077,22 @@ export default function LessonDetailPage() {
                       <div className="grid grid-cols-1 gap-4">
                         {programQuizzes.map((q: any) => (
                           <Link key={q.id} href={`/dashboard/cbt/${q.id}`}
-                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-primary/[0.03] hover:border-primary/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                            className="p-8 sm:p-10 bg-background border border-border rounded-xl hover:bg-primary/[0.03] hover:border-primary/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-primary/10 border border-primary/20 rounded-none text-primary group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-primary/10 border border-primary/20 rounded-xl text-primary group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <StarIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
                                 <h4 className="font-black text-2xl text-foreground group-hover:text-primary transition-colors tracking-tight">{q.title}</h4>
                                 <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-primary/60 font-bold">{q.duration_minutes} min</span>
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-xl text-primary/60 font-bold">{q.duration_minutes} min</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
                                   <span className="text-muted-foreground">{q.total_questions} questions</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/40 group-hover:translate-x-1 transition-all shadow-xl">
                               <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>

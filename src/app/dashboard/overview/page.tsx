@@ -168,9 +168,9 @@ export default function OverviewPage() {
           <div className="h-8 bg-muted rounded w-64" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-28 animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-28 animate-pulse" />)}
         </div>
-        {[1, 2].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-40 animate-pulse" />)}
+        {[1, 2].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-40 animate-pulse" />)}
       </div>
     </div>
   );
@@ -178,7 +178,7 @@ export default function OverviewPage() {
   if (!profile) return null;
 
   const adminStats = [
-    { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/schools' },
+    { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/schools' },
     { label: 'Partner Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
     { label: 'Total Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
     { label: 'Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
@@ -186,20 +186,20 @@ export default function OverviewPage() {
 
   const teacherStats = [
     { label: 'My Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
-    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
+    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
     { label: 'Needs Grading', value: counts.pending ?? 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/grades' },
     { label: 'Assignments', value: counts.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
   ];
 
   const studentStats = [
-    { label: 'Submissions', value: counts.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/grades' },
+    { label: 'Submissions', value: counts.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/grades' },
     { label: 'Enrolled In', value: counts.enrolled ?? 0, icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/courses' },
     { label: 'Assignments', value: 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/assignments' },
     { label: 'Progress', value: 0, icon: TrophyIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/progress' },
   ];
 
   const schoolStats = [
-    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
+    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
     { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/teachers' },
     { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
     { label: 'Analytics', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/analytics' },
@@ -209,22 +209,22 @@ export default function OverviewPage() {
 
   const quickLinks = role === 'admin' ? [
     { label: 'Approvals Queue', href: '/dashboard/approvals', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
-    { label: 'School Management', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-blue-600' },
+    { label: 'School Management', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-primary' },
     { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, color: 'bg-emerald-600' },
     { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-amber-600' },
   ] : role === 'teacher' ? [
     { label: 'Grade Submissions', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
-    { label: 'Assignments', href: '/dashboard/assignments', icon: CalendarIcon, color: 'bg-blue-600' },
+    { label: 'Assignments', href: '/dashboard/assignments', icon: CalendarIcon, color: 'bg-primary' },
     { label: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ] : role === 'school' ? [
     { label: 'School Registry', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-primary' },
-    { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-blue-600' },
+    { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-primary' },
     { label: 'Exam Results', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
     { label: 'Messages', href: '/dashboard/messages', icon: BellIcon, color: 'bg-amber-600' },
   ] : [
     { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
-    { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-blue-600' },
+    { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-primary' },
     { label: 'My Grades', href: '/dashboard/grades', icon: TrophyIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ];
@@ -234,8 +234,8 @@ export default function OverviewPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/20 via-blue-600/10 to-transparent border border-border rounded-none p-7 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-primary/10 to-transparent rounded-none pointer-events-none" />
+        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border border-border rounded-xl p-7 relative overflow-hidden">
+          <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-primary/10 to-transparent rounded-xl pointer-events-none" />
           <div className="relative">
             <span className="text-xs font-bold text-primary uppercase tracking-widest">
               {role} Dashboard
@@ -253,8 +253,8 @@ export default function OverviewPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map(s => (
             <Link key={s.label} href={s.href}
-              className="bg-card shadow-sm border border-border rounded-none p-5 hover:bg-white/8 hover:border-border transition-all group">
-              <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+              className="bg-card shadow-sm border border-border rounded-xl p-5 hover:bg-white/8 hover:border-border transition-all group">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -266,15 +266,15 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Quick Links */}
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground">Quick Actions</h3>
             </div>
             <div className="p-4 space-y-2">
               {quickLinks.map(l => (
                 <Link key={l.label} href={l.href}
-                  className="flex items-center gap-3 px-4 py-3 rounded-none hover:bg-card shadow-sm transition-colors group">
-                  <div className={`w-8 h-8 ${l.color} rounded-none flex items-center justify-center flex-shrink-0`}>
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-card shadow-sm transition-colors group">
+                  <div className={`w-8 h-8 ${l.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                     <l.icon className="w-4 h-4 text-foreground" />
                   </div>
                   <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{l.label}</span>
@@ -285,7 +285,7 @@ export default function OverviewPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="lg:col-span-2 bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="lg:col-span-2 bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h3 className="font-bold text-foreground">
                 {role === 'admin' ? 'Recent Students' : 'Recent Submissions'}
@@ -323,7 +323,7 @@ export default function OverviewPage() {
                   const pct = s.grade != null ? Math.round((s.grade / max) * 100) : null;
                   return (
                     <div key={s.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-card shadow-sm transition-colors">
-                      <div className="w-8 h-8 rounded-none bg-card shadow-sm flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-card shadow-sm flex items-center justify-center flex-shrink-0">
                         <ClipboardDocumentListIcon className="w-4 h-4 text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">

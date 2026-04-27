@@ -10,7 +10,7 @@ export default function ThemeToggle() {
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
     return (
-      <div className="w-10 h-10 bg-muted rounded-none animate-pulse"></div>
+      <div className="w-10 h-10 bg-muted rounded-xl animate-pulse"></div>
     )
   }
 
@@ -43,7 +43,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center w-10 h-10 rounded-none bg-card border border-border hover:border-primary transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
+      className="relative inline-flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border hover:border-primary transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
       aria-label={getThemeLabel()}
       title={getThemeLabel()}
     >

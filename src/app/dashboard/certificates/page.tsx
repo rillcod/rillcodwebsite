@@ -106,7 +106,7 @@ function IssueCertModal({ onClose, onIssued }: { onClose: () => void; onIssued: 
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
                                 )}
                                 {students.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border z-10 max-h-48 overflow-y-auto shadow-xl rounded-none">
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border z-10 max-h-48 overflow-y-auto shadow-xl rounded-xl">
                                         {students.map(s => (
                                             <button type="button" key={s.id} onClick={() => { setSelectedStudent(s); setStudents([]); setStudentSearch(''); }}
                                                 className="w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors border-b border-border last:border-0">
@@ -239,7 +239,7 @@ export default function CertificateVault() {
             {isLoading ? (
                 <div className="space-y-8">
                     {[1, 2].map(i => (
-                        <div key={i} style={{ aspectRatio: '297/210' }} className="w-full bg-muted/30 border border-border relative overflow-hidden rounded-none">
+                        <div key={i} style={{ aspectRatio: '297/210' }} className="w-full bg-muted/30 border border-border relative overflow-hidden rounded-xl">
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/[0.04] to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                         </div>
                     ))}

@@ -270,7 +270,7 @@ export default function SettingsPage() {
 
   const roleColor: Record<string, string> = {
     admin: 'bg-red-500/20 text-red-400 border-red-500/30',
-    teacher: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    teacher: 'bg-primary/20 text-primary border-primary/30',
     student: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   };
 
@@ -297,7 +297,7 @@ export default function SettingsPage() {
 
         {/* Toast */}
         {toast && (
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-none border text-sm font-semibold
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold
             ${toast.ok
               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
               : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
@@ -314,12 +314,12 @@ export default function SettingsPage() {
           <div className="lg:col-span-1 space-y-4">
 
             {/* Avatar card */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-5 text-center">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-5 text-center">
               <div className="relative inline-block mb-4">
-                <div className="w-20 h-20 rounded-none bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground mx-auto">
+                <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground mx-auto">
                   {(profile.full_name ?? 'U')[0].toUpperCase()}
                 </div>
-                <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-background border border-border rounded-none flex items-center justify-center hover:bg-muted transition-colors">
+                <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-background border border-border rounded-xl flex items-center justify-center hover:bg-muted transition-colors">
                   <CameraIcon className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               </div>
@@ -332,10 +332,10 @@ export default function SettingsPage() {
             </div>
 
             {/* Tabs */}
-            <nav className="bg-card shadow-sm border border-border rounded-none p-2 space-y-1">
+            <nav className="bg-card shadow-sm border border-border rounded-xl p-2 space-y-1">
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-none text-sm font-bold transition-all
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all
                     ${tab === t.id ? 'bg-primary text-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'}`}>
                   <t.icon className="w-4 h-4" />
                   {t.label}
@@ -349,7 +349,7 @@ export default function SettingsPage() {
 
             {/* Profile tab */}
             {tab === 'profile' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-border">
                   <div>
                     <h2 className="font-bold text-foreground">Profile Information</h2>
@@ -357,17 +357,17 @@ export default function SettingsPage() {
                   </div>
                   {!editing ? (
                     <button onClick={() => setEditing(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 rounded-none text-sm font-bold transition-colors">
+                      className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 rounded-xl text-sm font-bold transition-colors">
                       <PencilIcon className="w-3.5 h-3.5" /> Edit
                     </button>
                   ) : (
                     <div className="flex gap-2">
                       <button onClick={() => { setEditing(false); }}
-                        className="px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-bold text-muted-foreground transition-colors">
+                        className="px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-xl text-sm font-bold text-muted-foreground transition-colors">
                         Cancel
                       </button>
                       <button onClick={saveProfile} disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-colors disabled:opacity-50">
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-colors disabled:opacity-50">
                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
                         Save
                       </button>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
                     {editing ? (
                       <input type="text" value={profileData.full_name}
                         onChange={e => setProfileData(p => ({ ...p, full_name: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     ) : (
                       <p className="text-foreground font-semibold">{profileData.full_name || '—'}</p>
                     )}
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                         <input type="tel" value={profileData.phone}
                           onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))}
                           placeholder="+234 800 000 0000"
-                          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                       </div>
                     ) : (
                       <p className="text-foreground font-semibold">{profileData.phone || <span className="text-muted-foreground">Not set</span>}</p>
@@ -421,7 +421,7 @@ export default function SettingsPage() {
                       <textarea value={profileData.bio} rows={3}
                         onChange={e => setProfileData(p => ({ ...p, bio: e.target.value }))}
                         placeholder="Tell us a little about yourself…"
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none placeholder-muted-foreground" />
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none placeholder-muted-foreground" />
                     ) : (
                       <p className="text-muted-foreground text-sm leading-relaxed">{profileData.bio || <span className="text-muted-foreground">No bio yet</span>}</p>
                     )}
@@ -443,10 +443,10 @@ export default function SettingsPage() {
             {/* Security tab */}
             {tab === 'security' && (
               <div className="space-y-4">
-                <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                   <div className="p-6 border-b border-border">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center">
+                      <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
                         <KeyIcon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                             required
                             minLength={8}
                             placeholder="Minimum 8 characters"
-                            className="w-full pl-4 pr-10 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                            className="w-full pl-4 pr-10 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                           />
                           <button type="button" onClick={() => setShowPw(v => !v)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors">
@@ -486,12 +486,12 @@ export default function SettingsPage() {
                       </p>
                     )}
 
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-xs text-amber-400">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400">
                       For security, you will be signed out of other devices after changing your password.
                     </div>
 
                     <button type="submit" disabled={saving || pwData.newPw !== pwData.confirm || pwData.newPw.length < 8}
-                      className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all disabled:opacity-50">
+                      className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all disabled:opacity-50">
                       {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
                       Update Password
                     </button>
@@ -499,9 +499,9 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Active Sessions Info */}
-                <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-3">
+                <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-3">
                   <h3 className="font-bold text-foreground flex items-center gap-2">
-                    <ShieldCheckIcon className="w-4 h-4 text-blue-400" /> Account Security
+                    <ShieldCheckIcon className="w-4 h-4 text-primary" /> Account Security
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between py-2 border-b border-border">
@@ -528,7 +528,7 @@ export default function SettingsPage() {
 
             {/* Notifications tab */}
             {tab === 'notifications' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border">
                   <h2 className="font-bold text-foreground">Notification Preferences</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">Choose what you want to be notified about</p>
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                         showToast('Failed to save preferences', false);
                       }
                     }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all mt-4">
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all mt-4">
                     <CheckIcon className="w-4 h-4" /> Save Preferences
                   </button>
                   
@@ -575,7 +575,7 @@ export default function SettingsPage() {
                         : 'Receive instant alerts on this device even when the app is closed.'}
                     </p>
                     {pushState !== 'granted' && pushState !== 'denied' && (
-                      <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-none text-xs font-bold transition-all">
+                      <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-xl text-xs font-bold transition-all">
                         <BellIcon className="w-4 h-4 text-primary" /> Enable Push on this Device
                       </button>
                     )}
@@ -591,7 +591,7 @@ export default function SettingsPage() {
                             console.error('Push test details:', data);
                           }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary rounded-none text-xs font-bold transition-all mt-2">
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold transition-all mt-2">
                         <BellIcon className="w-4 h-4" /> Send Test Notification
                       </button>
                     )}
@@ -602,23 +602,23 @@ export default function SettingsPage() {
 
             {/* ── Schools tab (teacher only) ── */}
             {tab === 'schools' && profile?.role === 'teacher' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
-                      <BuildingOfficeIcon className="w-4 h-4 text-blue-400" />
+                      <BuildingOfficeIcon className="w-4 h-4 text-primary" />
                       <h2 className="font-bold text-foreground">Assigned Schools</h2>
                     </div>
                     <p className="text-xs text-muted-foreground">Partner schools you currently teach at</p>
                   </div>
-                  <span className="text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
                     {schools.length} school{schools.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 {schoolsLoading ? (
                   <div className="p-8 flex items-center justify-center">
-                    <div className="w-7 h-7 border-4 border-border border-t-blue-400 rounded-full animate-spin" />
+                    <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
                   </div>
                 ) : schools.length === 0 ? (
                   <div className="p-10 text-center">
@@ -633,8 +633,8 @@ export default function SettingsPage() {
                       return (
                         <div key={ts.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                           <div className="flex items-start gap-4">
-                            <div className="w-11 h-11 rounded-none bg-blue-500/15 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                              <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                            <div className="w-11 h-11 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                              <BuildingOfficeIcon className="w-5 h-5 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -689,10 +689,10 @@ export default function SettingsPage() {
 
             {/* ── AI Config tab (admin only) ── */}
             {tab === 'ai-config' && profile?.role === 'admin' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CpuChipIcon className="w-4 h-4 text-violet-400" />
+                    <CpuChipIcon className="w-4 h-4 text-primary" />
                     <div>
                       <h2 className="font-bold text-foreground">AI Configuration</h2>
                       <p className="text-xs text-muted-foreground mt-0.5">API keys for AI features. Stored securely in the database.</p>
@@ -702,13 +702,13 @@ export default function SettingsPage() {
 
                 {aiLoading ? (
                   <div className="p-10 flex justify-center">
-                    <div className="w-7 h-7 border-4 border-border border-t-violet-400 rounded-full animate-spin" />
+                    <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
                   </div>
                 ) : (
                   <div className="p-6 space-y-5">
                     {/* Info box */}
-                    <div className="p-3 bg-violet-500/5 border border-violet-500/20 rounded-none">
-                      <p className="text-xs text-violet-400 leading-relaxed">
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                      <p className="text-xs text-primary leading-relaxed">
                         These keys are loaded at runtime for AI features (image generation, project generation, etc.).
                         Changes take effect immediately — no redeployment needed.
                       </p>
@@ -728,7 +728,7 @@ export default function SettingsPage() {
                             value={aiSettings[key] ?? ''}
                             onChange={e => setAiSettings(prev => ({ ...prev, [key]: e.target.value }))}
                             placeholder={placeholder}
-                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors font-mono"
+                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono"
                           />
                           {(aiSettings[key] ?? '').length > 4 && (
                             <button
@@ -751,7 +751,7 @@ export default function SettingsPage() {
                             type="text"
                             value={value}
                             onChange={e => setAiSettings(prev => ({ ...prev, [key]: e.target.value }))}
-                            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors font-mono"
+                            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono"
                           />
                         </div>
                       ))
@@ -760,7 +760,7 @@ export default function SettingsPage() {
                     <button
                       onClick={saveAiSettings}
                       disabled={aiSaving}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-none text-sm font-bold text-white transition-all mt-2">
+                      className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-all mt-2">
                       {aiSaving
                         ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
                         : <CheckIcon className="w-4 h-4" />}
@@ -773,9 +773,9 @@ export default function SettingsPage() {
 
             {/* ── Notification Templates tab (admin only) ── */}
             {tab === 'templates' && profile?.role === 'admin' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2">
-                  <DocumentTextIcon className="w-4 h-4 text-blue-400" />
+                  <DocumentTextIcon className="w-4 h-4 text-primary" />
                   <div>
                     <h2 className="font-bold text-foreground">Notification Templates</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">Edit email and SMS templates used by the system.</p>
@@ -783,7 +783,7 @@ export default function SettingsPage() {
                 </div>
 
                 {templatesLoading ? (
-                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-blue-400 rounded-full animate-spin" /></div>
+                  <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" /></div>
                 ) : (
                   <div className="divide-y divide-border">
                     {templates.length === 0 && (
@@ -793,7 +793,7 @@ export default function SettingsPage() {
                       <div key={tmpl.id} className="p-5">
                         <div className="flex items-center justify-between gap-4 mb-3">
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border ${tmpl.type === 'email' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>{tmpl.type}</span>
+                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border ${tmpl.type === 'email' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>{tmpl.type}</span>
                             <p className="text-sm font-bold text-foreground">{tmpl.name}</p>
                           </div>
                           <button onClick={() => setEditingTemplate(editingTemplate?.id === tmpl.id ? null : { ...tmpl })}
@@ -808,18 +808,18 @@ export default function SettingsPage() {
                               <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Subject</label>
                                 <input value={editingTemplate.subject ?? ''} onChange={e => setEditingTemplate((t: any) => ({ ...t, subject: e.target.value }))}
-                                  className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-blue-500 transition-all" />
+                                  className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-all" />
                               </div>
                             )}
                             <div>
                               <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Content</label>
                               <textarea rows={6} value={editingTemplate.content ?? ''} onChange={e => setEditingTemplate((t: any) => ({ ...t, content: e.target.value }))}
-                                className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground font-mono resize-none focus:outline-none focus:border-blue-500 transition-all" />
+                                className="w-full px-3 py-2.5 bg-card border border-border text-sm text-foreground font-mono resize-none focus:outline-none focus:border-primary transition-all" />
                             </div>
                             <div className="flex gap-2">
                               <button onClick={() => setEditingTemplate(null)} className="flex-1 py-2.5 text-xs font-bold text-muted-foreground border border-border hover:text-foreground transition-all">Cancel</button>
                               <button onClick={saveTemplate} disabled={templateSaving}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50">
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black bg-primary hover:bg-primary text-white transition-all disabled:opacity-50">
                                 {templateSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
                                 Save
                               </button>
@@ -837,7 +837,7 @@ export default function SettingsPage() {
 
             {/* ── Moderation tab (admin only) — links to dedicated page ── */}
             {tab === 'moderation' && profile?.role === 'admin' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2">
                   <ExclamationCircleIcon className="w-4 h-4 text-rose-400" />
                   <div>
@@ -854,7 +854,7 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-3 gap-3">
                         {[
                           { label: 'Pending', count: flaggedItems.filter(f => f.status === 'pending').length, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-                          { label: 'Reviewed', count: flaggedItems.filter(f => f.status === 'reviewed').length, color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                          { label: 'Reviewed', count: flaggedItems.filter(f => f.status === 'reviewed').length, color: 'text-primary bg-primary/10 border-primary/20' },
                           { label: 'Dismissed', count: flaggedItems.filter(f => f.status === 'dismissed').length, color: 'text-muted-foreground/70 bg-zinc-500/10 border-zinc-500/20' },
                         ].map(s => (
                           <div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}>
@@ -889,7 +889,7 @@ export default function SettingsPage() {
 
             {/* ── Audit Log tab (admin only) — links to dedicated page ── */}
             {tab === 'audit-log' && profile?.role === 'admin' && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <TableCellsIcon className="w-4 h-4 text-muted-foreground/70" />

@@ -118,7 +118,7 @@ const WEEK_META: Record<
 > = {
   lesson: {
     label: 'Lesson',
-    pill: 'text-violet-300 bg-violet-500/15 border-violet-500/30',
+    pill: 'text-violet-300 bg-primary/15 border-primary/30',
     icon: BookOpenIcon,
   },
   assessment: {

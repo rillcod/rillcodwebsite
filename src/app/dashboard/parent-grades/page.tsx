@@ -71,7 +71,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, accent, bg, border, icon }: StatCardProps) {
   return (
-    <div className={`flex-1 min-w-0 rounded-none border p-4 flex flex-col gap-1 ${bg} ${border}`}>
+    <div className={`flex-1 min-w-0 rounded-xl border p-4 flex flex-col gap-1 ${bg} ${border}`}>
       <div className="flex items-center gap-1.5">
         {icon && <span className={`opacity-70 ${accent}`}>{icon}</span>}
         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{label}</span>
@@ -211,7 +211,7 @@ function ParentGradesContent() {
                 setTypeFilter('all');
                 setSortMode('date');
               }}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-xl transition-all ${
                 selectedId === child.id
                   ? 'bg-primary border-primary text-white'
                   : 'bg-card border-border text-muted-foreground hover:border-primary/50'
@@ -225,7 +225,7 @@ function ParentGradesContent() {
 
       {/* Empty state — no children */}
       {!loadingChildren && children.length === 0 && (
-        <div className="bg-card border border-border rounded-none p-10 text-center">
+        <div className="bg-card border border-border rounded-xl p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
         </div>
@@ -243,9 +243,9 @@ function ParentGradesContent() {
               <StatCard
                 label="Graded"
                 value={String(gradedItems.length)}
-                accent="text-blue-400"
-                bg="bg-blue-500/5"
-                border="border border-blue-500/20"
+                accent="text-primary"
+                bg="bg-primary/5"
+                border="border border-primary/20"
                 icon={<ClipboardDocumentListIcon className="w-3.5 h-3.5" />}
               />
               <StatCard
@@ -277,12 +277,12 @@ function ParentGradesContent() {
           {!loadingGrades && grades.length > 0 && (
             <div className="flex items-center justify-between gap-3 flex-wrap">
               {/* Type filter pill tabs */}
-              <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-none">
+              <div className="flex items-center gap-1 p-1 bg-card border border-border rounded-xl">
                 {filterTabs.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setTypeFilter(tab.key)}
-                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-none ${
+                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-xl ${
                       typeFilter === tab.key
                         ? 'bg-primary text-white'
                         : 'text-muted-foreground hover:text-foreground'
@@ -303,10 +303,10 @@ function ParentGradesContent() {
               {/* Sort toggle */}
               <button
                 onClick={() => setSortMode(m => m === 'date' ? 'score' : 'date')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-none ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-xl ${
                   sortMode === 'score'
-                    ? 'bg-violet-600/20 border-violet-500/40 text-violet-400'
-                    : 'bg-card border-border text-muted-foreground hover:border-violet-500/40 hover:text-violet-400'
+                    ? 'bg-primary/20 border-primary/40 text-primary'
+                    : 'bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
                 }`}
               >
                 <ArrowsUpDownIcon className="w-3.5 h-3.5" />
@@ -336,7 +336,7 @@ function ParentGradesContent() {
 
           {/* ── Empty state — no grades ───────────────────────────────────── */}
           {!loadingGrades && grades.length === 0 && (
-            <div className="bg-card border border-border rounded-none p-8 text-center">
+            <div className="bg-card border border-border rounded-xl p-8 text-center">
               <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">No grades yet</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -347,7 +347,7 @@ function ParentGradesContent() {
 
           {/* ── Empty state — filtered to zero ───────────────────────────── */}
           {!loadingGrades && grades.length > 0 && filteredGrades.length === 0 && (
-            <div className="bg-card border border-border rounded-none p-8 text-center">
+            <div className="bg-card border border-border rounded-xl p-8 text-center">
               <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">
                 No {typeFilter}s yet
@@ -370,7 +370,7 @@ function ParentGradesContent() {
                 return (
                   <div
                     key={item.id}
-                    className="bg-card border border-border rounded-none p-5 hover:bg-white/5 transition-all"
+                    className="bg-card border border-border rounded-xl p-5 hover:bg-white/5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Left: badges + title + date */}
@@ -378,8 +378,8 @@ function ParentGradesContent() {
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
                             item.type === 'exam'
-                              ? 'bg-violet-500/10 border-violet-500/30 text-violet-400'
-                              : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                              ? 'bg-primary/10 border-primary/30 text-primary'
+                              : 'bg-primary/10 border-primary/30 text-primary'
                           }`}>
                             {item.type}
                           </span>
@@ -439,7 +439,7 @@ function ParentGradesContent() {
 
                     {/* Feedback */}
                     {item.feedback && (
-                      <div className="mt-3 p-3 bg-muted border border-border rounded-none">
+                      <div className="mt-3 p-3 bg-muted border border-border rounded-xl">
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Feedback</p>
                         <p className="text-xs text-foreground leading-relaxed">{item.feedback}</p>
                       </div>
@@ -457,7 +457,7 @@ function ParentGradesContent() {
 
 export default function ParentGradesPage() {
   return (
-    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-none" />}>
+    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-xl" />}>
       <ParentGradesContent />
     </Suspense>
   );

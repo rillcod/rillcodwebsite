@@ -101,7 +101,7 @@ export default function GradingQueuePage() {
         {loading ? (
           <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
         ) : submissions.length === 0 ? (
-          <div className="text-center py-16 bg-card border border-border rounded-none">
+          <div className="text-center py-16 bg-card border border-border rounded-xl">
             <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
             <p className="font-bold text-foreground mb-1">All caught up!</p>
             <p className="text-muted-foreground text-sm">No submissions pending review.</p>
@@ -112,7 +112,7 @@ export default function GradingQueuePage() {
               const isOpen = gradingId === sub.id;
               const maxPts = sub.assignments?.max_points ?? 100;
               return (
-                <div key={sub.id} className={`bg-card border rounded-none transition-all ${isOpen ? 'border-primary/40' : 'border-border'}`}>
+                <div key={sub.id} className={`bg-card border rounded-xl transition-all ${isOpen ? 'border-primary/40' : 'border-border'}`}>
                   <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm text-foreground truncate">{sub.assignments?.title ?? 'Assignment'}</p>
@@ -129,14 +129,14 @@ export default function GradingQueuePage() {
                         <button
                           onClick={() => acceptAI(sub.id)}
                           disabled={saving === sub.id}
-                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-none transition-colors"
+                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors"
                         >
                           {saving === sub.id ? '…' : '✓ Accept AI'}
                         </button>
                       )}
                       <button
                         onClick={() => setGradingId(isOpen ? null : sub.id)}
-                        className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-none transition-colors"
+                        className="px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
                       >
                         {isOpen ? 'Cancel' : 'Override'}
                       </button>
@@ -155,7 +155,7 @@ export default function GradingQueuePage() {
                             max={maxPts}
                             value={grade[sub.id] ?? ''}
                             onChange={e => setGrade(g => ({ ...g, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary"
+                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"
                             placeholder={`0–${maxPts}`}
                           />
                         </div>
@@ -164,7 +164,7 @@ export default function GradingQueuePage() {
                           <input
                             value={feedback[sub.id] ?? ''}
                             onChange={e => setFeedback(f => ({ ...f, [sub.id]: e.target.value }))}
-                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm focus:outline-none focus:border-primary"
+                            className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary"
                             placeholder="Brief feedback for the student…"
                           />
                         </div>
@@ -172,7 +172,7 @@ export default function GradingQueuePage() {
                       <button
                         onClick={() => overrideGrade(sub.id)}
                         disabled={!grade[sub.id] || saving === sub.id}
-                        className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white text-sm font-bold rounded-none transition-colors"
+                        className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-colors"
                       >
                         {saving === sub.id ? 'Saving…' : 'Save Grade'}
                       </button>

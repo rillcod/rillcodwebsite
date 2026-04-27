@@ -48,9 +48,9 @@ const programs = [
     icon: Code2,
     color: 'blue',
     features: ['HTML5 & CSS3', 'JavaScript ES6', 'Responsive Design', 'React Basics'],
-    gradient: 'from-blue-400 to-blue-600',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/20'
+    gradient: 'from-primary to-primary',
+    bg: 'bg-primary/10',
+    border: 'border-primary/20'
   },
   {
     id: 'python',
@@ -60,9 +60,9 @@ const programs = [
     icon: BrainCircuit,
     color: 'violet',
     features: ['Python Syntax', 'Data Analysis', 'Intro to AI', 'Backend Dev'],
-    gradient: 'from-violet-400 to-violet-600',
-    bg: 'bg-violet-500/10',
-    border: 'border-violet-500/20'
+    gradient: 'from-primary to-primary',
+    bg: 'bg-primary/10',
+    border: 'border-primary/20'
   },
   {
     id: 'robotics',
@@ -87,14 +87,14 @@ const ProgramExplorer: React.FC = () => {
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-full opacity-[0.02] pointer-events-none z-0">
         <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary blur-[120px] rounded-full" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-600 blur-[100px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-primary blur-[100px] rounded-full" />
       </div>
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="max-w-xl">
-             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card border border-border rounded-none">
+             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 bg-card border border-border rounded-xl">
                 <Layers className="w-3.5 h-3.5 text-primary" />
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Learning Tracks</span>
              </div>
@@ -109,7 +109,7 @@ const ProgramExplorer: React.FC = () => {
         </div>
 
         {/* Desktop Browser-style Container */}
-        <div className="bg-card border border-border rounded-none shadow-2xl overflow-hidden min-h-[500px] flex flex-col lg:flex-row">
+        <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden min-h-[500px] flex flex-col lg:flex-row">
           
           {/* LEFT: Sidebar Tabs */}
           <div className="w-full lg:w-[320px] bg-muted/30 border-r border-border p-6 lg:p-8 shrink-0">
@@ -173,8 +173,8 @@ const ProgramExplorer: React.FC = () => {
                     <div className={`w-20 h-20 ${activeProgram.bg} border ${activeProgram.border} flex items-center justify-center p-4 shadow-inner`}>
                       <activeProgram.icon className={`w-10 h-10 ${activeProgram.id === 'scratch' ? 'text-primary' : 
                         activeProgram.id === 'ict' ? 'text-emerald-500' :
-                        activeProgram.id === 'web' ? 'text-blue-500' :
-                        activeProgram.id === 'python' ? 'text-violet-500' : 'text-pink-500'}`} />
+                        activeProgram.id === 'web' ? 'text-primary' :
+                        activeProgram.id === 'python' ? 'text-primary' : 'text-pink-500'}`} />
                     </div>
                     <div>
                       <span className={`text-[10px] font-black uppercase tracking-[0.4em] px-3 py-1 bg-muted border border-border mb-2 inline-block`}>

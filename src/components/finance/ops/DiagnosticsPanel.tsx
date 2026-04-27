@@ -276,7 +276,7 @@ export function DiagnosticsPanel() {
       <section className="rounded-2xl border border-border bg-card/50 p-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 inline-flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary inline-flex items-center justify-center">
               <EnvelopeIcon className="w-5 h-5" />
             </div>
             <div>
@@ -290,7 +290,7 @@ export function DiagnosticsPanel() {
           <button
             onClick={sendTestEmail}
             disabled={loadingEmail}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
           >
             {loadingEmail ? (
               <ArrowPathIcon className="w-4 h-4 animate-spin" />

@@ -96,7 +96,7 @@ export default function BuilderSidebar({
                 onClick={() => onDeviceChange(device.id)}
                 className={`flex-1 flex flex-col items-center gap-1 p-2 border rounded-lg transition-all ${
                   previewDevice === device.id
-                    ? 'border-blue-500 bg-blue-500/10'
+                    ? 'border-primary bg-primary/10'
                     : 'border-border hover:border-muted-foreground'
                 }`}
               >
@@ -144,9 +144,9 @@ export default function BuilderSidebar({
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+          className="p-4 bg-primary/10 border border-primary/20 rounded-lg"
         >
-          <h4 className="text-xs font-bold text-blue-400 mb-2">💡 Pro Tips</h4>
+          <h4 className="text-xs font-bold text-primary mb-2">💡 Pro Tips</h4>
           <ul className="text-[10px] text-muted-foreground space-y-1">
             <li>• Use AI to generate cards quickly</li>
             <li>• Add images for visual learning</li>

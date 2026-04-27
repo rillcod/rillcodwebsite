@@ -30,7 +30,7 @@ export default function UserProfile() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted transition-colors"
       >
-        <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+        <div className="w-8 h-8 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
           {userInitials}
         </div>
         <div className="hidden md:block text-left">

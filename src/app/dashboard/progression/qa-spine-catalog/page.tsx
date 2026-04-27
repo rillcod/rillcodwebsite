@@ -51,7 +51,7 @@ export default function QaSpineCatalogPage() {
 
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -139,7 +139,7 @@ export default function QaSpineCatalogPage() {
                 </div>
                 <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-violet-500 rounded-full"
+                    className="h-full bg-primary rounded-full"
                     style={{ width: `${Math.min(100, (row.count / Math.max(...(data?.lane_counts ?? []).map(r => r.count), 1)) * 100)}%` }}
                   />
                 </div>
@@ -157,7 +157,7 @@ export default function QaSpineCatalogPage() {
           <div className="space-y-2">
             {(data?.versions ?? []).map(row => (
               <div key={row.catalog_version} className="flex items-center justify-between text-xs p-2 rounded-lg border border-border bg-background/50">
-                <span className={row.catalog_version === data?.active_catalog_version ? 'font-black text-violet-400' : 'text-muted-foreground'}>
+                <span className={row.catalog_version === data?.active_catalog_version ? 'font-black text-primary' : 'text-muted-foreground'}>
                   {row.catalog_version}
                   {row.catalog_version === data?.active_catalog_version && ' (active)'}
                 </span>

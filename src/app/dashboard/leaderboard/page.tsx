@@ -25,7 +25,7 @@ interface LeaderEntry {
 
 const LEVELS = [
   { min: 0, max: 99, label: 'Beginner', emoji: '🌱', color: 'text-green-400 bg-green-400/10' },
-  { min: 100, max: 299, label: 'Explorer', emoji: '🔍', color: 'text-blue-400 bg-blue-400/10' },
+  { min: 100, max: 299, label: 'Explorer', emoji: '🔍', color: 'text-primary bg-primary/10' },
   { min: 300, max: 599, label: 'Builder', emoji: '🔨', color: 'text-yellow-400 bg-yellow-400/10' },
   { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-primary bg-primary/10' },
   { min: 1000, max: 1999, label: 'Innovator', emoji: '🚀', color: 'text-primary bg-primary/10' },
@@ -160,7 +160,7 @@ export default function LeaderboardPage() {
 
       {/* My Card (if student) */}
       {profile?.role === 'student' && myEntry && (
-        <div className="bg-gradient-to-r from-primary/20 to-pink-600/20 border border-primary/30 rounded-none p-5 mb-6 flex items-center gap-4 flex-wrap">
+        <div className="bg-gradient-to-r from-primary/20 to-pink-600/20 border border-primary/30 rounded-xl p-5 mb-6 flex items-center gap-4 flex-wrap">
           <div className="text-3xl">{myEntry.badge}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -188,7 +188,7 @@ export default function LeaderboardPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-white' : 'bg-card shadow-sm border border-border text-muted-foreground hover:text-foreground'}`}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-white' : 'bg-card shadow-sm border border-border text-muted-foreground hover:text-foreground'}`}
               >
                 {f === 'all' ? '🌍 All Schools' : '🏫 My School'}
               </button>
@@ -200,7 +200,7 @@ export default function LeaderboardPage() {
           <select
             value={classFilter}
             onChange={e => setClassFilter(e.target.value)}
-            className="px-3 py-1.5 bg-card shadow-sm border border-border rounded-none text-xs font-bold text-muted-foreground focus:outline-none focus:border-[#7a0606]">
+            className="px-3 py-1.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold text-muted-foreground focus:outline-none focus:border-[#7a0606]">
             <option value="all">All Classes</option>
             {Array.from(new Set(entries.map(e => e.section_class).filter(Boolean))).sort().map(c => (
               <option key={c!} value={c!}>{c}</option>
@@ -235,7 +235,7 @@ export default function LeaderboardPage() {
       )}
 
       {/* Full list */}
-      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+      <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden">
         <div className="p-5 border-b border-border">
           <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">All Rankings · {filtered.length} students</p>
         </div>
@@ -303,7 +303,7 @@ export default function LeaderboardPage() {
       </div>
 
       {/* XP Guide */}
-      <div className="mt-6 bg-[#0d1526] border border-border rounded-none p-5">
+      <div className="mt-6 bg-[#0d1526] border border-border rounded-xl p-5">
         <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-4">How to Earn XP</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
@@ -314,7 +314,7 @@ export default function LeaderboardPage() {
             { icon: StarIcon, label: 'Get graded work', xp: '+2× grade' },
             { icon: TrophyIcon, label: 'Complete a course', xp: '+100 XP' },
           ].map(item => (
-            <div key={item.label} className="flex items-center gap-2 bg-white/3 rounded-none p-3">
+            <div key={item.label} className="flex items-center gap-2 bg-white/3 rounded-xl p-3">
               <item.icon className="w-4 h-4 text-primary flex-shrink-0" />
               <div>
                 <p className="text-foreground text-xs font-semibold leading-tight">{item.label}</p>

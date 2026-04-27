@@ -115,7 +115,7 @@ export default function StudioUI(p: StudioUIProps) {
             </button>
             {(lang === 'python' || lang === 'robotics') && (
               <button onClick={initPyodide} className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg border border-border text-[9px] font-black transition-all hover:bg-muted touch-manipulation">
-                {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-blue-400" /><span className="text-blue-400">Loading</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python</span></>}
+                {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python</span></>}
               </button>
             )}
             {isTeacher && (
@@ -156,7 +156,7 @@ export default function StudioUI(p: StudioUIProps) {
           <span className="flex items-center gap-1 px-2 py-0.5 bg-muted/20 border border-border rounded-full text-muted-foreground text-[8px] font-black shrink-0"><BoltIcon className="w-3 h-3" />{totalRuns} runs</span>
           {(lang === 'python' || lang === 'robotics') && (
             <button onClick={initPyodide} className="flex items-center gap-1 px-2 py-0.5 bg-muted/20 border border-border rounded-full text-[8px] font-black shrink-0 touch-manipulation">
-              {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-blue-400" /><span className="text-blue-400">Loading Python…</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python ready</span></>}
+              {isPyodideLoading ? <><ArrowPathIcon className="w-3 h-3 animate-spin text-primary" /><span className="text-primary">Loading Python…</span></> : <><div className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">Python ready</span></>}
             </button>
           )}
         </div>

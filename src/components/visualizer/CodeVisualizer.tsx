@@ -140,20 +140,20 @@ export default function CodeVisualizer({
 
   return (
     <Card className={cn(
-      "relative flex flex-col overflow-hidden bg-zinc-950 border-zinc-800 rounded-none shadow-2xl group/visualizer",
+      "relative flex flex-col overflow-hidden bg-zinc-950 border-zinc-800 rounded-xl shadow-2xl group/visualizer",
       className
     )}>
       {/* Premium Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800/50 z-20">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="w-8 h-8 rounded-none bg-zinc-800 flex items-center justify-center border border-white/10 shadow-lg group-hover/visualizer:border-cyan-500/50 transition-all duration-500">
+          <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center border border-white/10 shadow-lg group-hover/visualizer:border-cyan-500/50 transition-all duration-500">
             {getVisualIcon(visualizationType)}
           </div>
           <div>
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 leading-none mb-1">Drillcod Visual Engine</h3>
             <h2 className="text-xs font-black uppercase text-white tracking-widest leading-none drop-shadow-sm flex items-center gap-2">
               {getVisualTitle(visualizationType)}
-              <Badge variant="outline" className="rounded-none h-4 text-[8px] border-zinc-700 text-muted-foreground bg-transparent uppercase tracking-widest font-black">
+              <Badge variant="outline" className="rounded-xl h-4 text-[8px] border-zinc-700 text-muted-foreground bg-transparent uppercase tracking-widest font-black">
                 P5.v2
               </Badge>
             </h2>

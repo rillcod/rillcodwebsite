@@ -16,7 +16,7 @@ interface Ticket {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-blue-500/20 text-blue-400',
+  open: 'bg-primary/20 text-primary',
   in_progress: 'bg-amber-500/20 text-amber-400',
   resolved: 'bg-emerald-500/20 text-emerald-400',
   reopened: 'bg-primary/20 text-primary',
@@ -121,8 +121,8 @@ export default function SupportPage() {
               <p className="text-sm text-foreground">{selected.message}</p>
             </div>
             {selected.follow_up && (
-              <div className="bg-blue-500/10 rounded p-3">
-                <p className="text-xs text-blue-400 mb-1 font-semibold">Your follow-up</p>
+              <div className="bg-primary/10 rounded p-3">
+                <p className="text-xs text-primary mb-1 font-semibold">Your follow-up</p>
                 <p className="text-sm text-foreground">{selected.follow_up}</p>
               </div>
             )}

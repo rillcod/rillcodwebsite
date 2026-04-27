@@ -41,10 +41,10 @@ const Q_TYPES = ['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill
 
 function QuestionTypeTag({ type }: { type: string }) {
   const colors: Record<string, string> = {
-    multiple_choice: 'bg-blue-500/20 text-blue-400',
+    multiple_choice: 'bg-primary/20 text-primary',
     true_false: 'bg-emerald-500/20 text-emerald-400',
     short_answer: 'bg-amber-500/20 text-amber-400',
-    essay: 'bg-violet-500/20 text-violet-400',
+    essay: 'bg-primary/20 text-primary',
     fill_in_blank: 'bg-primary/20 text-primary',
     matching: 'bg-pink-500/20 text-pink-400',
   };
@@ -151,7 +151,7 @@ export default function ExamDetailPage() {
   }
 
   if (authLoading || loading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   if (!exam) return <div className="p-6 text-center text-card-foreground/50">Exam not found</div>;
@@ -293,7 +293,7 @@ ${questionRows}
           { label: 'Max Attempts', value: String(exam.max_attempts), icon: ArrowPathIcon },
         ].map(m => (
           <div key={m.label} className="bg-card border border-white/[0.08] rounded-xl p-3 text-center">
-            <m.icon className="w-4 h-4 text-blue-400 mx-auto mb-1.5" />
+            <m.icon className="w-4 h-4 text-primary mx-auto mb-1.5" />
             <p className="font-black text-card-foreground">{m.value}</p>
             <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider">{m.label}</p>
           </div>
@@ -303,7 +303,7 @@ ${questionRows}
       {/* Questions Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black text-card-foreground flex items-center gap-2">
-          <DocumentTextIcon className="w-5 h-5 text-blue-400" />
+          <DocumentTextIcon className="w-5 h-5 text-primary" />
           Questions ({questions.length})
         </h2>
         <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ ${questionRows}
           )}
           {canManage && (
             <button onClick={() => openForm()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-blue-500/20">
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-primary/20">
               <PlusIcon className="w-4 h-4" /> Add Question
             </button>
           )}
@@ -327,14 +327,14 @@ ${questionRows}
         <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-white/[0.08] rounded-2xl">
           <DocumentTextIcon className="w-14 h-14 text-card-foreground/10" />
           <p className="text-card-foreground/40 font-semibold">No questions yet</p>
-          {canManage && <button onClick={() => openForm()} className="text-blue-400 text-sm font-bold hover:underline">Add the first question</button>}
+          {canManage && <button onClick={() => openForm()} className="text-primary text-sm font-bold hover:underline">Add the first question</button>}
         </div>
       ) : (
         <div className="space-y-3">
           {questions.map((q, idx) => (
-            <div key={q.id} className="bg-card border border-white/[0.08] rounded-2xl p-4 hover:border-blue-500/20 transition-all group">
+            <div key={q.id} className="bg-card border border-white/[0.08] rounded-2xl p-4 hover:border-primary/20 transition-all group">
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-xs font-black text-blue-400 flex-shrink-0 mt-0.5">
+                <div className="w-7 h-7 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-center text-xs font-black text-primary flex-shrink-0 mt-0.5">
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -386,7 +386,7 @@ ${questionRows}
                 <div className="flex flex-wrap gap-2">
                   {Q_TYPES.map(t => (
                     <button key={t} onClick={() => setQForm(f => ({ ...f, question_type: t }))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${qForm.question_type === t ? 'bg-blue-500 text-white' : 'bg-white/5 text-card-foreground/60 hover:bg-white/10'}`}>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${qForm.question_type === t ? 'bg-primary text-white' : 'bg-white/5 text-card-foreground/60 hover:bg-white/10'}`}>
                       {t.replace(/_/g, ' ')}
                     </button>
                   ))}
@@ -398,14 +398,14 @@ ${questionRows}
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Question Text</label>
                 <textarea value={qForm.question_text} onChange={e => setQForm(f => ({ ...f, question_text: e.target.value }))} rows={3}
                   placeholder="Enter your question here…"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50 resize-none" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 resize-none" />
               </div>
 
               {/* Points */}
               <div>
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Points</label>
                 <input type="number" min={1} value={qForm.points} onChange={e => setQForm(f => ({ ...f, points: Number(e.target.value) }))}
-                  className="w-28 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50" />
+                  className="w-28 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
               </div>
 
               {/* Options for MCQ / T-F */}
@@ -415,7 +415,7 @@ ${questionRows}
                     <label className="text-xs font-bold text-card-foreground/50 uppercase">Answer Options</label>
                     {qForm.question_type === 'multiple_choice' && (
                       <button onClick={() => { setOptionCount(n => n + 1); setQForm(f => ({ ...f, options: [...f.options, ''] })); }}
-                        className="text-xs text-blue-400 font-bold hover:underline">+ Add option</button>
+                        className="text-xs text-primary font-bold hover:underline">+ Add option</button>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -434,7 +434,7 @@ ${questionRows}
                             onChange={() => setQForm(f => ({ ...f, correct_answer: String(i) }))} />
                           <input value={opt} onChange={e => setQForm(f => ({ ...f, options: f.options.map((o, oi) => oi === i ? e.target.value : o) }))}
                             placeholder={`Option ${i + 1}`}
-                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50" />
+                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
                         </div>
                       ))
                     )}
@@ -449,7 +449,7 @@ ${questionRows}
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Expected Answer</label>
                   <input value={qForm.correct_answer} onChange={e => setQForm(f => ({ ...f, correct_answer: e.target.value }))}
                     placeholder="Enter the expected answer…"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
                 </div>
               )}
 
@@ -458,13 +458,13 @@ ${questionRows}
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Explanation (optional)</label>
                 <input value={qForm.explanation} onChange={e => setQForm(f => ({ ...f, explanation: e.target.value }))}
                   placeholder="Explain the correct answer…"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-white/[0.08]">
               <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all">Cancel</button>
               <button onClick={saveQuestion} disabled={submitting || !qForm.question_text.trim()}
-                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all">
                 {submitting ? 'Saving…' : editQ ? 'Update' : 'Add Question'}
               </button>
             </div>

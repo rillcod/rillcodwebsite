@@ -97,7 +97,7 @@ export default function ParentPathProgressPage() {
             </div>
           </div>
           <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-violet-500" style={{ width: `${Math.max(2, p.completion_pct)}%` }} />
+            <div className="h-full bg-primary" style={{ width: `${Math.max(2, p.completion_pct)}%` }} />
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             Last taught topic: <span className="text-foreground">{p.last_topic ?? 'No topic recorded yet'}</span>

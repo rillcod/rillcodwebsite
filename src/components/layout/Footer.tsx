@@ -74,7 +74,7 @@ const Footer = () => {
 
   return (
     <footer className="bg-background text-foreground border-t border-border py-24 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/5 blur-[100px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -125,7 +125,7 @@ const Footer = () => {
               {quickLinks.map((link) => (
                 <li key={link.label}>
                   <Link href={link.href} className="text-xs font-black text-muted-foreground/70 hover:text-primary transition-colors uppercase tracking-widest flex items-center gap-3 group">
-                    <span className="w-1.5 h-1.5 bg-primary rounded-none opacity-0 group-hover:opacity-100 transition-all" />
+                    <span className="w-1.5 h-1.5 bg-primary rounded-xl opacity-0 group-hover:opacity-100 transition-all" />
                     {link.label}
                   </Link>
                 </li>
@@ -140,7 +140,7 @@ const Footer = () => {
               {programs.map((p) => (
                 <li key={p.label}>
                   <Link href={p.href} className="text-xs font-black text-muted-foreground/70 hover:text-primary transition-colors uppercase tracking-widest flex items-center gap-3 group">
-                    <span className="w-1.5 h-1.5 bg-primary rounded-none opacity-0 group-hover:opacity-100 transition-all" />
+                    <span className="w-1.5 h-1.5 bg-primary rounded-xl opacity-0 group-hover:opacity-100 transition-all" />
                     {p.label}
                   </Link>
                 </li>
@@ -154,7 +154,7 @@ const Footer = () => {
             <p className="text-xs font-bold text-muted-foreground italic mb-8">
               Stay synchronized with our latest technological deployment and curriculum updates.
             </p>
-            <Link href="/student-registration" className="block w-full py-5 bg-primary text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-primary/20 hover:bg-primary transition-all">
+            <Link href="/student-registration" className="block w-full py-5 bg-primary text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-xl shadow-xl shadow-primary/20 hover:bg-primary transition-all">
               Initialize Enrollment
             </Link>
           </div>

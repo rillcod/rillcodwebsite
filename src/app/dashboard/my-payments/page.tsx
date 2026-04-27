@@ -48,7 +48,7 @@ interface BankAccount {
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
   paid:      { label: 'Paid',      cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', icon: CheckCircleIcon },
-  sent:      { label: 'Due',       cls: 'bg-blue-500/10 border-blue-500/30 text-blue-400',          icon: ClockIcon },
+  sent:      { label: 'Due',       cls: 'bg-primary/10 border-primary/30 text-primary',          icon: ClockIcon },
   overdue:   { label: 'Overdue',   cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400',          icon: ExclamationTriangleIcon },
   draft:     { label: 'Pending',   cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400',       icon: ClockIcon },
   cancelled: { label: 'Cancelled', cls: 'bg-muted border-border text-muted-foreground',             icon: ClockIcon },
@@ -211,7 +211,7 @@ export default function MyPaymentsPage() {
         </div>
         <div className="bg-card border border-white/[0.08] rounded-xl p-4 col-span-2 sm:col-span-1">
           <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider mb-1">Transactions</p>
-          <p className="text-xl font-black text-blue-400">{transactions.length}</p>
+          <p className="text-xl font-black text-primary">{transactions.length}</p>
           <p className="text-xs text-card-foreground/30 mt-0.5">payment records</p>
         </div>
       </div>
@@ -367,8 +367,8 @@ export default function MyPaymentsPage() {
               {/* Bank transfer */}
               <div className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                    <BanknotesIcon className="w-4 h-4 text-blue-400" />
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <BanknotesIcon className="w-4 h-4 text-primary" />
                   </div>
                   <h3 className="font-black text-card-foreground">Bank Transfer</h3>
                 </div>
@@ -410,8 +410,8 @@ export default function MyPaymentsPage() {
               </div>
 
               {/* Support */}
-              <div className="flex items-start gap-3 bg-blue-500/[0.07] border border-blue-500/20 rounded-xl p-4">
-                <InformationCircleIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4">
+                <InformationCircleIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <p className="font-bold text-blue-300">Need help?</p>
                   <p className="text-blue-300/70 mt-0.5">

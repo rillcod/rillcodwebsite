@@ -53,7 +53,7 @@ const CATEGORIES = ['All', 'Coding', 'Robotics', 'Web Design', 'AI/ML', 'IoT', '
 const CAT_COLORS: Record<string, string> = {
   Coding: 'bg-primary/20 text-primary',
   Robotics: 'bg-primary/20 text-primary',
-  'Web Design': 'bg-blue-500/20 text-blue-400',
+  'Web Design': 'bg-primary/20 text-primary',
   'AI/ML': 'bg-emerald-500/20 text-emerald-400',
   IoT: 'bg-yellow-500/20 text-yellow-400',
   'Game Dev': 'bg-pink-500/20 text-pink-400',
@@ -201,9 +201,9 @@ function AutoTransferSection({ userId, onTransfer }: { userId: string; onTransfe
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 ${
-                    work.type === 'assignment' ? 'bg-blue-500/10 text-blue-400' :
+                    work.type === 'assignment' ? 'bg-primary/10 text-primary' :
                     work.type === 'lesson' ? 'bg-emerald-500/10 text-emerald-400' :
-                    'bg-violet-500/10 text-violet-400'
+                    'bg-primary/10 text-primary'
                   }`}>
                     {work.type}
                   </span>
@@ -335,7 +335,7 @@ function DrawingCanvas() {
             <span className="text-[9px] font-black text-muted-foreground uppercase mr-1">Brush</span>
             {BRUSHES.map(b => (
               <button key={b} onClick={() => setBrush(b)}
-                className={`rounded-none transition-all ${brush === b ? 'bg-primary scale-110' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
+                className={`rounded-xl transition-all ${brush === b ? 'bg-primary scale-110' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
                 style={{ width: 8 + (b / 4), height: 8 + (b / 4) }} />
             ))}
           </div>
@@ -411,10 +411,10 @@ function ImageUpload({ value, onChange, userId }: {
     <div className="space-y-2">
       <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Project Image</label>
       {value && (
-        <div className="relative w-full h-32 rounded-none overflow-hidden border border-border bg-card shadow-sm">
+        <div className="relative w-full h-32 rounded-xl overflow-hidden border border-border bg-card shadow-sm">
           <img src={value} alt="preview" className="w-full h-full object-cover" />
           <button onClick={() => onChange('')}
-            className="absolute top-2 right-2 p-1 bg-black/60 rounded-none text-muted-foreground hover:text-foreground">
+            className="absolute top-2 right-2 p-1 bg-black/60 rounded-xl text-muted-foreground hover:text-foreground">
             <XMarkIcon className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -425,13 +425,13 @@ function ImageUpload({ value, onChange, userId }: {
           placeholder="Paste image URL…"
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 bg-card shadow-sm border border-border text-foreground px-3 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-xs"
+          className="flex-1 bg-card shadow-sm border border-border text-foreground px-3 py-2 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-xs"
         />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground hover:text-foreground rounded-none text-xs font-bold transition-colors disabled:opacity-40"
+          className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground hover:text-foreground rounded-xl text-xs font-bold transition-colors disabled:opacity-40"
         >
           <PhotoIcon className="w-3.5 h-3.5" />
           {uploading ? 'Uploading…' : 'Upload'}
@@ -480,7 +480,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1526] border border-border rounded-none w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="bg-[#0d1526] border border-border rounded-xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-foreground font-black">{editing ? 'Edit Project' : 'Add Project'}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -494,7 +494,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="e.g. Line-following Robot"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -505,7 +505,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={3}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm resize-none"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm resize-none"
             />
           </div>
 
@@ -514,7 +514,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
             <select
               value={form.category}
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-primary text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl focus:outline-none focus:border-primary text-sm"
             >
               {CATEGORIES.slice(1).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -526,7 +526,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="python, arduino, sensor"
               value={form.tags}
               onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -536,7 +536,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="https://github.com/… or demo link"
               value={form.project_url}
               onChange={e => setForm(f => ({ ...f, project_url: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -546,7 +546,7 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
               placeholder="https://github.com/username/repo"
               value={form.github_url}
               onChange={e => setForm(f => ({ ...f, github_url: e.target.value }))}
-              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary text-sm"
             />
           </div>
 
@@ -557,14 +557,14 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
           <button
             onClick={onClose}
             disabled={saving}
-            className="flex-1 py-2.5 bg-card shadow-sm text-muted-foreground font-bold rounded-none hover:bg-muted transition-colors text-sm disabled:opacity-40"
+            className="flex-1 py-2.5 bg-card shadow-sm text-muted-foreground font-bold rounded-xl hover:bg-muted transition-colors text-sm disabled:opacity-40"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!form.title.trim() || saving}
-            className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground font-bold rounded-none transition-colors text-sm"
+            className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground font-bold rounded-xl transition-colors text-sm"
           >
             {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Project'}
           </button>
@@ -668,7 +668,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
               </a>
             )}
             {project.github_url && (
-              <a href={project.github_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-blue-400 transition-colors">
+              <a href={project.github_url} target="_blank" rel="noopener noreferrer" className="p-1 text-muted-foreground hover:text-primary transition-colors">
                 <CodeBracketIcon className="w-4 h-4" />
               </a>
             )}
@@ -987,19 +987,19 @@ export default function PortfolioPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {saveError && (
-              <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-none">
+              <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {saveError}
               </span>
             )}
             {!saveError && tab === 'projects' && (
-              <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-none">
+              <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
                 <CloudArrowUpIcon className="w-3.5 h-3.5" /> Synced
               </span>
             )}
             {tab === 'projects' && (
               <button
                 onClick={() => { setEditing(null); setShowForm(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors shadow-lg shadow-orange-900/30"
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors shadow-lg shadow-orange-900/30"
               >
                 <PlusIcon className="w-4 h-4" /> Add Project
               </button>
@@ -1030,21 +1030,21 @@ export default function PortfolioPage() {
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border pb-4 flex-wrap">
           <button type="button" onClick={() => setTab('projects')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'projects' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-transparent ${tab === 'projects' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
             <CodeBracketIcon className="w-4 h-4" /> My Projects
           </button>
           {isStaff && (
             <button type="button" onClick={() => setTab('browse')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'browse' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-transparent ${tab === 'browse' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
               <UserGroupIcon className="w-4 h-4" /> Student Portfolios
             </button>
           )}
           <button type="button" onClick={() => setTab('canvas')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all border border-transparent ${tab === 'canvas' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border border-transparent ${tab === 'canvas' ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60 border-border'}`}>
             <PaintBrushIcon className="w-4 h-4" /> Canvas
           </button>
           <Link href="/dashboard/playground"
-            className="flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
             <CodeBracketIcon className="w-4 h-4" /> Code Playground →
           </Link>
         </div>
@@ -1114,7 +1114,7 @@ export default function PortfolioPage() {
             <div className="flex gap-2 flex-wrap">
               {CATEGORIES.map(c => (
                 <button type="button" key={c} onClick={() => setCatFilter(c)}
-                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all border border-transparent ${catFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'}`}>
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all border border-transparent ${catFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'}`}>
                   {c} {c !== 'All' && projects.filter(p => p.category === c).length > 0 && (
                     <span className="ml-1 opacity-60">{projects.filter(p => p.category === c).length}</span>
                   )}
@@ -1137,7 +1137,7 @@ export default function PortfolioPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-xl">
                 <RocketLaunchIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                 {projects.length === 0 ? (
                   <>
@@ -1147,7 +1147,7 @@ export default function PortfolioPage() {
                       Every great coder started with project #1 🚀
                     </p>
                     <button onClick={() => { setEditing(null); setShowForm(true); }}
-                      className="px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-none transition-colors">
+                      className="px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-colors">
                       Add My First Project
                     </button>
                   </>
@@ -1169,7 +1169,7 @@ export default function PortfolioPage() {
                   { emoji: '📊', title: 'Data Dashboard', desc: 'Visualize data with charts' },
                 ].map(idea => (
                   <div key={idea.title}
-                    className="bg-muted/30 border border-border rounded-none p-4 cursor-pointer hover:border-primary/30 hover:bg-primary/10 transition-all"
+                    className="bg-muted/30 border border-border rounded-xl p-4 cursor-pointer hover:border-primary/30 hover:bg-primary/10 transition-all"
                     onClick={() => { setEditing(null); setShowForm(true); }}>
                     <div className="text-2xl mb-2">{idea.emoji}</div>
                     <p className="text-foreground text-xs font-bold">{idea.title}</p>

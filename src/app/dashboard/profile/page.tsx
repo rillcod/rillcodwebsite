@@ -135,7 +135,7 @@ export default function ProfilePage() {
     admin: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
     teacher: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     student: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-    school: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    school: 'text-primary bg-primary/10 border-primary/20',
   };
 
   const statCards: { label: string; value: number; icon: any; color: string }[] = [];
@@ -172,10 +172,10 @@ export default function ProfilePage() {
 
         {/* Header card */}
         <div className="relative overflow-hidden group">
-            <div className="bg-card border border-border rounded-none p-8 md:p-12 flex flex-col md:flex-row items-center md:items-start gap-10 shadow-2xl">
+            <div className="bg-card border border-border rounded-xl p-8 md:p-12 flex flex-col md:flex-row items-center md:items-start gap-10 shadow-2xl">
               {/* Avatar Section */}
               <div className="relative shrink-0">
-                <div className={`w-32 h-32 md:w-44 md:h-44 ${profile.role === 'teacher' ? 'bg-teal-600' : 'bg-indigo-600'} border-4 border-border rounded-none overflow-hidden flex items-center justify-center text-5xl md:text-7xl font-black text-foreground uppercase shadow-2xl`}>
+                <div className={`w-32 h-32 md:w-44 md:h-44 ${profile.role === 'teacher' ? 'bg-teal-600' : 'bg-indigo-600'} border-4 border-border rounded-xl overflow-hidden flex items-center justify-center text-5xl md:text-7xl font-black text-foreground uppercase shadow-2xl`}>
                     {avatarUrl
                       ? <Image src={avatarUrl} alt={profile.full_name ?? 'Avatar'} fill className="object-cover" unoptimized />
                       : (profile.full_name?.charAt(0) ?? 'U')
@@ -185,7 +185,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="absolute -bottom-2 -left-2 bg-background border border-border p-3 rounded-none shadow-xl hover:bg-muted transition-colors disabled:opacity-50"
+                  className="absolute -bottom-2 -left-2 bg-background border border-border p-3 rounded-xl shadow-xl hover:bg-muted transition-colors disabled:opacity-50"
                   title="Change profile photo"
                 >
                   {uploadingAvatar
@@ -194,7 +194,7 @@ export default function ProfilePage() {
                   }
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
-                <div className="absolute -bottom-2 -right-2 bg-background border border-border p-3 rounded-none shadow-xl">
+                <div className="absolute -bottom-2 -right-2 bg-background border border-border p-3 rounded-xl shadow-xl">
                     <ShieldCheckIcon className={`w-6 h-6 ${profile.role === 'teacher' ? 'text-teal-400' : 'text-indigo-400'}`} />
                 </div>
                 {avatarError && (
@@ -208,7 +208,7 @@ export default function ProfilePage() {
                       <input
                         value={form.full_name}
                         onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                        className="text-3xl md:text-5xl font-black bg-card shadow-sm border border-border rounded-none px-6 py-2 text-foreground outline-none focus:border-indigo-500 w-full"
+                        className="text-3xl md:text-5xl font-black bg-card shadow-sm border border-border rounded-xl px-6 py-2 text-foreground outline-none focus:border-indigo-500 w-full"
                         autoFocus
                       />
                     ) : (
@@ -234,23 +234,23 @@ export default function ProfilePage() {
                         value={form.bio}
                         onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                         placeholder="Write a short bio about yourself..."
-                        className="w-full bg-card shadow-sm border border-border rounded-none p-6 text-foreground outline-none focus:border-indigo-500 resize-none text-lg"
+                        className="w-full bg-card shadow-sm border border-border rounded-xl p-6 text-foreground outline-none focus:border-indigo-500 resize-none text-lg"
                     />
                 )}
 
                 <div className="flex items-center justify-center md:justify-start gap-4 pt-4">
                     {editing ? (
                       <>
-                        <button onClick={() => setEditing(false)} className="px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors bg-card shadow-sm rounded-none">
+                        <button onClick={() => setEditing(false)} className="px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors bg-card shadow-sm rounded-xl">
                           Cancel
                         </button>
-                        <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-10 py-3 text-xs font-black uppercase tracking-widest text-foreground ${profile.role === 'teacher' ? 'bg-teal-600 hover:bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-500'} rounded-none transition-all shadow-xl disabled:opacity-50`}>
+                        <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-10 py-3 text-xs font-black uppercase tracking-widest text-foreground ${profile.role === 'teacher' ? 'bg-teal-600 hover:bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-500'} rounded-xl transition-all shadow-xl disabled:opacity-50`}>
                           {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                           Save Changes
                         </button>
                       </>
                     ) : (
-                      <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all">
+                      <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-8 py-3 text-xs font-black uppercase tracking-widest text-muted-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-all">
                         <PencilSquareIcon className="w-4 h-4" /> Edit Profile
                       </button>
                     )}
@@ -262,9 +262,9 @@ export default function ProfilePage() {
         {/* Stats Grid */}
         <div className={`grid grid-cols-2 gap-6 ${statCards.length >= 4 ? 'lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
           {statCards.map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-8 flex flex-col items-center justify-center text-center group hover:bg-white/[0.08] transition-all relative overflow-hidden">
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-8 flex flex-col items-center justify-center text-center group hover:bg-white/[0.08] transition-all relative overflow-hidden">
               <div className={`absolute -right-4 -top-4 w-24 h-24 ${s.color.replace('text-', 'bg-')}/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700`} />
-              <div className={`w-14 h-14 rounded-none ${s.color.replace('text-', 'bg-')}/10 flex items-center justify-center ${s.color} mb-6 border border-current/10`}>
+              <div className={`w-14 h-14 rounded-xl ${s.color.replace('text-', 'bg-')}/10 flex items-center justify-center ${s.color} mb-6 border border-current/10`}>
                 <s.icon className="w-7 h-7" />
               </div>
               <span className="text-4xl font-black tracking-tighter text-foreground">{s.value}{s.label === 'Avg Score' ? '%' : ''}</span>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
             {/* Main Info Column */}
             <div className="lg:col-span-2 space-y-8">
                 {/* Detailed Sections */}
-                <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                     <div className="px-8 py-5 bg-white/[0.02] border-b border-border flex items-center justify-between">
                         <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Contact Information</h2>
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
@@ -297,7 +297,7 @@ export default function ProfilePage() {
                                     value={form.phone}
                                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                                     placeholder="e.g. +234 800 000 0000"
-                                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2 text-foreground outline-none focus:border-indigo-500"
+                                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2 text-foreground outline-none focus:border-indigo-500"
                                 />
                             ) : (
                                 <div className="flex items-center gap-4 text-xl font-bold group">
@@ -315,8 +315,8 @@ export default function ProfilePage() {
                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] px-4">Affiliated Institutions</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {schools.map((s: any, i: number) => (
-                          <div key={i} className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-none p-6 hover:bg-teal-500/5 hover:border-teal-500/30 transition-all group">
-                            <div className="w-14 h-14 rounded-none bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
+                          <div key={i} className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-xl p-6 hover:bg-teal-500/5 hover:border-teal-500/30 transition-all group">
+                            <div className="w-14 h-14 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
                                 <BuildingOfficeIcon className="w-6 h-6" />
                             </div>
                             <div className="min-w-0">
@@ -334,7 +334,7 @@ export default function ProfilePage() {
                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] px-4">My Courses</h3>
                     <div className="flex flex-wrap gap-3">
                       {programmes.map((name, i) => (
-                        <div key={i} className="px-5 py-2.5 rounded-none bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-sm flex items-center gap-2">
+                        <div key={i} className="px-5 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-sm flex items-center gap-2">
                           <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
                           {name}
                         </div>
@@ -346,26 +346,26 @@ export default function ProfilePage() {
 
             {/* Sidebar Column */}
             <div className="space-y-6">
-                <div className="bg-card border border-border rounded-none p-8 space-y-6 relative overflow-hidden">
+                <div className="bg-card border border-border rounded-xl p-8 space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/50" />
                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Quick Access</h3>
                     <div className="grid grid-cols-1 gap-2">
-                        <Link href="/dashboard" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
+                        <Link href="/dashboard" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-xl font-bold text-sm hover:bg-muted transition-all group">
                             <span>Dashboard</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                         </Link>
-                        <Link href="/dashboard/settings" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
+                        <Link href="/dashboard/settings" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-xl font-bold text-sm hover:bg-muted transition-all group">
                             <span>Settings</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                         </Link>
                         {(profile.role === 'teacher' || profile.role === 'admin') && (
-                          <Link href="/dashboard/students" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
+                          <Link href="/dashboard/students" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-xl font-bold text-sm hover:bg-muted transition-all group">
                             <span>My Students</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                           </Link>
                         )}
                         {profile.role === 'student' && (
-                          <Link href="/dashboard/courses" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
+                          <Link href="/dashboard/courses" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-xl font-bold text-sm hover:bg-muted transition-all group">
                             <span>My Courses</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                           </Link>
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                 </div>
 
                 {profile.role === 'student' ? (
-                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-none space-y-3">
+                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-xl space-y-3">
                     <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
                     <h4 className="font-black text-foreground">Keep Going</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -385,7 +385,7 @@ export default function ProfilePage() {
                     </Link>
                   </div>
                 ) : (
-                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-none space-y-3">
+                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-xl space-y-3">
                     <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
                     <h4 className="font-black text-foreground">Learning Center</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
