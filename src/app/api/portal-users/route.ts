@@ -120,7 +120,34 @@ export async function PATCH(request: NextRequest) {
     // Whitelist allowed fields — never let callers set arbitrary columns
     const admin = adminClient();
     const allowed: Record<string, unknown> = {};
-    if ('class_id' in update) allowed.class_id = update.class_id ?? null;
+
+    if ('class_id' in update) {
+      const classId = update.class_id as string | null;
+      allowed.class_id = classId;
+
+      // ── School boundary guard for class assignment ─────────────────────
+      if (classId) {
+        const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', classId).single();
+        if (cls?.school_id) {
+          // Sync section_class name
+          allowed.section_class = cls.name;
+
+          // Verify students belong to this school (strict guard)
+          const { data: students } = await admin.from('portal_users').select('id, full_name, school_id').in('id', ids);
+          const mismatches = (students ?? []).filter(s => s.school_id && s.school_id !== cls.school_id);
+
+          if (mismatches.length > 0) {
+            return NextResponse.json({
+              error: `School boundary violation: ${mismatches.length} student(s) belong to a different school than class "${cls.name}".`,
+              mismatches: mismatches.map(m => m.full_name)
+            }, { status: 403 });
+          }
+        }
+      } else {
+        allowed.section_class = null;
+      }
+    }
+
     if ('school_id' in update) {
       allowed.school_id = update.school_id ?? null;
       // Sync school_name so the column stays accurate after refresh

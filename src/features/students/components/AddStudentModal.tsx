@@ -109,8 +109,10 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const [requiresVerification, setRequiresVerification] = useState<{ message: string } | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent, force: boolean = false) => {
+        if (e) e.preventDefault();
         if (!form.full_name.trim() || !form.student_email.trim()) {
             setError('Full name and student email are required.');
             return;
@@ -121,6 +123,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
         }
         setLoading(true);
         setError('');
+        if (!force) setRequiresVerification(null);
+
         try {
             if (initialData) {
                 const schoolId = profile?.role === 'school'
@@ -147,13 +151,21 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     body: JSON.stringify({
                         ...form,
                         name: form.full_name,
-                        enrollment_type: 'in_person',
+                        enrollment_type: 'school',
                         status: 'pending',
                         school_id: schoolId || null,
                         created_by: profile?.id,
+                        force: force,
                     }),
                 });
                 const json = await res.json();
+                
+                if (res.status === 409 && json.requiresVerification) {
+                    setRequiresVerification({ message: json.message });
+                    setLoading(false);
+                    return;
+                }
+
                 if (!res.ok) throw new Error(json.error || 'Failed to add student');
 
                 if (json.student?.id) {
@@ -385,6 +397,34 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 border-l-4 border-l-rose-500 px-4 py-3 rounded-none">
                             <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
                             <p className="text-xs text-rose-400">{error}</p>
+                        </div>
+                    )}
+
+                    {requiresVerification && (
+                        <div className="bg-amber-500/10 border border-amber-500/20 border-l-4 border-l-amber-500 px-4 py-4 rounded-none space-y-3">
+                            <div className="flex items-start gap-3">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-amber-200">Duplicate Name Detected</p>
+                                    <p className="text-[11px] text-amber-200/80 leading-relaxed">{requiresVerification.message}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pl-8">
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleSubmit(e, true)}
+                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider transition-all"
+                                >
+                                    Proceed Anyway
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setRequiresVerification(null)}
+                                    className="px-3 py-1.5 bg-muted text-muted-foreground hover:text-foreground text-[10px] font-bold uppercase tracking-wider transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     )}
 

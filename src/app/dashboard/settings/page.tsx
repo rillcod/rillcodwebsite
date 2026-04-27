@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BuildingOfficeIcon, MapPinIcon, StarIcon, CpuChipIcon,
   DocumentTextIcon, ExclamationCircleIcon, TableCellsIcon,
+  CommandLineIcon, XMarkIcon,
 } from '@/lib/icons';
 
 const BASE_TABS = [
@@ -42,6 +43,7 @@ export default function SettingsPage() {
           { id: 'lms-config',  label: 'LMS Config',  icon: CogIcon },
           { id: 'moderation',  label: 'Moderation',  icon: ExclamationCircleIcon },
           { id: 'audit-log',   label: 'Audit Log',   icon: TableCellsIcon },
+          { id: 'repair',      label: 'Database Repair', icon: CommandLineIcon },
         ]
       : BASE_TABS;
 
@@ -64,6 +66,11 @@ export default function SettingsPage() {
   // ── Audit Log state (admin only) ─────────────────────────────
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+
+  // ── Repair Tools state (admin only) ──────────────────────────
+  const [mismatches, setMismatches] = useState<any[]>([]);
+  const [repairLoading, setRepairLoading] = useState(false);
+  const [repairing, setRepairing] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== 'admin' || (tab !== 'ai-config' && tab !== 'lms-config')) return;
@@ -108,6 +115,47 @@ export default function SettingsPage() {
       setAuditLoading(false);
     })();
   }, [profile?.role, tab]);
+
+  useEffect(() => {
+    if (profile?.role !== 'admin' || tab !== 'repair') return;
+    loadMismatches();
+  }, [profile?.role, tab]);
+
+  const loadMismatches = async () => {
+    setRepairLoading(true);
+    try {
+      const r = await fetch('/api/admin/fix-school-mismatch');
+      const d = await r.json();
+      setMismatches(d.mismatches ?? []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRepairLoading(false);
+    }
+  };
+
+  const runRepair = async (action: 'align_student' | 'unenroll', studentIds: string[]) => {
+    if (!confirm(`Are you sure you want to apply "${action}" to ${studentIds.length} records?`)) return;
+    setRepairing(true);
+    try {
+      const res = await fetch('/api/admin/fix-school-mismatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, studentIds }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        showToast(`Successfully repaired ${d.applied} records`);
+        loadMismatches();
+      } else {
+        throw new Error(d.error || 'Repair failed');
+      }
+    } catch (e: any) {
+      showToast(e.message, false);
+    } finally {
+      setRepairing(false);
+    }
+  };
 
   const saveAiSettings = async () => {
     setAiSaving(true);
@@ -1130,6 +1178,113 @@ export default function SettingsPage() {
                     className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-500/10 hover:bg-slate-500/20 border border-slate-500/20 text-slate-300 text-sm font-bold rounded-xl transition-all">
                     View Full Activity & Audit Log →
                   </a>
+                </div>
+              </div>
+            )}
+
+            {/* ── Repair Tools tab (admin only) ── */}
+            {tab === 'repair' && profile?.role === 'admin' && (
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-border flex items-center gap-2 bg-rose-500/5">
+                  <CommandLineIcon className="w-4 h-4 text-rose-400" />
+                  <div>
+                    <h2 className="font-bold text-foreground">Database Repair Tools</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Detect and fix school boundary violations and data inconsistencies.</p>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* School Mismatch Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">School-Class Mismatches</h3>
+                        <p className="text-xs text-muted-foreground">Students enrolled in classes belonging to a different school.</p>
+                      </div>
+                      <button onClick={loadMismatches} disabled={repairLoading} className="p-2 hover:bg-muted rounded-lg transition-colors">
+                        <ArrowPathIcon className={`w-4 h-4 ${repairLoading ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
+
+                    {repairLoading ? (
+                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
+                    ) : mismatches.length === 0 ? (
+                      <div className="py-8 text-center bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                        <CheckCircleIcon className="w-8 h-8 text-emerald-500/40 mx-auto mb-2" />
+                        <p className="text-sm font-bold text-emerald-400">Integrity Check Passed</p>
+                        <p className="text-xs text-emerald-500/60">No school boundary violations detected.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between">
+                          <p className="text-xs font-bold text-rose-400">Found {mismatches.length} students with incorrect school assignments.</p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => runRepair('align_student', mismatches.map(m => m.student_id))}
+                              disabled={repairing}
+                              className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50"
+                            >
+                              Align All to Class
+                            </button>
+                            <button 
+                              onClick={() => runRepair('unenroll', mismatches.map(m => m.student_id))}
+                              disabled={repairing}
+                              className="px-3 py-1.5 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-rose-500/20 transition-all disabled:opacity-50"
+                            >
+                              Unenroll All
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="max-h-[400px] overflow-y-auto border border-border rounded-xl divide-y divide-border">
+                          {mismatches.map((m: any) => (
+                            <div key={m.student_id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                              <div className="min-w-0 flex-1 mr-4">
+                                <p className="text-sm font-bold text-foreground truncate">{m.student_name}</p>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded uppercase font-bold whitespace-nowrap">
+                                    Current: {m.student_school_name || 'No School'}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">→</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded uppercase font-bold whitespace-nowrap">
+                                    Class: {m.class_name}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                <button 
+                                  onClick={() => runRepair('align_student', [m.student_id])}
+                                  className="p-1.5 hover:bg-primary/10 text-primary rounded-lg transition-colors" title="Align Student to School"
+                                >
+                                  <CheckIcon className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => runRepair('unenroll', [m.student_id])}
+                                  className="p-1.5 hover:bg-rose-500/10 text-rose-400 rounded-lg transition-colors" title="Unenroll Student"
+                                >
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                    <div className="flex gap-3">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">Safety Note</p>
+                        <p className="text-[11px] text-amber-600/80 leading-relaxed">
+                          Aligning a student will update their record to match the school of the class they are currently in. 
+                          Unenrolling will remove them from the class so they can be placed in a correct one. 
+                          These actions are permanent and affect reporting.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
