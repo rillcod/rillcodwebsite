@@ -161,11 +161,11 @@ export function PerformanceInsights() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-2xl mt-8">
+                        <div className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-primary/70/30 rounded-2xl mt-8">
                             <AlertCircle className="w-5 h-5 text-primary shrink-0" />
                             <div className="text-[11px] leading-snug">
-                                <p className="font-bold text-orange-800 dark:text-orange-200 uppercase tracking-tighter">Instructor Insight</p>
-                                <p className="text-orange-700 dark:text-primary font-medium mt-0.5">Focus on "Data Structures" module. Suggested review time: 45 minutes.</p>
+                                <p className="font-bold text-primary/80 dark:text-orange-200 uppercase tracking-tighter">Instructor Insight</p>
+                                <p className="text-primary/90 dark:text-primary font-medium mt-0.5">Focus on "Data Structures" module. Suggested review time: 45 minutes.</p>
                             </div>
                         </div>
                     </CardContent>

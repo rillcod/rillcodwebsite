@@ -920,7 +920,7 @@ function AddLessonPageContent() {
           type="button"
           onClick={handleSubmit}
           disabled={saving}
-          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-primary hover:bg-primary active:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-900/30 touch-manipulation"
+          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-primary hover:bg-primary active:bg-primary/80 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-primary/30 touch-manipulation"
         >
           {saving ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden /> Creating…</> : <><Save className="w-4 h-4" aria-hidden /> Create lesson</>}
         </button>

@@ -366,7 +366,7 @@ export default function MoneyHubPage() {
             amount={totals.pendingSum}
             count={totals.pendingCount}
             icon={Clock}
-            gradient="from-amber-500/20 to-orange-900/30 border-amber-500/30"
+            gradient="from-amber-500/20 to-primary/70/30 border-amber-500/30"
             accent="text-amber-300"
           />
           <SummaryTile

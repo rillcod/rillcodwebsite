@@ -170,7 +170,7 @@ export default function ProgramsPage() {
           </div>
           {isAdmin && (
             <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory' }); setShowForm(true); }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-primary/30">
               <PlusIcon className="w-4 h-4" /> New Program
             </button>
           )}
@@ -358,7 +358,7 @@ export default function ProgramsPage() {
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-muted-foreground hover:text-foreground font-bold transition-all">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-foreground font-black rounded-xl transition-all shadow-lg shadow-orange-900/40">
+                <button type="submit" disabled={saving} className="flex-1 py-3 bg-primary hover:bg-primary text-foreground font-black rounded-xl transition-all shadow-lg shadow-primary/40">
                   {saving ? 'Saving...' : editing ? 'Update Program' : 'Create Program'}
                 </button>
               </div>

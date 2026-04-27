@@ -342,7 +342,7 @@ export default function CoursesPage() {
           </div>
           {canEdit && (
             <Link href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/30">
               <PlusIcon className="w-4 h-4" /> Add Course
             </Link>
           )}

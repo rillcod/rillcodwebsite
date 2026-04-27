@@ -194,7 +194,7 @@ export function CertificateTemplates({
                     <div className="absolute inset-4 border border-primary/20" />
                     <div className="absolute top-4 left-4 p-2 bg-primary text-black text-[10px] font-black uppercase tracking-tighter">Verified_Link: //rillcod.io</div>
                     
-                    <div className="h-full border-r-[40px] border-orange-900/40 relative z-10 flex flex-col justify-between py-10 px-12">
+                    <div className="h-full border-r-[40px] border-primary/70/40 relative z-10 flex flex-col justify-between py-10 px-12">
                         <div className="flex justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
@@ -230,7 +230,7 @@ export function CertificateTemplates({
                                     <p className="text-white text-[12px] font-black uppercase tracking-tighter italic">Osahon J. | Tech_Director</p>
                                     <p className="text-[9px] text-primary opacity-40 uppercase tracking-widest font-mono">AUTH_SIG://{certCode}</p>
                                 </div>
-                                <div className="p-2 border border-primary/30 inline-block bg-orange-900/20">
+                                <div className="p-2 border border-primary/30 inline-block bg-primary/70/20">
                                     <p className="text-[10px] font-black uppercase">Timestamp: {issuedDate}</p>
                                 </div>
                             </div>
@@ -360,11 +360,11 @@ export function CertificateTemplates({
                         <div className="absolute -bottom-24 -left-12 w-56 h-56 bg-primary rounded-full blur-[60px] opacity-30 mix-blend-multiply" />
 
                         <div className="w-full flex justify-between items-start relative z-10">
-                            <div className="p-3 bg-gradient-to-br from-primary via-amber-500 to-orange-700 rounded-2xl shadow-xl transform -rotate-3 hover:rotate-0 transition-transform">
+                            <div className="p-3 bg-gradient-to-br from-primary via-amber-500 to-primary/90 rounded-2xl shadow-xl transform -rotate-3 hover:rotate-0 transition-transform">
                                 <img src="/images/logo.png" alt="Rillcod" className="h-8 w-auto invert brightness-200 drop-shadow-md" />
                             </div>
                             <div className="text-right">
-                                <h3 className="text-[20px] font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-800 italic leading-none mb-1">Creative Spark</h3>
+                                <h3 className="text-[20px] font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/80 italic leading-none mb-1">Creative Spark</h3>
                                 <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest pl-4 border-l-2 border-orange-200 inline-block">Igniting Ambition</p>
                             </div>
                         </div>
@@ -379,7 +379,7 @@ export function CertificateTemplates({
                             </h1>
                             <p className="text-[16px] text-muted-foreground max-w-xl mx-auto leading-relaxed border-t border-b border-orange-100 py-4">
                                 This momentous scroll verifies your extraordinary creativity and unstoppable drive in mastering the colorful realm of <br/>
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-700 font-black text-[26px] tracking-tight block mt-3 mb-1 italic leading-none">{courseTitle}</span>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/90 font-black text-[26px] tracking-tight block mt-3 mb-1 italic leading-none">{courseTitle}</span>
                                 <span className="text-[12px] text-primary font-bold uppercase tracking-widest">{programName}</span>
                             </p>
                         </div>
@@ -394,7 +394,7 @@ export function CertificateTemplates({
 
                             <div className="text-center space-y-3">
                                 <img src="/images/signature.png" alt="Sig" className="h-12 w-auto mx-auto opacity-80 mix-blend-multiply" />
-                                <div className="h-1.5 w-32 bg-gradient-to-r from-primary via-amber-400 to-orange-700 rounded-full mx-auto" />
+                                <div className="h-1.5 w-32 bg-gradient-to-r from-primary via-amber-400 to-primary/90 rounded-full mx-auto" />
                                 <div className="space-y-0.5">
                                     <p className="text-[12px] font-black text-foreground uppercase leading-none tracking-widest">Osahon J.</p>
                                     <p className="text-[9px] text-muted-foreground font-bold uppercase italic tracking-widest">Visionary Director</p>
@@ -402,7 +402,7 @@ export function CertificateTemplates({
                             </div>
 
                             <div className="text-right space-y-2">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-orange-700 flex items-center justify-center shadow-xl transform -rotate-12 mb-4 ml-auto">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/90 flex items-center justify-center shadow-xl transform -rotate-12 mb-4 ml-auto">
                                     <Trophy className="w-8 h-8 text-white drop-shadow-md" />
                                 </div>
                                 <p className="text-[16px] font-black text-foreground leading-none">{issuedDate}</p>

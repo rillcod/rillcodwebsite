@@ -1197,7 +1197,7 @@ function ReportBuilderInner() {
                 You do not have permission to create or edit progress reports.
                 Please visit the <Link href="/dashboard/results" className="text-primary font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
             </p>
-            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all shadow-lg shadow-orange-900/20">
+            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
                 <EyeIcon className="w-4 h-4" /> Go to Results Centre
             </Link>
         </div>
@@ -1824,7 +1824,7 @@ function ReportBuilderInner() {
                                 setClassFilter(sessionConfig.section_class); // pre-filter by selected class
                                 setStep('pick');
                             }}
-                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
+                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
                             <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
                         </button>
                     </div>
@@ -1854,7 +1854,7 @@ function ReportBuilderInner() {
                                     <button
                                         onClick={handleBulkBuild}
                                         disabled={isBulkBuilding}
-                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-orange-900/20 group"
+                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-primary/20 group"
                                     >
                                         {isBulkBuilding ? (
                                             <>
@@ -2441,21 +2441,21 @@ function ReportBuilderInner() {
                                     {publishing ? 'Publishing…' : 'Publish'}
                                 </button>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
                                     <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
                                 </button>
 
                                 <div className="ml-auto flex-shrink-0">
                                     {currentStudentIdx < filteredStudents.length - 1 ? (
                                         <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
                                             <span className="hidden sm:inline">Next Student</span>
                                             <span className="sm:hidden">Next</span>
                                             <ChevronRightIcon className="w-4 h-4" />
                                         </button>
                                     ) : (
                                         <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
                                             <span className="hidden sm:inline">Finish All</span>
                                             <span className="sm:hidden">Done</span>
                                             <CheckCircleIcon className="w-4 h-4" />
@@ -2575,7 +2575,7 @@ function ReportBuilderInner() {
                                     } finally {
                                         setSaving(false);
                                     }
-                                }} className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-orange-900/40">
+                                }} className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/40">
                                     <CheckIcon className="w-4 h-4" /> Save Branding
                                 </button>
                             </div>
@@ -2641,7 +2641,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-xl shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-xl shadow-xl shadow-primary/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>

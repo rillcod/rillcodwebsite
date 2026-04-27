@@ -23,7 +23,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     name: 'Modern',
     description: 'Sleek gradient design',
     frontStyle: 'bg-gradient-to-br from-purple-600 to-primary text-white shadow-xl',
-    backStyle: 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-xl',
+    backStyle: 'bg-gradient-to-br from-primary to-red-500 text-white shadow-xl',
     textStyle: 'text-white',
     animation: 'slide',
     icon: 'CubeIcon'
@@ -85,7 +85,7 @@ export const CARD_TEMPLATE_STYLES: Record<string, FlashcardTemplateStyle> = {
   },
   modern: {
     front: 'bg-gradient-to-br from-primary to-primary',
-    back: 'bg-gradient-to-br from-orange-500 to-rose-500',
+    back: 'bg-gradient-to-br from-primary to-rose-500',
     text: 'text-white',
     glow: 'shadow-primary/30',
   },

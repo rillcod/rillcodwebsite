@@ -65,11 +65,11 @@ export function Leaderboard({ entries }: LeaderboardProps) {
                 {topThree[2] && (
                     <div className="flex flex-col items-center group animate-in slide-in-from-bottom-5 duration-700 delay-400">
                         <div className="relative mb-3">
-                            <Avatar className="w-14 h-14 border-4 border-orange-200 dark:border-orange-900 ring-4 ring-orange-50 dark:ring-orange-950 group-hover:scale-110 transition-transform">
+                            <Avatar className="w-14 h-14 border-4 border-orange-200 dark:border-primary/70 ring-4 ring-orange-50 dark:ring-orange-950 group-hover:scale-110 transition-transform">
                                 <AvatarImage src={topThree[2].portal_users.profile_image_url} />
                                 <AvatarFallback className="bg-orange-100">{topThree[2].portal_users.full_name.substring(0, 2)}</AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-2 -right-2 bg-primary text-orange-900 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white">3</div>
+                            <div className="absolute -bottom-2 -right-2 bg-primary text-primary/70 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white">3</div>
                         </div>
                         <p className="text-sm font-bold text-foreground/80 dark:text-slate-300 truncate w-24 text-center">{topThree[2].portal_users.full_name}</p>
                         <Badge variant="secondary" className="mt-2 font-mono text-teal-600 bg-teal-50">{topThree[2].points} pts</Badge>

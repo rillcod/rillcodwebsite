@@ -240,7 +240,7 @@ export default function NewslettersPage() {
 
   if (profile?.role !== 'admin' && profile?.role !== 'school' && profile?.role !== 'teacher' && profile?.role !== 'student' && profile?.role !== 'parent') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-transparent to-transparent">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/70/10 via-transparent to-transparent">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-400">
              <InformationCircleIcon className="w-12 h-12" />
@@ -279,7 +279,7 @@ export default function NewslettersPage() {
             isManager && (
               <button 
                 onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
+                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/40"
               >
                 <PlusIcon className="w-5 h-5" /> Create Newsletter
               </button>
@@ -415,7 +415,7 @@ export default function NewslettersPage() {
                   <button
                     onClick={handleAIGenerate}
                     disabled={generating || !topic}
-                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-primary to-indigo-700 hover:from-primary hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
+                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-primary to-indigo-700 hover:from-primary hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-primary/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
                   >
                     {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
                     {generating ? 'Generating...' : 'Generate'}
@@ -490,7 +490,7 @@ export default function NewslettersPage() {
                    <button 
                     onClick={handleSave}
                     disabled={loading || !activeNewsletter?.title}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-xl text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-xl text-[9px] font-black transition-all shadow-xl shadow-primary/40 uppercase tracking-widest"
                   >
                     {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save

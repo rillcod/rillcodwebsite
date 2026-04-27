@@ -293,7 +293,7 @@ export default function AssignmentsPage() {
           <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
             {/* Left: icon + title */}
             <div className="flex items-start gap-5">
-              <div className="w-14 h-14 bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
+              <div className="w-14 h-14 bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 border border-primary/30 flex-shrink-0">
                 <ClipboardDocumentListIcon className="w-7 h-7 text-white" />
               </div>
               <div>

@@ -479,7 +479,7 @@ export default function CardBuilderPage() {
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -935,7 +935,7 @@ export default function CardBuilderPage() {
 
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform flex-shrink-0">
+          <div className="w-10 h-10 bg-primary flex items-center justify-center rotate-3 border border-primary/20 shadow-xl shadow-primary/10 hover:rotate-6 transition-transform flex-shrink-0">
             <CreditCardIcon className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -946,7 +946,7 @@ export default function CardBuilderPage() {
             <button onClick={handleReset} className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 transition-all">
               Reset
             </button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest transition-all">
+            <button onClick={handleSave} className="flex items-center gap-2 px-5 py-2 bg-primary hover:bg-primary/90 text-white text-[9px] font-black uppercase tracking-widest transition-all">
               {saved ? <CheckCircleIcon className="w-4 h-4" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
               {saved ? 'Saved!' : 'Save Design'}
             </button>
@@ -975,7 +975,7 @@ export default function CardBuilderPage() {
                 <button
                   key={t.key}
                   onClick={() => { setActiveTab(t.key); if (t.key === 'generate') loadStudents(); }}
-                  className={`px-4 sm:px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all flex-shrink-0 ${activeTab === t.key ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-4 sm:px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all flex-shrink-0 ${activeTab === t.key ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {t.label}
                 </button>
@@ -989,7 +989,7 @@ export default function CardBuilderPage() {
                   <button
                     key={t.name}
                     onClick={() => applyTemplate(t)}
-                    className="bg-card border border-border p-4 text-left hover:border-orange-500/50 transition-all group"
+                    className="bg-card border border-border p-4 text-left hover:border-primary/50 transition-all group"
                   >
                     {/* Mini preview swatch */}
                     <div className="w-full h-10 mb-3 overflow-hidden border border-border/50">
@@ -1010,7 +1010,7 @@ export default function CardBuilderPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-[11px] font-black text-foreground group-hover:text-orange-400 transition-colors">{t.name}</div>
+                    <div className="text-[11px] font-black text-foreground group-hover:text-primary transition-colors">{t.name}</div>
                     <div className="text-[9px] text-muted-foreground mt-1 leading-relaxed">{t.description}</div>
                   </button>
                 ))}
@@ -1034,12 +1034,12 @@ export default function CardBuilderPage() {
                       <button
                         key={s.value}
                         onClick={() => update({ headerStyle: s.value })}
-                        className={`p-3 border text-left transition-all ${cfg.headerStyle === s.value ? 'border-orange-500 bg-orange-500/5' : 'border-border hover:border-border/60'}`}
+                        className={`p-3 border text-left transition-all ${cfg.headerStyle === s.value ? 'border-primary bg-primary/5' : 'border-border hover:border-border/60'}`}
                       >
                         <div className={`w-full h-6 mb-2 ${
-                          s.value === 'band'    ? 'bg-orange-600' :
-                          s.value === 'border'  ? 'border-l-4 border-orange-600 bg-card border border-border' :
-                                                  'border-b-2 border-orange-600 bg-card'
+                          s.value === 'band'    ? 'bg-primary' :
+                          s.value === 'border'  ? 'border-l-4 border-primary bg-card border border-border' :
+                                                  'border-b-2 border-primary bg-card'
                         }`} />
                         <div className="text-[9px] font-black uppercase tracking-widest text-foreground">{s.label}</div>
                         <div className="text-[8px] text-muted-foreground mt-0.5">{s.desc}</div>
@@ -1078,7 +1078,7 @@ export default function CardBuilderPage() {
                       type="text"
                       value={cfg.accentColor}
                       onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ accentColor: e.target.value })}
-                      className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50"
+                      className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50"
                     />
                   </div>
                 </div>
@@ -1093,7 +1093,7 @@ export default function CardBuilderPage() {
                       { value: 'pill',    label: 'Pill',    desc: 'Heavy radius — casual' },
                     ] as const).map(s => (
                       <button key={s.value} onClick={() => update({ cornerRadius: s.value })}
-                        className={`p-3 border text-left transition-all ${cfg.cornerRadius === s.value ? 'border-orange-500 bg-orange-500/5' : 'border-border hover:border-border/60'}`}>
+                        className={`p-3 border text-left transition-all ${cfg.cornerRadius === s.value ? 'border-primary bg-primary/5' : 'border-border hover:border-border/60'}`}>
                         <div className={`w-full h-6 mb-2 bg-card border border-border ${s.value === 'rounded' ? 'rounded-md' : s.value === 'pill' ? 'rounded-xl' : ''}`} />
                         <div className="text-[9px] font-black uppercase tracking-widest text-foreground">{s.label}</div>
                         <div className="text-[8px] text-muted-foreground mt-0.5">{s.desc}</div>
@@ -1114,7 +1114,7 @@ export default function CardBuilderPage() {
                     ].map(c => (
                       <button key={c.value} onClick={() => update({ bgColor: c.value })}
                         style={{ background: c.value }}
-                        className={`h-9 border text-[8px] font-bold text-foreground/80 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-orange-500 ring-offset-1' : 'border-border hover:border-orange-400'}`}>
+                        className={`h-9 border text-[8px] font-bold text-foreground/80 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-primary ring-offset-1' : 'border-border hover:border-primary'}`}>
                         {c.label}
                       </button>
                     ))}
@@ -1125,7 +1125,7 @@ export default function CardBuilderPage() {
                       className="w-10 h-9 cursor-pointer border border-border bg-transparent p-0" />
                     <input type="text" value={cfg.bgColor}
                       onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ bgColor: e.target.value })}
-                      className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50" />
+                      className="w-28 px-3 py-2 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50" />
                   </div>
                 </div>
 
@@ -1138,7 +1138,7 @@ export default function CardBuilderPage() {
                   ] as { key: keyof CardConfig; label: string; desc: string }[]).map(opt => (
                     <label key={opt.key} className="flex items-start gap-3 cursor-pointer">
                       <div onClick={() => update({ [opt.key]: !(cfg as any)[opt.key] })}
-                        className={`w-10 h-5 rounded-full flex-shrink-0 transition-all relative mt-0.5 ${(cfg as any)[opt.key] ? 'bg-orange-600' : 'bg-muted'}`}>
+                        className={`w-10 h-5 rounded-full flex-shrink-0 transition-all relative mt-0.5 ${(cfg as any)[opt.key] ? 'bg-primary' : 'bg-muted'}`}>
                         <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-card shadow transition-transform ${(cfg as any)[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </div>
                       <div>
@@ -1158,11 +1158,11 @@ export default function CardBuilderPage() {
                 <p className="text-[9px] text-muted-foreground mb-5">Toggle visibility and reorder fields. The order here is the order on the card.</p>
                 <div className="space-y-2">
                   {cfg.fields.map((f, i) => (
-                    <div key={f.key} className={`flex items-center gap-2 px-3 py-2.5 border transition-all ${f.visible ? 'border-orange-500/30 bg-orange-500/5' : 'border-border'}`}>
+                    <div key={f.key} className={`flex items-center gap-2 px-3 py-2.5 border transition-all ${f.visible ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
                       {/* Toggle */}
                       <button
                         onClick={() => toggleField(f.key)}
-                        className={`w-5 h-5 border flex-shrink-0 flex items-center justify-center transition-all ${f.visible ? 'bg-orange-600 border-orange-600' : 'border-border hover:border-orange-500/50'}`}
+                        className={`w-5 h-5 border flex-shrink-0 flex items-center justify-center transition-all ${f.visible ? 'bg-primary border-primary' : 'border-border hover:border-primary/50'}`}
                       >
                         {f.visible && <span className="text-white text-[10px] leading-none">✓</span>}
                       </button>
@@ -1176,7 +1176,7 @@ export default function CardBuilderPage() {
                         value={f.label}
                         onChange={e => updateFieldLabel(f.key, e.target.value)}
                         placeholder="Label on card"
-                        className="flex-1 px-2 py-1 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50 min-w-0"
+                        className="flex-1 px-2 py-1 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50 min-w-0"
                       />
 
                       {/* Reorder */}
@@ -1221,7 +1221,7 @@ export default function CardBuilderPage() {
                             type="text"
                             value={s.fontSize.replace('mm','')}
                             onChange={e => updateTypo(elem, { fontSize: e.target.value + 'mm' })}
-                            className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-orange-500/50"
+                            className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-xs font-mono focus:outline-none focus:border-primary/50"
                           />
                         </div>
                         {/* Font weight */}
@@ -1230,7 +1230,7 @@ export default function CardBuilderPage() {
                           <select
                             value={s.fontWeight}
                             onChange={e => updateTypo(elem, { fontWeight: e.target.value })}
-                            className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-xs focus:outline-none focus:border-orange-500/50"
+                            className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-xs focus:outline-none focus:border-primary/50"
                           >
                             <option value="400">Regular (400)</option>
                             <option value="600">Semi-Bold (600)</option>
@@ -1265,7 +1265,7 @@ export default function CardBuilderPage() {
                               <button
                                 key={fam}
                                 onClick={() => updateTypo(elem, { fontFamily: fam })}
-                                className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all ${s.fontFamily === fam ? 'bg-orange-600 border-orange-600 text-white' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                                className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all ${s.fontFamily === fam ? 'bg-primary border-primary text-white' : 'border-border text-muted-foreground hover:text-foreground'}`}
                               >
                                 {fam === 'sans' ? 'Sans' : 'Mono'}
                               </button>
@@ -1302,7 +1302,7 @@ export default function CardBuilderPage() {
                       type="text"
                       value={cfg[field] as string}
                       onChange={e => update({ [field]: e.target.value })}
-                      className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm focus:outline-none focus:border-orange-500/50 font-mono"
+                      className="w-full px-3 py-2 bg-background border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 font-mono"
                     />
                     <p className="text-[9px] text-muted-foreground mt-1">{hint}</p>
                   </div>
@@ -1319,7 +1319,7 @@ export default function CardBuilderPage() {
                   <p className="text-[9px] text-muted-foreground mb-4">Select students and print or download their actual access cards using the current design.</p>
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => { loadStudents(); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest transition-all">
+                      className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-[9px] font-black uppercase tracking-widest transition-all">
                       {studentsLoading ? <ArrowDownTrayIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
                       {studentsLoading ? 'Loading…' : 'Load Students'}
                     </button>
@@ -1351,7 +1351,7 @@ export default function CardBuilderPage() {
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                     <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
                       placeholder="Search students by name, email, school, class…"
-                      className="w-full pl-9 pr-4 py-2.5 bg-card border border-border text-foreground text-xs placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 font-mono" />
+                      className="w-full pl-9 pr-4 py-2.5 bg-card border border-border text-foreground text-xs placeholder-muted-foreground focus:outline-none focus:border-primary/50 font-mono" />
                   </div>
                 )}
 
@@ -1369,7 +1369,7 @@ export default function CardBuilderPage() {
                           <select
                             value={selectedSchoolGen}
                             onChange={(e) => setSelectedSchoolGen(e.target.value)}
-                            className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-orange-500 max-w-[220px]"
+                            className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-primary max-w-[220px]"
                           >
                             <option value="all">All schools ({students.length})</option>
                             {allSchoolsGen.map((sch) => (
@@ -1387,7 +1387,7 @@ export default function CardBuilderPage() {
                         <select
                           value={selectedClassGen}
                           onChange={(e) => setSelectedClassGen(e.target.value)}
-                          className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-orange-500 max-w-[200px]"
+                          className="px-3 py-2 bg-background border border-border text-xs font-bold focus:outline-none focus:border-primary max-w-[200px]"
                         >
                           <option value="all">All classes</option>
                           {allClassesGen.map((cls) => (
@@ -1407,7 +1407,7 @@ export default function CardBuilderPage() {
                 {/* Student list */}
                 {studentsLoading ? (
                   <div className="flex items-center justify-center py-10">
-                    <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : students.length > 0 ? (
                   <div className="bg-card border border-border">
@@ -1422,8 +1422,8 @@ export default function CardBuilderPage() {
                           const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
                           return (
                             <div key={s.id} onClick={() => toggleStudent(s.id)}
-                              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${selected ? 'bg-orange-500/5 border-l-2 border-l-orange-500' : 'hover:bg-muted/40'}`}>
-                              <div className={`w-5 h-5 border flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'bg-orange-600 border-orange-600' : 'border-border'}`}>
+                              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${selected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/40'}`}>
+                              <div className={`w-5 h-5 border flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'bg-primary border-primary' : 'border-border'}`}>
                                 {selected && <span className="text-white text-[10px]">✓</span>}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1431,7 +1431,7 @@ export default function CardBuilderPage() {
                                 <p className="text-[9px] text-muted-foreground truncate">{s.email || '—'} {s.section_class ? `· ${s.section_class}` : ''}</p>
                               </div>
                               <div className="text-right flex-shrink-0">
-                                <p className="text-[9px] font-mono font-bold text-orange-400">{code}</p>
+                                <p className="text-[9px] font-mono font-bold text-primary">{code}</p>
                                 {s.school_name && <p className="text-[8px] text-muted-foreground truncate max-w-[100px]">{s.school_name}</p>}
                               </div>
                             </div>
@@ -1467,16 +1467,16 @@ export default function CardBuilderPage() {
                 <p className="text-[9px] text-muted-foreground leading-relaxed">
                   Click <strong className="text-foreground">Save Design</strong> to apply this design globally. All access card prints (Students page, Bulk Register) will use this layout.
                 </p>
-                <button onClick={handlePrintSample} className="w-full flex items-center justify-center gap-2 py-2.5 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                <button onClick={handlePrintSample} className="w-full flex items-center justify-center gap-2 py-2.5 border border-border hover:border-primary/40 hover:bg-primary/90/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
                   <PrinterIcon className="w-3.5 h-3.5" />
                   Print Sample
                 </button>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={handleExportSinglePDF} className="flex items-center justify-center gap-1.5 py-2.5 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                  <button onClick={handleExportSinglePDF} className="flex items-center justify-center gap-1.5 py-2.5 border border-border hover:border-primary/40 hover:bg-primary/90/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
                     <ArrowDownTrayIcon className="w-3.5 h-3.5" />
                     PDF Single
                   </button>
-                  <button onClick={handleExportBatchPDF} className="flex items-center justify-center gap-1.5 py-2.5 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                  <button onClick={handleExportBatchPDF} className="flex items-center justify-center gap-1.5 py-2.5 border border-border hover:border-primary/40 hover:bg-primary/90/5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
                     <ArrowDownTrayIcon className="w-3.5 h-3.5" />
                     PDF 8×A4
                   </button>

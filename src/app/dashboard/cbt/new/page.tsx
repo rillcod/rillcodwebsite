@@ -542,12 +542,12 @@ ${questionRows}
         )}
 
         {/* Premium AI Exam Engine Panel */}
-        <div className="p-8 bg-gradient-to-br from-primary/20 to-orange-900/10 border border-primary/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
+        <div className="p-8 bg-gradient-to-br from-primary/20 to-primary/70/10 border border-primary/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000" />
             
             <div className="flex items-center justify-between relative">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30">
+                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 border border-primary/30">
                         <SparklesIcon className="w-7 h-7 text-white" />
                     </div>
                     <div>
@@ -614,7 +614,7 @@ ${questionRows}
                           type="button"
                           onClick={handleAiGenerate}
                           disabled={aiGenerating}
-                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                       >
                           <div className="text-[10px] font-black text-white uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
                           <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>

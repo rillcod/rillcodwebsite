@@ -247,7 +247,7 @@ function R2Player({ url, title, autoPlay }: VideoPlayerProps) {
             {/* Big play button when paused */}
             {!playing && !loading && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="w-16 h-16 rounded-full bg-primary/90 backdrop-blur flex items-center justify-center shadow-2xl shadow-orange-900/50">
+                    <div className="w-16 h-16 rounded-full bg-primary/90 backdrop-blur flex items-center justify-center shadow-2xl shadow-primary/70/50">
                         <PlayIcon className="w-7 h-7 text-white ml-1" />
                     </div>
                 </div>

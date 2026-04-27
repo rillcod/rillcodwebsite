@@ -108,7 +108,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         {/* Header Bar */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-orange-900/40">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/40">
               <SpeakerWaveIcon className="w-5 h-5 text-foreground" />
             </div>
             <div>
@@ -195,7 +195,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         <div className="p-6 border-t border-border bg-white/[0.02] flex justify-center">
             <button 
               onClick={handleClose}
-              className="flex items-center gap-2 px-10 py-4 bg-primary hover:bg-primary rounded-xl text-sm font-black transition-all shadow-xl shadow-orange-900/40"
+              className="flex items-center gap-2 px-10 py-4 bg-primary hover:bg-primary rounded-xl text-sm font-black transition-all shadow-xl shadow-primary/40"
             >
               <CheckCircleIcon className="w-5 h-5" /> I Have Read the Newsletter
             </button>

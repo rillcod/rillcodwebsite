@@ -352,7 +352,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
           <div className="flex items-center justify-between relative px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 border border-primary/30 flex-shrink-0">
                 <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
@@ -399,7 +399,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     type="button"
                     onClick={handleAiGenerate}
                     disabled={aiGenerating}
-                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-primary hover:bg-primary transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
                   >
                     <div className="text-[10px] font-black text-white uppercase tracking-widest">
                       {aiGenerating ? 'Processing...' : 'Generate Assignment'}

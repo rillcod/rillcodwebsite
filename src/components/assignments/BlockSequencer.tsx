@@ -88,7 +88,7 @@ const CATEGORY_TEXT: Record<BlockCategory, string> = {
 };
 
 const CATEGORY_BORDER: Record<BlockCategory, string> = {
-  control: 'border-orange-700',
+  control: 'border-primary/90',
   motion: 'border-primary',
   looks: 'border-purple-700',
   sound: 'border-pink-700',
