@@ -153,7 +153,22 @@ export async function GET(req: NextRequest) {
       activity_limit: 6
     });
 
-    return NextResponse.json({ stats, role, activities: activities || [] });
+    // Fetch global LMS settings
+    const { data: rawSettings } = await supabase
+      .from('app_settings')
+      .select('key, value');
+    
+    const lmsSettings: Record<string, string> = {};
+    (rawSettings ?? []).forEach(s => {
+      lmsSettings[s.key] = s.value;
+    });
+
+    return NextResponse.json({
+      stats,
+      role,
+      activities: activities || [],
+      lmsSettings
+    });
   } catch (error: any) {
     console.error('Dashboard stats error:', error);
     return NextResponse.json(

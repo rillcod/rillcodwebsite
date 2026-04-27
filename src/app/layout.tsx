@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AppProviders from "@/components/layout/AppProviders";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/landing/JsonLd";
+import { createClient } from "@/lib/supabase/server";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -119,11 +120,21 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Fetch platform-wide branding
+  const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['brand_primary_color', 'platform_logo_url']);
+
+  const brandColor = settings?.find(s => s.key === 'brand_primary_color')?.value || '#1A3A8F';
+  const logoUrl = settings?.find(s => s.key === 'platform_logo_url')?.value;
+
   return (
     <html lang="en" dir="ltr">
       <head>
@@ -134,6 +145,19 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --primary: ${brandColor} !important;
+            --primary-foreground: #ffffff !important;
+          }
+          ${brandColor ? `
+          .text-primary { color: ${brandColor} !important; }
+          .bg-primary { background-color: ${brandColor} !important; }
+          .border-primary { border-color: ${brandColor} !important; }
+          .ring-primary { --tw-ring-color: ${brandColor} !important; }
+          ` : ''}
+        ` }} />
         
         {/* iOS standalone PWA meta tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />

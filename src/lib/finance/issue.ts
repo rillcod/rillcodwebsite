@@ -214,14 +214,14 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   const buffer = await pdfToBuffer(docDef);
 
   // ── Upload to storage ──
-  const storagePath = `receipts/${stream}/${txn.id}.pdf`;
-  const { error: uploadErr } = await supabase.storage
-    .from('lms-files')
-    .upload(storagePath, buffer, { contentType: 'application/pdf', upsert: true });
-  if (uploadErr) throw new AppError(`Failed to upload receipt: ${uploadErr.message}`, 500);
-
-  const { data: publicData } = supabase.storage.from('lms-files').getPublicUrl(storagePath);
-  const url = publicData?.publicUrl;
+  const { storageService } = await import('@/services/storage.service');
+  const storagePath = `${txn.id}.pdf`;
+  const urlPath = await storageService.uploadFile('receipts', storagePath, buffer, 'application/pdf');
+  
+  // For R2, we use the media proxy; for Supabase, we use the path.
+  // StorageService returns the path. If R2 is active, we should generate a public URL or use the proxy.
+  // Actually, StorageService.getDownloadUrl handles the signed URL/public URL logic.
+  const url = await storageService.getDownloadUrl('receipts', urlPath);
 
   // ── Persist URLs ──
   await supabase.from('payment_transactions').update({ receipt_url: url }).eq('id', txn.id);

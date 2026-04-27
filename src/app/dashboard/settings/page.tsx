@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // Teacher sees Schools tab; Admin sees extra management tabs
   const TABS = profile?.role === 'teacher'
@@ -269,6 +270,44 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file', false);
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image size must be less than 2MB', false);
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      await refreshProfile();
+      showToast('Avatar updated successfully');
+    } catch (e: any) {
+      showToast(e.message || 'Failed to upload avatar', false);
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const roleColor: Record<string, string> = {
     admin: 'bg-red-500/20 text-red-400 border-red-500/30',
     teacher: 'bg-primary/20 text-primary border-primary/30',
@@ -317,12 +356,22 @@ export default function SettingsPage() {
             {/* Avatar card */}
             <div className="bg-card shadow-sm border border-border rounded-xl p-5 text-center">
               <div className="relative inline-block mb-4">
-                <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground mx-auto">
-                  {(profile.full_name ?? 'U')[0].toUpperCase()}
+                <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-2xl font-black text-foreground mx-auto overflow-hidden border border-primary/20">
+                  {profile.profile_image_url ? (
+                    <img src={profile.profile_image_url} alt={profile.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    (profile.full_name ?? 'U')[0].toUpperCase()
+                  )}
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <ArrowPathIcon className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
                 </div>
-                <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-background border border-border rounded-xl flex items-center justify-center hover:bg-muted transition-colors">
+                <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-background border border-border rounded-xl flex items-center justify-center hover:bg-muted transition-colors cursor-pointer">
                   <CameraIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={avatarUploading} />
+                </label>
               </div>
               <p className="font-bold text-foreground text-sm truncate">{profile.full_name}</p>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">{profile.email}</p>
@@ -775,12 +824,14 @@ export default function SettingsPage() {
             {/* ── LMS Config tab (admin only) ── */}
             {tab === 'lms-config' && profile?.role === 'admin' && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CogIcon className="w-4 h-4 text-primary" />
+                <div className="p-6 border-b border-border flex items-center justify-between bg-primary/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                      <CogIcon className="w-5 h-5 text-primary" />
+                    </div>
                     <div>
-                      <h2 className="font-bold text-foreground">LMS Policies</h2>
-                      <p className="text-xs text-muted-foreground mt-0.5">Control global learning management behavior and data access.</p>
+                      <h2 className="font-bold text-foreground">Platform Policy & Branding</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">Manage global LMS behavior, academic rules, and brand assets.</p>
                     </div>
                   </div>
                 </div>
@@ -790,47 +841,129 @@ export default function SettingsPage() {
                     <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
                   </div>
                 ) : (
-                  <div className="p-6 space-y-6">
-                    <div className="flex items-start justify-between py-4 border-b border-border">
-                      <div className="max-w-md">
-                        <p className="font-bold text-foreground text-sm">Teacher Data Isolation</p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                          When enabled, teachers will <strong>only</strong> see classes and students they are personally assigned to. 
-                          If disabled, teachers can see all data within their assigned school for collaboration.
-                        </p>
+                  <div className="p-6 space-y-8">
+                    
+                    {/* Branding Section */}
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Institutional Branding</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-foreground mb-1.5">Platform Brand Color</label>
+                            <div className="flex items-center gap-3">
+                              <input type="color" value={aiSettings.brand_primary_color || '#1A3A8F'} 
+                                onChange={e => setAiSettings(p => ({ ...p, brand_primary_color: e.target.value }))}
+                                className="w-10 h-10 cursor-pointer border border-border bg-transparent p-0 rounded-lg" />
+                              <input type="text" value={aiSettings.brand_primary_color || '#1A3A8F'}
+                                onChange={e => setAiSettings(p => ({ ...p, brand_primary_color: e.target.value }))}
+                                className="flex-1 px-4 py-2 bg-background border border-border rounded-xl text-sm font-mono focus:outline-none focus:border-primary" />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-1.5">Affects navigation, buttons, and system accents globally.</p>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-foreground mb-1.5">Platform Logo URL</label>
+                            <input type="text" value={aiSettings.platform_logo_url || ''} 
+                              onChange={e => setAiSettings(p => ({ ...p, platform_logo_url: e.target.value }))}
+                              placeholder="https://..."
+                              className="w-full px-4 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+                            <p className="text-[10px] text-muted-foreground mt-1.5">SVG or Transparent PNG recommended (128x128px).</p>
+                          </div>
+                        </div>
                       </div>
-                      <button 
-                        onClick={() => setAiSettings(p => ({ ...p, lms_teacher_isolation: p.lms_teacher_isolation === 'true' ? 'false' : 'true' }))}
-                        className={`relative w-11 h-6 rounded-full transition-all ${aiSettings.lms_teacher_isolation === 'true' ? 'bg-primary' : 'bg-muted'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${aiSettings.lms_teacher_isolation === 'true' ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
-                      </button>
                     </div>
 
-                    <div className="flex items-start justify-between py-4 border-b border-border">
-                      <div className="max-w-md">
-                        <p className="font-bold text-foreground text-sm">Automated Student Portals</p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                          Automatically create portal user accounts for new student registrations.
-                        </p>
+                    <div className="h-px bg-border" />
+
+                    {/* Academic Policies */}
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Academic & Engagement Policies</h3>
+                      <div className="space-y-4">
+                        {[
+                          { key: 'lms_teacher_isolation', label: 'Teacher Data Isolation', desc: 'Teachers only see their own assigned classes and students.' },
+                          { key: 'lms_auto_portals', label: 'Automated Student Portals', desc: 'Automatically create accounts for new student registrations.' },
+                          { key: 'lms_gamification_enabled', label: 'Engagement Gamification', desc: 'Enable XP, Badges, and Leaderboards for all students.' },
+                          { key: 'lms_auto_certificates', label: 'Auto-Certificate Issuance', desc: 'Generate completion certificates automatically on course finish.' },
+                          { key: 'lms_course_locking', label: 'Syllabus Progression Lock', desc: 'Force students to complete lessons in linear order.' },
+                        ].map(opt => (
+                          <div key={opt.key} className="flex items-start justify-between py-2">
+                            <div className="max-w-md">
+                              <p className="font-bold text-foreground text-sm">{opt.label}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
+                            </div>
+                            <button 
+                              onClick={() => setAiSettings(p => ({ ...p, [opt.key]: p[opt.key] === 'true' ? 'false' : 'true' }))}
+                              className={`relative w-11 h-6 rounded-full transition-all mt-1 ${aiSettings[opt.key] === 'true' ? 'bg-primary' : 'bg-muted'}`}
+                            >
+                              <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${aiSettings[opt.key] === 'true' ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <button 
-                        onClick={() => setAiSettings(p => ({ ...p, lms_auto_portals: p.lms_auto_portals === 'true' ? 'false' : 'true' }))}
-                        className={`relative w-11 h-6 rounded-full transition-all ${aiSettings.lms_auto_portals === 'true' ? 'bg-primary' : 'bg-muted'}`}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 bg-card rounded-full shadow transition-all ${aiSettings.lms_auto_portals === 'true' ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
-                      </button>
                     </div>
 
-                    <button
-                      onClick={saveAiSettings}
-                      disabled={aiSaving}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-all">
-                      {aiSaving
-                        ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                        : <CheckIcon className="w-4 h-4" />}
-                      {aiSaving ? 'Saving…' : 'Save LMS Settings'}
-                    </button>
+                    <div className="h-px bg-border" />
+
+                    {/* Communication Section */}
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Communication Controls</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-xs font-bold text-foreground mb-1.5">Messaging Restriction</label>
+                          <select 
+                            value={aiSettings.lms_messaging_policy || 'open'}
+                            onChange={e => setAiSettings(p => ({ ...p, lms_messaging_policy: e.target.value }))}
+                            className="w-full px-4 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none cursor-pointer"
+                          >
+                            <option value="open">Open (Collaborative)</option>
+                            <option value="support_only">Support Only (Staff-to-Student)</option>
+                            <option value="restricted">Restricted (No peer-to-peer)</option>
+                          </select>
+                          <p className="text-[10px] text-muted-foreground mt-1.5">Defines who students and parents can message in the inbox.</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-foreground mb-1.5">Global Attendance Threshold</label>
+                          <div className="flex items-center gap-3">
+                            <input type="number" value={aiSettings.lms_attendance_threshold || '75'}
+                              onChange={e => setAiSettings(p => ({ ...p, lms_attendance_threshold: e.target.value }))}
+                              className="w-24 px-4 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+                            <span className="text-sm font-bold text-muted-foreground">%</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1.5">Minimum attendance required for exam eligibility.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={saveAiSettings}
+                        disabled={aiSaving}
+                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary shadow-lg shadow-primary/20 disabled:opacity-50 rounded-xl text-sm font-black text-white transition-all uppercase tracking-widest">
+                        {aiSaving
+                          ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                          : <CheckCircleIcon className="w-4 h-4" />}
+                        {aiSaving ? 'Synchronizing…' : 'Apply Global Policies'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Reset all LMS policies to platform defaults?')) {
+                            setAiSettings(p => ({
+                              ...p,
+                              lms_teacher_isolation: 'false',
+                              lms_auto_portals: 'true',
+                              lms_gamification_enabled: 'true',
+                              lms_auto_certificates: 'false',
+                              lms_course_locking: 'true',
+                              lms_messaging_policy: 'open',
+                              brand_primary_color: '#1A3A8F'
+                            }));
+                          }
+                        }}
+                        className="px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-all">
+                        Reset Defaults
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -39,6 +39,7 @@ export default function StudentDashboard() {
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
     isEnrolled: false, upcomingDue: [], recentGrades: [],
+    lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
   const [aiHook, setAiHook] = useState<{ hook_title: string; real_world_example: string; challenge_question: string } | null>(null);
@@ -65,6 +66,7 @@ export default function StudentDashboard() {
             badges: s.badges || [],
             leaderboardRank: s.leaderboardRank || null,
             isEnrolled: s.enrolledCourses > 0,
+            lmsSettings: json.lmsSettings || {},
           }));
         }
 
@@ -218,9 +220,11 @@ export default function StudentDashboard() {
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
-          { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
-          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
+          ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
+            { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+          ] : []),
+          { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-500/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
         ].map(({ href, icon: Icon, label, color }) => (
           <Link key={href} href={href}
             className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
@@ -343,32 +347,38 @@ export default function StudentDashboard() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
 
           <div className="flex flex-col sm:flex-row items-center gap-8">
-            <div className="relative shrink-0">
-              <div className={`w-20 h-20 border-2 ${levelConf.border} bg-background flex items-center justify-center text-4xl shadow-2xl`}>
-                {levelConf.emoji}
+            {data.lmsSettings.lms_gamification_enabled !== 'false' && (
+              <div className="relative shrink-0">
+                <div className={`w-20 h-20 border-2 ${levelConf.border} bg-background flex items-center justify-center text-4xl shadow-2xl`}>
+                  {levelConf.emoji}
+                </div>
+                <div className={`absolute -bottom-2 -right-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${levelConf.text} bg-card border ${levelConf.border} shadow-lg`}>
+                  {levelConf.label}
+                </div>
               </div>
-              <div className={`absolute -bottom-2 -right-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest ${levelConf.text} bg-card border ${levelConf.border} shadow-lg`}>
-                {levelConf.label}
-              </div>
-            </div>
+            )}
 
             <div className="flex-1 min-w-0 w-full">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Your Progress</h2>
-                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
-                    Leaderboard Position: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Not ranked yet'}
-                  </p>
+                  {data.lmsSettings.lms_gamification_enabled !== 'false' && (
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                      Leaderboard Position: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Not ranked yet'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <p className="text-2xl font-black text-primary tabular-nums leading-none">{data.streak}</p>
                     <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Streak</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-black text-amber-500 tabular-nums leading-none">{data.xp.toLocaleString()}</p>
-                    <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">XP</p>
-                  </div>
+                  {data.lmsSettings.lms_gamification_enabled !== 'false' && (
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-amber-500 tabular-nums leading-none">{data.xp.toLocaleString()}</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">XP</p>
+                    </div>
+                  )}
                   <div className="text-center">
                     <p className="text-2xl font-black text-emerald-500 tabular-nums leading-none">{data.avgScore}%</p>
                     <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">Avg</p>
@@ -378,7 +388,9 @@ export default function StudentDashboard() {
 
               <GaugeBar
                 value={Math.round(xpPct)}
-                label={`${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`}
+                label={data.lmsSettings.lms_gamification_enabled !== 'false' 
+                  ? `${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`
+                  : `Overall Average Score: ${data.avgScore}%`}
                 color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.primary}
                 height={8}
               />

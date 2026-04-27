@@ -23,8 +23,26 @@ async function requireAuth() {
 }
 
 async function getAllowedRecipientIds(admin: ReturnType<typeof adminClient>, caller: { id: string; role: string }) {
+  // Fetch global policy
+  const { data: policyRow } = await admin
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'lms_messaging_policy')
+    .maybeSingle();
+  const policy = policyRow?.value || 'open';
+
   // Staff can message freely; parent/student are scoped.
   if (['admin', 'teacher', 'school'].includes(caller.role)) return null as string[] | null;
+
+  if (policy === 'restricted' && !['admin', 'teacher', 'school'].includes(caller.role)) {
+    // In restricted mode, non-staff can ONLY message admins
+    const { data: admins } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'admin')
+      .eq('is_active', true);
+    return (admins ?? []).map((u: any) => u.id);
+  }
 
   if (caller.role === 'student') {
     const { data: me } = await admin

@@ -40,6 +40,7 @@ export default function DashboardNavigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
+  const [lmsSettings, setLmsSettings] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setMobileOpen(false);
@@ -75,12 +76,17 @@ export default function DashboardNavigation() {
         .eq('user_id', profile.id).eq('is_viewed', false),
       db.from('notifications').select('id', { count: 'exact', head: true })
         .eq('user_id', profile.id).eq('is_read', false),
-    ]).then(([waRes, nwlRes, notifRes]) => {
+      db.from('app_settings').select('key, value')
+    ]).then(([waRes, nwlRes, notifRes, settingsRes]) => {
       const waCount = (waRes.data ?? []).reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
       const nc = notifRes.count ?? 0;
       const total = waCount + (nwlRes.count ?? 0) + nc;
       setUnreadCount(total);
       setNotifUnread(nc);
+
+      const settingsMap: Record<string, string> = {};
+      (settingsRes.data ?? []).forEach(s => { settingsMap[s.key] = s.value; });
+      setLmsSettings(settingsMap);
     });
   }, [profile?.id, isMinimal]); // eslint-disable-line
 
@@ -107,12 +113,21 @@ export default function DashboardNavigation() {
   const getNavEntries = (): NavEntry[] => {
     const base: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: HomeIcon }];
 
+    const filterEntries = (entries: NavEntry[]) => {
+      const isGamificationOff = lmsSettings.lms_gamification_enabled === 'false';
+      return entries.filter(e => {
+        if (isDivider(e)) return true;
+        if (isGamificationOff && ['Gamification', 'Leaderboard', 'Activity Hub', 'Study Groups'].includes(e.name)) return false;
+        return true;
+      });
+    };
+
     switch (profile.role) {
       // ─────────────────────────────────────────────────────────────────────────
       // ADMIN — Platform manager. Sees everything. Owns operations.
       // ─────────────────────────────────────────────────────────────────────────
       case 'admin':
-        return [
+        return filterEntries([
           ...base,
           { divider: true, label: 'People' },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
@@ -123,7 +138,6 @@ export default function DashboardNavigation() {
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
 
-          // Step 1 & 2 Unified
           { divider: true, label: 'Planning' },
           { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
@@ -163,7 +177,6 @@ export default function DashboardNavigation() {
           { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Finance' },
-          // Admin runs the whole platform's money — control panel first, then ledger.
           { name: 'Platform Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
 
@@ -179,15 +192,14 @@ export default function DashboardNavigation() {
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
-        ];
+        ]);
 
       // ─────────────────────────────────────────────────────────────────────────
       // TEACHER — Teaches classes, creates content, grades, tracks students.
       // ─────────────────────────────────────────────────────────────────────────
       case 'teacher':
-        return [
+        return filterEntries([
           ...base,
-          // Step 1 & 2 Unified
           { divider: true, label: 'Planning' },
           { name: 'Planning Hub', href: '/dashboard/curriculum', icon: SparklesIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
@@ -237,13 +249,13 @@ export default function DashboardNavigation() {
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
-        ];
+        ]);
 
       // ─────────────────────────────────────────────────────────────────────────
       // STUDENT — Learns, submits work, tracks own progress.
       // ─────────────────────────────────────────────────────────────────────────
       case 'student':
-        return [
+        return filterEntries([
           ...base,
           { divider: true, label: 'Learning' },
           { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
@@ -287,7 +299,7 @@ export default function DashboardNavigation() {
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
-        ];
+        ]);
 
       // ─────────────────────────────────────────────────────────────────────────
       // SCHOOL — Partner school. Views, monitors, manages its own students.

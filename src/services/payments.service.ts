@@ -426,37 +426,34 @@ export class PaymentsService {
             pdfDoc.on('end', async () => {
                 const buffer = Buffer.concat(chunks);
 
-                // Upload buffer to Supabase file storage securely
-                const storagePath = `receipts/${transaction.id}.pdf`;
-                const { error: uploadError } = await supabase.storage
-                    .from('lms-files')
-                    .upload(storagePath, buffer, {
-                        contentType: 'application/pdf',
-                        upsert: true
+                // Upload buffer to R2 (via StorageService)
+                const { storageService } = await import('@/services/storage.service');
+                const storageKey = `${transaction.id}.pdf`;
+                try {
+                    const storagePath = await storageService.uploadFile('receipts', storageKey, buffer, 'application/pdf');
+                    const publicUrl = await storageService.getDownloadUrl('receipts', storagePath);
+
+                    await supabase.from('payment_transactions')
+                        .update({ 
+                            receipt_url: publicUrl 
+                        } as any)
+                        .eq('id', transaction.id);
+
+                    // Create record in the formal receipts table
+                    await (supabase as any).from('receipts').insert({
+                        transaction_id: transaction.id,
+                        student_id: transaction.portal_user_id,
+                        school_id: transaction.school_id,
+                        amount: transaction.amount,
+                        currency: transaction.currency,
+                        pdf_url: publicUrl,
+                        metadata: { generated_at: new Date().toISOString() }
                     });
 
-                if (uploadError) reject(uploadError);
-
-                const { data: publicData } = supabase.storage.from('lms-files').getPublicUrl(storagePath);
-
-                await supabase.from('payment_transactions')
-                    .update({ 
-                        receipt_url: publicData.publicUrl 
-                    } as any)
-                    .eq('id', transaction.id);
-
-                // Create record in the formal receipts table
-                await (supabase as any).from('receipts').insert({
-                    transaction_id: transaction.id,
-                    student_id: transaction.portal_user_id,
-                    school_id: transaction.school_id,
-                    amount: transaction.amount,
-                    currency: transaction.currency,
-                    pdf_url: publicData.publicUrl,
-                    metadata: { generated_at: new Date().toISOString() }
-                });
-
-                resolve(publicData.publicUrl);
+                    resolve(publicUrl);
+                } catch (err) {
+                    reject(err);
+                }
             });
             pdfDoc.end();
         });
