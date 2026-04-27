@@ -379,7 +379,7 @@ export default function StudentDashboard() {
               <GaugeBar
                 value={Math.round(xpPct)}
                 label={`${levelConf.label} · ${data.xp.toLocaleString()} XP${data.level !== 'Platinum' ? ` — ${(nextThreshold - data.xp).toLocaleString()} to ${nextLevelName}` : ' — Max Level!'}`}
-                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.orange}
+                color={data.avgScore >= 75 ? CHART_COLORS.emerald : data.avgScore >= 50 ? CHART_COLORS.amber : CHART_COLORS.primary}
                 height={8}
               />
             </div>

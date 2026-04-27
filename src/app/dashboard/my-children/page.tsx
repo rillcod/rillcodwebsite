@@ -112,7 +112,7 @@ export default function MyChildrenPage() {
                 const unpaid = Object.values(statsMap).reduce((a, s) => a + s.unpaidInvoices, 0);
                 return (
                   <>
-                    <RadialRing value={children.length} max={Math.max(children.length, 5)} size={64} strokeWidth={6} color={CHART_COLORS.orange} label="Enrolled" subLabel="children" />
+                    <RadialRing value={children.length} max={Math.max(children.length, 5)} size={64} strokeWidth={6} color={CHART_COLORS.primary} label="Enrolled" subLabel="children" />
                     {avgAtt != null && <RadialRing value={avgAtt} max={100} size={64} strokeWidth={6} color={avgAtt >= 70 ? CHART_COLORS.emerald : CHART_COLORS.rose} label={`${avgAtt}%`} subLabel="avg attendance" />}
                     {unpaid > 0 && (
                       <div className="flex flex-col items-center gap-1">

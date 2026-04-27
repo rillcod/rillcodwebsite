@@ -201,7 +201,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
               max={Math.max(children.length, 5)}
               size={64}
               strokeWidth={6}
-              color={CHART_COLORS.orange}
+              color={CHART_COLORS.primary}
               label="Children"
             />
             <div>

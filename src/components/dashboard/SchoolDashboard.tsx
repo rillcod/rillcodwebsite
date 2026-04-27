@@ -198,7 +198,7 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Performance Rings</p>
                 <div className="flex items-center justify-around flex-wrap gap-4">
                   {stats.slice(0, 3).map((s, i) => {
-                    const colors = [CHART_COLORS.orange, CHART_COLORS.emerald, CHART_COLORS.violet];
+                    const colors = [CHART_COLORS.primary, CHART_COLORS.emerald, CHART_COLORS.violet];
                     const val = pct(s.value);
                     return (
                       <RadialRing
