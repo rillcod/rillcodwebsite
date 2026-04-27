@@ -11,43 +11,107 @@ function adminClient() {
 
 export async function POST(request: Request) {
   const supabase = adminClient();
+  const serverSupabase = await createServerClient();
+  
   try {
+    const { data: { user } } = await serverSupabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get caller's profile to verify school access
+    const { data: caller } = await supabase
+      .from('portal_users')
+      .select('id, role, school_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!caller) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 403 });
+    }
+
     const body = await request.json();
     const primaryEmail = body.student_email || body.parent_email || body.studentEmail || body.parentEmail;
+    const fullName = (body.full_name || body.fullName || '').trim();
+    const isForce = body.force === true;
 
-    // Check if student already exists - use safe parameterized query
-    const { data: byStudentEmail } = await supabase
+    // 1. Check for duplicate email (Global check)
+    const { data: existingByEmail } = await supabase
       .from('students')
-      .select('id, status')
-      .eq('student_email', primaryEmail)
+      .select('id, full_name, school_name')
+      .or(`student_email.eq.${primaryEmail},parent_email.eq.${primaryEmail}`)
       .maybeSingle();
-    
-    const { data: byParentEmail } = await supabase
-      .from('students')
-      .select('id, status')
-      .eq('parent_email', primaryEmail)
-      .maybeSingle();
-    
-    const existingStudent = byStudentEmail || byParentEmail;
 
-    if (existingStudent) {
+    if (existingByEmail) {
       return NextResponse.json(
-        { error: 'A student with this email is already registered' },
+        { error: `A student with this email is already registered as "${existingByEmail.full_name}" at ${existingByEmail.school_name || 'Rillcod'}.` },
         { status: 400 }
       );
     }
 
+    // 2. Resolve target school and enforce teacher guard
+    let targetSchoolId = body.school_id;
+    
+    if (caller.role === 'teacher') {
+      // Teachers MUST specify a school or use their own, and it must be one they are assigned to
+      const { data: assignments } = await supabase
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', caller.id);
+      
+      const allowedIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+      if (caller.school_id) allowedIds.push(caller.school_id);
+
+      if (targetSchoolId && !allowedIds.includes(targetSchoolId)) {
+        return NextResponse.json({ error: 'You are not assigned to this school' }, { status: 403 });
+      }
+      
+      // If no school_id provided but teacher only has one school, auto-assign it
+      if (!targetSchoolId) {
+        if (allowedIds.length === 1) targetSchoolId = allowedIds[0];
+        else if (allowedIds.length > 1) {
+          return NextResponse.json({ error: 'Please select which school you are registering this student for' }, { status: 400 });
+        } else {
+          return NextResponse.json({ error: 'You are not assigned to any school. Please contact support.' }, { status: 403 });
+        }
+      }
+    } else if (caller.role === 'school') {
+      // School roles are locked to their own school
+      targetSchoolId = caller.school_id;
+    }
+
+    // 3. Check for duplicate Name in the same school (Duplicate Avoidance)
+    if (fullName && targetSchoolId && !isForce) {
+      const { data: existingByName } = await supabase
+        .from('students')
+        .select('id, full_name, grade_level')
+        .eq('school_id', targetSchoolId)
+        .ilike('full_name', fullName)
+        .maybeSingle();
+
+      if (existingByName) {
+        return NextResponse.json(
+          { 
+            error: 'Duplicate Name Detected', 
+            message: `A student named "${existingByName.full_name}" is already registered in this school (${existingByName.grade_level || 'No Grade'}).`,
+            requiresVerification: true 
+          },
+          { status: 409 } // Conflict
+        );
+      }
+    }
+
     // Map the incoming frontend fields cleanly to DB schema columns
-    const fullName = body.full_name || body.fullName;
     const newStudentData: any = {
       name: fullName,
       full_name: fullName,
       date_of_birth: body.date_of_birth,
       gender: body.gender,
       parent_name: body.parent_name,
-      parent_email: body.parent_email || primaryEmail,
-      student_email: body.student_email || (primaryEmail && !body.parent_email ? primaryEmail : null),
-      parent_phone: body.parent_phone,
+      parent_email: body.parent_email || (body.parentEmail ? body.parentEmail : (primaryEmail && body.student_email ? null : primaryEmail)),
+      student_email: body.student_email || (body.studentEmail ? body.studentEmail : (primaryEmail && !body.parent_email ? primaryEmail : null)),
+      parent_phone: body.parent_phone || body.parentPhone,
+      school_id: targetSchoolId,
       school_name: body.school_name ?? null,
       current_class: body.grade_level || body.current_class,
       grade_level: body.grade_level || body.current_class,
@@ -58,44 +122,19 @@ export async function POST(request: Request) {
       course_interest: body.course_interest || body.interests || null,
       preferred_schedule: body.preferred_schedule || body.goals || null,
       status: 'pending',
+      created_by: caller.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    // Always include enrollment_type — the students table has a CHECK constraint
-    newStudentData.enrollment_type = body.enrollment_type || 'in_person';
+    newStudentData.enrollment_type = body.enrollment_type || (caller.role === 'school' || caller.role === 'teacher' ? 'school' : 'in_person');
     if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
-    if (body.school_id) newStudentData.school_id = body.school_id;
 
-    // Resolve school_id if not already set — every student must belong to a school
-    if (!newStudentData.school_id) {
-      if (body.enrollment_type === 'school' && body.school_name) {
-        // Partner school student: find by exact name match first, then fuzzy
-        const { data: exactMatch } = await supabase
-          .from('schools')
-          .select('id, name')
-          .ilike('name', body.school_name.trim())
-          .eq('status', 'approved')
-          .maybeSingle();
-        if (exactMatch?.id) {
-          newStudentData.school_id = exactMatch.id;
-          newStudentData.school_name = exactMatch.name; // normalise casing
-        }
-      } else {
-        // Online / bootcamp / unknown: assign to the "Online" fallback school
-        const { data: onlineSchool } = await supabase
-          .from('schools')
-          .select('id, name')
-          .ilike('name', '%online%')
-          .eq('status', 'approved')
-          .limit(1)
-          .maybeSingle();
-        if (onlineSchool?.id) {
-          newStudentData.school_id = onlineSchool.id;
-          newStudentData.school_name = onlineSchool.name;
-        }
-      }
+    // Final school name normalization if we have a targetSchoolId
+    if (targetSchoolId && !newStudentData.school_name) {
+      const { data: sch } = await supabase.from('schools').select('name').eq('id', targetSchoolId).single();
+      if (sch) newStudentData.school_name = sch.name;
     }
 
     // Create new student registration
@@ -107,26 +146,17 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error('Error creating student:', insertError);
-      return NextResponse.json(
-        { error: 'Failed to create student registration' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to create student registration' }, { status: 500 });
     }
 
     return NextResponse.json(
-      {
-        message: 'Student registration successful',
-        student: newStudent
-      },
+      { message: 'Student registration successful', student: newStudent },
       { status: 201 }
     );
 
   } catch (error) {
     console.error('Unexpected error in student registration:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 }
 
