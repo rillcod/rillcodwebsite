@@ -383,3 +383,33 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data }, { status: 201 });
 }
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const url = new URL(req.url);
+  const id = url.searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  if (!profile || !['admin', 'teacher'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const admin = adminClient();
+  
+  // Verify ownership if teacher
+  if (profile.role === 'teacher') {
+    const { data: existing } = await admin.from('course_curricula').select('created_by').eq('id', id).single();
+    if (existing && existing.created_by !== user.id) {
+      return NextResponse.json({ error: 'You can only delete your own syllabus versions.' }, { status: 403 });
+    }
+  }
+
+  const { error } = await admin.from('course_curricula').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}
