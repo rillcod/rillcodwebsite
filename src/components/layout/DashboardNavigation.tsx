@@ -390,7 +390,7 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_30px_rgba(0,0,0,0.3)]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_20px_rgba(0,0,0,0.05)]">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
@@ -536,7 +536,7 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           const shortName =
@@ -562,8 +562,8 @@ export default function DashboardNavigation() {
               onClick={() => setMobileOpen(false)}
               className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
             >
-              <div className={`relative flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${active
-                  ? 'bg-primary/15 shadow-[0_0_12px_rgba(26,58,143,0.25)]'
+              <div className={`relative flex items-center justify-center w-10 h-7 rounded-lg transition-all duration-200 ${active
+                  ? 'bg-primary/10'
                   : ''
                 }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
