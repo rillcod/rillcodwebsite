@@ -317,6 +317,7 @@ function ReportBuilderInner() {
     });
 
     // ── UI state ──────────────────────────────────────────────────────────────
+    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -425,8 +426,10 @@ function ReportBuilderInner() {
         const db = createClient();
 
         async function loadData() {
-            // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
-            let schoolsList: { id: string; name: string }[] = [];
+            setLoading(true);
+            try {
+                // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
+                let schoolsList: { id: string; name: string }[] = [];
 
             // Fetch schools via API (uses service role — bypasses RLS for teachers)
             const schRes = await fetch('/api/schools', { cache: 'no-store' });
@@ -462,17 +465,24 @@ function ReportBuilderInner() {
                 }
             }
 
-            // Build classes query — teachers see their own, admins see all
-            let classQuery = db.from('classes').select('id, name, school_id').eq('status', 'active') as any;
-            if (!isAdmin && profile?.id) classQuery = classQuery.eq('teacher_id', profile.id);
+            // 3. Fetch programs via API (handles role-based visibility correctly)
+            const progRes = await fetch('/api/programs?is_active=true', { cache: 'no-store' });
+            const progJson = progRes.ok ? await progRes.json() : { data: [] };
 
-            const [cRes, bRes, clsRes, ppRes, progRes] = await Promise.all([
-                db.from('courses').select('*, programs(name)').eq('is_active', true).order('title'),
-                db.from('report_settings').select('*').limit(1).maybeSingle(),
-                classQuery.order('name'),
-                prePortalQuery.order('full_name').limit(isAdmin ? 5000 : 1000),
-                db.from('programs').select('id, name').eq('is_active', true).order('name'),
-            ]);
+            // 4. Fetch courses via API (handles role-based visibility and relationships correctly)
+            const coursesRes = await fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' });
+            const coursesJson = coursesRes.ok ? await coursesRes.json() : { data: [] };
+
+            // 5. Fetch classes via API
+            const classesRes = await fetch('/api/classes', { cache: 'no-store' });
+            const classesJson = classesRes.ok ? await classesRes.json() : { data: [] };
+
+            // 6. Fetch pre-portal students via API
+            const prePortalRes = await fetch('/api/students', { cache: 'no-store' });
+            const prePortalJson = prePortalRes.ok ? await prePortalRes.json() : { data: [] };
+
+            // 7. Fetch report settings (direct DB for now)
+            const { data: brandingData } = await db.from('report_settings').select('*').limit(1).maybeSingle();
 
             // Normalize portal_users results
             const portalStudents = (portalJson.data ?? []).map((u: any) => ({
@@ -488,12 +498,13 @@ function ReportBuilderInner() {
             const linkedUserIds = new Set(portalStudents.map((u: any) => u.students?.[0]?.user_id).filter(Boolean));
 
             // Normalize pre-portal students — skip any already present as portal users
-            const prePortalStudents = (ppRes.data ?? [])
+            const prePortalStudents = (prePortalJson.data ?? [])
                 .filter((s: any) => {
                     // Skip if they have a portal account that's already in portalStudents
-                    if (s.user_id && portalUserIds.has(s.user_id)) return false;
+                    const uid = s.user_id;
+                    if (uid && portalUserIds.has(uid)) return false;
                     // Skip if already linked to a portal user we fetched
-                    if (s.user_id && linkedUserIds.has(s.user_id)) return false;
+                    if (uid && linkedUserIds.has(uid)) return false;
                     return true;
                 })
                 .map((s: any) => ({
@@ -504,7 +515,7 @@ function ReportBuilderInner() {
                     role: 'student',
                     school_id: s.school_id ?? null,
                     school_name: s.school_name ?? null,
-                    section_class: s.section ?? s.current_class ?? s.grade_level ?? '',
+                    section_class: s.grade_level ?? s.current_class ?? '',
                     class_id: null,
                     avatar_url: null,
                     is_deleted: false,
@@ -514,20 +525,20 @@ function ReportBuilderInner() {
 
             const processed = [...portalStudents, ...prePortalStudents];
             setStudents(processed as any);
-            setCourses(cRes.data ?? []);
-            setPrograms(progRes.data ?? []);
+            setCourses(coursesJson.data ?? []);
+            setPrograms(progJson.data ?? []);
             setSchools(schoolsList);
-            setTeacherClasses((clsRes.data ?? []) as { id: string; name: string; school_id: string | null }[]);
+            setTeacherClasses((classesJson.data ?? []) as { id: string; name: string; school_id: string | null }[]);
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
-            if (bRes.data) {
+            if (brandingData) {
                 setBranding({
-                    org_name: bRes.data.org_name ?? '',
-                    org_tagline: bRes.data.org_tagline ?? '',
-                    org_address: bRes.data.org_address ?? '',
-                    org_phone: bRes.data.org_phone ?? '',
-                    org_email: bRes.data.org_email ?? '',
-                    org_website: bRes.data.org_website ?? '',
-                    logo_url: bRes.data.logo_url ?? '',
+                    org_name: brandingData.org_name ?? '',
+                    org_tagline: brandingData.org_tagline ?? '',
+                    org_address: brandingData.org_address ?? '',
+                    org_phone: brandingData.org_phone ?? '',
+                    org_email: brandingData.org_email ?? '',
+                    org_website: brandingData.org_website ?? '',
+                    logo_url: brandingData.logo_url ?? '',
                 });
             }
             setSessionConfig(s => ({
@@ -538,9 +549,15 @@ function ReportBuilderInner() {
                 school_id: s.school_id || profile?.school_id || (schoolsList.length === 1 ? schoolsList[0].id : ''),
             }));
 
-            if (prefStudentId) {
-                const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
-                if (s) selectStudent(s as PortalUser, 0);
+                if (prefStudentId) {
+                    const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
+                    if (s) selectStudent(s as PortalUser, 0);
+                }
+            } catch (err: any) {
+                console.error('Failed to load builder data:', err);
+                setError('Failed to initialize report builder: ' + err.message);
+            } finally {
+                setLoading(false);
             }
         }
 
@@ -1124,13 +1141,22 @@ function ReportBuilderInner() {
         if (!file || !selectedStudent) return;
         setUploading(true); setError('');
         try {
-            const db = createClient();
-            const ext = file.name.split('.').pop();
-            const fileName = `${selectedStudent.id}/${Date.now()}.${ext}`;
-            const { error: uploadErr } = await db.storage.from('reports').upload(fileName, file);
-            if (uploadErr) throw uploadErr;
-            const { data: { publicUrl } } = db.storage.from('reports').getPublicUrl(fileName);
-            setForm(f => ({ ...f, photo_url: publicUrl }));
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('studentName', selectedStudent.full_name || 'student');
+
+            const res = await fetch('/api/upload/report-photo', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const errJson = await res.json();
+                throw new Error(errJson.error || 'Upload failed');
+            }
+
+            const json = await res.json();
+            setForm(f => ({ ...f, photo_url: json.url }));
             setSuccessMsg('Photo uploaded!');
         } catch (err: any) {
             setError('Upload failed: ' + err.message);
@@ -1182,7 +1208,7 @@ function ReportBuilderInner() {
     };
 
     // ── Guards ────────────────────────────────────────────────────────────────
-    if (authLoading || profileLoading) return (
+    if (authLoading || profileLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -2506,12 +2532,23 @@ function ReportBuilderInner() {
                                                 if (!file) return;
                                                 setUploading(true);
                                                 try {
-                                                    const db = createClient();
-                                                    const path = `branding/${profile?.id}/${Date.now()}_logo.png`;
-                                                    const { error: upErr } = await db.storage.from('reports').upload(path, file);
-                                                    if (upErr) throw upErr;
-                                                    const { data: { publicUrl } } = db.storage.from('reports').getPublicUrl(path);
-                                                    setBranding(b => ({ ...b, logo_url: publicUrl }));
+                                                    const formData = new FormData();
+                                                    formData.append('file', file);
+                                                    formData.append('folder', 'branding');
+                                                    formData.append('studentName', branding.org_name || 'org_logo');
+
+                                                    const res = await fetch('/api/upload/report-photo', {
+                                                        method: 'POST',
+                                                        body: formData
+                                                    });
+
+                                                    if (!res.ok) {
+                                                        const errJson = await res.json();
+                                                        throw new Error(errJson.error || 'Upload failed');
+                                                    }
+
+                                                    const json = await res.json();
+                                                    setBranding(b => ({ ...b, logo_url: json.url }));
                                                 } catch (err: any) {
                                                     setError(err.message);
                                                 } finally {

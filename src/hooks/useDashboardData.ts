@@ -6,6 +6,7 @@ interface DashboardData {
   stats: any;
   activities: any[];
   role: string | null;
+  lmsSettings?: Record<string, string>;
 }
 
 interface UseDashboardDataReturn {
@@ -75,6 +76,7 @@ export function useDashboardData(enabled: boolean = true): UseDashboardDataRetur
         stats: statsData.stats || null,
         activities: activityData.activities || [],
         role: statsData.role || null,
+        lmsSettings: statsData.lmsSettings || {},
       };
 
       setData(newData);

@@ -47,11 +47,11 @@ export class StorageService {
 
     async getDownloadUrl(bucket: string, key: string): Promise<string> {
         if (this.s3 && env.R2_BUCKET_NAME) {
-            const command = new GetObjectCommand({
-                Bucket: env.R2_BUCKET_NAME,
-                Key: key.includes('/') ? key : `${bucket}/${key}`,
-            });
-            return await getSignedUrl(this.s3, command, { expiresIn: 3600 * 24 * 7 }); // 7 days
+            // Use the stable media proxy instead of a short-lived signed URL directly.
+            // The proxy handles auth and redirects to a signed URL.
+            const fullKey = key.includes('/') ? key : `${bucket}/${key}`;
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+            return `${baseUrl}/api/media/${fullKey}`;
         }
 
         // Fallback to Supabase Storage
