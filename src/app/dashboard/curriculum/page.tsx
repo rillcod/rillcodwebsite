@@ -2405,9 +2405,9 @@ export default function CurriculumPage() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
                           {scopeLabel} Scope
                         </span>
-                        {(curriculum as any)?.schools?.name && (
+                        {curriculum.schools?.name && (
                           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
-                            <BuildingOfficeIcon className="w-3 h-3" /> {(curriculum as any).schools.name}
+                            <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools.name}
                           </div>
                         )}
                       </div>
