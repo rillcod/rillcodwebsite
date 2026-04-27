@@ -1554,32 +1554,33 @@ export default function CurriculumPage() {
   // ── Render (staff: teacher / admin) ─────────────────────────────────────
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* Header — search + course context */}
+      {/* Header */}
       <div className="shrink-0 border-b border-border bg-card z-20">
         <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">
-              {selectedCourse ? `${selectedProgram?.name ?? 'Program'} › ${selectedCourse.title}` : 'Academic Planning Hub'}
+              {selectedCourse ? `${selectedProgram?.name ?? 'Programme'} › ${selectedCourse.title}` : 'Course Syllabus'}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setShowHelp(h => !h)}
-            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
           >
-            {showHelp ? 'Hide guide' : '? How to use'}
+            {showHelp ? 'Hide guide' : '? How it works'}
           </button>
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">            <div className="relative flex-1 min-w-0">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={catalogQuery}
-              onChange={(e) => setCatalogQuery(e.target.value)}
-              placeholder="Filter programmes & courses…"
-              className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              aria-label="Filter programmes and courses"
-            />
-          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">
+            <div className="relative flex-1 min-w-0">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="search"
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Search programmes & courses…"
+                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                aria-label="Filter programmes and courses"
+              />
+            </div>
             {canTrack && programs.length > 0 && (
               <button
                 type="button"
@@ -1591,26 +1592,25 @@ export default function CurriculumPage() {
             )}
           </div>
         </div>
-        {/* Removed "Syllabus copy" selector from header — version picker lives inside the Syllabus tab */}
       </div>
 
-      {/* ── How to use guide ── */}
+      {/* How it works guide */}
       {showHelp && (
         <div className="shrink-0 border-b border-primary/20 bg-primary/5 px-4 py-4">
           <div className="max-w-[1800px] mx-auto space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">How to build a syllabus — step by step</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">How to use this page</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">1. Planning Phase</p>
-                <p className="text-muted-foreground">Build your Syllabus here. Once ready, use the <strong>"Deploy to Class"</strong> button to create an active Lesson Plan for your students.</p>
+                <p className="font-black text-primary">Step 1 — Build the syllabus</p>
+                <p className="text-muted-foreground">Pick a course on the left. Generate or edit the week-by-week syllabus. This is your teaching plan for the term.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">2. Teaching Phase</p>
-                <p className="text-muted-foreground">Use the Lesson Engine and Activity Studio to build the actual content based on your approved syllabus.</p>
+                <p className="font-black text-primary">Step 2 — Deploy to a class</p>
+                <p className="text-muted-foreground">Click "Deploy to Class" to assign this syllabus to a specific class. This creates a Lesson Plan you can track week by week.</p>
               </div>
               <div className="bg-card border border-border p-3 space-y-1">
-                <p className="font-black text-primary">3. Delivery Phase</p>
-                <p className="text-muted-foreground">Mark weeks as completed. This automatically updates reports for the School and Parents.</p>
+                <p className="font-black text-primary">Step 3 — Track delivery</p>
+                <p className="text-muted-foreground">As you teach each week, mark it done. Progress updates automatically for school reports and parents.</p>
               </div>
             </div>
           </div>
@@ -1662,7 +1662,7 @@ export default function CurriculumPage() {
                 className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-primary/30 px-2 py-1.5"
               >
                 <BookOpenIcon className="w-3.5 h-3.5" />
-                {mobileSidebarOpen ? 'Close' : 'Browse'}
+                {mobileSidebarOpen ? 'Close' : 'Courses'}
               </button>
             </div>
           </div>
@@ -2057,69 +2057,67 @@ export default function CurriculumPage() {
                       </div>
                     )}
                     {!lastVisited && (
-                      <div className="py-16 px-6">
-                        <div className="max-w-4xl mx-auto text-center space-y-12">
-                          <div className="space-y-4">
-                            <h2 className="text-4xl font-black text-white tracking-tighter">Academic Planning Hub</h2>
-                            <p className="text-muted-foreground text-base max-w-xl mx-auto leading-relaxed">
-                              Your command center for end-to-end academic excellence. Follow the cycle to transform curriculum standards into classroom success.
+                      <div className="py-12 px-6">
+                        <div className="max-w-3xl mx-auto text-center space-y-8">
+                          <div className="space-y-3">
+                            <h2 className="text-2xl font-black text-foreground tracking-tight">Course Syllabus Builder</h2>
+                            <p className="text-muted-foreground text-sm max-w-lg mx-auto leading-relaxed">
+                              Pick a course from the left panel to get started. Here is the order of how it works:
                             </p>
                           </div>
 
-                          {/* Visual Stepper */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                            {/* Connection Lines (Desktop) */}
-                            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-y-1/2" />
-                            
+                          {/* Steps — correct execution order */}
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
                             {[
-                              { 
-                                step: '01', 
-                                title: 'Blueprint', 
-                                desc: 'AI-generated curriculum strategy scoped to grade & subject.',
-                                icon: SparklesIcon,
+                              {
+                                step: '1',
+                                title: 'Pick a course',
+                                desc: 'Select any course from the left panel.',
+                                icon: BookOpenIcon,
                                 color: 'text-primary',
-                                bg: 'bg-primary/10'
+                                bg: 'bg-primary/10 border-primary/20',
                               },
-                              { 
-                                step: '02', 
-                                title: 'Implementation', 
-                                desc: 'Deploy blueprints to specific classes and terms for delivery.',
+                              {
+                                step: '2',
+                                title: 'Build the syllabus',
+                                desc: 'Generate or write the week-by-week topics for the term.',
+                                icon: SparklesIcon,
+                                color: 'text-orange-400',
+                                bg: 'bg-orange-500/10 border-orange-500/20',
+                              },
+                              {
+                                step: '3',
+                                title: 'Deploy to a class',
+                                desc: 'Assign the syllabus to a specific class and term.',
                                 icon: RocketLaunchIcon,
                                 color: 'text-violet-400',
-                                bg: 'bg-violet-400/10'
+                                bg: 'bg-violet-500/10 border-violet-500/20',
                               },
-                              { 
-                                step: '03', 
-                                title: 'Tracking', 
-                                desc: 'Monitor progress and manage lesson-level execution in real-time.',
+                              {
+                                step: '4',
+                                title: 'Track delivery',
+                                desc: 'Mark weeks as taught. Progress updates for school and parents.',
                                 icon: PresentationChartLineIcon,
                                 color: 'text-emerald-400',
-                                bg: 'bg-emerald-400/10'
-                              }
+                                bg: 'bg-emerald-500/10 border-emerald-500/20',
+                              },
                             ].map((s, i) => (
-                              <div key={i} className="relative z-10 group">
-                                <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-2xl flex flex-col items-center text-center space-y-4 transition-all duration-500 hover:border-white/20 hover:-translate-y-2 group-hover:shadow-2xl">
-                                  <div className={`w-12 h-12 rounded-xl ${s.bg} flex items-center justify-center mb-2`}>
-                                    <s.icon className={`w-6 h-6 ${s.color}`} />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${s.color}`}>Step {s.step}</p>
-                                    <h3 className="text-lg font-black text-white">{s.title}</h3>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground leading-relaxed px-2 opacity-80">
-                                    {s.desc}
-                                  </p>
+                              <div key={i} className={`bg-card border ${s.bg} p-4 space-y-3`}>
+                                <div className={`w-9 h-9 rounded-lg border ${s.bg} flex items-center justify-center`}>
+                                  <s.icon className={`w-4 h-4 ${s.color}`} />
+                                </div>
+                                <div>
+                                  <p className={`text-[10px] font-black uppercase tracking-widest ${s.color} mb-1`}>Step {s.step}</p>
+                                  <h3 className="text-sm font-black text-foreground">{s.title}</h3>
+                                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{s.desc}</p>
                                 </div>
                               </div>
                             ))}
                           </div>
 
-                          <div className="pt-8">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
-                              <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select a course below to begin cycle</span>
-                            </div>
-                          </div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            ← Select a course on the left to begin
+                          </p>
                         </div>
                       </div>
                     )}
