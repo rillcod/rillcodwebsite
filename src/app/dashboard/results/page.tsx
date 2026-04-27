@@ -1120,7 +1120,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
                                                             title="Download PDF"
-                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-orange-900/40"
+                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-primary/40"
                                                         >
                                                             {isDownloadingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1428,7 +1428,7 @@ tbody tr:hover{background:#f3f4f6}
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={isSavingEdit || !editCourseName.trim()}
-                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
+                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-foreground font-bold transition-all shadow-lg shadow-primary/30"
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>

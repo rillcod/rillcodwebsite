@@ -2024,7 +2024,7 @@ export default function CurriculumPage() {
                   type="button"
                   onClick={handleGenerate}
                   disabled={genGenerating}
-                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-orange-700 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-xl"
+                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-primary/80 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-xl"
                 >
                   {genGenerating ? (
                     <>
@@ -2117,8 +2117,8 @@ export default function CurriculumPage() {
                                 title: 'Build the syllabus',
                                 desc: 'Generate or write the week-by-week topics for the term.',
                                 icon: SparklesIcon,
-                                color: 'text-orange-400',
-                                bg: 'bg-orange-500/10 border-orange-500/20',
+                                color: 'text-primary',
+                                bg: 'bg-primary/10 border-primary/20',
                               },
                               {
                                 step: '3',
@@ -3063,7 +3063,7 @@ export default function CurriculumPage() {
                                     type="button"
                                     disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
                                     onClick={() => void saveQaClassGradeMode('compulsory')}
-                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-orange-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
                                   >Compulsory</button>
                                   {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
                                 </div>
@@ -3088,7 +3088,7 @@ export default function CurriculumPage() {
                                   type="button"
                                   onClick={() => void applyQaSpine()}
                                   disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-orange-200 hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
                                 >
                                   {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
                                   Apply to syllabus

@@ -722,7 +722,7 @@ export default function ClassDetailPage() {
                 <PencilIcon className="w-4 h-4 text-primary" /> Edit Class
               </Link>
               <Link href={`/dashboard/attendance?class_id=${id}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30">
                 <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
               </Link>
             </div>
@@ -1499,7 +1499,7 @@ export default function ClassDetailPage() {
               <div className="px-6 pt-4 pb-1 flex gap-2 flex-shrink-0">
                 <button
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   Enrol into {cls?.name ?? 'this class'}
                 </button>
@@ -1841,7 +1841,7 @@ export default function ClassDetailPage() {
                   }
                 }}
                 disabled={savingSession}
-                className="flex-[2] py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
               >
                 {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                 {editingSession.id === 'new' ? 'Save Session' : 'Save Changes'}

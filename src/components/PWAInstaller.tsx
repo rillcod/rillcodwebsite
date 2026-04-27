@@ -113,7 +113,7 @@ export default function PWAInstaller() {
           </button>
           <button
             onClick={handleInstallClick}
-            className="flex-1 py-2 text-xs font-black text-white bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 rounded-lg transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-1.5 uppercase tracking-widest"
+            className="flex-1 py-2 text-xs font-black text-white bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 rounded-lg transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-1.5 uppercase tracking-widest"
           >
             <ArrowDownTrayIcon className="w-3.5 h-3.5" />
             Install

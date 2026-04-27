@@ -213,13 +213,13 @@ img[alt="Official Signature"] {
   /* Amber */
   .text-amber-400     { color: #fbbf24 !important; }
   .border-amber-100   { border-color: #fef3c7 !important; }
-  /* Brand blue (replaces orange in print) */
-  .text-orange-400    { color: #60A5FA !important; }
-  .text-orange-500    { color: #3B6FE8 !important; }
-  .text-orange-600    { color: #1A3A8F !important; }
-  .bg-orange-500      { background-color: #3B6FE8 !important; }
-  .bg-orange-600      { background-color: #1A3A8F !important; }
-  .border-orange-500  { border-color: #3B6FE8 !important; }
+  /* Brand blue aliases for print fallbacks */
+  .text-brand-blue-400  { color: #60A5FA !important; }
+  .text-brand-blue-500  { color: #3B6FE8 !important; }
+  .text-brand-blue-600  { color: #1A3A8F !important; }
+  .bg-brand-blue-500    { background-color: #3B6FE8 !important; }
+  .bg-brand-blue-600    { background-color: #1A3A8F !important; }
+  .border-brand-blue-500 { border-color: #3B6FE8 !important; }
   /* White with opacity (on dark header / grade card in ReportCard) */
   .text-white        { color: #ffffff !important; }
   .text-white\/90    { color: rgba(255,255,255,0.9) !important; }
@@ -597,7 +597,7 @@ select {
     border-color: var(--ring-accent);
   }
 
-  .text-glow-orange {
+  .text-glow-primary {
     text-shadow: 0 0 15px rgba(26, 58, 143, 0.5);
   }
 
@@ -605,7 +605,7 @@ select {
     text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
   }
 
-  .border-glow-orange {
+  .border-glow-primary {
     box-shadow: 0 0 20px rgba(26, 58, 143, 0.15), inset 0 0 20px rgba(26, 58, 143, 0.05);
   }
 

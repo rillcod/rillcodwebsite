@@ -85,7 +85,7 @@ const typeConfig = {
     bgGradient: 'bg-gradient-to-br from-primary/20 via-red-400/15 to-pink-500/10',
     borderColor: 'border-primary/50',
     textColor: 'text-primary dark:text-primary',
-    iconColor: 'text-orange-700 dark:text-primary',
+    iconColor: 'text-primary/90 dark:text-primary',
     glowColor: 'shadow-primary/30',
     progressColor: 'bg-gradient-to-r from-primary to-red-400',
     emoji: '🔥'

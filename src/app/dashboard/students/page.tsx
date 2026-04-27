@@ -1054,7 +1054,7 @@ export default function StudentsPage() {
             <div className="px-6 pt-5 pb-1 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setBulkEnrolMode('pick')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 Pick Existing Class
               </button>

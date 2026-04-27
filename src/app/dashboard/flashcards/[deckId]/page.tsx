@@ -431,7 +431,7 @@ export default function FlashcardDeckPage() {
             </button>
 
             <button onClick={() => setPresFlipped(v => !v)}
-              className="px-6 sm:px-10 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl transition-colors text-sm shadow-lg shadow-orange-900/30">
+              className="px-6 sm:px-10 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl transition-colors text-sm shadow-lg shadow-primary/30">
               {presFlipped ? 'Show Question' : 'Reveal Answer'}
             </button>
 
@@ -494,7 +494,7 @@ export default function FlashcardDeckPage() {
             {/* Student: study button */}
             {profile?.role === 'student' && cards.length > 0 && (
               <Link href={`/dashboard/flashcards/${deckId}/review`}
-                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-xs font-black rounded-xl transition-colors shadow-lg shadow-orange-900/20">
+                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-xs font-black rounded-xl transition-colors shadow-lg shadow-primary/20">
                 <PlayIcon className="w-4 h-4" /> Start Review
               </Link>
             )}

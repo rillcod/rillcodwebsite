@@ -999,7 +999,7 @@ export default function PortfolioPage() {
             {tab === 'projects' && (
               <button
                 onClick={() => { setEditing(null); setShowForm(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors shadow-lg shadow-orange-900/30"
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors shadow-lg shadow-primary/30"
               >
                 <PlusIcon className="w-4 h-4" /> Add Project
               </button>

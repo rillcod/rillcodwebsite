@@ -232,7 +232,7 @@ function TeacherPersonalDashboard() {
   ];
 
   const quickActions = [
-    { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-primary hover:bg-orange-700' },
+    { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-primary hover:bg-primary/90' },
     { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-primary hover:bg-primary' },
     { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/assignments', color: 'bg-amber-600 hover:bg-amber-700' },
     { label: 'View Progress', icon: ChartBarIcon, href: '/dashboard/progress', color: 'bg-emerald-600 hover:bg-emerald-700' },

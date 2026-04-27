@@ -137,7 +137,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 const CHANNEL_COLORS: Record<InboxCategory, string> = {
   students: 'bg-emerald-900/40 text-emerald-500',
-  parents: 'bg-orange-900/40 text-primary',
+  parents: 'bg-primary/70/40 text-primary',
   school: 'bg-blue-900/40 text-primary',
   teachers: 'bg-violet-900/40 text-primary',
 };
@@ -1621,7 +1621,7 @@ export default function UnifiedInbox() {
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary text-white shadow-sm shadow-orange-900/40">You</span>}
+                          {isAssignedToMe && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-primary text-white shadow-sm shadow-primary/40">You</span>}
                           {conv.role && <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[conv.role] || 'bg-white/10 text-white/40'}`}>{conv.role}</span>}
                           {conv.school_name && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 truncate max-w-[80px]">{conv.school_name}</span>}
                         </div>
@@ -2161,7 +2161,7 @@ export default function UnifiedInbox() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-7">
               {!isParentOrStudent && (
-                <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-orange-900/40">
+                <button onClick={() => setShowNewChat(true)} className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[13px] font-black rounded-full transition-colors shadow-lg shadow-primary/40">
                   <Plus className="w-4 h-4" /> New Chat
                 </button>
               )}

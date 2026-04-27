@@ -17,7 +17,7 @@ function letterGrade(pct: number) {
   if (pct >= 90) return { letter: 'A', color: 'text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
   if (pct >= 80) return { letter: 'B', color: 'text-primary', bg: 'bg-primary/20    border-primary/30' };
   if (pct >= 70) return { letter: 'C', color: 'text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
-  if (pct >= 60) return { letter: 'D', color: 'text-orange-400', bg: 'bg-orange-500/20  border-orange-500/30' };
+  if (pct >= 60) return { letter: 'D', color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20' };
   return { letter: 'F', color: 'text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
 }
 
@@ -117,7 +117,7 @@ export default function StudentProgressReportPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         <p className="text-muted-foreground text-sm">Loading student report…</p>
       </div>
     </div>
@@ -133,7 +133,7 @@ export default function StudentProgressReportPage() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <ExclamationTriangleIcon className="w-12 h-12 text-rose-400" />
       <p className="text-rose-400">{error ?? 'Student not found'}</p>
-      <Link href="/dashboard/students" className="text-orange-400 hover:text-orange-500 text-sm flex items-center gap-1">
+      <Link href="/dashboard/students" className="text-primary hover:text-primary text-sm flex items-center gap-1">
         <ArrowLeftIcon className="w-4 h-4" /> Back to Students
       </Link>
     </div>
@@ -151,13 +151,13 @@ export default function StudentProgressReportPage() {
               <ArrowLeftIcon className="w-4 h-4" /> Students
             </Link>
             <div className="flex items-center gap-2">
-              <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Progress Report</span>
+              <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Progress Report</span>
             </div>
             <h1 className="text-3xl font-extrabold mt-0.5">{student.full_name}</h1>
           </div>
           <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-xl transition-all">
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-foreground text-sm font-bold rounded-xl transition-all">
             <PrinterIcon className="w-4 h-4" /> Print / Save PDF
           </button>
         </div>
@@ -257,7 +257,7 @@ export default function StudentProgressReportPage() {
         {/* ── Student info card ── */}
         <div className="bg-card shadow-sm border border-border rounded-xl p-6 print:border-border print:bg-card">
           <div className="flex items-start gap-5 flex-wrap">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
               {(student.full_name ?? 'S')[0]}
             </div>
             <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm">
@@ -343,7 +343,7 @@ export default function StudentProgressReportPage() {
         <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden print:border-border">
           <div className="p-5 border-b border-border print:border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ChartBarIcon className="w-4 h-4 text-orange-400" />
+              <ChartBarIcon className="w-4 h-4 text-primary" />
               <h3 className="font-bold text-foreground print:text-black">Assignment Performance</h3>
             </div>
             <span className="text-xs text-muted-foreground">{submissions.length} total</span>
@@ -446,8 +446,8 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Certificate footer (for print) ── */}
-        <div className="hidden print:block border-2 border-orange-400 rounded-xl p-8 text-center mt-8">
-          <h4 className="text-xl font-bold text-orange-600">CERTIFICATE OF PROGRESS</h4>
+        <div className="hidden print:block border-2 border-primary rounded-xl p-8 text-center mt-8">
+          <h4 className="text-xl font-bold text-primary">CERTIFICATE OF PROGRESS</h4>
           <p className="text-foreground/80 mt-2 leading-relaxed">
             This certifies that <strong>{student.full_name}</strong> has completed the progress review
             for the current term at Rillcod Technologies.

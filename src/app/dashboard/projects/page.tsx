@@ -430,7 +430,7 @@ export default function ProjectsPage() {
                 </div>
                 {/* Hero */}
                 <div className="relative overflow-hidden bg-card border-b border-border">
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/70/20 via-transparent to-amber-900/10 pointer-events-none" />
                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
                     <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">
@@ -955,7 +955,7 @@ export default function ProjectsPage() {
             </div>
             {/* Hero */}
             <div className="relative overflow-hidden bg-card border-b border-border">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 via-transparent to-amber-900/10 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/70/20 via-transparent to-amber-900/10 pointer-events-none" />
                 <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
                 <div className="relative px-4 sm:px-6 md:px-10 py-6 sm:py-10">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-6">

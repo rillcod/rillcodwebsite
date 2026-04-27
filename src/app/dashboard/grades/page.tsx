@@ -169,7 +169,7 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
 
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-white/10 hover:bg-white/5 transition-all">Cancel</button>
-                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-900/40">
+                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/40">
                         {syncing ? (
                             <div className="flex items-center justify-center gap-2">
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -1017,7 +1017,7 @@ export default function GradesPage() {
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-primary/20">
                                     <DocumentTextIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>

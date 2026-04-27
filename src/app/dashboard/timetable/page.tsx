@@ -764,7 +764,7 @@ export default function TimetablePage() {
             )}
             {isAdmin && (
               <button onClick={openNewTT}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/30">
                 <PlusIcon className="w-4 h-4" /> New Timetable
               </button>
             )}
@@ -897,7 +897,7 @@ export default function TimetablePage() {
                       onClick={() => handleSelectTT(tt.id)}
                       onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id
-                        ? 'bg-primary text-foreground shadow-lg shadow-orange-900/30'
+                        ? 'bg-primary text-foreground shadow-lg shadow-primary/30'
                         : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                       <BuildingOfficeIcon className="w-4 h-4 flex-shrink-0" />
                       <div className="min-w-0">

@@ -247,7 +247,7 @@ export default function NewCoursePage() {
               Cancel
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-primary/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : 'Create Course'}
             </button>

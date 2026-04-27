@@ -512,7 +512,7 @@ export default function AddClassPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 shadow-lg shadow-orange-900/30"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 shadow-lg shadow-primary/30"
           >
             {saving
               ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating class...</>
