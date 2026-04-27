@@ -323,14 +323,14 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         </div>
                     )}
                     {sub.file_url && !isImage && (
-                        <div className="border border-blue-500/20 bg-blue-500/5 rounded-xl overflow-hidden">
+                        <div className="border border-primary/20 bg-primary/5 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-3 px-4 py-3">
-                                <PaperClipIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                <PaperClipIcon className="w-4 h-4 text-primary flex-shrink-0" />
                                 <p className="text-sm text-blue-300 font-semibold flex-1 truncate">
                                     {sub.file_url.split('/').pop()?.split('?')[0] || 'Attached File'}
                                 </p>
                                 <button type="button" onClick={() => setFilePreviewOpen(true)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all rounded-lg flex-shrink-0">
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all rounded-lg flex-shrink-0">
                                     View File
                                 </button>
                             </div>
@@ -853,8 +853,8 @@ export default function ProjectBuilderPage() {
                                     {myGroup && (
                                         <div className="border border-white/[0.08] bg-white/[0.02]">
                                             <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
-                                                <UserGroupIcon className="w-3 h-3 text-violet-400" />
-                                                <p className="text-[9px] font-black text-violet-400/80 uppercase tracking-widest flex-1 truncate">{myGroup.name}</p>
+                                                <UserGroupIcon className="w-3 h-3 text-primary" />
+                                                <p className="text-[9px] font-black text-primary/80 uppercase tracking-widest flex-1 truncate">{myGroup.name}</p>
                                                 {myGroup.is_graded && myGroup.group_score != null && myGroup.evaluation_type === 'group' && (
                                                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">{myGroup.group_score}/100</span>
                                                 )}
@@ -1134,10 +1134,10 @@ export default function ProjectBuilderPage() {
                     {/* Groups overview — shown when groups exist for this activity */}
                     {activityGroups.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                            className="border border-violet-500/20 bg-violet-500/[0.03] p-5">
+                            className="border border-primary/20 bg-primary/[0.03] p-5">
                             <div className="flex items-center gap-2 mb-4">
-                                <UserGroupIcon className="w-4 h-4 text-violet-400" />
-                                <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                                <UserGroupIcon className="w-4 h-4 text-primary" />
+                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                                     Groups ({activityGroups.length})
                                 </p>
                             </div>
@@ -1243,7 +1243,7 @@ export default function ProjectBuilderPage() {
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <p className="text-sm font-black text-white">{studentName}</p>
                                                 {subGroup && (
-                                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 uppercase tracking-wide">
+                                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary uppercase tracking-wide">
                                                         {subGroup.name}
                                                     </span>
                                                 )}

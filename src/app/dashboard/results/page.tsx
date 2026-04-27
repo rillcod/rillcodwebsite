@@ -41,7 +41,7 @@ type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 const WAEC_TIERS = [
     { codes: ['A1'],         label: 'A1',    bar: 'from-emerald-500/80 to-emerald-400/40', text: 'text-emerald-400' },
     { codes: ['B2', 'B3'],   label: 'B2/B3', bar: 'from-green-500/80   to-green-400/40',   text: 'text-green-400'   },
-    { codes: ['C4','C5','C6'],label: 'C',    bar: 'from-blue-500/80    to-blue-400/40',    text: 'text-blue-400'    },
+    { codes: ['C4','C5','C6'],label: 'C',    bar: 'from-primary/80    to-primary/40',    text: 'text-primary'    },
     { codes: ['D7'],         label: 'D7',    bar: 'from-amber-500/80   to-amber-400/40',   text: 'text-amber-400'   },
     { codes: ['E8'],         label: 'E8',    bar: 'from-primary/80  to-primary/40',  text: 'text-primary'  },
     { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
@@ -774,7 +774,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isEditor && (
                             <Link
                                 href="/dashboard/reports/builder"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 text-primary font-bold text-sm rounded-none transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 text-primary font-bold text-sm rounded-xl transition-all"
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
@@ -783,7 +783,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isStaff && students.length > 0 && (
                             <button
                                 onClick={handlePrintPerformanceSheet}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-none transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all"
                             >
                                 <PrinterIcon className="w-4 h-4" /> Performance Sheet
                             </button>
@@ -793,7 +793,7 @@ tbody tr:hover{background:#f3f4f6}
                             <button
                                 onClick={startBatchDownload}
                                 disabled={isBatchDownloading}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-none transition-all shadow-lg shadow-emerald-900/30"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
                             >
                                 {isBatchDownloading
                                     ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" />
@@ -808,7 +808,7 @@ tbody tr:hover{background:#f3f4f6}
 
                 {/* ── Batch progress bar ── */}
                 {batchProgress && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none px-5 py-4">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-emerald-300 font-bold text-sm">
                                 Generating PDFs — {batchProgress.current} of {batchProgress.total} complete
@@ -844,7 +844,7 @@ tbody tr:hover{background:#f3f4f6}
                                     placeholder="Search students…"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
 
@@ -853,7 +853,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterSchool}
                                         onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); }}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
                                     >
                                         <option value="">All Schools</option>
                                         {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
@@ -861,7 +861,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterStatus}
                                         onChange={e => setFilterStatus(e.target.value as 'all' | 'published' | 'draft' | 'none')}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
                                     >
                                         <option value="all">All Status</option>
                                         <option value="published">Published</option>
@@ -894,7 +894,7 @@ tbody tr:hover{background:#f3f4f6}
                             <GradeDistribution students={filtered} reportsMap={reportsMap} />
 
                             {/* Select-all bar */}
-                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-border rounded-none">
+                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-border rounded-xl">
                                 <button
                                     onClick={toggleSelectAll}
                                     className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -925,7 +925,7 @@ tbody tr:hover{background:#f3f4f6}
                                         <div
                                             key={s.id}
                                             onClick={() => loadStudentReport(s)}
-                                            className={`flex items-center gap-2.5 p-3 rounded-none border cursor-pointer transition-all ${isActive ? 'bg-primary/20 border-primary/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-primary/20 border-primary/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
                                         >
                                             {/* Checkbox */}
                                             <button
@@ -975,7 +975,7 @@ tbody tr:hover{background:#f3f4f6}
                         {(selectedStudent || !isStaff) ? (
 
                             (loadingReport || selectedReport) ? (
-                                <div className="border border-border rounded-none overflow-hidden shadow-2xl flex flex-col">
+                                <div className="border border-border rounded-xl overflow-hidden shadow-2xl flex flex-col">
 
                                     {/* Action bar */}
                                     <div className="bg-card shadow-sm border-b border-border px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -983,7 +983,7 @@ tbody tr:hover{background:#f3f4f6}
                                             {isStaff && (
                                                 <button
                                                     onClick={() => { setShowSidebar(true); setSelectedStudent(null); setSelectedReport(null); }}
-                                                    className="lg:hidden flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors text-[10px] font-black uppercase tracking-widest flex-shrink-0"
+                                                    className="lg:hidden flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors text-[10px] font-black uppercase tracking-widest flex-shrink-0"
                                                 >
                                                     <ArrowLeftIcon className="w-3.5 h-3.5" />
                                                     Students
@@ -1011,11 +1011,11 @@ tbody tr:hover{background:#f3f4f6}
                                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                                             {/* Prev / Next */}
                                             {isStaff && currentIdx >= 0 && (
-                                                <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
+                                                <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">
                                                     <button
                                                         onClick={() => navigateTo(currentIdx - 1)}
                                                         disabled={currentIdx <= 0 || loadingReport}
-                                                        className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
+                                                        className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
                                                     >
                                                         <ArrowLeftIcon className="w-3.5 h-3.5" />
                                                     </button>
@@ -1023,7 +1023,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <button
                                                         onClick={() => navigateTo(currentIdx + 1)}
                                                         disabled={currentIdx >= filtered.length - 1 || loadingReport}
-                                                        className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
+                                                        className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
                                                     >
                                                         <ArrowRightIcon className="w-3.5 h-3.5" />
                                                     </button>
@@ -1031,29 +1031,29 @@ tbody tr:hover{background:#f3f4f6}
                                             )}
 
                                             {/* Template Toggle */}
-                                            <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
+                                            <div className="flex bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">
                                                 <button
                                                   onClick={() => setTemplate('standard')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Standard
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('modern')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Modern
                                                 </button>
                                                 <button
                                                   onClick={() => setTemplate('printable')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${template === 'printable' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Printable
                                                 </button>
                                             </div>
 
                                             {template === 'modern' && (
-                                                <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0 items-center gap-1.5 px-2">
+                                                <div className="flex bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0 items-center gap-1.5 px-2">
                                                     {[
                                                         { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-primary' },
                                                         { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
@@ -1080,7 +1080,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 {isEditor && selectedStudent && (
                                                     <Link
                                                         href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-none border border-primary/20 transition-all"
+                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 transition-all"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                                                     </Link>
@@ -1089,7 +1089,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <>
                                                         <button
                                                             onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none border border-amber-500/20 transition-all"
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all"
                                                         >
                                                             <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
                                                         </button>
@@ -1097,7 +1097,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={handleDeleteReport}
                                                             disabled={isDeletingReport}
                                                             title="Delete this report"
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-none border border-rose-500/20 transition-all"
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all"
                                                         >
                                                             {isDeletingReport
                                                                 ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
@@ -1111,7 +1111,7 @@ tbody tr:hover{background:#f3f4f6}
                                                         <button
                                                             onClick={() => window.print()}
                                                             title="Print"
-                                                            className="w-8 h-8 flex items-center justify-center bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all rounded-none"
+                                                            className="w-8 h-8 flex items-center justify-center bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all rounded-xl"
                                                         >
                                                             <PrinterIcon className="w-4 h-4" />
                                                         </button>
@@ -1120,7 +1120,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
                                                             title="Download PDF"
-                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-orange-900/40"
+                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-orange-900/40"
                                                         >
                                                             {isDownloadingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1154,7 +1154,7 @@ tbody tr:hover{background:#f3f4f6}
                                                                     setIsSharingPdf(false);
                                                                 }
                                                             }}
-                                                            className="w-8 h-8 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-green-900/40"
+                                                            className="w-8 h-8 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-green-900/40"
                                                         >
                                                             {isSharingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1188,7 +1188,7 @@ tbody tr:hover{background:#f3f4f6}
 
                             ) : (
                                 /* Student selected but has no report */
-                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-card shadow-sm border border-border rounded-none gap-3">
+                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-card shadow-sm border border-border rounded-xl gap-3">
                                     <DocumentTextIcon className="w-12 h-12 text-muted-foreground" />
                                     <p className="text-muted-foreground text-sm font-semibold">
                                         No report for {selectedStudent?.full_name}
@@ -1196,7 +1196,7 @@ tbody tr:hover{background:#f3f4f6}
                                     {isEditor && selectedStudent && (
                                         <Link
                                             href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-none border border-primary/30 hover:bg-primary/30 transition-colors"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                         >
                                             <PencilSquareIcon className="w-4 h-4" /> Create Report
                                         </Link>
@@ -1209,14 +1209,14 @@ tbody tr:hover{background:#f3f4f6}
 
                         ) : (
                             /* Staff — no student selected yet */
-                            <div className="flex flex-col items-center justify-center min-h-[500px] bg-card shadow-sm border border-border rounded-none gap-3">
+                            <div className="flex flex-col items-center justify-center min-h-[500px] bg-card shadow-sm border border-border rounded-xl gap-3">
                                 <AcademicCapIcon className="w-14 h-14 text-muted-foreground" />
                                 <p className="text-muted-foreground text-sm font-semibold">Select a student to view their report</p>
                                 <p className="text-muted-foreground text-xs">Or select multiple students and click Download PDFs</p>
                                 {isEditor && (
                                     <Link
                                         href="/dashboard/reports/builder"
-                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-none border border-primary/30 hover:bg-primary/30 transition-colors"
+                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                     >
                                         <PencilSquareIcon className="w-4 h-4" /> Create First Report
                                     </Link>
@@ -1384,13 +1384,13 @@ tbody tr:hover{background:#f3f4f6}
             {/* ══ Edit / Rename modal ══ */}
             {showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden" onClick={() => setShowEditModal(false)}>
-                    <div className="bg-background border border-border rounded-none p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-background border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-5">
                             <div>
                                 <h3 className="text-base font-extrabold text-foreground">Rename / Reassign Report</h3>
                                 <p className="text-xs text-muted-foreground mt-0.5">{selectedStudent?.full_name}</p>
                             </div>
-                            <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                                 <XMarkIcon className="w-4 h-4" />
                             </button>
                         </div>
@@ -1403,7 +1403,7 @@ tbody tr:hover{background:#f3f4f6}
                                     value={editCourseName}
                                     onChange={e => setEditCourseName(e.target.value)}
                                     placeholder="e.g. Web Development, Python Basics"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                             <div>
@@ -1413,7 +1413,7 @@ tbody tr:hover{background:#f3f4f6}
                                     value={editTerm}
                                     onChange={e => setEditTerm(e.target.value)}
                                     placeholder="e.g. First Term 2025/2026"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                         </div>
@@ -1421,14 +1421,14 @@ tbody tr:hover{background:#f3f4f6}
                         <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setShowEditModal(false)}
-                                className="flex-1 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-semibold"
+                                className="flex-1 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-semibold"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={isSavingEdit || !editCourseName.trim()}
-                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-none text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
+                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>

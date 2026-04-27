@@ -33,7 +33,7 @@ function gradeColor(grade: string | null) {
   if (!grade) return 'text-muted-foreground';
   const g = grade.toUpperCase();
   if (g.startsWith('A')) return 'text-emerald-400';
-  if (g.startsWith('B')) return 'text-blue-400';
+  if (g.startsWith('B')) return 'text-primary';
   if (g.startsWith('C')) return 'text-amber-400';
   return 'text-rose-400';
 }

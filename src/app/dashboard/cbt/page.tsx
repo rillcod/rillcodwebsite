@@ -147,7 +147,7 @@ export default function CBTPage() {
                   {[
                     { label: 'Total Exams', value: exams.length, color: 'text-primary' },
                     { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-400' },
-                    { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-blue-400' },
+                    { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-primary' },
                     { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-400' },
                   ].map((stat, idx) => (
                     <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
@@ -248,7 +248,7 @@ export default function CBTPage() {
                           <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                             {exam.is_active ? 'Active' : 'Inactive'}
                           </span>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                             {getExamType(exam) === 'evaluation' ? 'Evaluation' : 'Examination'}
                           </span>
                           {!isStaff && studentSession && (
@@ -256,7 +256,7 @@ export default function CBTPage() {
                               studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
                               studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
                               studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                              'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                              'bg-primary/20 text-primary border-primary/30'
                             }`}>
                               {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
                                studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` :
@@ -273,7 +273,7 @@ export default function CBTPage() {
                         {/* Meta chips */}
                         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
                           {(exam.courses?.title || exam.programs?.name) && (
-                            <span className="flex items-center gap-1 text-[11px] text-blue-400 font-bold">
+                            <span className="flex items-center gap-1 text-[11px] text-primary font-bold">
                               <BookOpenIcon className="w-3.5 h-3.5" />
                               {exam.courses?.title ?? exam.programs?.name}
                             </span>
@@ -304,7 +304,7 @@ export default function CBTPage() {
                             </span>
                           )}
                           {isStaff && (
-                            <span className="text-[11px] text-blue-400">
+                            <span className="text-[11px] text-primary">
                               {examSessions.length} attempts · {passed} passed
                             </span>
                           )}
@@ -317,7 +317,7 @@ export default function CBTPage() {
                           <>
                             <Link
                               href={`/dashboard/cbt/${exam.id}`}
-                              className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                              className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                               title="View"
                             >
                               <EyeIcon className="w-4 h-4" />

@@ -12,13 +12,13 @@ import {
 
 // ── Nigerian Term Calendar ────────────────────────────────────────────────────
 const TERM_LABELS: Record<number, { label: string; months: string; color: string }> = {
-  1: { label: 'First Term',  months: 'Sept – Dec', color: 'text-violet-400 bg-violet-500/10 border-violet-500/30' },
-  2: { label: 'Second Term', months: 'Jan – Mar',  color: 'text-blue-400   bg-blue-500/10   border-blue-500/30'   },
+  1: { label: 'First Term',  months: 'Sept – Dec', color: 'text-primary bg-primary/10 border-primary/30' },
+  2: { label: 'Second Term', months: 'Jan – Mar',  color: 'text-primary   bg-primary/10   border-primary/30'   },
   3: { label: 'Third Term',  months: 'Apr – Jun',  color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' },
 };
 
 const WEEK_TYPE_COLOR: Record<string, string> = {
-  lesson:      'bg-violet-500',
+  lesson:      'bg-primary',
   assessment:  'bg-amber-500',
   examination: 'bg-rose-500',
 };
@@ -66,7 +66,7 @@ interface SchoolClassGridCell {
 function pctColor(pct: number) {
   if (pct >= 75) return 'bg-emerald-500';
   if (pct >= 40) return 'bg-amber-500';
-  if (pct > 0)  return 'bg-blue-500';
+  if (pct > 0)  return 'bg-primary';
   return 'bg-muted-foreground/30';
 }
 
@@ -263,7 +263,7 @@ export default function CurriculumProgressPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
             <BookOpenIcon className="w-4 h-4" /> Course Syllabus
           </Link>
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
             <PresentationChartLineIcon className="w-4 h-4" /> Delivery Progress
           </span>
         </div>
@@ -280,7 +280,7 @@ export default function CurriculumProgressPage() {
             {canToggle && (
               <Link
                 href="/dashboard/progression"
-                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors"
               >
                 <AcademicCapIcon className="w-4 h-4" /> Term Progression
               </Link>
@@ -296,8 +296,8 @@ export default function CurriculumProgressPage() {
 
         {/* School visibility info banner for school role */}
         {isSchool && (
-          <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl text-sm">
-            <EyeIcon className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
+            <EyeIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <p className="text-blue-300">
               You can see delivery progress for curricula your teachers have shared with you.
               Contact your assigned teacher to request access to hidden curricula.
@@ -308,7 +308,7 @@ export default function CurriculumProgressPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Active Curricula', value: totalCurricula, icon: BookOpenIcon, color: 'text-violet-400' },
+            { label: 'Active Curricula', value: totalCurricula, icon: BookOpenIcon, color: 'text-primary' },
             { label: 'Fully Completed', value: totalCompleted, icon: CheckCircleIcon, color: 'text-emerald-400' },
             { label: 'Weeks Delivered', value: totalWeeksDelivered, icon: AcademicCapIcon, color: 'text-primary' },
             { label: 'Upcoming Assessments', value: upcomingCount, icon: ExclamationTriangleIcon, color: 'text-amber-400' },
@@ -617,7 +617,7 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
           {/* Current week */}
           {school.current_week && (
             <div className="flex items-center gap-2 text-xs">
-              <ArrowPathIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <ArrowPathIcon className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-muted-foreground">Now on:</span>
               <span className="font-bold text-foreground">
                 {TERM_LABELS[school.current_week.term]?.label} · Week {school.current_week.week} — {school.current_week.topic}

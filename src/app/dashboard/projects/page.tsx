@@ -701,13 +701,13 @@ export default function ProjectsPage() {
                         {/* Quick links to other activity sections */}
                         <div className="bg-card border-b border-border px-6 md:px-10 py-3 flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0">Also see:</span>
-                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all">
+                            <Link href="/dashboard/exams" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <AcademicCapIcon className="w-3 h-3" /> Written Exams
                             </Link>
                             <Link href="/dashboard/cbt" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <ChartBarIcon className="w-3 h-3" /> CBT / Evaluation
                             </Link>
-                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 transition-all">
+                            <Link href="/dashboard/assignments" className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black uppercase tracking-widest border rounded-full flex-shrink-0 text-primary bg-primary/10 border-primary/20 hover:bg-primary/20 transition-all">
                                 <ClipboardDocumentListIcon className="w-3 h-3" /> Assignments
                             </Link>
                         </div>
@@ -1679,9 +1679,9 @@ export default function ProjectsPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex-shrink-0 mr-1">Activity Hub:</span>
                             {[
-                                { label: 'Written Exams', href: '/dashboard/exams', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20', Icon: AcademicCapIcon },
+                                { label: 'Written Exams', href: '/dashboard/exams', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: AcademicCapIcon },
                                 { label: 'CBT / Evaluation', href: '/dashboard/cbt', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ChartBarIcon },
-                                { label: 'Assignments', href: '/dashboard/assignments', color: 'text-violet-400 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20', Icon: ClipboardDocumentListIcon },
+                                { label: 'Assignments', href: '/dashboard/assignments', color: 'text-primary bg-primary/10 border-primary/20 hover:bg-primary/20', Icon: ClipboardDocumentListIcon },
                                 { label: 'Projects', href: '#', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30', Icon: RocketLaunchIcon, active: true },
                             ].map(({ label, href, color, Icon }) => (
                                 href === '#'

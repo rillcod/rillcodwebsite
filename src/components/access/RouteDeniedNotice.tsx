@@ -20,7 +20,7 @@ export default function RouteDeniedNotice({
 }: Props) {
   return (
     <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-none border border-primary/30 bg-primary/10 text-primary">
+      <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
         <ShieldExclamationIcon className="h-7 w-7" aria-hidden />
       </div>
       <div className="max-w-md space-y-2">

@@ -236,7 +236,7 @@ export default function GradeSessionPage() {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-none bg-emerald-500/20 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                                 <BookOpenIcon className="w-4 h-4 text-emerald-400" />
                             </div>
                             <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">{exam.title}</span>
@@ -256,7 +256,7 @@ export default function GradeSessionPage() {
                         <button
                             onClick={handleAiGrade}
                             disabled={aiGrading || saving}
-                            className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/20 hover:bg-primary border border-primary/50 text-primary hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all disabled:opacity-50 group"
+                            className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/20 hover:bg-primary border border-primary/50 text-primary hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-xl transition-all disabled:opacity-50 group"
                         >
                             {aiGrading ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
                             {aiGrading ? 'AI Evaluating...' : 'Magic Auto-Grade'}
@@ -264,7 +264,7 @@ export default function GradeSessionPage() {
                         <button
                             onClick={handleSaveGrade}
                             disabled={saving || aiGrading}
-                            className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
+                            className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-xl transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
                         >
                             {saving ? <div className="w-5 h-5 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
                             {saving ? 'Saving...' : 'Finalize Grade'}
@@ -336,8 +336,8 @@ export default function GradeSessionPage() {
                 {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').length > 0 && (
                   <div className="bg-white/[0.02] border border-white/5 overflow-hidden">
                     <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
-                      <AcademicCapIcon className="w-4 h-4 text-blue-400" />
-                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Auto-Graded Questions</p>
+                      <AcademicCapIcon className="w-4 h-4 text-primary" />
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Auto-Graded Questions</p>
                     </div>
                     <div className="divide-y divide-white/5">
                       {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').map((q, i) => {
@@ -379,7 +379,7 @@ export default function GradeSessionPage() {
                                 <div className="bg-white/[0.03] border border-border rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
                                     <div className="p-8 border-b border-border bg-gradient-to-r from-primary to-primary/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
                                         <div className="flex items-start gap-6">
-                                            <div className="w-14 h-14 rounded-none bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
+                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
                                                 {i + 1}
                                             </div>
                                             <div>
@@ -395,13 +395,13 @@ export default function GradeSessionPage() {
                                             </div>
                                         </div>
                                         
-                                        <div className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-none border border-border">
+                                        <div className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-xl border border-border">
                                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Awarded Points</label>
                                             <div className="flex items-center gap-3">
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.max(0, (manualScores[q.id] || 0) - 1) })}
-                                                    className="w-10 h-10 rounded-none bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-400"
+                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-400"
                                                 >
                                                     <XCircleIcon className="w-5 h-5" />
                                                 </button>
@@ -414,12 +414,12 @@ export default function GradeSessionPage() {
                                                         const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
                                                         setManualScores({ ...manualScores, [q.id]: val });
                                                     }}
-                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-none text-center text-2xl font-black text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
+                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-center text-2xl font-black text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
                                                 />
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.min(q.points, (manualScores[q.id] || 0) + 1) })}
-                                                    className="w-10 h-10 rounded-none bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-400"
+                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-400"
                                                 >
                                                     <CheckCircleIcon className="w-5 h-5" />
                                                 </button>
@@ -436,12 +436,12 @@ export default function GradeSessionPage() {
                                     <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 rounded-none bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+                                                <div className="w-6 h-6 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
                                                     <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
                                                 </div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Student's Response</p>
                                             </div>
-                                            <div className="p-6 bg-white/[0.02] border border-border rounded-none text-base leading-relaxed text-muted-foreground whitespace-pre-wrap font-medium shadow-inner italic">
+                                            <div className="p-6 bg-white/[0.02] border border-border rounded-xl text-base leading-relaxed text-muted-foreground whitespace-pre-wrap font-medium shadow-inner italic">
                                                 {q.question_type === 'coding_blocks' ? (
                                                     <div className="space-y-3">
                                                         <div className="flex flex-wrap items-center gap-2 leading-[2.5rem]">
@@ -449,14 +449,14 @@ export default function GradeSessionPage() {
                                                                 <div key={pi} className="contents">
                                                                     <span className="text-muted-foreground">{part}</span>
                                                                     {pi < arr.length - 1 && (
-                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-none text-emerald-400 font-black italic shadow-sm">
+                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-emerald-400 font-black italic shadow-sm">
                                                                             {(session.answers[q.id] || "").split(',')[pi]?.trim() || "???"}
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-card shadow-sm rounded-none border border-border w-fit">
+                                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-card shadow-sm rounded-xl border border-border w-fit">
                                                             <div className={`w-2 h-2 rounded-full ${ (session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" }`} />
                                                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
                                                                 {(session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "Sequence Matched" : "Sequence Mismatch"}
@@ -472,12 +472,12 @@ export default function GradeSessionPage() {
                                         {q.correct_answer && (
                                             <div className="space-y-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-none bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                                    <div className="w-6 h-6 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                                                         <CheckCircleIcon className="w-3.5 h-3.5" />
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Scoring Rubric / Answer Key</p>
                                                 </div>
-                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-none text-sm leading-relaxed text-emerald-300/70 italic relative overflow-hidden group/rubric">
+                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl text-sm leading-relaxed text-emerald-300/70 italic relative overflow-hidden group/rubric">
                                                     <div className="absolute top-0 right-0 p-3 opacity-10">
                                                         <BookOpenIcon className="w-12 h-12" />
                                                     </div>
@@ -493,7 +493,7 @@ export default function GradeSessionPage() {
 
                     <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-border rounded-[2.5rem] p-8 space-y-6">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-none bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                                 <SparklesIcon className="w-6 h-6 text-amber-500" />
                             </div>
                             <div>
@@ -508,7 +508,7 @@ export default function GradeSessionPage() {
                             rows={5}
                             className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-[2rem] text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
                         />
-                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 w-fit">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 w-fit">
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                             <p className="text-[10px] text-amber-400 font-bold italic tracking-tighter">Student will view these remarks on their dashboard</p>
                         </div>

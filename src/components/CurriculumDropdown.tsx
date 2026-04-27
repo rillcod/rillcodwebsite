@@ -81,13 +81,13 @@ export default function CurriculumDropdown({ curriculum }: CurriculumDropdownPro
                   {module.learningObjectives && (
                     <div className="mt-4">
                       <h5 className="font-semibold text-foreground mb-2 flex items-center">
-                        <StarIcon className="w-5 h-5 text-blue-500 mr-2" />
+                        <StarIcon className="w-5 h-5 text-primary mr-2" />
                         Learning Objectives:
                       </h5>
                       <ul className="space-y-1">
                         {module.learningObjectives.map((objective: string, objIndex: number) => (
                           <li key={objIndex} className="flex items-start">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-3 mt-2 flex-shrink-0"></div>
+                            <div className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></div>
                             <span className="text-foreground/80 text-sm">{objective}</span>
                           </li>
                         ))}

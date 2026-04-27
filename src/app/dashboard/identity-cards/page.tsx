@@ -367,7 +367,7 @@ export default function IdentityCardsPage() {
   if (!canAccess) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6 md:p-10">
-        <div className="max-w-2xl mx-auto bg-card border border-border p-8 rounded-none">
+        <div className="max-w-2xl mx-auto bg-card border border-border p-8 rounded-xl">
           <h1 className="text-2xl font-black">Access denied</h1>
           <p className="text-muted-foreground mt-2">Identity card management is available to admin, school, and teacher roles.</p>
         </div>
@@ -387,7 +387,7 @@ export default function IdentityCardsPage() {
         return (
           <article
             key={r.id}
-            className={`rounded-none overflow-hidden transition-all flex flex-col ${
+            className={`rounded-xl overflow-hidden transition-all flex flex-col ${
               isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border hover:ring-primary/40'
             }`}
           >
@@ -486,7 +486,7 @@ export default function IdentityCardsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
 
         {/* ── Header ── */}
-        <div className="relative overflow-hidden border border-border bg-card rounded-none">
+        <div className="relative overflow-hidden border border-border bg-card rounded-xl">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -right-24 -top-20 w-56 h-56 rounded-full bg-primary/8 blur-[80px]" />
             <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-primary/6 blur-[70px]" />
@@ -531,7 +531,7 @@ export default function IdentityCardsPage() {
                   {canDesign && (
                     <button
                       onClick={() => setMode('design')}
-                      className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
+                      className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all inline-flex items-center gap-2 ${
                         mode === 'design'
                           ? 'bg-primary text-white shadow-lg shadow-primary/20'
                           : 'bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -542,7 +542,7 @@ export default function IdentityCardsPage() {
                   )}
                   <button
                     onClick={() => setMode('issuance')}
-                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none transition-all inline-flex items-center gap-2 ${
+                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all inline-flex items-center gap-2 ${
                       mode === 'issuance'
                         ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
                         : 'bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -553,7 +553,7 @@ export default function IdentityCardsPage() {
                 </div>
                 <button
                   onClick={() => { loadConfig(activeType); loadRecords(activeType); }}
-                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
                   <ArrowPathIcon className="w-4 h-4" /> Refresh
                 </button>
@@ -589,7 +589,7 @@ export default function IdentityCardsPage() {
               ] as Array<{ type: CardType; label: string; desc: string; icon: any }>).map((item) => {
                 const Icon = item.icon;
                 return (
-                  <article key={item.type} className="bg-card border border-border rounded-none p-5 space-y-4 group hover:border-primary/30 transition-all">
+                  <article key={item.type} className="bg-card border border-border rounded-xl p-5 space-y-4 group hover:border-primary/30 transition-all">
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-9 h-9 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
                         <Icon className="w-4 h-4 text-primary" />
@@ -604,7 +604,7 @@ export default function IdentityCardsPage() {
                     </div>
                     <Link
                       href={`/dashboard/students/card-builder?type=${item.type}`}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-none transition-all w-full justify-center"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-xl transition-all w-full justify-center"
                     >
                       <SparklesIcon className="w-3.5 h-3.5" /> Open Builder
                     </Link>
@@ -629,7 +629,7 @@ export default function IdentityCardsPage() {
                   <button
                     key={tab.key}
                     onClick={() => setActiveType(tab.key)}
-                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-none border transition-all inline-flex items-center gap-2 ${
+                    className={`px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl border transition-all inline-flex items-center gap-2 ${
                       activeType === tab.key
                         ? 'bg-primary/15 border-primary/30 text-primary'
                         : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -645,13 +645,13 @@ export default function IdentityCardsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search name, email, school, class..."
-                  className="w-full pl-9 pr-3 py-2.5 bg-card border border-border rounded-none text-sm focus:outline-none focus:border-primary"
+                  className="w-full pl-9 pr-3 py-2.5 bg-card border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
                 />
               </div>
             </div>
 
             {/* ── Class filter / sort / group toolbar ── */}
-            <div className="flex flex-wrap items-center gap-3 bg-card border border-border rounded-none p-3 sm:p-4">
+            <div className="flex flex-wrap items-center gap-3 bg-card border border-border rounded-xl p-3 sm:p-4">
               <FunnelIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
 
               {/* School filter (role-sensitive) */}
@@ -659,14 +659,14 @@ export default function IdentityCardsPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">School</span>
                   {schoolLock ? (
-                    <span className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold text-foreground max-w-[220px] truncate" title={schoolLock}>
+                    <span className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold text-foreground max-w-[220px] truncate" title={schoolLock}>
                       {schoolLock}
                     </span>
                   ) : (
                     <select
                       value={selectedSchool}
                       onChange={(e) => setSelectedSchool(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer max-w-[220px]"
+                      className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold focus:outline-none focus:border-primary cursor-pointer max-w-[220px]"
                     >
                       <option value="all">All Schools ({records.length})</option>
                       {allSchools.map((sch) => {
@@ -688,7 +688,7 @@ export default function IdentityCardsPage() {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+                  className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="all">All Classes ({records.length})</option>
                   {allClasses.map((cls) => {
@@ -711,7 +711,7 @@ export default function IdentityCardsPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'name' | 'class')}
-                  className="px-3 py-2 bg-background border border-border rounded-none text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+                  className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="name">By Name</option>
                   <option value="class">By Class → Name</option>
@@ -724,14 +724,14 @@ export default function IdentityCardsPage() {
                   <button
                     onClick={() => setGroupMode('none')}
                     title="Flat view"
-                    className={`p-2 rounded-none border transition-all ${groupMode === 'none' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
+                    className={`p-2 rounded-xl border transition-all ${groupMode === 'none' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
                   >
                     <Squares2X2Icon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setGroupMode('class')}
                     title="Group by class"
-                    className={`p-2 rounded-none border transition-all ${groupMode === 'class' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
+                    className={`p-2 rounded-xl border transition-all ${groupMode === 'class' ? 'bg-primary/15 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}
                   >
                     <ListBulletIcon className="w-4 h-4" />
                   </button>
@@ -740,7 +740,7 @@ export default function IdentityCardsPage() {
             </div>
 
             {/* Stats + bulk print bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-none p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-xl p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
                 {filtered.length} card holder{filtered.length === 1 ? '' : 's'}
                 {selectedSchool !== 'all' && !schoolLock && (
@@ -754,7 +754,7 @@ export default function IdentityCardsPage() {
                 {filtered.length > 0 && (
                   <button
                     onClick={() => setSelectedIds(new Set(filtered.map((r) => r.id)))}
-                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2"
+                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2"
                   >
                     Select Filtered ({filtered.length})
                   </button>
@@ -766,14 +766,14 @@ export default function IdentityCardsPage() {
                         const selected = filtered.filter((r) => selectedIds.has(r.id));
                         printCards(selected, `${activeType} access cards — selected`);
                       }}
-                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-none transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-xl transition-all inline-flex items-center gap-2"
                     >
                       <PrinterIcon className="w-4 h-4" />
                       Print Selected ({selectedIds.size})
                     </button>
                     <button
                       onClick={() => setSelectedIds(new Set())}
-                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2"
+                      className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2"
                     >
                       Clear Selection
                     </button>
@@ -789,7 +789,7 @@ export default function IdentityCardsPage() {
                       parts.length > 0 ? `Access Cards — ${parts.join(' · ')}` : `${activeType} access cards`;
                     printCards(filtered, title);
                   }}
-                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white rounded-none transition-all inline-flex items-center gap-2"
+                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all inline-flex items-center gap-2"
                 >
                   <PrinterIcon className="w-4 h-4" />
                   {selectedClass !== 'all' ? `Print Class` : 'Print Bulk'}
@@ -798,14 +798,14 @@ export default function IdentityCardsPage() {
             </div>
 
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/25 text-rose-400 rounded-none text-sm font-bold">{error}</div>
+              <div className="p-4 bg-rose-500/10 border border-rose-500/25 text-rose-400 rounded-xl text-sm font-bold">{error}</div>
             )}
 
             {/* ── Card grid / grouped view ── */}
             {loading ? (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-44 bg-card border border-border rounded-none animate-pulse" />
+                  <div key={i} className="h-44 bg-card border border-border rounded-xl animate-pulse" />
                 ))}
               </div>
             ) : !loading && filtered.length === 0 ? (
@@ -848,7 +848,7 @@ export default function IdentityCardsPage() {
                             ? printCards(classRecords, 'Access Cards — No Class')
                             : printByClass(className)
                         }
-                        className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border hover:bg-muted rounded-none transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                        className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
                       >
                         <PrinterIcon className="w-3.5 h-3.5" /> Print Class
                       </button>

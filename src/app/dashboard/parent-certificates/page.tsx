@@ -92,7 +92,7 @@ function ParentCertificatesContent() {
           {children.map(child => (
             <button key={child.id}
               onClick={() => setSelectedId(child.id)}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-xl transition-all ${
                 selectedId === child.id
                   ? 'bg-primary border-primary text-white'
                   : 'bg-card border-border text-muted-foreground hover:border-primary/50'
@@ -104,7 +104,7 @@ function ParentCertificatesContent() {
       )}
 
       {!loadingChildren && children.length === 0 && (
-        <div className="bg-card border border-border rounded-none p-10 text-center">
+        <div className="bg-card border border-border rounded-xl p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
         </div>
@@ -117,7 +117,7 @@ function ParentCertificatesContent() {
           </p>
 
           {!selectedChild.user_id && (
-            <div className="bg-card border border-border rounded-none p-8 text-center">
+            <div className="bg-card border border-border rounded-xl p-8 text-center">
               <TrophyIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">Not yet registered</p>
               <p className="text-xs text-muted-foreground mt-1">This child has no portal account linked yet.</p>
@@ -127,8 +127,8 @@ function ParentCertificatesContent() {
           {loadingCerts && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border rounded-none p-6 animate-pulse">
-                  <div className="h-12 w-12 bg-muted rounded-none mb-4" />
+                <div key={i} className="bg-card border border-border rounded-xl p-6 animate-pulse">
+                  <div className="h-12 w-12 bg-muted rounded-xl mb-4" />
                   <div className="h-4 bg-muted rounded w-2/3 mb-2" />
                   <div className="h-3 bg-muted rounded w-1/2" />
                 </div>
@@ -137,7 +137,7 @@ function ParentCertificatesContent() {
           )}
 
           {!loadingCerts && selectedChild.user_id && certs.length === 0 && (
-            <div className="bg-card border border-border rounded-none p-8 text-center">
+            <div className="bg-card border border-border rounded-xl p-8 text-center">
               <TrophyIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">No certificates yet</p>
               <p className="text-xs text-muted-foreground mt-1">Certificates will appear here once awarded.</p>
@@ -147,11 +147,11 @@ function ParentCertificatesContent() {
           {!loadingCerts && certs.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {certs.map(cert => (
-                <div key={cert.id} className="bg-card border border-border rounded-none p-6 hover:bg-white/5 transition-all group relative overflow-hidden">
+                <div key={cert.id} className="bg-card border border-border rounded-xl p-6 hover:bg-white/5 transition-all group relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500 to-primary opacity-[0.04] blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform" />
 
                   {/* Icon */}
-                  <div className="w-12 h-12 rounded-none bg-gradient-to-br from-amber-500 to-primary flex items-center justify-center mb-4 relative z-10">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-primary flex items-center justify-center mb-4 relative z-10">
                     <TrophyIcon className="w-6 h-6 text-white" />
                   </div>
 
@@ -163,7 +163,7 @@ function ParentCertificatesContent() {
                     </p>
 
                     {/* Cert number */}
-                    <div className="mt-3 p-2.5 bg-muted border border-border rounded-none">
+                    <div className="mt-3 p-2.5 bg-muted border border-border rounded-xl">
                       <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Certificate No.</p>
                       <p className="text-xs font-black text-foreground font-mono">{cert.certificate_number}</p>
                     </div>
@@ -194,7 +194,7 @@ function ParentCertificatesContent() {
 
 export default function ParentCertificatesPage() {
   return (
-    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-none" />}>
+    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-xl" />}>
       <ParentCertificatesContent />
     </Suspense>
   );

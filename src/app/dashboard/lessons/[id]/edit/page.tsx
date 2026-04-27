@@ -348,12 +348,12 @@ export default function EditLessonPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         {!isMinimal && (
-                            <button onClick={() => router.back()} className="p-2.5 bg-card shadow-sm border border-border rounded-none hover:bg-muted transition-all text-muted-foreground hover:text-foreground" title="Go Back">
+                            <button onClick={() => router.back()} className="p-2.5 bg-card shadow-sm border border-border rounded-xl hover:bg-muted transition-all text-muted-foreground hover:text-foreground" title="Go Back">
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
                         )}
                         {!isMinimal && (
-                            <div className="w-12 h-12 rounded-none bg-cyan-600/10 flex items-center justify-center text-cyan-400">
+                            <div className="w-12 h-12 rounded-xl bg-cyan-600/10 flex items-center justify-center text-cyan-400">
                                 <BookOpen className="w-6 h-6" />
                             </div>
                         )}
@@ -370,17 +370,17 @@ export default function EditLessonPage() {
                         )}
                         <button
                             onClick={() => setShowPreview(true)}
-                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-black text-xs uppercase tracking-widest rounded-none shadow-lg shadow-violet-900/30 transition-all min-h-[44px]"
+                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-violet-900/30 transition-all min-h-[44px]"
                             title="Preview as a student — see the live rendered lesson before saving"
                         >
                             <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
                         </button>
                         {!isMinimal && (
-                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-none font-bold text-sm hover:bg-muted transition-all hidden sm:inline-block">
+                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-xl font-bold text-sm hover:bg-muted transition-all hidden sm:inline-block">
                                 View Live
                             </Link>
                         )}
-                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-none shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
+                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
                             {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? 'SAVING...' : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
                         </button>
@@ -388,13 +388,13 @@ export default function EditLessonPage() {
                 </div>
 
                 {error && (
-                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none text-rose-400 text-sm font-medium">
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium">
                         {error}
                     </div>
                 )}
 
                 {/* Unified Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
+                <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit">
                     <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
                     <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Builder" />
                     <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
@@ -404,7 +404,7 @@ export default function EditLessonPage() {
 
                 <div className="grid grid-cols-1 gap-8">
                     {activeTab === 'settings' && (
-                        <div className="bg-card shadow-sm border border-border rounded-none p-8 space-y-6 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-6 animate-in fade-in duration-500">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Field label="Lesson Title" value={form.title} onChange={v => setForm({ ...form, title: v })} />
                                 <div className="space-y-2">
@@ -419,7 +419,7 @@ export default function EditLessonPage() {
                                                     setForm(prev => ({ ...prev, course_id: '' }));
                                                 }
                                             }}
-                                            className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                                            className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
                                             <option value="">Select Programme</option>
                                             {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
@@ -436,7 +436,7 @@ export default function EditLessonPage() {
                                         <select value={form.course_id}
                                             onChange={e => setForm({ ...form, course_id: e.target.value })}
                                             disabled={!selectedProgramId}
-                                            className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer disabled:opacity-40">
+                                            className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer disabled:opacity-40">
                                             <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
                                             {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
                                                 .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
@@ -458,7 +458,7 @@ export default function EditLessonPage() {
                             <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
                             
                             {/* AI Lesson Engine Panel */}
-                            <div className="border border-primary/20 bg-primary/5 rounded-none overflow-hidden">
+                            <div className="border border-primary/20 bg-primary/5 rounded-xl overflow-hidden">
                                 <div className="px-5 py-4 flex items-center gap-3 border-b border-primary/10">
                                     <SparklesIcon className="w-5 h-5 text-primary" />
                                     <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
@@ -471,7 +471,7 @@ export default function EditLessonPage() {
                                         </p>
                                     )}
                                     {aiError && (
-                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-none">
+                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-xl">
                                             {aiError}
                                         </div>
                                     )}
@@ -479,7 +479,7 @@ export default function EditLessonPage() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
                                             <select value={aiGrade} onChange={e => setAiGrade(e.target.value)}
-                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+                                                className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
                                                 {![
                                                     'KG', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3',
                                                     'SS1', 'SS2', 'SS3', 'SS1–SS3', 'JSS1–SS3',
@@ -492,7 +492,7 @@ export default function EditLessonPage() {
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mode</label>
                                             <select value={aiMode} onChange={e => setAiMode(e.target.value as any)}
-                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+                                                className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
                                                 <option value="academic">Academic</option>
                                                 <option value="project">Project</option>
                                                 <option value="interactive">Interactive</option>
@@ -519,7 +519,7 @@ export default function EditLessonPage() {
                                     rows={12}
                                     onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
                                     placeholder="Notes generated by AI or manual input..."
-                                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
+                                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
                                 />
                             </div>
                             <Field label="Video URL (YouTube/Direct)" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
@@ -527,13 +527,13 @@ export default function EditLessonPage() {
                     )}
 
                     {activeTab === 'content' && (
-                        <div className="bg-card shadow-sm border border-border rounded-none p-8 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 animate-in fade-in duration-500">
                             <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} lessonTitle={form.title} />
                         </div>
                     )}
 
                     {activeTab === 'plan' && (
-                        <div className="bg-card shadow-sm border border-border rounded-none p-8 space-y-8 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-8 animate-in fade-in duration-500">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <Sparkles className="w-6 h-6 text-amber-400" />
@@ -542,7 +542,7 @@ export default function EditLessonPage() {
                                 <button
                                     onClick={handleAiGenerate}
                                     disabled={aiGenerating}
-                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-none text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                 >
                                     {aiGenerating ? (
                                         <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -554,7 +554,7 @@ export default function EditLessonPage() {
                             </div>
 
                             {plan.plan_data && Object.keys(plan.plan_data).length > 0 && (
-                                <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-none space-y-4">
+                                <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-xl space-y-4">
                                     <div className="flex items-center justify-between">
                                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
                                         <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
@@ -574,22 +574,22 @@ export default function EditLessonPage() {
 
                     {activeTab === 'materials' && (
                         <div className="space-y-6 animate-in fade-in duration-500">
-                            <div className="bg-card shadow-sm border border-border rounded-none p-8">
+                            <div className="bg-card shadow-sm border border-border rounded-xl p-8">
                                 <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-6">Add New Resource</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <input type="text" placeholder="Title (e.g. Starter Code)" value={newMaterial.title} onChange={e => setNewMaterial({ ...newMaterial, title: e.target.value })}
-                                        className="bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                        className="bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
                                     <input type="text" placeholder="URL (S3, Drive, Link...)" value={newMaterial.file_url} onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
-                                        className="bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                        className="bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
                                     <div className="flex gap-2">
                                         <select value={newMaterial.file_type} onChange={e => setNewMaterial({ ...newMaterial, file_type: e.target.value })}
-                                            className="flex-1 bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none">
+                                            className="flex-1 bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none">
                                             <option value="pdf">PDF</option>
                                             <option value="video">Video</option>
                                             <option value="image">Image</option>
                                             <option value="link">External Link</option>
                                         </select>
-                                        <button onClick={addMaterial} className="p-2.5 bg-cyan-600 hover:bg-cyan-700 rounded-none text-foreground">
+                                        <button onClick={addMaterial} className="p-2.5 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-foreground">
                                             <Plus className="w-5 h-5" />
                                         </button>
                                     </div>
@@ -598,8 +598,8 @@ export default function EditLessonPage() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {materials.map((m) => (
-                                    <div key={m.id} className="flex items-center gap-4 p-4 bg-card shadow-sm border border-border rounded-none group">
-                                        <div className="w-10 h-10 rounded-none bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                                    <div key={m.id} className="flex items-center gap-4 p-4 bg-card shadow-sm border border-border rounded-xl group">
+                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
                                             <Paperclip className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -648,7 +648,7 @@ interface TabBtnProps {
 
 function TabBtn({ active, onClick, icon: Icon, label }: TabBtnProps) {
     return (
-        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-none text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
             <Icon className="w-4 h-4" />
             {label}
         </button>
@@ -670,10 +670,10 @@ function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: Fi
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
             {textarea ? (
                 <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
             ) : (
                 <input type={type} value={value} onChange={e => onChange(e.target.value)}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
             )}
         </div>
     );
@@ -691,7 +691,7 @@ function SelectField({ label, value, options, onChange }: SelectFieldProps) {
         <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
             <select value={value} onChange={e => onChange(e.target.value)}
-                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
+                className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
                 {options.map((o: string) => <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>)}
             </select>
         </div>

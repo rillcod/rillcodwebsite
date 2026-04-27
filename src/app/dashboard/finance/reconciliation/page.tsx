@@ -122,7 +122,7 @@ export default function FinanceReconciliationPage() {
           <ShieldCheck className="w-10 h-10 text-muted-foreground/50 mx-auto mb-4" />
           <h1 className="text-lg font-black mb-2 text-foreground">Admin only</h1>
           <p className="text-sm text-muted-foreground">The reconciliation dashboard is restricted to Rillcod administrators.</p>
-          <Link href="/dashboard/money" className="inline-block mt-4 text-xs font-black uppercase tracking-widest text-violet-500 hover:text-violet-400">
+          <Link href="/dashboard/money" className="inline-block mt-4 text-xs font-black uppercase tracking-widest text-primary hover:text-primary">
             Back to Money Hub →
           </Link>
         </div>
@@ -140,7 +140,7 @@ export default function FinanceReconciliationPage() {
             <Link href="/dashboard/money" className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-card border border-border hover:bg-muted" aria-label="Back to Money Hub">
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white flex items-center justify-center shadow-lg">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-primary text-white flex items-center justify-center shadow-lg">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -292,7 +292,7 @@ function Tile({ label, amount, accent, icon: Icon }: { label: string; amount: nu
   const palette = accent === 'indigo'
     ? 'from-indigo-500/20 to-violet-900/30 border-indigo-500/30 text-indigo-300'
     : accent === 'violet'
-      ? 'from-violet-500/20 to-fuchsia-900/30 border-violet-500/30 text-violet-300'
+      ? 'from-primary/20 to-fuchsia-900/30 border-primary/30 text-violet-300'
       : 'from-emerald-500/20 to-green-900/30 border-emerald-500/30 text-emerald-300';
   return (
     <div className={`rounded-2xl border p-4 sm:p-5 bg-gradient-to-br ${palette}`}>

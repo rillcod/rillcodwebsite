@@ -6,10 +6,10 @@ const Programs: React.FC = () => {
   const programs = [
     {
       id: 'ict-fundamentals',
-      icon: <Monitor className="w-12 h-12 text-blue-600" />,
+      icon: <Monitor className="w-12 h-12 text-primary" />,
       title: "ICT Fundamentals",
       description: "Learn to be a Computer Wizard! Discover how computers work and do amazing things with them.",
-      color: "from-blue-400 to-blue-600",
+      color: "from-primary to-primary",
       animation: "animate-float"
     },
     {

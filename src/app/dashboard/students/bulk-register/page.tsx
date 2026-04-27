@@ -1053,7 +1053,7 @@ export default function BulkRegisterPage() {
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-none animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-xl animate-spin" />
     </div>
   );
   if (!canAccess) return (
@@ -1074,7 +1074,7 @@ export default function BulkRegisterPage() {
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
 
   // Shared input class
-  const inp = 'w-full bg-transparent border border-border rounded-none px-2 py-1.5 text-foreground text-xs focus:outline-none focus:border-primary/50 focus:bg-primary/5 transition-colors placeholder-muted-foreground';
+  const inp = 'w-full bg-transparent border border-border rounded-xl px-2 py-1.5 text-foreground text-xs focus:outline-none focus:border-primary/50 focus:bg-primary/5 transition-colors placeholder-muted-foreground';
 
   return (
     <>
@@ -1171,7 +1171,7 @@ export default function BulkRegisterPage() {
               <div className="space-y-6">
 
                 {/* ── Batch Settings ──────────────────────────────────── */}
-                <div className="bg-card border border-border rounded-none overflow-hidden">
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <button
                     onClick={() => setSettingsOpen((o) => !o)}
                     className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
@@ -1205,7 +1205,7 @@ export default function BulkRegisterPage() {
                                 setSelectedSchoolId(e.target.value);
                                 setSelectedSchoolName(e.target.value ? opt.text : '');
                               }}
-                              className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                              className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                             >
                               <option value="">— Select a school —</option>
                               {schools.map((s) => (
@@ -1226,7 +1226,7 @@ export default function BulkRegisterPage() {
                           <select
                             value={selectedProgramId}
                             onChange={(e) => setSelectedProgramId(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No auto-enrolment —</option>
                             {programmes.map((p) => (
@@ -1256,7 +1256,7 @@ export default function BulkRegisterPage() {
                             </label>
                             <Link
                               href="/dashboard/classes/add"
-                              className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-none text-primary text-[10px] font-bold transition-colors"
+                              className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-primary text-[10px] font-bold transition-colors"
                               title="Create a new class"
                             >
                               <PlusIcon className="w-3 h-3" /> New Class
@@ -1270,7 +1270,7 @@ export default function BulkRegisterPage() {
                               value={selectedRegistryClass}
                               onChange={(e) => setSelectedRegistryClass(e.target.value)}
                               disabled={!selectedSchoolId}
-                              className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               <option value="">— No class selected —</option>
                               {filteredRegistryClasses.map((c) => (
@@ -1280,7 +1280,7 @@ export default function BulkRegisterPage() {
                               ))}
                             </select>
                           ) : (
-                            <div className="px-3 py-2.5 bg-white/3 border border-border rounded-none text-white/25 text-sm italic">
+                            <div className="px-3 py-2.5 bg-white/3 border border-border rounded-xl text-white/25 text-sm italic">
                               {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
                             </div>
                           )}
@@ -1306,7 +1306,7 @@ export default function BulkRegisterPage() {
                           <select
                             value={defaultClass}
                             onChange={(e) => setDefaultClass(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No default code —</option>
                             <optgroup label="Primary School">
@@ -1341,7 +1341,7 @@ export default function BulkRegisterPage() {
                       {effectiveClassCode && (
                         <div className="flex items-center gap-2 text-xs">
                           <span className="text-muted-foreground">Students without inline class will be tagged:</span>
-                          <span className="px-2 py-0.5 bg-primary/15 text-foreground font-mono font-bold rounded-none border border-primary/20">
+                          <span className="px-2 py-0.5 bg-primary/15 text-foreground font-mono font-bold rounded-xl border border-primary/20">
                             {effectiveClassCode}
                           </span>
                         </div>
@@ -1351,7 +1351,7 @@ export default function BulkRegisterPage() {
                 </div>
 
                 {/* ── Names textarea ──────────────────────────────────── */}
-                <div className="bg-card border border-border rounded-none p-6">
+                <div className="bg-card border border-border rounded-xl p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <label className="block text-foreground text-sm font-black uppercase tracking-widest">
                       Paste Student Names
@@ -1377,7 +1377,7 @@ Tolu Adesanya
 
 Ngozi Okonkwo JSS3B
 Yusuf Ibrahim SS1A`}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-primary/50 transition-colors font-mono leading-relaxed"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-primary/50 transition-colors font-mono leading-relaxed"
                   />
                   <p className="text-muted-foreground text-xs mt-2">
                     You can correct any mistakes in the next step — every field is editable before you register.
@@ -1385,7 +1385,7 @@ Yusuf Ibrahim SS1A`}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-primary/10 border border-primary/20 rounded-none p-5">
+                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-5">
                     <h3 className="text-primary font-bold text-sm mb-3 flex items-center gap-2">
                       <ClipboardDocumentListIcon className="w-4 h-4" /> How names work
                     </h3>
@@ -1397,7 +1397,7 @@ Yusuf Ibrahim SS1A`}
                       <li>Edit anything in the next step before registering</li>
                     </ul>
                   </div>
-                  <div className="bg-primary/10 border border-primary/20 rounded-none p-5">
+                  <div className="bg-primary/10 border border-primary/20 rounded-xl p-5">
                     <h3 className="text-foreground font-bold text-sm mb-3 flex items-center gap-2">
                       <AcademicCapIcon className="w-4 h-4" /> How classes work
                     </h3>
@@ -1414,7 +1414,7 @@ Yusuf Ibrahim SS1A`}
                 <button
                   onClick={handlePreview}
                   disabled={!namesText.trim()}
-                  className="w-full py-3.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
+                  className="w-full py-3.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                 >
                   Continue to Review →
                 </button>
@@ -1429,19 +1429,19 @@ Yusuf Ibrahim SS1A`}
                 {(selectedSchoolId || selectedProgramId || defaultClass) && (
                   <div className="flex flex-wrap gap-2 text-xs">
                     {selectedSchoolId && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none text-primary">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-primary">
                         <BuildingOffice2Icon className="w-3.5 h-3.5" />
                         {selectedSchoolName || 'Selected school'}
                       </span>
                     )}
                     {selectedProgramId && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-none text-emerald-300">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-300">
                         <BookOpenIcon className="w-3.5 h-3.5" />
                         Auto-enrol: {selectedProgLabel}
                       </span>
                     )}
                     {effectiveClassCode && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-none text-foreground font-mono">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-foreground font-mono">
                         <AcademicCapIcon className="w-3.5 h-3.5" />
                         Class: {effectiveClassCode}
                       </span>
@@ -1451,13 +1451,13 @@ Yusuf Ibrahim SS1A`}
 
                 {/* Stats bar */}
                 <div className="flex flex-wrap gap-3">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-none border border-border text-sm">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-xl border border-border text-sm">
                     <UserGroupIcon className="w-4 h-4 text-primary" />
                     <span className="text-foreground font-bold">{preview.length}</span>
                     <span className="text-muted-foreground">students</span>
                   </div>
                   {previewClasses.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-none border border-primary/20 text-sm">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20 text-sm">
                       <AcademicCapIcon className="w-4 h-4 text-primary" />
                       <span className="text-foreground font-bold">{previewClasses.length}</span>
                       <span className="text-muted-foreground text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
@@ -1465,19 +1465,19 @@ Yusuf Ibrahim SS1A`}
                     </div>
                   )}
                   {dups.size > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-none border border-rose-500/20 text-xs">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs">
                       <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
                       <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
                     </div>
                   )}
                   {checkingDups && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-none border border-border text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-border text-xs text-muted-foreground">
                       <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                       <span>Checking for existing students…</span>
                     </div>
                   )}
                   {!checkingDups && dbDupNames.size > 0 && (
-                    <div className="px-4 py-3 bg-amber-500/10 rounded-none border border-amber-500/30 text-xs space-y-2">
+                    <div className="px-4 py-3 bg-amber-500/10 rounded-xl border border-amber-500/30 text-xs space-y-2">
                       <div className="flex items-start gap-2">
                         <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                         <div className="space-y-1">
@@ -1498,7 +1498,7 @@ Yusuf Ibrahim SS1A`}
                     </div>
                   )}
                   {incompleteRows.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 text-xs">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs">
                       <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
                       <span className="text-amber-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
                     </div>
@@ -1506,7 +1506,7 @@ Yusuf Ibrahim SS1A`}
                 </div>
 
                 {/* Editable table */}
-                <div className="bg-card border border-border rounded-none overflow-hidden">
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
                     <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
                       Click any cell to edit — changes are instant
@@ -1553,7 +1553,7 @@ Yusuf Ibrahim SS1A`}
                                     placeholder="Full name"
                                   />
                                   {dbDup && (
-                                    <span className="shrink-0 px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[9px] font-black uppercase tracking-tight rounded-none" title="Already registered at this school">EXISTS</span>
+                                    <span className="shrink-0 px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[9px] font-black uppercase tracking-tight rounded-xl" title="Already registered at this school">EXISTS</span>
                                   )}
                                 </div>
                               </td>
@@ -1626,7 +1626,7 @@ Yusuf Ibrahim SS1A`}
                                   {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-none border border-border text-[10px]">
+                              <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-xl border border-border text-[10px]">
                                 <span className="text-muted-foreground uppercase font-bold">Password</span>
                                 <span className="font-mono text-amber-300/80">{s.password}</span>
                               </div>
@@ -1655,7 +1655,7 @@ Yusuf Ibrahim SS1A`}
                 <div className="flex gap-3">
                   <button
                     onClick={handleReset}
-                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none transition-colors text-sm border border-border"
+                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-xl transition-colors text-sm border border-border"
                   >
                     ← Edit Names
                   </button>
@@ -1663,7 +1663,7 @@ Yusuf Ibrahim SS1A`}
                     <button
                       onClick={handleRegister}
                       disabled={registering || dups.size > 0 || (dbDupNames.size > 0 && !dupOverride) || checkingDups || validCount === 0}
-                      className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
+                      className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
                         ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
@@ -1677,9 +1677,9 @@ Yusuf Ibrahim SS1A`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">
-                        <div className="w-full h-1.5 bg-card shadow-sm rounded-none overflow-hidden">
+                        <div className="w-full h-1.5 bg-card shadow-sm rounded-xl overflow-hidden">
                           <div
-                            className="h-full bg-[#7a0606] rounded-none transition-all duration-300"
+                            className="h-full bg-[#7a0606] rounded-xl transition-all duration-300"
                             style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
                           />
                         </div>
@@ -1697,13 +1697,13 @@ Yusuf Ibrahim SS1A`}
             {step === 'done' && results && (
               <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {profile && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400">
                     <CheckCircleIcon className="w-5 h-5" />
                     <span className="text-sm font-bold tracking-widest uppercase">Registration complete</span>
                   </div>
                 )}
 
-                <div className="bg-gradient-to-b from-primary to-primary/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
+                <div className="bg-gradient-to-b from-primary to-primary/10 to-[#0d1526] border border-emerald-500/20 rounded-xl p-8 text-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
                   <div className="relative z-10">
                     <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
@@ -1711,13 +1711,13 @@ Yusuf Ibrahim SS1A`}
                       <span className="text-emerald-400/80">Created: {successCount}</span>
                       {skipCount > 0 && (
                         <>
-                          <div className="w-1 h-1 bg-white/20 rounded-none" />
+                          <div className="w-1 h-1 bg-white/20 rounded-xl" />
                           <span className="text-amber-400/80">Skipped (already exist): {skipCount}</span>
                         </>
                       )}
                       {failCount > 0 && (
                         <>
-                          <div className="w-1 h-1 bg-white/20 rounded-none" />
+                          <div className="w-1 h-1 bg-white/20 rounded-xl" />
                           <span className="text-rose-400/80">Failed: {failCount}</span>
                         </>
                       )}
@@ -1763,7 +1763,7 @@ Yusuf Ibrahim SS1A`}
 
 
                 {/* Results Table */}
-                <div className="bg-card border border-border rounded-none overflow-hidden shadow-2xl">
+                <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl">
                   <div className="px-6 py-5 border-b border-border bg-white/[0.02] flex items-center justify-between">
                     <div>
                       <h3 className="text-foreground font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
@@ -1808,11 +1808,11 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
                             <td className="px-4 py-4 font-mono font-bold text-primary text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                              <span className={`inline-block px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                              <span className={`inline-block px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                 {r.status}
                               </span>
                               {r.cardId && (
-                                <div className={`mt-1 inline-block px-2 py-0.5 rounded-none text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-blue-500/10 text-blue-300 border-blue-500/30'}`}>
+                                <div className={`mt-1 inline-block px-2 py-0.5 rounded-xl text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-primary/10 text-blue-300 border-primary/30'}`}>
                                   {r.cardIssued ? 'Card Ready' : 'Card Exists'}
                                 </div>
                               )}
@@ -1854,7 +1854,7 @@ Yusuf Ibrahim SS1A`}
                       ))}
                     </tbody>
                   </table>
-                  <div className="mt-8 p-4 bg-background border rounded-none text-[10px] text-muted-foreground italic">
+                  <div className="mt-8 p-4 bg-background border rounded-xl text-[10px] text-muted-foreground italic">
                     Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
                   </div>
                 </div>
@@ -1872,7 +1872,7 @@ Yusuf Ibrahim SS1A`}
               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-12">
                 <div className="max-w-xl">
                   <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                    <div className="w-2 h-2 bg-primary rounded-none animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
+                    <div className="w-2 h-2 bg-primary rounded-xl animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
                     <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Registration Archive</span>
                   </div>
                   <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
@@ -1931,7 +1931,7 @@ Yusuf Ibrahim SS1A`}
                           )}
                           <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-5 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
                             <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                            <div className="w-1 h-1 bg-muted rounded-none" />
+                            <div className="w-1 h-1 bg-muted rounded-xl" />
                             <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
                           </div>
                         </div>
@@ -2020,7 +2020,7 @@ Yusuf Ibrahim SS1A`}
                               <label className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border cursor-pointer">
                                 <input
                                   type="checkbox"
-                                  className="w-4 h-4 bg-transparent border-primary/50 rounded-none text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                  className="w-4 h-4 bg-transparent border-primary/50 rounded-xl text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                   checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
                                   onChange={(e) => {
                                     if (e.target.checked) setSelectedResultIds(batchResults.map(r => r.id));
@@ -2074,7 +2074,7 @@ Yusuf Ibrahim SS1A`}
                                   <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                     <input
                                       type="checkbox"
-                                      className="w-4 h-4 bg-black/40 border-border rounded-none text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                      className="w-4 h-4 bg-black/40 border-border rounded-xl text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                       checked={selectedResultIds.includes(r.id)}
                                       onChange={(e) => {
                                         if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
@@ -2150,7 +2150,7 @@ Yusuf Ibrahim SS1A`}
                                         </button>
                                         <button
                                           onClick={() => handleExportCardsPDF([r])}
-                                          className="p-2 sm:p-2.5 bg-muted hover:bg-blue-600/20 text-blue-400 sm:text-blue-400/60 hover:text-blue-400 transition-all border border-border hidden sm:block"
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-primary/20 text-primary sm:text-primary/60 hover:text-primary transition-all border border-border hidden sm:block"
                                           title="Export PDF"
                                         >
                                           <DocumentArrowDownIcon className="w-3.5 h-3.5" />

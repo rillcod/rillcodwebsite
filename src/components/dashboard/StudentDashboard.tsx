@@ -185,7 +185,7 @@ export default function StudentDashboard() {
   if (loading) return (
     <div className="space-y-4 p-4 sm:p-6">
       {[1, 2, 3].map(i => (
-        <div key={i} className="h-24 bg-card border border-border animate-pulse rounded-none" />
+        <div key={i} className="h-24 bg-card border border-border animate-pulse rounded-xl" />
       ))}
     </div>
   );
@@ -215,9 +215,9 @@ export default function StudentDashboard() {
       {/* Quick Nav */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
-          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
@@ -301,13 +301,13 @@ export default function StudentDashboard() {
         {/* Programme Sidebar Card */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-            <ArchiveBoxIcon className="w-4 h-4 text-blue-500" />
+            <ArchiveBoxIcon className="w-4 h-4 text-primary" />
             My Programme
           </h2>
           <div className="bg-card border border-border p-6 flex flex-col gap-6 h-[calc(100%-2rem)]">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
-                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-black uppercase tracking-widest">Enrolled</span>
+                <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest">Enrolled</span>
                 <span className="text-[10px] font-black text-muted-foreground">LVL {data.lessonsDone}</span>
               </div>
               <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
@@ -319,9 +319,9 @@ export default function StudentDashboard() {
             </div>
 
             <div className="space-y-3 pt-4 border-t border-border">
-              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-blue-500/30 transition-all">
+              <Link href="/dashboard/path-progress" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-primary/30 transition-all">
                 <span className="text-[9px] font-black uppercase tracking-widest text-foreground">View My Progress</span>
-                <ArrowRightIcon className="w-3.5 h-3.5 text-blue-500" />
+                <ArrowRightIcon className="w-3.5 h-3.5 text-primary" />
               </Link>
               <Link href="/dashboard/assignments" className="flex items-center justify-between p-3 bg-muted/20 border border-border hover:border-rose-500/30 transition-all">
                 <span className="text-[9px] font-black uppercase tracking-widest text-foreground">Assignments</span>
@@ -449,9 +449,9 @@ export default function StudentDashboard() {
       {/* Quick Nav Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
-          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
-          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
-          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-400 hover:border-fuchsia-500/40' },
@@ -519,7 +519,7 @@ export default function StudentDashboard() {
               icon: CommandLineIcon,
               label: 'Skill Challenges',
               detail: 'Follow a step-by-step path to get better',
-              color: 'text-blue-400 border-blue-500/20 bg-blue-500/5 hover:border-blue-500/40',
+              color: 'text-primary border-primary/20 bg-primary/5 hover:border-primary/40',
             },
             {
               href: '/dashboard/study-groups',
@@ -568,7 +568,7 @@ export default function StudentDashboard() {
                   const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                   const urgency = daysLeft <= 1 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
                     : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                      : 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+                      : 'text-primary bg-primary/10 border-primary/20';
                   return (
                     <div key={a.id} className="flex items-center gap-3 p-3 bg-background border border-border">
                       <div className="flex-1 min-w-0">

@@ -187,7 +187,7 @@ const SUB_STATUS: Record<SubStatus, { label: string; cls: string }> = {
 
 const INV_STATUS: Record<InvoiceStatus, { label: string; cls: string }> = {
   draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
-  sent:      { label: 'Sent',      cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  sent:      { label: 'Sent',      cls: 'bg-primary/20 text-primary border-primary/30' },
   paid:      { label: 'Paid',      cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   overdue:   { label: 'Overdue',   cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
   cancelled: { label: 'Cancelled', cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
@@ -197,7 +197,7 @@ const TX_STATUS: Record<string, { label: string; cls: string }> = {
   completed:  { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
   success:    { label: 'Completed',  cls: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' },
   pending:    { label: 'Pending',    cls: 'bg-amber-500/10 border-amber-500/20 text-amber-400' },
-  processing: { label: 'Processing', cls: 'bg-blue-500/10 border-blue-500/20 text-blue-400' },
+  processing: { label: 'Processing', cls: 'bg-primary/10 border-primary/20 text-primary' },
   failed:     { label: 'Failed',     cls: 'bg-rose-500/10 border-rose-500/20 text-rose-400' },
   refunded:   { label: 'Refunded',   cls: 'bg-purple-500/10 border-purple-500/20 text-purple-400' },
 };
@@ -461,7 +461,7 @@ function OverviewTab({ profile }: { profile: any }) {
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -472,7 +472,7 @@ function OverviewTab({ profile }: { profile: any }) {
         <KpiCard label="Total Revenue" value={fmt('NGN', totalRevenue)} sub="All completed payments" color="bg-emerald-500" />
         <KpiCard label="Outstanding" value={fmt('NGN', outstanding)} sub={`${invoices.filter(i => ['sent','overdue'].includes(i.status)).length} open invoices`} color="bg-amber-500" />
         <KpiCard label="Overdue" value={overdue.toString()} sub="Invoices past due date" color="bg-rose-500" />
-        <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-violet-500" />
+        <KpiCard label="Paid Invoices" value={activeCount.toString()} sub="Successfully settled" color="bg-primary" />
       </div>
 
       {/* Quick Actions */}
@@ -820,7 +820,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search subscriptions…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500"
+            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
           />
         </div>
         <select value={termFilter} onChange={e => setTermFilter(e.target.value as any)}
@@ -838,7 +838,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
         </button>
         {isAdmin && (
           <button onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition-colors">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors">
             <PlusIcon className="w-4 h-4" /> New
           </button>
         )}
@@ -846,7 +846,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
       {/* List */}
       {loading ? (
-        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground text-sm">No subscriptions found</div>
       ) : (
@@ -868,8 +868,8 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 </div>
 
                 {sub.features?.term && (
-                  <div className="flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-1.5">
-                    <CalendarDaysIcon className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                  <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
+                    <CalendarDaysIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     <span className="text-[11px] text-violet-300 font-bold">
                       {sub.features.term} · {sub.features.academic_year}
                     </span>
@@ -932,7 +932,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
                   <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">Select school…</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -943,17 +943,17 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Name *</label>
                   <input value={form.plan_name} onChange={e => setForm(f => ({ ...f, plan_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount</label>
                   <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option>NGN</option><option>USD</option><option>GBP</option>
                   </select>
                 </div>
@@ -964,7 +964,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Billing Cycle</label>
                 <select value={form.billing_cycle_display}
                   onChange={e => setForm(f => ({ ...f, billing_cycle_display: e.target.value, billing_cycle: e.target.value === 'termly' ? 'yearly' : e.target.value as any }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                   <option value="yearly">Annual</option>
@@ -974,22 +974,22 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
               {/* Term fields — only visible when termly */}
               {form.billing_cycle_display === 'termly' && (
-                <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 space-y-3">
-                  <p className="text-[11px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1.5">
+                <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 space-y-3">
+                  <p className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
                     <CalendarDaysIcon className="w-3.5 h-3.5" /> Nigerian School Term
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-muted-foreground mb-1.5">Term</label>
                       <select value={form.term} onChange={e => setForm(f => ({ ...f, term: e.target.value as Term }))}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                         {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-muted-foreground mb-1.5">Academic Year</label>
                       <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                         {academicYears.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                     </div>
@@ -1001,40 +1001,40 @@ function SubscriptionsTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Status</label>
                   <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as SubStatus }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     {Object.entries(SUB_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Plan Type</label>
                   <input value={form.plan_type} onChange={e => setForm(f => ({ ...f, plan_type: e.target.value }))} placeholder="e.g. basic"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">End Date</label>
                   <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Students</label>
                   <input type="number" value={form.max_students} onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))} placeholder="Unlimited"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Max Teachers</label>
                   <input type="number" value={form.max_teachers} onChange={e => setForm(f => ({ ...f, max_teachers: e.target.value }))} placeholder="Unlimited"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editId ? 'Update' : 'Create'}
                 </button>
                 <button onClick={() => setShowForm(false)}
@@ -1158,14 +1158,14 @@ function SettlementsTab({ profile }: { profile: any }) {
             <ArrowPathIcon className="w-4 h-4 text-muted-foreground" />
           </button>
           <button onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition-colors">
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors">
             <PlusIcon className="w-4 h-4" /> New Settlement
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : settlements.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground text-sm">No settlements recorded yet</div>
       ) : (
@@ -1194,7 +1194,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                           <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Paid
                         </button>
                         <button onClick={() => openEdit(s)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 text-xs font-bold rounded-lg border border-violet-500/20 transition-colors">
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-lg border border-primary/20 transition-colors">
                           <PencilIcon className="w-3.5 h-3.5" /> Edit
                         </button>
                         <button onClick={() => markStatus(s.id, 'void')}
@@ -1235,7 +1235,7 @@ function SettlementsTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">School *</label>
                   <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">Select school…</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -1245,12 +1245,12 @@ function SettlementsTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Amount *</label>
                   <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option>NGN</option><option>USD</option><option>GBP</option>
                   </select>
                 </div>
@@ -1258,16 +1258,16 @@ function SettlementsTab({ profile }: { profile: any }) {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Reference</label>
                 <input value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))} placeholder="e.g. TRF-2025-001"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500 resize-none" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Settlement'}
                 </button>
                 <button onClick={() => setShowForm(false)}
@@ -1340,7 +1340,7 @@ function AutomationTab() {
 
   function cfg(key: keyof AutoConfig, val: any) { setConfig(c => ({ ...c, [key]: val })); }
 
-  if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -1354,7 +1354,7 @@ function AutomationTab() {
           <div className="flex items-center gap-4">
             <Toggle checked={config.invoice_reminders_enabled} onChange={v => cfg('invoice_reminders_enabled', v)} />
             <button onClick={runNow} disabled={running}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
               {running ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
               Run Now
             </button>
@@ -1364,7 +1364,7 @@ function AutomationTab() {
         {runResult && (
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Scanned', val: runResult.invoices_scanned ?? runResult.scanned ?? 0, cls: 'text-blue-400' },
+              { label: 'Scanned', val: runResult.invoices_scanned ?? runResult.scanned ?? 0, cls: 'text-primary' },
               { label: 'Sent', val: runResult.reminders_sent ?? runResult.sent ?? 0, cls: 'text-emerald-400' },
               { label: 'Overdue', val: runResult.overdue_marked ?? runResult.overdue ?? 0, cls: 'text-amber-400' },
               { label: 'Errors', val: runResult.errors ?? 0, cls: 'text-rose-400' },
@@ -1382,7 +1382,7 @@ function AutomationTab() {
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reminder Schedule</h3>
         {[
-          { label: 'Reminder 1 — Days after issue', key: 'reminder_1_days_after_issue' as keyof AutoConfig, color: 'bg-blue-500' },
+          { label: 'Reminder 1 — Days after issue', key: 'reminder_1_days_after_issue' as keyof AutoConfig, color: 'bg-primary' },
           { label: 'Reminder 2 — Days before due', key: 'reminder_2_days_before_due' as keyof AutoConfig, color: 'bg-amber-500' },
           { label: 'Reminder 3 — Days after due', key: 'reminder_3_days_after_due' as keyof AutoConfig, color: 'bg-rose-500' },
         ].map(({ label, key, color }) => (
@@ -1394,7 +1394,7 @@ function AutomationTab() {
             <input
               type="number" min={0} max={30} value={config[key] as number}
               onChange={e => cfg(key, Math.max(0, Math.min(30, Number(e.target.value))))}
-              className="w-20 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground text-center font-black focus:outline-none focus:border-violet-500 transition-colors"
+              className="w-20 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground text-center font-black focus:outline-none focus:border-primary transition-colors"
             />
           </div>
         ))}
@@ -1422,7 +1422,7 @@ function AutomationTab() {
       </div>
 
       <button onClick={save} disabled={saving}
-        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckBadgeIcon className="w-4 h-4" />}
         Save Settings
       </button>
@@ -1439,7 +1439,7 @@ function AutomationTab() {
                   <p className="text-[11px] text-muted-foreground capitalize">{log.triggered_by}</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="text-blue-400">{log.invoices_scanned} scanned</span>
+                  <span className="text-primary">{log.invoices_scanned} scanned</span>
                   <span className="text-emerald-400">{log.reminders_sent} sent</span>
                   {log.errors > 0 && <span className="text-rose-400">{log.errors} errors</span>}
                 </div>
@@ -1569,7 +1569,7 @@ function SetupTab({ profile }: { profile: any }) {
     setEditAcct(a); setShowAcctForm(true);
   }
 
-  if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -1595,7 +1595,7 @@ function SetupTab({ profile }: { profile: any }) {
                 });
                 setShowAcctForm(true);
               }}
-              className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl transition-colors">
+              className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl transition-colors">
               <PlusIcon className="w-3.5 h-3.5" /> {isSchool ? 'Add School Account' : 'Add Account'}
             </button>
           )}
@@ -1611,11 +1611,11 @@ function SetupTab({ profile }: { profile: any }) {
                 // School can only edit their own school accounts, never rillcod accounts
                 const canEdit = isAdmin || (isSchool && a.owner_type === 'school' && a.school_id === profile?.school_id);
                 return (
-                  <div key={a.id} className={`border rounded-xl p-4 space-y-3 ${a.owner_type === 'rillcod' ? 'border-violet-500/30 bg-violet-500/5' : 'border-border'}`}>
+                  <div key={a.id} className={`border rounded-xl p-4 space-y-3 ${a.owner_type === 'rillcod' ? 'border-primary/30 bg-primary/5' : 'border-border'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {a.owner_type === 'rillcod'
-                          ? <ShieldCheckIcon className="w-4 h-4 text-violet-400" />
+                          ? <ShieldCheckIcon className="w-4 h-4 text-primary" />
                           : <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground" />}
                         <div>
                           <p className="font-black text-foreground text-sm">{a.label}</p>
@@ -1645,7 +1645,7 @@ function SetupTab({ profile }: { profile: any }) {
                         <p className="text-xs text-muted-foreground">{a.account_name}</p>
                       </div>
                       <button onClick={() => navigator.clipboard?.writeText(a.account_number)}
-                        className="text-[10px] font-bold text-violet-400 hover:text-violet-300 px-2 py-1 bg-violet-500/10 rounded-lg transition-colors">
+                        className="text-[10px] font-bold text-primary hover:text-violet-300 px-2 py-1 bg-primary/10 rounded-lg transition-colors">
                         Copy
                       </button>
                     </div>
@@ -1685,7 +1685,7 @@ function SetupTab({ profile }: { profile: any }) {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
                 <select value={selectedSchool} onChange={e => setSelectedSchool(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                   <option value="">Select school…</option>
                   {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -1738,27 +1738,27 @@ function SetupTab({ profile }: { profile: any }) {
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">Representative Name</label>
                     <input value={contactForm.representative_name ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_name: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">Email</label>
                     <input type="email" value={contactForm.representative_email ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_email: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">WhatsApp</label>
                     <input value={contactForm.representative_whatsapp ?? ''} onChange={e => setContactForm(f => ({ ...f, representative_whatsapp: e.target.value }))} placeholder="+2348..."
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">Notes</label>
                     <input value={contactForm.notes ?? ''} onChange={e => setContactForm(f => ({ ...f, notes: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={async () => { await saveContact(); setEditingContact(false); }} disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save Contact
                   </button>
@@ -1791,7 +1791,7 @@ function SetupTab({ profile }: { profile: any }) {
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
                     <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="rillcod">Rillcod Technologies</option>
                       <option value="school">School</option>
                     </select>
@@ -1800,7 +1800,7 @@ function SetupTab({ profile }: { profile: any }) {
                     <div>
                       <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
                       <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                         <option value="">Select school…</option>
                         {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
@@ -1815,13 +1815,13 @@ function SetupTab({ profile }: { profile: any }) {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Label *</label>
                 <input value={acctForm.label} onChange={e => setAcctForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. School Fees Account"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Bank Name *</label>
                   <select value={acctForm.bank_name} onChange={e => setAcctForm(f => ({ ...f, bank_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">Select bank…</option>
                     {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -1829,7 +1829,7 @@ function SetupTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Type</label>
                   <select value={acctForm.account_type} onChange={e => setAcctForm(f => ({ ...f, account_type: e.target.value as any }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
                   </select>
@@ -1837,18 +1837,18 @@ function SetupTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Number *</label>
                   <input value={acctForm.account_number} onChange={e => setAcctForm(f => ({ ...f, account_number: e.target.value }))} maxLength={10}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Name *</label>
                   <input value={acctForm.account_name} onChange={e => setAcctForm(f => ({ ...f, account_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Note</label>
                 <input value={acctForm.payment_note} onChange={e => setAcctForm(f => ({ ...f, payment_note: e.target.value }))} placeholder="Optional note shown to payers"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-foreground font-bold">Active</span>
@@ -1856,7 +1856,7 @@ function SetupTab({ profile }: { profile: any }) {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={saveAccount} disabled={saving}
-                  className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editAcct ? 'Update' : 'Add Account'}
                 </button>
                 <button onClick={() => { setShowAcctForm(false); setEditAcct(null); }}
@@ -1904,7 +1904,7 @@ export default function FinancePage() {
   if (authLoading || profileLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -1921,7 +1921,7 @@ export default function FinancePage() {
               {profile.role === 'school' ? 'My Billing' : 'Finance Ops'}
             </h1>
           </div>
-          <div className="rounded-none border border-border bg-card p-6 text-sm text-muted-foreground">
+          <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
             <p className="font-bold text-foreground">No finance tools for this account</p>
             <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/money">My Money</Link> for your personal ledger, or{' '}
               <Link className="text-primary underline font-semibold" href="/dashboard/my-payments">My payments</Link> /{' '}
@@ -1946,7 +1946,7 @@ export default function FinancePage() {
               ? 'Your school\u2019s invoices, receipts and downloadable billing records'
               : 'Control panel \u2014 billing, payments, subscriptions, settlements, reconciliation'}
             {profile.role === 'school' && profile.school_id && (
-              <span className="ml-2 inline-flex items-center gap-1 text-violet-400 font-bold">
+              <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school
               </span>
             )}
@@ -1962,7 +1962,7 @@ export default function FinancePage() {
                 onClick={() => switchTab(key)}
                 className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                   tab === key
-                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
+                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >

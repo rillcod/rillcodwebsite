@@ -75,11 +75,11 @@ type PipelineStage = 'prospect' | 'active' | 'at_risk' | 'churned' | 'won';
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const PIPELINE_STAGES: { value: PipelineStage; label: string; color: string; icon: React.ReactNode }[] = [
-  { value: 'prospect',  label: 'Prospect',  color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',   icon: <Star className="w-3 h-3" /> },
+  { value: 'prospect',  label: 'Prospect',  color: 'bg-primary/20 text-primary border-primary/30',   icon: <Star className="w-3 h-3" /> },
   { value: 'active',   label: 'Active',    color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: <CheckCircle className="w-3 h-3" /> },
   { value: 'at_risk',  label: 'At Risk',   color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   icon: <AlertCircle className="w-3 h-3" /> },
   { value: 'churned',  label: 'Churned',   color: 'bg-red-500/20 text-red-400 border-red-500/30',          icon: <TrendingDown className="w-3 h-3" /> },
-  { value: 'won',      label: 'Won',       color: 'bg-violet-500/20 text-violet-400 border-violet-500/30', icon: <CheckCircle className="w-3 h-3" /> },
+  { value: 'won',      label: 'Won',       color: 'bg-primary/20 text-primary border-primary/30', icon: <CheckCircle className="w-3 h-3" /> },
 ];
 
 const INTERACTION_TYPES = [
@@ -93,9 +93,9 @@ const INTERACTION_TYPES = [
 const ROLE_COLORS: Record<string, string> = {
   student:  'bg-emerald-500/20 text-emerald-400',
   parent:   'bg-primary/20 text-primary',
-  teacher:  'bg-blue-500/20 text-blue-400',
+  teacher:  'bg-primary/20 text-primary',
   school:   'bg-indigo-500/20 text-indigo-400',
-  admin:    'bg-violet-500/20 text-violet-400',
+  admin:    'bg-primary/20 text-primary',
   external: 'bg-white/10 text-white/50',
 };
 
@@ -505,7 +505,7 @@ export default function CRMPage() {
                     <div className="flex items-center gap-2.5">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${
                         c.role === 'student' ? 'bg-emerald-600' : c.role === 'parent' ? 'bg-primary' :
-                        c.role === 'teacher' ? 'bg-blue-700' : c.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
+                        c.role === 'teacher' ? 'bg-primary' : c.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
                       }`}>
                         {initials(c.full_name)}
                       </div>
@@ -539,7 +539,7 @@ export default function CRMPage() {
               <div className="flex items-center gap-3">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white shrink-0 ${
                   selectedContact.role === 'student' ? 'bg-emerald-600' : selectedContact.role === 'parent' ? 'bg-primary' :
-                  selectedContact.role === 'teacher' ? 'bg-blue-700' : selectedContact.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
+                  selectedContact.role === 'teacher' ? 'bg-primary' : selectedContact.role === 'school' ? 'bg-indigo-700' : 'bg-white/20'
                 }`}>
                   {initials(selectedContact.full_name)}
                 </div>
@@ -603,13 +603,13 @@ export default function CRMPage() {
                                   item.channel === 'whatsapp'
                                     ? 'bg-emerald-500/20 text-emerald-300'
                                     : item.channel === 'inapp'
-                                      ? 'bg-violet-500/20 text-violet-300'
+                                      ? 'bg-primary/20 text-violet-300'
                                       : 'bg-primary/20 text-primary'
                                 }`}>
                                   {item.channel}
                                 </span>
                                 <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                                  item.direction === 'inbound' ? 'bg-blue-500/15 text-blue-300' : 'bg-primary/15 text-primary'
+                                  item.direction === 'inbound' ? 'bg-primary/15 text-blue-300' : 'bg-primary/15 text-primary'
                                 }`}>
                                   {item.direction}
                                 </span>
@@ -653,7 +653,7 @@ export default function CRMPage() {
                       <div className="flex gap-2">
                         {['outbound', 'inbound'].map(d => (
                           <button key={d} onClick={() => setInteractionDir(d)}
-                            className={`px-3 py-1 rounded-full text-[11px] font-black transition-colors ${interactionDir === d ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
+                            className={`px-3 py-1 rounded-full text-[11px] font-black transition-colors ${interactionDir === d ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
                             {d}
                           </button>
                         ))}
@@ -693,9 +693,9 @@ export default function CRMPage() {
                           return (
                             <div key={i.id} className="flex gap-3 relative">
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 ${
-                                i.type === 'note' ? 'bg-violet-500/20 text-violet-400' :
+                                i.type === 'note' ? 'bg-primary/20 text-primary' :
                                 i.type === 'call' ? 'bg-emerald-500/20 text-emerald-400' :
-                                i.type === 'email' ? 'bg-blue-500/20 text-blue-400' :
+                                i.type === 'email' ? 'bg-primary/20 text-primary' :
                                 i.type === 'meeting' ? 'bg-primary/20 text-primary' :
                                 'bg-emerald-900/40 text-emerald-400'
                               }`}>
@@ -705,7 +705,7 @@ export default function CRMPage() {
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11px] font-black text-white uppercase">{i.type}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-400'}`}>{i.direction}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-primary/10 text-primary' : 'bg-primary/10 text-primary'}`}>{i.direction}</span>
                                     {i.staff_name && <span className="text-[10px] text-white/30">by {i.staff_name}</span>}
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
@@ -774,7 +774,7 @@ export default function CRMPage() {
                           <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             {a.signed_url && (
                               <a href={a.signed_url} download={a.file_name} target="_blank" rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
+                                className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                                 <Download className="w-3.5 h-3.5" />
                               </a>
                             )}

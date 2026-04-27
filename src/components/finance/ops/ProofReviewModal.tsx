@@ -21,7 +21,7 @@ const PROOF_STATUS_STYLES: Record<ProofStatus, string> = {
   pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   rejected: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  request_more: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  request_more: 'bg-primary/20 text-primary border-primary/30',
 };
 
 export function ProofReviewModal({
@@ -168,7 +168,7 @@ export function ProofReviewModal({
                           href={proof.signed_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300 underline"
+                          className="flex items-center gap-2 text-xs font-bold text-primary hover:text-blue-300 underline"
                         >
                           <DocumentTextIcon className="w-4 h-4" /> View PDF Evidence
                         </a>
@@ -215,7 +215,7 @@ export function ProofReviewModal({
                             <button
                               onClick={() => handleReview(proof.id, 'request_more')}
                               disabled={acting}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                              className="px-3 py-1.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                             >
                               Request More
                             </button>

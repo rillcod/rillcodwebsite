@@ -173,7 +173,7 @@ export function DocPreviewModal({
               <button
                 onClick={sendEmail}
                 disabled={anyBusy}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
               >
                 {busy === 'send_email' ? (
                   <ArrowPathIcon className="w-4 h-4 animate-spin" />

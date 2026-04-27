@@ -15,8 +15,8 @@ const pillars = [
     icon: Lightbulb,
     title: 'Creative Logic',
     desc: 'Teaching kids to solve complex problems through code and robotics.',
-    color: 'text-blue-500',
-    bg: 'bg-blue-500/10'
+    color: 'text-primary',
+    bg: 'bg-primary/10'
   },
   {
     icon: Award,
@@ -38,7 +38,7 @@ const About: React.FC = () => {
           
           {/* CONTENT */}
           <div>
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                <Command className="w-4 h-4 text-primary" />
                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Our Mission</span>
             </div>
@@ -54,8 +54,8 @@ const About: React.FC = () => {
 
             <div className="grid sm:grid-cols-3 gap-6">
               {pillars.map((p) => (
-                <div key={p.title} className="group p-6 bg-card border border-border rounded-none hover:bg-muted transition-all border-b-2 border-b-transparent hover:border-b-brand-red-600 shadow-sm">
-                  <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-none flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-inner`}>
+                <div key={p.title} className="group p-6 bg-card border border-border rounded-xl hover:bg-muted transition-all border-b-2 border-b-transparent hover:border-b-brand-red-600 shadow-sm">
+                  <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-inner`}>
                     <p.icon className="w-6 h-6" />
                   </div>
                   <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-2">{p.title}</h4>
@@ -67,35 +67,35 @@ const About: React.FC = () => {
 
           {/* STATS / VISUAL */}
           <div className="relative">
-             <div className="bg-card border border-border rounded-none p-10 md:p-16 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-none blur-[100px] pointer-events-none group-hover:bg-blue-600/10 transition-colors duration-1000" />
+             <div className="bg-card border border-border rounded-xl p-10 md:p-16 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-xl blur-[100px] pointer-events-none group-hover:bg-primary/10 transition-colors duration-1000" />
                 
                 <div className="space-y-12 relative z-10">
                    <div>
                       <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">25+</p>
                       <p className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Partner Schools</p>
-                      <div className="w-full h-1 bg-muted rounded-none mt-4 overflow-hidden">
-                         <div className="w-[85%] h-full bg-primary rounded-none shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
+                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                         <div className="w-[85%] h-full bg-primary rounded-xl shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
                       </div>
                    </div>
                    <div>
                       <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">500+</p>
-                      <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Active Students</p>
-                      <div className="w-full h-1 bg-muted rounded-none mt-4 overflow-hidden">
-                         <div className="w-[92%] h-full bg-blue-500 rounded-none shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Active Students</p>
+                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                         <div className="w-[92%] h-full bg-primary rounded-xl shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                       </div>
                    </div>
                    <div>
                       <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">1,200+</p>
                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Hours Taught</p>
-                      <div className="w-full h-1 bg-muted rounded-none mt-4 overflow-hidden">
-                         <div className="w-[100%] h-full bg-emerald-500 rounded-none shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                         <div className="w-[100%] h-full bg-emerald-500 rounded-xl shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                       </div>
                    </div>
                 </div>
 
                 {/* Decorative Sharp Accent */}
-                <div className="absolute -bottom-6 -right-6 bg-muted border border-border p-6 rounded-none backdrop-blur-md shadow-xl">
+                <div className="absolute -bottom-6 -right-6 bg-muted border border-border p-6 rounded-xl backdrop-blur-md shadow-xl">
                    <Target className="w-8 h-8 text-primary/20" />
                 </div>
              </div>

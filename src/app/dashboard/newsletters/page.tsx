@@ -249,7 +249,7 @@ export default function NewslettersPage() {
           <p className="text-muted-foreground font-medium leading-relaxed">
             You do not have access to this page.
           </p>
-          <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
+          <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
             Return to Dashboard
           </a>
         </div>
@@ -279,7 +279,7 @@ export default function NewslettersPage() {
             isManager && (
               <button 
                 onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
+                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
               >
                 <PlusIcon className="w-5 h-5" /> Create Newsletter
               </button>
@@ -287,7 +287,7 @@ export default function NewslettersPage() {
           ) : (
             <button 
               onClick={() => setView('list')}
-              className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-bold transition-all border border-border"
+              className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-xl text-sm font-bold transition-all border border-border"
             >
               <ArrowLeftIcon className="w-4 h-4" /> Back to Newsletters
             </button>
@@ -295,7 +295,7 @@ export default function NewslettersPage() {
         </div>
 
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
             <CheckCircleIcon className="w-5 h-5" />
             <span className="text-sm font-bold">{success}</span>
           </div>
@@ -359,7 +359,7 @@ export default function NewslettersPage() {
               <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 space-y-6 lg:space-y-8 shadow-2xl">
                 <div className="flex items-center justify-between lg:block">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center border border-primary/30">
+                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
                       <SparklesIcon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
@@ -378,7 +378,7 @@ export default function NewslettersPage() {
                             <button
                               key={t}
                               onClick={() => setAiTone(t as any)}
-                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                             >
                               {t}
                             </button>
@@ -393,7 +393,7 @@ export default function NewslettersPage() {
                             <button
                               key={a}
                               onClick={() => setAiAudience(a as any)}
-                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-foreground shadow-lg shadow-cyan-900/40' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-foreground shadow-lg shadow-cyan-900/40' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                             >
                               {a}
                             </button>
@@ -408,7 +408,7 @@ export default function NewslettersPage() {
                        value={topic}
                        onChange={e => setTopic(e.target.value)}
                        placeholder="Announce your news..."
-                       className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
+                       className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
                      />
                   </div>
                   
@@ -432,7 +432,7 @@ export default function NewslettersPage() {
                 <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
                   <button 
                     onClick={handleDownloadPDF}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-none text-[10px] font-black transition-all border border-border group"
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-xl text-[10px] font-black transition-all border border-border group"
                   >
                     <PrinterIcon className="w-4 h-4 text-primary" /> 
                     <span className="uppercase tracking-widest">Export PDF</span>
@@ -440,7 +440,7 @@ export default function NewslettersPage() {
                   {activeNewsletter?.id && (
                     <button 
                       onClick={() => setShowPushModal(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-none text-[10px] font-black transition-all border border-emerald-500/20 group"
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-xl text-[10px] font-black transition-all border border-emerald-500/20 group"
                     >
                       <SpeakerWaveIcon className="w-4 h-4" /> 
                       <span className="uppercase tracking-widest">Send to Users</span>
@@ -457,7 +457,7 @@ export default function NewslettersPage() {
                 
                 <div className="flex flex-col gap-6">
                   <div className="flex items-center gap-4 border-b border-border pb-6">
-                    <div className="hidden sm:flex w-12 h-12 bg-card shadow-sm rounded-none items-center justify-center border border-border shrink-0">
+                    <div className="hidden sm:flex w-12 h-12 bg-card shadow-sm rounded-xl items-center justify-center border border-border shrink-0">
                       <DocumentTextIcon className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <input 
@@ -483,14 +483,14 @@ export default function NewslettersPage() {
                 <div className="pt-6 lg:pt-8 border-t border-border flex flex-wrap justify-end gap-3">
                    <button 
                     onClick={() => setShowPreview(true)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-5 py-3 bg-card shadow-sm border border-border rounded-none text-[9px] font-black transition-all uppercase tracking-widest text-muted-foreground"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-5 py-3 bg-card shadow-sm border border-border rounded-xl text-[9px] font-black transition-all uppercase tracking-widest text-muted-foreground"
                   >
                     <EyeIcon className="w-4 h-4" /> Preview
                   </button>
                    <button 
                     onClick={handleSave}
                     disabled={loading || !activeNewsletter?.title}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-none text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-xl text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
                   >
                     {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save
@@ -506,7 +506,7 @@ export default function NewslettersPage() {
           <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl animate-in fade-in duration-300">
             <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-primary/20 rounded-none flex items-center justify-center border border-primary/30">
+                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
                     <EyeIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
@@ -520,13 +520,13 @@ export default function NewslettersPage() {
                <div className="flex items-center gap-3">
                   <button 
                     onClick={handleDownloadPDF}
-                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
                     <PrinterIcon className="w-4 h-4 text-primary" /> Export PDF
                   </button>
                   <button 
                     onClick={() => setShowPreview(false)}
-                    className="w-12 h-12 flex items-center justify-center bg-card shadow-sm hover:bg-rose-500/20 rounded-none transition-all group"
+                    className="w-12 h-12 flex items-center justify-center bg-card shadow-sm hover:bg-rose-500/20 rounded-xl transition-all group"
                   >
                     <XMarkIcon className="w-6 h-6 text-muted-foreground group-hover:text-rose-500" />
                   </button>
@@ -541,7 +541,7 @@ export default function NewslettersPage() {
                      style={{ width: '210mm', minHeight: '297mm', padding: '25mm' }}
                   >
                        <div className="flex items-center gap-6 sm:gap-[30px] border-b-4 border-[#1a1a1a] pb-6 sm:pb-[25px] mb-10 sm:mb-[40px]">
-                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-[#1a1a1a] rounded-none sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[15px]">
+                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-[#1a1a1a] rounded-xl sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[15px]">
                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" />
                          </div>
                          <div className="flex-1">
@@ -597,7 +597,7 @@ export default function NewslettersPage() {
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold">Push to Recipients</h3>
-                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-card shadow-sm rounded-none transition-colors">
+                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
@@ -614,7 +614,7 @@ export default function NewslettersPage() {
                       <button 
                         key={t.id}
                         onClick={() => setTargetType(t.id as any)}
-                        className={`flex items-center gap-3 px-4 py-4 rounded-none border transition-all ${
+                        className={`flex items-center gap-3 px-4 py-4 rounded-xl border transition-all ${
                           targetType === t.id ? 'bg-primary/10 border-primary/50 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-white/8'
                         }`}
                       >
@@ -625,15 +625,15 @@ export default function NewslettersPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-none">
-                  <InformationCircleIcon className="w-5 h-5 text-blue-400 shrink-0" />
-                  <p className="text-[11px] text-blue-400 font-medium">Recipients will see this newsletter the next time they log in.</p>
+                <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                  <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
+                  <p className="text-[11px] text-primary font-medium">Recipients will see this newsletter the next time they log in.</p>
                 </div>
 
                 <button 
                   onClick={handlePush}
                   disabled={pushing}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-black rounded-none transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-black rounded-xl transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2"
                 >
                   {pushing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                   Confirm & Push Newsletter

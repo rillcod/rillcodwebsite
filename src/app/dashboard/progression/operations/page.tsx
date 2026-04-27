@@ -110,7 +110,7 @@ export default function OperationsSettingsPage() {
 
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -133,7 +133,7 @@ export default function OperationsSettingsPage() {
             </p>
           </div>
           {readonly && (
-            <span className="px-3 py-1.5 text-xs font-bold rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 shrink-0">
+            <span className="px-3 py-1.5 text-xs font-bold rounded-xl border border-primary/30 bg-primary/10 text-blue-300 shrink-0">
               View only — contact your admin to make changes
             </span>
           )}
@@ -170,7 +170,7 @@ export default function OperationsSettingsPage() {
                           disabled={readonly || !canSave}
                           onChange={e => updateValue(section, key, e.target.checked)}
                         />
-                        <div className={`w-10 h-6 rounded-full transition-colors ${value ? 'bg-violet-600' : 'bg-muted'} ${(readonly || !canSave) ? 'opacity-50' : ''}`} />
+                        <div className={`w-10 h-6 rounded-full transition-colors ${value ? 'bg-primary' : 'bg-muted'} ${(readonly || !canSave) ? 'opacity-50' : ''}`} />
                         <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-card transition-transform ${value ? 'translate-x-4' : ''}`} />
                       </div>
                       <span className="text-sm text-foreground">{value ? 'On' : 'Off'}</span>
@@ -207,7 +207,7 @@ export default function OperationsSettingsPage() {
             type="button"
             onClick={saveAll}
             disabled={saving}
-            className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-black rounded-xl inline-flex items-center justify-center gap-2"
+            className="w-full py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-xl inline-flex items-center justify-center gap-2"
           >
             {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
             Save all changes

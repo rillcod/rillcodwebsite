@@ -53,7 +53,7 @@ function timeAgo(dateStr: string): string {
 
 function AuthorAvatar({ name }: { name: string }) {
   const initial = (name || 'A')[0].toUpperCase();
-  const colors = ['bg-violet-600','bg-indigo-600','bg-emerald-600','bg-amber-600','bg-rose-600','bg-cyan-600'];
+  const colors = ['bg-primary','bg-indigo-600','bg-emerald-600','bg-amber-600','bg-rose-600','bg-cyan-600'];
   return (
     <div className={`w-9 h-9 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 rounded-full ${colors[initial.charCodeAt(0) % colors.length]}`}>
       {initial}
@@ -81,9 +81,9 @@ const PROMPT_GROUPS = [
   {
     label: 'Teen Developers',
     sublabel: 'Ages 12–18',
-    color: 'text-violet-400',
-    border: 'border-violet-500/30',
-    bg: 'bg-violet-500/5',
+    color: 'text-primary',
+    border: 'border-primary/30',
+    bg: 'bg-primary/5',
     icon: RocketLaunchIcon,
     prompts: [
       { icon: GlobeAltIcon,    color: '#06b6d4', text: 'Show us your latest web project — what tech stack did you use?' },
@@ -227,7 +227,7 @@ export default function CommunityPage() {
   if (authLoading || !profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -262,7 +262,7 @@ export default function CommunityPage() {
                 <span className="text-xs font-bold text-muted-foreground">{posts.length} posts</span>
               </div>
               {isStaff && (
-                <span className="flex items-center gap-1.5 px-3 py-2 bg-violet-500/10 border border-violet-500/30 rounded-xl text-xs font-bold text-violet-400">
+                <span className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 rounded-xl text-xs font-bold text-primary">
                   <ShieldCheckIcon className="w-3.5 h-3.5" /> Staff
                 </span>
               )}
@@ -278,26 +278,26 @@ export default function CommunityPage() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Weekly Challenge */}
-            <div className="bg-gradient-to-r from-violet-600/15 to-indigo-600/15 border border-violet-500/30 p-5 sm:p-6 rounded-2xl">
+            <div className="bg-gradient-to-r from-primary/15 to-indigo-600/15 border border-primary/30 p-5 sm:p-6 rounded-2xl">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-violet-500/20 border border-violet-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <BoltIcon className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BoltIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest">This Week</span>
-                    <span className="text-[9px] bg-violet-500/10 border border-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">All Students</span>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">This Week</span>
+                    <span className="text-[9px] bg-primary/10 border border-primary/20 text-violet-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">All Students</span>
                   </div>
                   <h3 className="text-base font-black text-foreground mb-1">{WEEKLY_CHALLENGE.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-3">{WEEKLY_CHALLENGE.description}</p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {WEEKLY_CHALLENGE.tags.map(t => (
-                      <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 rounded-lg text-violet-300">{t}</span>
+                      <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-violet-300">{t}</span>
                     ))}
                   </div>
                   <button
                     onClick={() => { setMessage('My solution to the Weekly Challenge:\n\n'); setShowCode(true); composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); composerRef.current?.focus(); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all"
                   >
                     <RocketLaunchIcon className="w-3.5 h-3.5" /> Submit My Solution
                   </button>
@@ -480,7 +480,7 @@ export default function CommunityPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-sm text-foreground">{post.author_name}</span>
                             {isOwn && <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded">You</span>}
-                            {(post.user_id === profile.id ? false : isStaff) && <span className="text-[9px] font-black px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded">Staff</span>}
+                            {(post.user_id === profile.id ? false : isStaff) && <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded">Staff</span>}
                             {post.code_snippet && (
                               <span className="text-[9px] font-black px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded">Code</span>
                             )}
@@ -599,19 +599,19 @@ export default function CommunityPage() {
             </div>
 
             {/* 🚀 Teen Developers — Learning Paths */}
-            <div className="bg-gradient-to-br from-violet-600/10 to-indigo-600/10 border border-violet-500/20 rounded-2xl overflow-hidden">
-              <div className="px-4 pt-4 pb-3 border-b border-violet-500/10">
+            <div className="bg-gradient-to-br from-primary/10 to-indigo-600/10 border border-primary/20 rounded-2xl overflow-hidden">
+              <div className="px-4 pt-4 pb-3 border-b border-primary/10">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-lg">🚀</span>
-                  <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Teen Developers</p>
-                  <span className="ml-auto text-[8px] font-black text-violet-400/50 uppercase tracking-widest bg-violet-500/10 px-2 py-0.5 rounded-full">Ages 12–18</span>
+                  <p className="text-xs font-black text-primary uppercase tracking-widest">Teen Developers</p>
+                  <span className="ml-auto text-[8px] font-black text-primary/50 uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded-full">Ages 12–18</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground">Hands-on projects, real code, real skills</p>
               </div>
 
               {/* Track 1: Web Dev */}
               <div className="px-3 pt-3 pb-1">
-                <p className="text-[8px] font-black text-violet-400/60 uppercase tracking-widest mb-2 px-1">🌐 Web Development</p>
+                <p className="text-[8px] font-black text-primary/60 uppercase tracking-widest mb-2 px-1">🌐 Web Development</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '🎨', title: 'Portfolio Site', desc: 'HTML + CSS glassmorphism card', path: '/dashboard/playground?lang=html', badge: 'Beginner' },
@@ -620,10 +620,10 @@ export default function CommunityPage() {
                     { emoji: '🔷', title: 'TypeScript App', desc: 'Typed interfaces + generics', path: '/dashboard/missions?lang=typescript', badge: 'Advanced' },
                   ].map((sim, i) => (
                     <a key={i} href={sim.path}
-                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-violet-500/40 hover:bg-violet-500/5 rounded-xl transition-all group">
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-violet-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
                       <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
@@ -634,7 +634,7 @@ export default function CommunityPage() {
 
               {/* Track 2: Python & Data */}
               <div className="px-3 pt-3 pb-1">
-                <p className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest mb-2 px-1">🐍 Python & Data Science</p>
+                <p className="text-[8px] font-black text-primary/60 uppercase tracking-widest mb-2 px-1">🐍 Python & Data Science</p>
                 <div className="space-y-1.5">
                   {[
                     { emoji: '📊', title: 'Student Report System', desc: 'Classes, dicts, loops, grades', path: '/dashboard/protocol?phase=5', badge: 'Beginner' },
@@ -644,10 +644,10 @@ export default function CommunityPage() {
                     { emoji: '📈', title: 'Data Pipeline', desc: 'Process & rank student datasets', path: '/dashboard/missions?lang=python', badge: 'Advanced' },
                   ].map((sim, i) => (
                     <a key={i} href={sim.path}
-                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-blue-500/40 hover:bg-blue-500/5 rounded-xl transition-all group">
+                      className="flex items-center gap-2.5 p-2.5 bg-card/60 border border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl transition-all group">
                       <span className="text-lg leading-none shrink-0">{sim.emoji}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-foreground group-hover:text-blue-400 transition-colors truncate">{sim.title}</p>
+                        <p className="text-[10px] font-black text-foreground group-hover:text-primary transition-colors truncate">{sim.title}</p>
                         <p className="text-[8px] text-muted-foreground truncate">{sim.desc}</p>
                       </div>
                       <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${sim.badge === 'Beginner' ? 'bg-emerald-500/10 text-emerald-400' : sim.badge === 'Intermediate' ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400'}`}>{sim.badge}</span>
@@ -700,7 +700,7 @@ export default function CommunityPage() {
                     </a>
                   ))}
                 </div>
-                <a href="/dashboard/missions" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-xl text-[9px] font-black text-violet-400 uppercase tracking-widest transition-all">
+                <a href="/dashboard/missions" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-[9px] font-black text-primary uppercase tracking-widest transition-all">
                   View All Missions →
                 </a>
               </div>

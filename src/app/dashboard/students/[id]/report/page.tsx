@@ -15,7 +15,7 @@ import Link from 'next/link';
 
 function letterGrade(pct: number) {
   if (pct >= 90) return { letter: 'A', color: 'text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
-  if (pct >= 80) return { letter: 'B', color: 'text-blue-400', bg: 'bg-blue-500/20    border-blue-500/30' };
+  if (pct >= 80) return { letter: 'B', color: 'text-primary', bg: 'bg-primary/20    border-primary/30' };
   if (pct >= 70) return { letter: 'C', color: 'text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
   if (pct >= 60) return { letter: 'D', color: 'text-orange-400', bg: 'bg-orange-500/20  border-orange-500/30' };
   return { letter: 'F', color: 'text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
@@ -157,7 +157,7 @@ export default function StudentProgressReportPage() {
             <h1 className="text-3xl font-extrabold mt-0.5">{student.full_name}</h1>
           </div>
           <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all">
+            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-xl transition-all">
             <PrinterIcon className="w-4 h-4" /> Print / Save PDF
           </button>
         </div>
@@ -255,9 +255,9 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Student info card ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-border print:bg-card">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6 print:border-border print:bg-card">
           <div className="flex items-start gap-5 flex-wrap">
-            <div className="w-16 h-16 rounded-none bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
               {(student.full_name ?? 'S')[0]}
             </div>
             <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm">
@@ -286,7 +286,7 @@ export default function StudentProgressReportPage() {
         {/* ── Performance summary ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {/* Overall ring */}
-          <div className="col-span-2 sm:col-span-1 bg-card shadow-sm border border-border rounded-none p-5 flex flex-col items-center justify-center print:border-border">
+          <div className="col-span-2 sm:col-span-1 bg-card shadow-sm border border-border rounded-xl p-5 flex flex-col items-center justify-center print:border-border">
             <div className="relative">
               <RingProgress pct={avgPct} color={avgPct >= 70 ? '#10b981' : avgPct >= 50 ? '#f59e0b' : '#f43f5e'} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -298,11 +298,11 @@ export default function StudentProgressReportPage() {
           </div>
           {[
             { label: 'Graded', value: graded.length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 print:border-border">
-              <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 print:border-border">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -313,9 +313,9 @@ export default function StudentProgressReportPage() {
 
         {/* ── Enrollments ── */}
         {enrollments.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-border">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden print:border-border">
             <div className="p-5 border-b border-border print:border-border flex items-center gap-2">
-              <BookOpenIcon className="w-4 h-4 text-blue-400" />
+              <BookOpenIcon className="w-4 h-4 text-primary" />
               <h3 className="font-bold text-foreground print:text-black">Programme Enrolments</h3>
             </div>
             <div className="divide-y divide-white/5 print:divide-border">
@@ -329,7 +329,7 @@ export default function StudentProgressReportPage() {
                     </p>
                   </div>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                      e.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                      e.status === 'completed' ? 'bg-primary/20 text-primary border-primary/30' :
                         'bg-muted text-muted-foreground border-border'
                     }`}>{e.status}</span>
                   {e.grade && <span className="font-black text-lg text-foreground print:text-black">{e.grade}</span>}
@@ -340,7 +340,7 @@ export default function StudentProgressReportPage() {
         )}
 
         {/* ── Assignment submissions ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden print:border-border">
+        <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden print:border-border">
           <div className="p-5 border-b border-border print:border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ChartBarIcon className="w-4 h-4 text-orange-400" />
@@ -390,7 +390,7 @@ export default function StudentProgressReportPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                              s.status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                              s.status === 'submitted' ? 'bg-primary/20 text-primary border-primary/30' :
                                 s.status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
                                   'bg-rose-500/20 text-rose-400 border-rose-500/30'
                             }`}>{s.status}</span>
@@ -404,7 +404,7 @@ export default function StudentProgressReportPage() {
           )}
           {/* Footer summary row */}
           {graded.length > 0 && (
-            <div className={`p-4 border-t border-border print:border-border flex items-center justify-between ${grade.bg} print:border print:rounded-none `}>
+            <div className={`p-4 border-t border-border print:border-border flex items-center justify-between ${grade.bg} print:border print:rounded-xl `}>
               <div className="flex items-center gap-2">
                 <TrophyIcon className={`w-5 h-5 ${grade.color}`} />
                 <p className={`font-bold text-sm ${grade.color} print:text-black`}>
@@ -417,13 +417,13 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Instructor notes (placeholder — editable later) ── */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 print:border-border space-y-4">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6 print:border-border space-y-4">
           <div className="flex items-center gap-2 mb-1">
             <SparklesIcon className="w-4 h-4 text-amber-400" />
             <h3 className="font-bold text-foreground print:text-black">Instructor's Evaluation</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-none p-4 print:border-green-200">
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 print:border-green-200">
               <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2 print:text-green-700">Key Strengths</p>
               <p className="text-muted-foreground text-sm print:text-muted-foreground italic">
                 {avgPct >= 80 ? 'Demonstrates consistent excellence across assignments.' :
@@ -431,7 +431,7 @@ export default function StudentProgressReportPage() {
                     'Shows effort; needs more practice to reach target level.'}
               </p>
             </div>
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-none p-4 print:border-amber-200">
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 print:border-amber-200">
               <div className="flex items-center gap-1.5 mb-2">
                 <LightBulbIcon className="w-3.5 h-3.5 text-amber-400 print:text-amber-600" />
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest print:text-amber-700">Areas for Growth</p>
@@ -446,7 +446,7 @@ export default function StudentProgressReportPage() {
         </div>
 
         {/* ── Certificate footer (for print) ── */}
-        <div className="hidden print:block border-2 border-orange-400 rounded-none p-8 text-center mt-8">
+        <div className="hidden print:block border-2 border-orange-400 rounded-xl p-8 text-center mt-8">
           <h4 className="text-xl font-bold text-orange-600">CERTIFICATE OF PROGRESS</h4>
           <p className="text-foreground/80 mt-2 leading-relaxed">
             This certifies that <strong>{student.full_name}</strong> has completed the progress review

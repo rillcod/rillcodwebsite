@@ -48,7 +48,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-3">
                {footerSocialLinks.map((s) => (
-                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-none hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
+                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-xl hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
                     <s.icon className="w-4 h-4" />
                  </Link>
                ))}
@@ -72,7 +72,7 @@ export default function Footer() {
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Communications</h4>
               <div className="space-y-5">
                  <div className="flex items-start gap-4 group">
-                    <div className="w-9 h-9 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors rounded-none shadow-sm">
+                    <div className="w-9 h-9 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors rounded-xl shadow-sm">
                        <Phone className="w-4 h-4 text-primary" />
                     </div>
                     <div>
@@ -81,12 +81,12 @@ export default function Footer() {
                     </div>
                  </div>
                  <div className="flex items-start gap-4 group">
-                    <div className="w-9 h-9 border border-blue-500/10 flex items-center justify-center bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors rounded-none shadow-sm">
-                       <Mail className="w-4 h-4 text-blue-500" />
+                    <div className="w-9 h-9 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors rounded-xl shadow-sm">
+                       <Mail className="w-4 h-4 text-primary" />
                     </div>
                     <div>
                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Secure Email</p>
-                       <p className="text-sm font-bold text-foreground group-hover:text-blue-500 transition-colors">{contactInfo.email}</p>
+                       <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{contactInfo.email}</p>
                     </div>
                  </div>
               </div>
@@ -100,13 +100,13 @@ export default function Footer() {
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                  © {year} RILLCOD TECHNOLOGIES. ALL RIGHTS RESERVED.
               </p>
-              <span className="hidden md:block w-1.5 h-1.5 bg-primary/20 rounded-none shadow-sm" />
+              <span className="hidden md:block w-1.5 h-1.5 bg-primary/20 rounded-xl shadow-sm" />
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                  Built with <Heart className="w-3 h-3 text-rose-500" /> in Benin City @ 2026
               </p>
            </div>
            
-           <div className="flex items-center gap-6 px-6 py-2 bg-muted border border-border rounded-none shadow-sm">
+           <div className="flex items-center gap-6 px-6 py-2 bg-muted border border-border rounded-xl shadow-sm">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />
               <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official Verified Node</span>
            </div>

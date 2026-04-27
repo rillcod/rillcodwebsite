@@ -86,7 +86,7 @@ function ProofUpload({ invoiceId }: { invoiceId: string }) {
 
   if (uploaded) {
     return (
-      <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-none">
+      <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
         <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
         <p className="text-[11px] text-emerald-400 font-bold">Proof submitted — admin will review and confirm.</p>
       </div>
@@ -101,9 +101,9 @@ function ProofUpload({ invoiceId }: { invoiceId: string }) {
         placeholder="Optional note (e.g. paid on 12 Apr, used child's name as ref)"
         value={note}
         onChange={e => setNote(e.target.value)}
-        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
       />
-      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
+      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
         {uploading
           ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</>
           : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload Screenshot / PDF</>
@@ -159,7 +159,7 @@ function PayModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-none w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
@@ -171,8 +171,8 @@ function PayModal({
 
         <div className="p-5 space-y-5">
           {/* Info banner */}
-          <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-none">
-            <p className="text-[11px] text-blue-400 leading-relaxed">
+          <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
+            <p className="text-[11px] text-primary leading-relaxed">
               <span className="font-black">Auto-receipt:</span> A receipt will be automatically generated and sent to you once your payment is confirmed — whether via Paystack or bank transfer (after admin approval).
             </p>
           </div>
@@ -180,7 +180,7 @@ function PayModal({
           {!initiated ? (
             <>
               {error && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-none">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
                   <p className="text-xs text-rose-400">{error}</p>
                 </div>
               )}
@@ -198,7 +198,7 @@ function PayModal({
             <div className="space-y-4">
               {/* Paystack Option */}
               {paystackUrl && (
-                <div className="border border-primary/30 rounded-none overflow-hidden">
+                <div className="border border-primary/30 rounded-xl overflow-hidden">
                   <div className="bg-primary/10 px-4 py-2.5 flex items-center gap-2">
                     <BanknotesIcon className="w-4 h-4 text-primary" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Pay Online with Paystack</span>
@@ -227,7 +227,7 @@ function PayModal({
 
               {/* Bank Transfer Option */}
               {bankAccounts.length > 0 && (
-                <div className="border border-border rounded-none overflow-hidden">
+                <div className="border border-border rounded-xl overflow-hidden">
                   <div className="bg-muted px-4 py-2.5 flex items-center gap-2">
                     <PrinterIcon className="w-4 h-4 text-muted-foreground" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pay via Bank Transfer</span>
@@ -237,7 +237,7 @@ function PayModal({
                       Transfer the exact amount to one of the accounts below. Use your child's name as the reference. Admin will confirm and your receipt will be issued automatically.
                     </p>
                     {bankAccounts.map(acc => (
-                      <div key={acc.id} className="bg-muted border border-border rounded-none p-4 space-y-2">
+                      <div key={acc.id} className="bg-muted border border-border rounded-xl p-4 space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">{acc.label}</p>
                         <div className="space-y-1.5">
                           {[
@@ -252,7 +252,7 @@ function PayModal({
                                 <span className="text-xs font-black text-foreground">{value}</span>
                                 {(label === 'Account Number' || label === 'Account Name') && (
                                   <button onClick={() => copyToClipboard(value, `${acc.id}-${label}`)}
-                                    className="text-[9px] font-black uppercase tracking-wider text-primary hover:text-primary px-1.5 py-0.5 border border-primary/30 rounded-none">
+                                    className="text-[9px] font-black uppercase tracking-wider text-primary hover:text-primary px-1.5 py-0.5 border border-primary/30 rounded-xl">
                                     {copied === `${acc.id}-${label}` ? '✓' : 'Copy'}
                                   </button>
                                 )}
@@ -266,7 +266,7 @@ function PayModal({
                       </div>
                     ))}
 
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-none">
+                    <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                       <p className="text-[10px] text-amber-400 leading-relaxed">
                         <span className="font-black">Important:</span> After making a bank transfer, upload your proof of payment below. Admin will confirm and your receipt will be issued automatically.
                       </p>
@@ -280,7 +280,7 @@ function PayModal({
 
               {/* No options */}
               {!paystackUrl && bankAccounts.length === 0 && (
-                <div className="p-4 bg-muted border border-border rounded-none text-center">
+                <div className="p-4 bg-muted border border-border rounded-xl text-center">
                   <p className="text-xs text-muted-foreground">No payment options configured. Contact the school admin for payment details.</p>
                 </div>
               )}
@@ -363,7 +363,7 @@ function ParentInvoicesContent() {
 
       {/* Payment success banner */}
       {showPaidBanner && (
-        <div className="flex items-start justify-between gap-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-none">
+        <div className="flex items-start justify-between gap-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
           <div className="flex items-center gap-3">
             <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
             <p className="text-sm text-emerald-400 font-bold">
@@ -385,7 +385,7 @@ function ParentInvoicesContent() {
           {children.map(child => (
             <button key={child.id}
               onClick={() => setSelectedId(child.id)}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-xl transition-all ${
                 selectedId === child.id
                   ? 'bg-primary border-primary text-white'
                   : 'bg-card border-border text-muted-foreground hover:border-primary/50'
@@ -397,7 +397,7 @@ function ParentInvoicesContent() {
       )}
 
       {!loadingChildren && children.length === 0 && (
-        <div className="bg-card border border-border rounded-none p-10 text-center">
+        <div className="bg-card border border-border rounded-xl p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
         </div>
@@ -408,12 +408,12 @@ function ParentInvoicesContent() {
           {/* Summary Cards */}
           {!loadingData && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-card border border-border rounded-none p-4 relative overflow-hidden">
+              <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-rose-600 to-rose-400 opacity-[0.04]" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 relative z-10">Outstanding</p>
                 <p className="text-2xl font-black text-rose-400 relative z-10">{formatCurrency(totalOwed, invoices[0]?.currency ?? 'NGN')}</p>
               </div>
-              <div className="bg-card border border-border rounded-none p-4 relative overflow-hidden">
+              <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-emerald-400 opacity-[0.04]" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 relative z-10">Total Paid</p>
                 <p className="text-2xl font-black text-emerald-400 relative z-10">{formatCurrency(totalPaid, 'NGN')}</p>
@@ -458,7 +458,7 @@ function ParentInvoicesContent() {
           {!loadingData && activeTab === 'invoices' && (
             <>
               {invoices.length === 0 ? (
-                <div className="bg-card border border-border rounded-none p-8 text-center">
+                <div className="bg-card border border-border rounded-xl p-8 text-center">
                   <BanknotesIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-black text-foreground uppercase tracking-wider">No invoices yet</p>
                 </div>
@@ -469,7 +469,7 @@ function ParentInvoicesContent() {
                     const StatusIcon = cfg.icon;
                     const isPayable = inv.status === 'pending' || inv.status === 'overdue';
                     return (
-                      <div key={inv.id} className="bg-card border border-border rounded-none p-5 hover:bg-white/5 transition-all">
+                      <div key={inv.id} className="bg-card border border-border rounded-xl p-5 hover:bg-white/5 transition-all">
                         {/* Header */}
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div>
@@ -490,7 +490,7 @@ function ParentInvoicesContent() {
 
                         {/* Line items */}
                         {Array.isArray(inv.items) && inv.items.length > 0 && (
-                          <div className="mt-3 bg-muted border border-border rounded-none overflow-hidden">
+                          <div className="mt-3 bg-muted border border-border rounded-xl overflow-hidden">
                             <div className="divide-y divide-border">
                               {inv.items.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between px-4 py-2.5">
@@ -544,12 +544,12 @@ function ParentInvoicesContent() {
           {!loadingData && activeTab === 'payments' && (
             <>
               {payments.length === 0 ? (
-                <div className="bg-card border border-border rounded-none p-8 text-center">
+                <div className="bg-card border border-border rounded-xl p-8 text-center">
                   <CheckCircleIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-black text-foreground uppercase tracking-wider">No payment records</p>
                 </div>
               ) : (
-                <div className="bg-card border border-border rounded-none overflow-hidden">
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="grid grid-cols-4 gap-4 px-5 py-2.5 border-b border-border bg-muted">
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Amount</span>
@@ -595,7 +595,7 @@ function ParentInvoicesContent() {
 
 export default function ParentInvoicesPage() {
   return (
-    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-none" />}>
+    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-xl" />}>
       <ParentInvoicesContent />
     </Suspense>
   );

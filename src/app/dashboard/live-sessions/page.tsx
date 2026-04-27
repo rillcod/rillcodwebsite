@@ -106,7 +106,7 @@ type FilterTab = 'upcoming' | 'past' | 'all';
 const PLATFORM_CONFIG: Record<LiveSession['platform'] | 'jitsi', {
   label: string; textClass: string; bgClass: string; borderClass: string; dot: string;
 }> = {
-  zoom:        { label: 'Zoom',        textClass: 'text-blue-400',    bgClass: 'bg-blue-500/10',    borderClass: 'border-blue-500/30',    dot: 'bg-blue-400' },
+  zoom:        { label: 'Zoom',        textClass: 'text-primary',    bgClass: 'bg-primary/10',    borderClass: 'border-primary/30',    dot: 'bg-primary' },
   google_meet: { label: 'Google Meet', textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/30', dot: 'bg-emerald-400' },
   teams:       { label: 'Teams',       textClass: 'text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/30',  dot: 'bg-purple-400' },
   discord:     { label: 'Discord',     textClass: 'text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/30',  dot: 'bg-indigo-400' },
@@ -118,7 +118,7 @@ const STATUS_CONFIG: Record<LiveSession['status'], {
 }> = {
   scheduled: { label: 'Scheduled', textClass: 'text-amber-400',   bgClass: 'bg-amber-500/10',   borderClass: 'border-amber-500/30' },
   live:      { label: 'LIVE',      textClass: 'text-emerald-300', bgClass: 'bg-emerald-500/15', borderClass: 'border-emerald-400/40', pulse: true },
-  completed: { label: 'Completed', textClass: 'text-blue-400',    bgClass: 'bg-blue-500/10',    borderClass: 'border-blue-500/30' },
+  completed: { label: 'Completed', textClass: 'text-primary',    bgClass: 'bg-primary/10',    borderClass: 'border-primary/30' },
   cancelled: { label: 'Cancelled', textClass: 'text-rose-400',    bgClass: 'bg-rose-500/10',    borderClass: 'border-rose-500/30' },
 };
 
@@ -545,7 +545,7 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <EyeIcon className="w-5 h-5 text-blue-400" />
+            <EyeIcon className="w-5 h-5 text-primary" />
             <div>
               <p className="text-sm font-black text-white uppercase tracking-widest">Attendance</p>
               <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[260px]">{session.title}</p>
@@ -559,7 +559,7 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
         <div className="flex-1 overflow-y-auto p-6 space-y-3">
           {loading ? (
             <div className="flex justify-center py-10">
-              <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent animate-spin" />
+              <div className="w-7 h-7 border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : records.length === 0 ? (
             <div className="text-center py-12 space-y-2">
@@ -583,8 +583,8 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
                 return (
                   <div key={r.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-white/[0.02] border border-white/[0.05]">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-600/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <UserCircleIcon className="w-4 h-4 text-blue-400" />
+                      <div className="w-8 h-8 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                        <UserCircleIcon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
                         <p className="text-xs font-black text-white">{name}</p>
@@ -595,7 +595,7 @@ function AttendanceModal({ session, onClose }: { session: LiveSession; onClose: 
                       <p className="text-[10px] text-white/50 font-bold">
                         {joined} → {left}
                       </p>
-                      <p className="text-[9px] text-blue-400/70 font-black uppercase tracking-widest">{dur}</p>
+                      <p className="text-[9px] text-primary/70 font-black uppercase tracking-widest">{dur}</p>
                     </div>
                   </div>
                 );
@@ -833,7 +833,7 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
       <div className="bg-[#0d0d0d] border border-white/10 w-full max-w-3xl flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <FilmIcon className="w-5 h-5 text-blue-400" />
+            <FilmIcon className="w-5 h-5 text-primary" />
             <div>
               <p className="text-sm font-black text-white uppercase tracking-widest">Recording</p>
               <p className="text-[10px] text-white/30 mt-0.5 truncate max-w-[400px]">{session.title}</p>
@@ -872,7 +872,7 @@ function RecordingModal({ session, onClose }: { session: LiveSession; onClose: (
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest transition-all"
+                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all"
               >
                 <LinkIcon className="w-4 h-4" /> Open Recording
               </a>
@@ -981,12 +981,12 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
           </div>
           {session.host && (
             <div className="col-span-2 flex items-center gap-3 text-white/30 group/meta">
-              <div className="p-1.5 bg-blue-600/5 border border-blue-600/20 group-hover/meta:border-blue-600/40 transition-colors">
-                <UserCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
+                <UserCircleIcon className="w-4 h-4 text-primary flex-shrink-0" />
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-wide truncate text-white/70">{session.host.full_name}</span>
-                <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest">{session.host.role}</span>
+                <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">{session.host.role}</span>
               </div>
             </div>
           )}
@@ -1038,7 +1038,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
             {showRecording && (
               <button
                 onClick={() => onRecording(session)}
-                className="flex-1 flex items-center justify-center gap-3 py-3.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm"
+                className="flex-1 flex items-center justify-center gap-3 py-3.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-sm"
               >
                 <FilmIcon className="w-4 h-4" />
                 Watch Recording
@@ -1065,7 +1065,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
             <>
               <div className="w-[1px] bg-white/[0.04]" />
               <button onClick={() => onAttendance(session)}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-blue-400 hover:bg-white/[0.03] transition-all">
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
                 <EyeIcon className="w-4 h-4" /> Attendance
               </button>
             </>
@@ -1689,7 +1689,7 @@ export default function LiveSessionsPage() {
         {/* ── Header ── */}
         <div className="relative bg-card/10 border border-white/10 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/15 transition-all duration-1000" />
-          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
 
           <div className="relative z-10 space-y-6">
             <div className="flex flex-wrap items-center gap-4">

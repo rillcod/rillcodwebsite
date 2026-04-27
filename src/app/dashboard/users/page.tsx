@@ -239,7 +239,7 @@ export default function UsersPage() {
         const map: Record<string, string> = {
             admin: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
             teacher: 'bg-primary/10 text-primary border-primary/20',
-            school: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+            school: 'bg-primary/10 text-primary border-primary/20',
             student: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         };
         return map[role] ?? 'bg-card shadow-sm text-muted-foreground border-border';
@@ -287,7 +287,7 @@ export default function UsersPage() {
                     <Link href="/dashboard/parents" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <UserPlusIcon className="w-4 h-4" /> Parents
                     </Link>
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                         <ShieldCheckIcon className="w-4 h-4" /> Users
                     </span>
                     <Link href="/dashboard/approvals" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -310,14 +310,14 @@ export default function UsersPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => { setShowCreate(true); setCreateErr(''); }}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-primary/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
                             >
                                 <PlusIcon className="w-4 h-4" /> Create User
                             </button>
                             <button
                                 onClick={handleSync}
                                 disabled={syncing}
-                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-none transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                             >
                                 {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                                 {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync'}
@@ -328,27 +328,27 @@ export default function UsersPage() {
                             <button
                                 onClick={handleRemoveOrphans}
                                 disabled={syncing}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-none transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
                                 title="Delete portal rows with no auth account"
                             >
                                 <TrashIcon className="w-4 h-4" />
                                 Orphans
                             </button>
 
-                            <div className="flex-1 sm:flex-none bg-card shadow-sm border border-border rounded-none p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
+                            <div className="flex-1 sm:flex-none bg-card shadow-sm border border-border rounded-xl p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
                                 <div className="flex items-baseline gap-1.5">
                                     <p className="text-xl font-black text-foreground">{users.length}</p>
                                     <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest leading-none">Total</p>
                                 </div>
                                 <div className="h-6 w-px bg-muted hidden sm:block" />
-                                <button onClick={load} className="p-1.5 hover:bg-muted rounded-none transition-colors text-muted-foreground hover:text-foreground">
+                                <button onClick={load} className="p-1.5 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground">
                                     <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                                 </button>
                             </div>
                             {gapCount !== null && gapCount > 0 && (
                                 <button
                                     onClick={() => setShowConflicts(!showConflicts)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-black uppercase tracking-widest transition-all border
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border
                                         ${showConflicts
                                             ? 'bg-amber-500 text-black border-amber-400'
                                             : 'bg-amber-600/10 text-amber-500 border-amber-500/20 hover:bg-amber-600/20'}`}
@@ -363,7 +363,7 @@ export default function UsersPage() {
 
                 {/* Conflict Details Panel */}
                 {showConflicts && gapData && (
-                    <div className="bg-amber-600/10 border border-amber-500/20 rounded-none p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-amber-500 font-black text-lg flex items-center gap-2 italic uppercase">
@@ -379,18 +379,18 @@ export default function UsersPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Ghost Accounts (Auth without Portal) */}
                             {gapData.auth_without_portal?.length > 0 && (
-                                <div className="bg-card shadow-sm rounded-none p-4 border border-border">
+                                <div className="bg-card shadow-sm rounded-xl p-4 border border-border">
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 ml-1">Ghost Accounts (Auth-Only)</h4>
                                     <div className="space-y-2">
                                         {gapData.auth_without_portal.map((u: any) => (
-                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-none border border-border hover:border-amber-500/30 transition-all group">
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-xl border border-border hover:border-amber-500/30 transition-all group">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-bold text-foreground truncate">{u.email}</p>
                                                     <p className="text-[9px] text-muted-foreground font-mono truncate">{u.id}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-none hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     DELETE CONFLICT
                                                 </button>
@@ -402,18 +402,18 @@ export default function UsersPage() {
 
                             {/* Portal ID Mismatches */}
                             {gapData.id_mismatches?.length > 0 && (
-                                <div className="bg-card shadow-sm rounded-none p-4 border border-border">
+                                <div className="bg-card shadow-sm rounded-xl p-4 border border-border">
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 ml-1">ID Mismatches</h4>
                                     <div className="space-y-2">
                                         {gapData.id_mismatches.map((u: any) => (
-                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-none border border-border hover:border-amber-500/30 transition-all group">
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-xl border border-border hover:border-amber-500/30 transition-all group">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-bold text-foreground truncate">{u.name || u.email}</p>
                                                     <p className="text-[9px] text-amber-500/60 font-mono truncate">ID: {u.id}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-none hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     PURGE
                                                 </button>
@@ -425,18 +425,18 @@ export default function UsersPage() {
 
                             {/* Portal Needing Auth */}
                             {gapData.portal_needing_auth?.length > 0 && (
-                                <div className="bg-card shadow-sm rounded-none p-4 border border-border col-span-full">
+                                <div className="bg-card shadow-sm rounded-xl p-4 border border-border col-span-full">
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3 ml-1">Orphaned Profiles (Portal-Only)</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                         {gapData.portal_needing_auth.map((u: any) => (
-                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-none border border-border hover:border-amber-500/30 transition-all group">
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-card shadow-sm rounded-xl border border-border hover:border-amber-500/30 transition-all group">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-bold text-foreground truncate">{u.name || u.email}</p>
                                                     <p className="text-[9px] text-muted-foreground uppercase font-black">{u.role}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDelete(u)}
-                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-none hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                                                 >
                                                     PURGE
                                                 </button>
@@ -462,7 +462,7 @@ export default function UsersPage() {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search by name or email..."
-                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                         />
                     </div>
                     <div className="md:col-span-2 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -470,7 +470,7 @@ export default function UsersPage() {
                             <button
                                 key={r.id}
                                 onClick={() => setRoleFilter(r.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-bold whitespace-nowrap border transition-all
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all
                                     ${roleFilter === r.id
                                         ? 'bg-primary text-foreground border-primary shadow-lg shadow-primary/20'
                                         : 'bg-card shadow-sm text-muted-foreground border-border hover:border-border hover:text-foreground'}`}
@@ -483,7 +483,7 @@ export default function UsersPage() {
                 </div>
 
                 {/* List */}
-                <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                     {loading ? (
                         <div className="p-12 flex flex-col items-center justify-center gap-3">
                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -500,7 +500,7 @@ export default function UsersPage() {
                                 <div key={u.id} className="p-5 hover:bg-white/[0.02] transition-colors group">
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                         <div className="flex items-center gap-4 flex-1 min-w-0">
-                                            <div className={`w-12 h-12 rounded-none bg-gradient-to-br flex items-center justify-center text-sm font-black text-foreground flex-shrink-0 shadow-lg ${avatarGrad(u.role)}`}>
+                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-sm font-black text-foreground flex-shrink-0 shadow-lg ${avatarGrad(u.role)}`}>
                                                 {(u.full_name ?? '?')[0].toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -528,7 +528,7 @@ export default function UsersPage() {
                                             {u.role === 'teacher' && (
                                                 <Link
                                                     href="/dashboard/teachers"
-                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-[10px] font-black uppercase rounded-none border border-blue-500/20 transition-all flex-grow sm:flex-grow-0 justify-center"
+                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-black uppercase rounded-xl border border-primary/20 transition-all flex-grow sm:flex-grow-0 justify-center"
                                                 >
                                                     <BuildingOfficeIcon className="w-3.5 h-3.5" />
                                                     Manage Access
@@ -537,14 +537,14 @@ export default function UsersPage() {
                                             <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
                                                 <button
                                                     onClick={() => openEdit(u)}
-                                                    className="p-2.5 sm:p-2 rounded-none bg-card shadow-sm sm:bg-transparent hover:bg-primary/20 hover:text-primary text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-primary/20 hover:text-primary text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
                                                     title="Edit user"
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => { setResetTarget({ id: u.id, name: u.full_name }); setResetPw(''); setResetMsg(null); }}
-                                                    className="p-2.5 sm:p-2 rounded-none bg-card shadow-sm sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-400 text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-400 text-muted-foreground transition-all flex items-center justify-center border border-border sm:border-none"
                                                     title="Reset password"
                                                 >
                                                     <KeyIcon className="w-4 h-4" />
@@ -553,7 +553,7 @@ export default function UsersPage() {
                                                     <button
                                                         onClick={() => handleDelete(u)}
                                                         disabled={deleting === u.id}
-                                                        className="p-2.5 sm:p-2 rounded-none bg-card shadow-sm sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-400 text-muted-foreground transition-all disabled:opacity-40 flex items-center justify-center border border-border sm:border-none"
+                                                        className="p-2.5 sm:p-2 rounded-xl bg-card shadow-sm sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-400 text-muted-foreground transition-all disabled:opacity-40 flex items-center justify-center border border-border sm:border-none"
                                                         title="Delete user"
                                                     >
                                                         {deleting === u.id
@@ -574,19 +574,19 @@ export default function UsersPage() {
             {/* ── Sync Result Modal ── */}
             {syncResult && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-none w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+                    <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <BoltIcon className="w-5 h-5 text-amber-400" />
                                 <h2 className="text-lg font-extrabold text-foreground">Sync Complete</h2>
                             </div>
-                            <button onClick={() => setSyncResult(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                            <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="p-6 overflow-y-auto space-y-4">
                             {syncResult.error ? (
-                                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                                     <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                                     <p className="text-rose-400 text-sm">{syncResult.error}</p>
                                 </div>
@@ -600,10 +600,10 @@ export default function UsersPage() {
                                             { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
                                             { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
                                             { label: 'Auth Created (injected)', value: syncResult.summary?.portal_auth_created ?? 0, color: 'text-cyan-400' },
-                                            { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
+                                            { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-primary' },
                                             { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-primary' },
                                         ]).map(s => (
-                                            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-3 text-center">
+                                            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-3 text-center">
                                                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
                                                 <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
                                             </div>
@@ -615,7 +615,7 @@ export default function UsersPage() {
                                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">New Credentials — share with each user</p>
                                             <div className="space-y-2 max-h-48 overflow-y-auto">
                                                 {syncResult.credentials.map((c: any, i: number) => (
-                                                    <div key={i} className="bg-card shadow-sm border border-border rounded-none p-3 font-mono text-xs">
+                                                    <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-3 font-mono text-xs">
                                                         <p className="text-foreground font-bold">{c.name}</p>
                                                         <p className="text-muted-foreground mt-0.5">{c.email}</p>
                                                         <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
@@ -628,7 +628,7 @@ export default function UsersPage() {
                                     {syncResult.errors?.length > 0 && (
                                         <div>
                                             <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                                            <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-none p-3">
+                                            <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
                                                 {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                                             </div>
                                         </div>
@@ -637,7 +637,7 @@ export default function UsersPage() {
                             )}
                         </div>
                         <div className="p-4 border-t border-border flex-shrink-0">
-                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-none text-sm transition-all">
+                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all">
                                 Done
                             </button>
                         </div>
@@ -648,10 +648,10 @@ export default function UsersPage() {
             {/* ── Create User Modal ── */}
             {showCreate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-none w-full max-w-md shadow-2xl">
+                    <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <h2 className="text-lg font-extrabold text-foreground">Create User</h2>
-                            <button onClick={() => setShowCreate(false)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                            <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
@@ -660,24 +660,24 @@ export default function UsersPage() {
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Full Name</label>
                                 <input value={createForm.fullName} onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
                                     placeholder="e.g. Amaka Osei"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Email</label>
                                 <input type="email" value={createForm.email} onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
                                     placeholder="user@example.com"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Password</label>
                                 <input type="text" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
                                     placeholder="At least 8 characters"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Role</label>
                                 <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer">
                                     {ROLES.map(r => <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                                 </select>
                             </div>
@@ -685,11 +685,11 @@ export default function UsersPage() {
                         </div>
                         <div className="flex gap-3 p-6 border-t border-border">
                             <button onClick={() => setShowCreate(false)}
-                                className="flex-1 px-4 py-2.5 rounded-none text-sm font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted transition-all">
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted transition-all">
                                 Cancel
                             </button>
                             <button onClick={handleCreate} disabled={creating}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all disabled:opacity-50">
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all disabled:opacity-50">
                                 {creating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <><CheckIcon className="w-4 h-4" /> Create</>}
                             </button>
                         </div>
@@ -700,7 +700,7 @@ export default function UsersPage() {
             {/* ── Edit Modal ── */}
             {editing && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-background border border-border rounded-none w-full max-w-md shadow-2xl">
+                    <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <div>
@@ -709,7 +709,7 @@ export default function UsersPage() {
                             </div>
                             <button
                                 onClick={() => setEditing(null)}
-                                className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                                className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
                             >
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
@@ -722,7 +722,7 @@ export default function UsersPage() {
                                 <input
                                     value={editForm.full_name}
                                     onChange={e => setEditForm(p => ({ ...p, full_name: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                                 />
                             </div>
                             <div>
@@ -730,7 +730,7 @@ export default function UsersPage() {
                                 <select
                                     value={editForm.role}
                                     onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
                                 >
                                     {ROLES.map(r => (
                                         <option key={r} value={r} className="bg-background">{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -743,10 +743,10 @@ export default function UsersPage() {
                                     value={editForm.phone}
                                     onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
                                     placeholder="+234 800 000 0000"
-                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                                 />
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-card shadow-sm border border-border rounded-none">
+                            <div className="flex items-center justify-between p-3 bg-card shadow-sm border border-border rounded-xl">
                                 <div>
                                     <p className="text-sm font-bold text-foreground">Account Active</p>
                                     <p className="text-xs text-muted-foreground">Inactive users cannot log in</p>
@@ -766,14 +766,14 @@ export default function UsersPage() {
                         <div className="flex gap-3 p-6 border-t border-border">
                             <button
                                 onClick={() => setEditing(null)}
-                                className="flex-1 px-4 py-2.5 rounded-none text-sm font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted transition-all"
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted transition-all"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={saveEdit}
                                 disabled={saving}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-none text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                             >
                                 {saving ? (
                                     <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -789,20 +789,20 @@ export default function UsersPage() {
             {resetTarget && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
-                    <div className="relative w-full max-w-md bg-background border border-border rounded-none shadow-2xl">
+                    <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <div>
                                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
                                 <h2 className="text-lg font-extrabold text-foreground">Reset Password</h2>
                                 <p className="text-sm text-muted-foreground mt-0.5">For: <span className="text-muted-foreground font-semibold">{resetTarget.name}</span></p>
                             </div>
-                            <button onClick={() => setResetTarget(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                            <button onClick={() => setResetTarget(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
                         <form onSubmit={handleResetPw} className="p-6 space-y-4">
                             {resetMsg && (
-                                <div className={`rounded-none px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
                                     {resetMsg.text}
                                 </div>
                             )}
@@ -810,16 +810,16 @@ export default function UsersPage() {
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">New Password</label>
                                 <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
                                     placeholder="Minimum 8 characters"
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
                                 <p className="text-xs text-white/25 mt-1.5">Share this new password with the user directly.</p>
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setResetTarget(null)}
-                                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all">
+                                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl border border-border transition-all">
                                     Cancel
                                 </button>
                                 <button type="submit" disabled={resetting || resetPw.length < 8}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                                     {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                                     {resetting ? 'Updating…' : 'Set Password'}
                                 </button>

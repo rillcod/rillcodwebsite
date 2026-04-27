@@ -284,7 +284,7 @@ export default function EditClassPage() {
 
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -305,21 +305,21 @@ export default function EditClassPage() {
 
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <BookOpenIcon className="w-5 h-5 text-blue-400" />
-                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Edit Class</span>
+                        <BookOpenIcon className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-bold text-primary uppercase tracking-widest">Edit Class</span>
                     </div>
                     <h1 className="text-3xl font-extrabold">Edit Class</h1>
                     <p className="text-muted-foreground text-sm mt-1">Update class settings and manage enrolled students.</p>
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+                <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
 
                     <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
@@ -327,7 +327,7 @@ export default function EditClassPage() {
                         </label>
                         <input type="text" required value={form.name}
                             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors" />
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
                     </div>
 
                     <div>
@@ -335,7 +335,7 @@ export default function EditClassPage() {
                         <textarea value={form.description} rows={3}
                             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                             placeholder="Optional — brief description of this class"
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none" />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -345,7 +345,7 @@ export default function EditClassPage() {
                             </label>
                             <select required value={form.program_id}
                                 onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500">
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                                 <option value="">— Select Programme —</option>
                                 {programs.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -356,7 +356,7 @@ export default function EditClassPage() {
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Teacher</label>
                             <select value={form.teacher_id}
                                 onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500">
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                                 <option value="">— Unassigned —</option>
                                 {teachers.map(t => (
                                     <option key={t.id} value={t.id}>{t.full_name}</option>
@@ -369,7 +369,7 @@ export default function EditClassPage() {
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School</label>
                         <select value={form.school_id}
                             onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500">
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                             <option value="">— No specific school —</option>
                             {schools.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -389,12 +389,12 @@ export default function EditClassPage() {
                             </div>
                         ) : availableStudents.length === 0 ? (
                             <div className="space-y-3">
-                                <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-none p-4">
+                                <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
                                     No students found matching this programme/school. Only students with active portal accounts appear here.
                                 </p>
                                 {pendingCount > 0 && (
-                                    <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-none p-4">
-                                        <UserIcon className="w-5 h-5 text-blue-400" />
+                                    <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-xl p-4">
+                                        <UserIcon className="w-5 h-5 text-primary" />
                                         <p className="text-xs text-primary">
                                             <strong>{pendingCount} student{pendingCount !== 1 ? 's' : ''}</strong> you registered are still <strong>Pending Admission</strong>. They will appear here once approved by an administrator.
                                         </p>
@@ -405,7 +405,7 @@ export default function EditClassPage() {
                                 )}
                             </div>
                         ) : (
-                            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                                 <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
                                     {availableStudents.map(student => (
                                         <label key={student.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors">
@@ -416,7 +416,7 @@ export default function EditClassPage() {
                                                     if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
                                                     else setSelectedStudents(prev => prev.filter(id => id !== student.id));
                                                 }}
-                                                className="w-4 h-4 rounded border-border bg-card shadow-sm text-blue-500 focus:ring-blue-500"
+                                                className="w-4 h-4 rounded border-border bg-card shadow-sm text-primary focus:ring-primary"
                                             />
                                             <div className="min-w-0">
                                                 <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
@@ -438,7 +438,7 @@ export default function EditClassPage() {
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Status</label>
                             <select value={form.status}
                                 onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500">
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                                 <option value="scheduled">Scheduled</option>
                                 <option value="active">Active</option>
                                 <option value="completed">Completed</option>
@@ -450,13 +450,13 @@ export default function EditClassPage() {
                             <input type="text" value={form.schedule}
                                 onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
                                 placeholder="e.g. Mon / Wed 9am"
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Students</label>
                             <input type="number" min="1" max="500" value={form.max_students}
                                 onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                         </div>
                     </div>
 
@@ -465,18 +465,18 @@ export default function EditClassPage() {
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date</label>
                             <input type="date" value={form.start_date}
                                 onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">End Date</label>
                             <input type="date" value={form.end_date}
                                 onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary [color-scheme:dark]" />
                         </div>
                     </div>
 
                     <button type="submit" disabled={saving}
-                        className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-muted disabled:text-muted-foreground text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                        className="w-full py-4 bg-primary hover:bg-primary disabled:bg-muted disabled:text-muted-foreground text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                         {saving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
                         {saving ? 'Saving changes…' : 'Save Class Settings'}
                     </button>

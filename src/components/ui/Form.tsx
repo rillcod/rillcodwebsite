@@ -295,7 +295,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const getVariantClasses = () => {
       switch (variant) {
         case 'primary':
-          return 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500';
+          return 'bg-primary hover:bg-primary text-white focus:ring-primary';
         case 'secondary':
           return 'bg-gray-600 hover:bg-gray-700 text-white focus:ring-gray-500';
         case 'danger':
@@ -305,7 +305,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         case 'warning':
           return 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500';
         default:
-          return 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500';
+          return 'bg-primary hover:bg-primary text-white focus:ring-primary';
       }
     };
 
@@ -438,7 +438,7 @@ export const FormField: React.FC<FormFieldProps> = ({
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
-  const inputClasses = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+  const inputClasses = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
     error
       ? 'border-red-300 bg-red-50'
       : 'border-border hover:border-border/80'

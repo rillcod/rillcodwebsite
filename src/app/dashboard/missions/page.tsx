@@ -26,7 +26,7 @@ import Link from 'next/link';
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
-  loading: () => <div className="h-[350px] bg-black/20 animate-pulse rounded-none" />,
+  loading: () => <div className="h-[350px] bg-black/20 animate-pulse rounded-xl" />,
 });
 
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';

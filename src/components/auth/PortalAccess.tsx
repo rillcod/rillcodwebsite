@@ -123,7 +123,7 @@ export default function PortalAccess({
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+          <div className="mx-auto h-12 w-12 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center">
             <BuildingOfficeIcon className="h-8 w-8 text-white" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground dark:text-white">
@@ -148,13 +148,13 @@ export default function PortalAccess({
                   type="button"
                   onClick={() => setRole(option.value)}
                   className={`relative p-4 border rounded-lg transition-all duration-200 ${role === option.value
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-500 ring-opacity-50'
+                      ? 'border-primary bg-blue-50 dark:bg-blue-900/20 ring-2 ring-primary ring-opacity-50'
                       : 'border-border border-border hover:border-border/80 hover:border-primary/50'
                     }`}
                 >
                   <div className="flex items-start">
                     <div className={`p-2 rounded-lg mr-3 ${role === option.value
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-muted text-muted-foreground'
                       }`}>
                       <Icon className="h-5 w-5" />
@@ -168,7 +168,7 @@ export default function PortalAccess({
                       </p>
                     </div>
                     {role === option.value && (
-                      <CheckCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <CheckCircleIcon className="h-5 w-5 text-primary dark:text-primary" />
                     )}
                   </div>
                 </button>
@@ -265,7 +265,7 @@ export default function PortalAccess({
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-border"></div>
@@ -283,7 +283,7 @@ export default function PortalAccess({
                 setError('')
                 setSuccess('')
               }}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+              className="text-sm text-primary dark:text-primary hover:text-primary dark:hover:text-blue-300"
             >
               {isSignUp
                 ? 'Already have an account? Sign in'

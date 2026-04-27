@@ -12,7 +12,7 @@ import {
   BuildingOfficeIcon, UserGroupIcon,
 } from '@/lib/icons';
 
-const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
+const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
 
 export default function AddClassPage() {
@@ -227,7 +227,7 @@ export default function AddClassPage() {
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   if (!isStaff) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="bg-card shadow-sm border border-border rounded-none p-8 text-center max-w-sm">
+      <div className="bg-card shadow-sm border border-border rounded-xl p-8 text-center max-w-sm">
         <ExclamationTriangleIcon className="w-8 h-8 text-rose-400 mx-auto mb-3" />
         <p className="text-sm font-bold text-foreground mb-1">Access Denied</p>
         <p className="text-xs text-muted-foreground">Staff access is required to create classes.</p>
@@ -258,7 +258,7 @@ export default function AddClassPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-none">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -267,7 +267,7 @@ export default function AddClassPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* Class Details */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
           <h2 className="text-sm font-bold text-foreground">Class Details</h2>
 
           <div>
@@ -325,7 +325,7 @@ export default function AddClassPage() {
             <label className={LABEL}>School <span className="text-xs font-normal text-muted-foreground">(optional)</span></label>
             {profile?.role === 'teacher' && schools.length === 1 ? (
               <div className={`${INPUT} flex items-center gap-2 text-muted-foreground bg-muted cursor-not-allowed`}>
-                <BuildingOfficeIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <BuildingOfficeIcon className="w-4 h-4 text-primary flex-shrink-0" />
                 <span className="truncate">{schools[0].name}</span>
                 <span className="ml-auto text-[10px] text-muted-foreground">Locked</span>
               </div>
@@ -345,7 +345,7 @@ export default function AddClassPage() {
         </div>
 
         {/* Schedule & Settings */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
           <h2 className="text-sm font-bold text-foreground">Schedule & Settings</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -417,7 +417,7 @@ export default function AddClassPage() {
         </div>
 
         {/* Enrol Students */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-4">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-foreground">Enrol Students</h2>
@@ -428,7 +428,7 @@ export default function AddClassPage() {
               </p>
             </div>
             {pendingCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border bg-blue-500/20 text-blue-400 border-blue-500/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border bg-primary/20 text-primary border-primary/30">
                 {pendingCount} pending admission
               </span>
             )}
@@ -453,7 +453,7 @@ export default function AddClassPage() {
               </p>
             </div>
           ) : (
-            <div className="border border-border rounded-none overflow-hidden">
+            <div className="border border-border rounded-xl overflow-hidden">
               {/* Select all bar */}
               <div className="flex items-center justify-between px-4 py-2.5 bg-muted border-b border-border">
                 <span className="text-xs text-muted-foreground">
@@ -485,7 +485,7 @@ export default function AddClassPage() {
                         if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
                         else setSelectedStudents(prev => prev.filter(id => id !== student.id));
                       }}
-                      className="w-4 h-4 rounded-none border-border bg-card text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+                      className="w-4 h-4 rounded-xl border-border bg-card text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
@@ -505,14 +505,14 @@ export default function AddClassPage() {
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <Link
             href="/dashboard/classes"
-            className="w-full sm:w-auto px-5 py-2.5 bg-card shadow-sm border border-border text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-none transition-colors text-center"
+            className="w-full sm:w-auto px-5 py-2.5 bg-card shadow-sm border border-border text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors text-center"
           >
             Cancel
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-none transition-colors disabled:opacity-50 shadow-lg shadow-orange-900/30"
+            className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 shadow-lg shadow-orange-900/30"
           >
             {saving
               ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating class...</>

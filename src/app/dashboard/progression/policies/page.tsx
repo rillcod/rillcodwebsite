@@ -58,7 +58,7 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
     <label className="flex items-start gap-3 cursor-pointer group">
       <div className="relative mt-0.5 shrink-0">
         <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
-        <div className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-violet-600' : 'bg-muted'}`} />
+        <div className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`} />
         <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-card transition-transform ${checked ? 'translate-x-4' : ''}`} />
       </div>
       <div>
@@ -198,7 +198,7 @@ export default function ProgressionPoliciesPage() {
 
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -462,7 +462,7 @@ export default function ProgressionPoliciesPage() {
                 type="button"
                 onClick={() => applyPathVisibility('all')}
                 disabled={pathSaving}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 disabled:opacity-50"
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-primary/30 text-violet-300 hover:bg-primary/10 disabled:opacity-50"
               >
                 Apply to all classes
               </button>
@@ -474,7 +474,7 @@ export default function ProgressionPoliciesPage() {
             type="button"
             onClick={savePolicy}
             disabled={saving}
-            className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2"
+            className="w-full py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2"
           >
             {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
             Save rules for {selectedProgram.name}

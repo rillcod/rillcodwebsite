@@ -155,7 +155,7 @@ export default function ApprovalsPage() {
                     <div className="h-4 bg-muted rounded w-40" />
                     <div className="h-8 bg-muted rounded w-64" />
                 </div>
-                {[1, 2, 3].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-24 animate-pulse" />)}
+                {[1, 2, 3].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-24 animate-pulse" />)}
             </div>
         </div>
     );
@@ -189,7 +189,7 @@ export default function ApprovalsPage() {
                     <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <ShieldCheckIcon className="w-4 h-4" /> Users
                     </Link>
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
                         <ClipboardDocumentCheckIcon className="w-4 h-4" /> Approvals
                     </span>
                 </div>
@@ -205,7 +205,7 @@ export default function ApprovalsPage() {
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
@@ -222,51 +222,51 @@ export default function ApprovalsPage() {
 
                 {/* Summary */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-card shadow-sm border border-border rounded-none p-5">
-                        <div className="w-10 h-10 bg-amber-500/10 rounded-none flex items-center justify-center mb-3">
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
+                        <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
                             <UserGroupIcon className="w-5 h-5 text-amber-400" />
                         </div>
                         <p className="text-2xl font-extrabold text-amber-400">{students.length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Pending Students</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <p className="text-2xl font-extrabold text-primary">{students.filter(s => s.enrollment_type === 'school' || !s.enrollment_type).length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Partner School</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <p className="text-2xl font-extrabold text-amber-500">{students.filter(s => s.enrollment_type === 'bootcamp').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Bootcamp</p>
                     </div>
-                    <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-5">
                         <p className="text-2xl font-extrabold text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>
                         <p className="text-xs text-muted-foreground mt-1">Online School</p>
                     </div>
                 </div>
                 {profile?.role === 'admin' && schools.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-none p-5 flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-500/10 rounded-none flex items-center justify-center flex-shrink-0">
-                            <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-5 flex items-center gap-4">
+                        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <BuildingOfficeIcon className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-2xl font-extrabold text-blue-400">{schools.length}</p>
+                            <p className="text-2xl font-extrabold text-primary">{schools.length}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">Pending School Applications</p>
                         </div>
                     </div>
                 )}
 
                 {/* Tabs */}
-                <div className="flex gap-2 bg-card shadow-sm p-1 rounded-none border border-border w-fit">
+                <div className="flex gap-2 bg-card shadow-sm p-1 rounded-xl border border-border w-fit">
                     <button onClick={() => setTab('students')}
-                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'students' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'students' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                         Students ({students.length})
                     </button>
                     <button onClick={() => setTab('prospective')}
-                        className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                        className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-amber-500 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                         Summer School ({prospective.length})
                     </button>
                     {profile?.role === 'admin' && (
                         <button onClick={() => setTab('schools')}
-                            className={`px-5 py-2 rounded-none text-sm font-bold transition-all ${tab === 'schools' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'schools' ? 'bg-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                             Schools ({schools.length})
                         </button>
                     )}
@@ -274,7 +274,7 @@ export default function ApprovalsPage() {
 
                 {/* Empty */}
                 {currentList.length === 0 && (
-                    <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+                    <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
                         <CheckCircleIcon className="w-14 h-14 mx-auto text-emerald-400/30 mb-4" />
                         <p className="text-lg font-semibold text-muted-foreground">All clear!</p>
                         <p className="text-sm text-muted-foreground mt-1">No pending {tab} registrations</p>
@@ -283,7 +283,7 @@ export default function ApprovalsPage() {
 
                 {/* Student list */}
                 {tab === 'students' && students.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                         <div className="p-5 border-b border-border">
                             <h3 className="font-bold text-foreground">Pending Student Applications</h3>
                         </div>
@@ -310,11 +310,11 @@ export default function ApprovalsPage() {
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
                                             <button onClick={() => handleStudent(s.id, 'approved')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>
                                             <button onClick={() => handleStudent(s.id, 'rejected')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>
                                         </div>
@@ -327,7 +327,7 @@ export default function ApprovalsPage() {
 
                 {/* School list */}
                 {tab === 'schools' && schools.length > 0 && profile?.role === 'admin' && (
-                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                         <div className="p-5 border-b border-border">
                             <h3 className="font-bold text-foreground">Pending School Applications</h3>
                         </div>
@@ -335,14 +335,14 @@ export default function ApprovalsPage() {
                             {schools.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-none bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                                            <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                            <BuildingOfficeIcon className="w-5 h-5 text-primary" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
                                                 <p className="font-bold text-foreground">{s.name}</p>
                                                 {s.school_type && (
-                                                    <span className="px-2 py-0.5 text-[9px] font-bold border bg-blue-500/10 text-blue-400 border-blue-500/20">{s.school_type}</span>
+                                                    <span className="px-2 py-0.5 text-[9px] font-bold border bg-primary/10 text-primary border-primary/20">{s.school_type}</span>
                                                 )}
                                             </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
@@ -357,11 +357,11 @@ export default function ApprovalsPage() {
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
                                             <button onClick={() => handleSchool(s.id, 'approved')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>
                                             <button onClick={() => handleSchool(s.id, 'rejected')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>
                                         </div>
@@ -375,7 +375,7 @@ export default function ApprovalsPage() {
                 {/* ── Credentials modal — shown after approving a student/school ── */}
                 {credentials && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                        <div className="bg-background border border-border rounded-none w-full max-w-sm shadow-2xl p-6 space-y-4">
+                        <div className="bg-background border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 space-y-4">
                             <div className="flex items-center gap-3">
                                 <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
                                 <div>
@@ -384,7 +384,7 @@ export default function ApprovalsPage() {
                                 </div>
                             </div>
                             <p className="text-sm text-muted-foreground">Share these credentials with the user. They can change their password after signing in.</p>
-                            <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-3 font-mono text-sm">
+                            <div className="bg-card shadow-sm border border-border rounded-xl p-4 space-y-3 font-mono text-sm">
                                 <div>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Email</p>
                                     <p className="text-foreground select-all">{credentials.email}</p>
@@ -396,7 +396,7 @@ export default function ApprovalsPage() {
                             </div>
                             <button
                                 onClick={() => setCredentials(null)}
-                                className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-none text-sm transition-all"
+                                className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all"
                             >
                                 Done — I've noted the credentials
                             </button>
@@ -406,7 +406,7 @@ export default function ApprovalsPage() {
 
                 {/* Prospective list */}
                 {tab === 'prospective' && prospective.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                         <div className="p-5 border-b border-border flex items-center justify-between">
                             <h3 className="font-bold text-foreground">Prospective Student Queue (Summer School)</h3>
                             <div className="flex items-center gap-2">
@@ -439,11 +439,11 @@ export default function ApprovalsPage() {
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
                                             <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>
                                             <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>
                                         </div>

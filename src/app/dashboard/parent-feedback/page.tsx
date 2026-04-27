@@ -39,7 +39,7 @@ const CATEGORIES = [
 
 const STATUS_STYLE: Record<string, string> = {
   pending: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
-  reviewed: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+  reviewed: 'bg-primary/10 border-primary/30 text-primary',
   actioned: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
 };
 
@@ -337,7 +337,7 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
         {[
           { label: 'Total', value: feedback.length, color: 'text-foreground' },
           { label: 'Pending', value: feedback.filter(f => f.status === 'pending').length, color: 'text-amber-400' },
-          { label: 'Reviewed', value: feedback.filter(f => f.status === 'reviewed').length, color: 'text-blue-400' },
+          { label: 'Reviewed', value: feedback.filter(f => f.status === 'reviewed').length, color: 'text-primary' },
           { label: 'Avg Rating', value: avgRating ? `${avgRating}/5` : '—', color: 'text-amber-400' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-card border border-border p-4">
@@ -408,7 +408,7 @@ function StaffFeedbackView({ profile }: { profile: { role: string; school_name?:
                     <button
                       onClick={() => updateStatus(fb.id, 'reviewed')}
                       disabled={updating === fb.id}
-                      className="px-3 py-1.5 border border-blue-500/30 text-[9px] font-black uppercase tracking-widest text-blue-400 hover:border-blue-500 transition-all disabled:opacity-50"
+                      className="px-3 py-1.5 border border-primary/30 text-[9px] font-black uppercase tracking-widest text-primary hover:border-primary transition-all disabled:opacity-50"
                     >
                       Mark Reviewed
                     </button>

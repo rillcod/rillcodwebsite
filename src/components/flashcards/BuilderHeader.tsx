@@ -134,7 +134,7 @@ export default function BuilderHeader({
             type="button"
             whileTap={{ scale: 0.95 }}
             onClick={onShowImport}
-            className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors rounded-lg"
+            className="flex items-center gap-1.5 px-2 sm:px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors rounded-lg"
           >
             <ArrowUpTrayIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>

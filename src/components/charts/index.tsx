@@ -13,18 +13,19 @@ import {
 } from 'recharts';
 
 // ── Shared theme tokens ───────────────────────────────────────────────────────
-const GRID_COLOR = 'rgba(255,255,255,0.06)';
-const AXIS_COLOR = 'rgba(255,255,255,0.25)';
-const LABEL_STYLE = { fontSize: 10, fontWeight: 700, fill: 'rgba(255,255,255,0.45)', fontFamily: 'inherit' };
+const GRID_COLOR = 'var(--border)';
+const AXIS_COLOR = 'var(--muted-foreground)';
+const LABEL_STYLE = { fontSize: 10, fontWeight: 700, fill: 'var(--muted-foreground)', opacity: 0.8, fontFamily: 'inherit' };
 const TOOLTIP_STYLE: React.CSSProperties = {
-  background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 0, fontSize: 12, fontWeight: 600,
-  color: '#fff', padding: '8px 12px',
+  background: 'var(--card)', border: '1px solid var(--border)',
+  borderRadius: '12px', fontSize: 12, fontWeight: 600,
+  color: 'var(--foreground)', padding: '8px 12px',
+  boxShadow: '0 10px 30px -10px rgba(0,0,0,0.15)',
 };
 
 // Brand palette — cycling colours for multi-series data
 export const CHART_COLORS = {
-  orange: '#f97316',
+  primary: '#1A3A8F',
   violet: '#8b5cf6',
   emerald: '#10b981',
   blue: '#3b82f6',
@@ -43,13 +44,13 @@ function ChartTooltip({ active, payload, label, valueFormatter }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={TOOLTIP_STYLE}>
-      {label && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</p>}
+    <div style={TOOLTIP_STYLE} className="backdrop-blur-md">
+      {label && <p style={{ color: 'var(--muted-foreground)', fontSize: 10, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</p>}
       {payload.map((p: any, i: number) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: i < payload.length - 1 ? 4 : 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color ?? p.fill, display: 'inline-block', flexShrink: 0 }} />
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>{p.name}: </span>
-          <span style={{ color: '#fff', fontWeight: 800 }}>
+          <span style={{ color: 'var(--muted-foreground)' }}>{p.name}: </span>
+          <span style={{ color: 'var(--foreground)', fontWeight: 800 }}>
             {valueFormatter ? valueFormatter(p.value, p.name) : p.value}
           </span>
         </div>
@@ -110,7 +111,7 @@ export function VerticalBarChart({
         <Tooltip content={<ChartTooltip valueFormatter={formatValue ? (v, n) => formatValue(v) : undefined} />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
         {bars.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />}
         {bars.map(b => (
-          <Bar key={b.key} dataKey={b.key} name={b.label} fill={b.color} radius={[3, 3, 0, 0]} maxBarSize={48} />
+          <Bar key={b.key} dataKey={b.key} name={b.label} fill={b.color} radius={[6, 6, 0, 0]} maxBarSize={48} />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -232,7 +233,7 @@ export function StackedBarChart({
         <Legend wrapperStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', paddingTop: 8 }} />
         {bars.map((b, i) => (
           <Bar key={b.key} dataKey={b.key} name={b.label} fill={b.color} stackId="a"
-            radius={i === bars.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]} maxBarSize={48} />
+            radius={i === bars.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} maxBarSize={48} />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -337,7 +338,7 @@ export function SparkCard({
   sparkData?: number[]; color?: string; icon?: React.ElementType;
 }) {
   return (
-    <div className="bg-card border border-border p-4 space-y-3">
+    <div className="bg-card border border-border p-4 space-y-3 rounded-xl shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {Icon && <Icon className="w-4 h-4" style={{ color }} />}

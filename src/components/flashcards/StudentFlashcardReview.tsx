@@ -30,7 +30,7 @@ interface StudentFlashcardReviewProps {
 const CONFIDENCE_BUTTONS = [
   { label: 'Forgot',  emoji: '😵', value: 1, color: 'bg-rose-600   hover:bg-rose-500',   key: '1' },
   { label: 'Hard',    emoji: '😫', value: 2, color: 'bg-primary hover:bg-primary', key: '2' },
-  { label: 'Good',    emoji: '😃', value: 4, color: 'bg-blue-600   hover:bg-blue-500',   key: '3' },
+  { label: 'Good',    emoji: '😃', value: 4, color: 'bg-primary   hover:bg-primary',   key: '3' },
   { label: 'Easy',    emoji: '🤩', value: 5, color: 'bg-emerald-600 hover:bg-emerald-500', key: '4' },
 ];
 
@@ -193,7 +193,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
     const perf = accuracy >= 90 ? 'excellent' : accuracy >= 70 ? 'good' : accuracy >= 50 ? 'fair' : 'retry';
     const perfConfig = {
       excellent: { emoji: '🏆', msg: 'Outstanding! You crushed it!',    color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20' },
-      good:      { emoji: '🌟', msg: 'Great job! Keep it up!',          color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20' },
+      good:      { emoji: '🌟', msg: 'Great job! Keep it up!',          color: 'text-primary',   bg: 'bg-primary/10 border-primary/20' },
       fair:      { emoji: '💪', msg: 'Good effort! Practice more!',     color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
       retry:     { emoji: '📚', msg: 'Keep going — you\'ll get there!', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/20' },
     }[perf];
@@ -221,7 +221,7 @@ export default function StudentFlashcardReview({ deckId, deckTitle, onComplete, 
                 { label: 'Correct',   value: sessionStats.correct,   color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', emoji: '✅' },
                 { label: 'Incorrect', value: sessionStats.incorrect, color: 'text-rose-400',    bg: 'bg-rose-500/10 border-rose-500/20',       emoji: '❌' },
                 { label: 'Accuracy',  value: `${accuracy}%`,         color: 'text-primary',  bg: 'bg-primary/10 border-primary/20',   emoji: '🎯' },
-                { label: 'Best Streak', value: sessionStats.maxStreak, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20',  emoji: '🔥' },
+                { label: 'Best Streak', value: sessionStats.maxStreak, color: 'text-primary', bg: 'bg-primary/10 border-primary/20',  emoji: '🔥' },
               ].map(s => (
                 <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}

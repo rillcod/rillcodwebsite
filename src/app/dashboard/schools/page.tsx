@@ -20,7 +20,7 @@ import { generateTempPassword } from '@/lib/utils/password';
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    active: 'bg-blue-500/20   text-blue-400   border-blue-500/30',
+    active: 'bg-primary/20   text-primary   border-primary/30',
     pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
     rejected: 'bg-rose-500/20   text-rose-400   border-rose-500/30',
     inactive: 'bg-muted      text-muted-foreground   border-border',
@@ -409,9 +409,9 @@ export default function SchoolsPage() {
           <div className="h-8 bg-muted rounded w-64" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-24 animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-24 animate-pulse" />)}
         </div>
-        {[1, 2, 3].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-24 animate-pulse" />)}
+        {[1, 2, 3].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-24 animate-pulse" />)}
       </div>
     </div>
   );
@@ -430,19 +430,19 @@ export default function SchoolsPage() {
       {/* ── Sync Result Modal ── */}
       {syncResult && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-background border border-border rounded-none w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+          <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
                 <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
                 <h2 className="text-lg font-extrabold text-foreground">School Sync Complete</h2>
               </div>
-              <button onClick={() => setSyncResult(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+              <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
               {syncResult.error ? (
-                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                   <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                   <p className="text-rose-400 text-sm">{syncResult.error}</p>
                 </div>
@@ -453,7 +453,7 @@ export default function SchoolsPage() {
                       { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-emerald-400' },
                       { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-400' },
                     ].map(s => (
-                      <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-3 text-center">
+                      <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-3 text-center">
                         <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
                       </div>
@@ -464,7 +464,7 @@ export default function SchoolsPage() {
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">New School Credentials — share with each school</p>
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {syncResult.credentials.filter((c: any) => c.password && !c.password.includes('existing')).map((c: any, i: number) => (
-                          <div key={i} className="bg-card shadow-sm border border-border rounded-none p-3 font-mono text-xs">
+                          <div key={i} className="bg-card shadow-sm border border-border rounded-xl p-3 font-mono text-xs">
                             <p className="text-foreground font-bold">{c.name}</p>
                             <p className="text-muted-foreground mt-0.5">{c.email}</p>
                             <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
@@ -476,7 +476,7 @@ export default function SchoolsPage() {
                   {syncResult.errors?.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-none p-3">
+                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
                         {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                       </div>
                     </div>
@@ -485,7 +485,7 @@ export default function SchoolsPage() {
               )}
             </div>
             <div className="p-4 border-t border-border flex-shrink-0">
-              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-foreground font-bold rounded-none text-sm transition-all">
+              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all">
                 Done
               </button>
             </div>
@@ -497,7 +497,7 @@ export default function SchoolsPage() {
 
         {/* Tab bar — People */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
             <BuildingOfficeIcon className="w-4 h-4" /> Schools
           </span>
           <Link href="/dashboard/teachers" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -521,8 +521,8 @@ export default function SchoolsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
-              <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Schools Management · Admin</span>
+              <BuildingOfficeIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Schools Management · Admin</span>
             </div>
             <h1 className="text-3xl font-extrabold">Partner Schools</h1>
             <p className="text-muted-foreground text-sm mt-1">Manage all partner school registrations and approvals</p>
@@ -531,7 +531,7 @@ export default function SchoolsPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-none transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
                 : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
             >
@@ -540,7 +540,7 @@ export default function SchoolsPage() {
             </button>
             <button
               onClick={() => { setEditingSchool(null); setShowCreate(true); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-foreground text-sm font-bold rounded-none transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add School
             </button>
@@ -548,7 +548,7 @@ export default function SchoolsPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
@@ -557,13 +557,13 @@ export default function SchoolsPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Schools', value: counts.total, icon: BuildingOfficeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Total Schools', value: counts.total, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10' },
             { label: 'Active', value: counts.approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Pending', value: counts.pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
             { label: 'Rejected', value: counts.rejected, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -574,14 +574,14 @@ export default function SchoolsPage() {
 
         {/* Pending alert */}
         {counts.pending > 0 && (
-          <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-none p-4">
+          <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
             <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
             <div className="flex-1">
               <p className="font-bold text-amber-400">{counts.pending} school{counts.pending !== 1 ? 's' : ''} awaiting approval</p>
               <p className="text-xs text-muted-foreground mt-0.5">Review and approve or reject below</p>
             </div>
             <button onClick={() => setFilter('pending')}
-              className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-none transition-colors">
+              className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors">
               Show Pending
             </button>
           </div>
@@ -593,11 +593,11 @@ export default function SchoolsPage() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input type="text" placeholder="Search by name, email, state…" value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 transition-colors" />
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
           </div>
           <div className="relative">
             <select value={filter} onChange={e => setFilter(e.target.value)}
-              className="pl-4 pr-8 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer appearance-none">
+              className="pl-4 pr-8 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer appearance-none">
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
@@ -610,7 +610,7 @@ export default function SchoolsPage() {
 
         {/* Empty */}
         {filtered.length === 0 && !error && (
-          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
             <BuildingOfficeIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">No schools found</p>
             <p className="text-sm text-muted-foreground mt-1">Schools appear here once they register via the public form</p>
@@ -619,10 +619,10 @@ export default function SchoolsPage() {
 
         {/* School list */}
         {filtered.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h3 className="font-bold text-foreground flex items-center gap-2">
-                <BuildingOfficeIcon className="w-5 h-5 text-blue-400" /> School Registry
+                <BuildingOfficeIcon className="w-5 h-5 text-primary" /> School Registry
               </h3>
               <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
             </div>
@@ -630,8 +630,8 @@ export default function SchoolsPage() {
               {filtered.map(s => (
                 <div key={s.id} className="p-4 sm:p-5 hover:bg-white/[0.02] transition-colors">
                   <div className="flex gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-none bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <BuildingOfficeIcon className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-2 flex-wrap mb-1">
@@ -656,7 +656,7 @@ export default function SchoolsPage() {
                       {(s.enrollment_types?.length > 0 || s.program_interest?.length > 0) && (
                         <div className="flex gap-1.5 mt-2 flex-wrap">
                           {s.enrollment_types?.map((t: string) => (
-                            <span key={t} className="text-[10px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
+                            <span key={t} className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full capitalize">{t}</span>
                           ))}
                           {s.program_interest?.map((p: string) => (
                             <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full">{p}</span>
@@ -668,20 +668,20 @@ export default function SchoolsPage() {
                       {/* Action buttons — always below info on mobile, inline on lg */}
                       <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-border/50 lg:hidden">
                         <button onClick={() => setDetail(s)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border">
+                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border">
                           <EyeIcon className="w-3.5 h-3.5" /> View
                         </button>
                         <button onClick={() => startEdit(s)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border">
+                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border">
                           <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                         </button>
                         <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 border border-rose-500/15">
+                          className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15">
                           <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
                         </button>
                         {(s.status === 'pending' || !s.status) && (
                           <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
                             <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
                           </button>
                         )}
@@ -691,20 +691,20 @@ export default function SchoolsPage() {
                     {/* Desktop-only action buttons */}
                     <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
                       <button onClick={() => setDetail(s)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border whitespace-nowrap">
+                        className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border whitespace-nowrap">
                         <EyeIcon className="w-3.5 h-3.5" /> View
                       </button>
                       <button onClick={() => startEdit(s)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border whitespace-nowrap">
+                        className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border whitespace-nowrap">
                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                       </button>
                       <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 border border-rose-500/15 whitespace-nowrap">
+                        className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15 whitespace-nowrap">
                         <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
                       </button>
                       {(s.status === 'pending' || !s.status) && (
                         <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-emerald-900/20">
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-emerald-900/20">
                           <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
                         </button>
                       )}
@@ -719,7 +719,7 @@ export default function SchoolsPage() {
         {/* Detail modal */}
         {detail && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-none w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div>
@@ -728,12 +728,12 @@ export default function SchoolsPage() {
                   </div>
                   <Link
                     href={`/dashboard/timetable?school_id=${detail.id}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-none transition-all shadow-lg shadow-emerald-900/20"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-900/20"
                   >
                     <CalendarDaysIcon className="w-3.5 h-3.5" /> View Timetable
                   </Link>
                 </div>
-                <button onClick={() => { setDetail(null); setAssignTab('info'); }} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={() => { setDetail(null); setAssignTab('info'); }} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                   <XCircleIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -742,7 +742,7 @@ export default function SchoolsPage() {
               <div className="flex gap-1 p-3 border-b border-border bg-white/[0.02] flex-shrink-0">
                 {(['info', 'teachers', 'account'] as const).map(t => (
                   <button key={t} onClick={() => setAssignTab(t)}
-                    className={`flex-1 py-2 rounded-none text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
                       }`}>
                     {t === 'teachers' ? `Teachers (${assignedTeachers.length})` : t === 'account' ? 'Portal Account' : 'School Info'}
                   </button>
@@ -773,7 +773,7 @@ export default function SchoolsPage() {
                         <span className="text-muted-foreground w-28 flex-shrink-0 text-xs uppercase tracking-wider font-semibold pt-0.5">Enrol Types</span>
                         <div className="flex flex-wrap gap-1.5">
                           {detail.enrollment_types.map((t: string) => (
-                            <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
+                            <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full capitalize">{t}</span>
                           ))}
                         </div>
                       </div>
@@ -793,7 +793,7 @@ export default function SchoolsPage() {
                           {assignedTeachers.map((ts: any) => {
                             const t = ts.portal_users ?? ts;
                             return (
-                              <div key={ts.id} className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-none px-4 py-3">
+                              <div key={ts.id} className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                   {(t.full_name ?? '?')[0]}
                                 </div>
@@ -802,7 +802,7 @@ export default function SchoolsPage() {
                                   <p className="text-xs text-muted-foreground truncate">{t.email}</p>
                                 </div>
                                 <button onClick={() => removeTeacher(ts.id)} disabled={assigning === ts.id}
-                                  className="px-3 py-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-none transition-all disabled:opacity-50">
+                                  className="px-3 py-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl transition-all disabled:opacity-50">
                                   Remove
                                 </button>
                               </div>
@@ -819,7 +819,7 @@ export default function SchoolsPage() {
                         {allTeachers
                           .filter(t => !assignedTeachers.some((ts: any) => ts.teacher_id === t.id))
                           .map(t => (
-                            <div key={t.id} className="flex items-center gap-3 bg-card shadow-sm border border-border rounded-none px-4 py-3">
+                            <div key={t.id} className="flex items-center gap-3 bg-card shadow-sm border border-border rounded-xl px-4 py-3">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                 {(t.full_name ?? '?')[0]}
                               </div>
@@ -828,7 +828,7 @@ export default function SchoolsPage() {
                                 <p className="text-xs text-muted-foreground truncate">{t.email}</p>
                               </div>
                               <button onClick={() => assignTeacher(t.id)} disabled={assigning === t.id}
-                                className="px-3 py-1.5 text-xs font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-none transition-all disabled:opacity-50">
+                                className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl transition-all disabled:opacity-50">
                                 {assigning === t.id ? '…' : 'Assign'}
                               </button>
                             </div>
@@ -847,13 +847,13 @@ export default function SchoolsPage() {
 
                     {accCreated ? (
                       <div className="space-y-4">
-                        <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-none">
+                        <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
                           <ShieldCheckIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
                           <h4 className="font-bold text-foreground">Portal Account Created</h4>
                           <p className="text-sm text-muted-foreground mt-1">Copy these credentials for the school administrator.</p>
                         </div>
 
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-xs text-amber-300 flex items-start gap-2">
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
                           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                           <span>The school administrator should change this password on first login.</span>
                         </div>
@@ -865,12 +865,12 @@ export default function SchoolsPage() {
                           <div key={label}>
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{label}</p>
                             <div className="flex items-center gap-2">
-                              <code className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-foreground font-mono text-sm select-all">
+                              <code className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-foreground font-mono text-sm select-all">
                                 {value}
                               </code>
                               <button
                                 onClick={() => navigator.clipboard.writeText(value)}
-                                className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors">
+                                className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors">
                                 <ClipboardIcon className="w-4 h-4" />
                               </button>
                             </div>
@@ -878,7 +878,7 @@ export default function SchoolsPage() {
                         ))}
 
                         <button onClick={() => setAccCreated(null)}
-                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all">
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all">
                           Done
                         </button>
                       </div>
@@ -887,15 +887,15 @@ export default function SchoolsPage() {
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Account Email</label>
                           <input type="email" required value={accEmail} onChange={e => setAccEmail(e.target.value)}
-                            placeholder="admin@school.com" className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500" />
+                            placeholder="admin@school.com" className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary" />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Initial Password</label>
                           <input type="text" required value={accPassword} onChange={e => setAccPassword(e.target.value)}
-                            placeholder="At least 8 characters" className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500" />
+                            placeholder="At least 8 characters" className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary" />
                         </div>
                         <button type="submit" disabled={creatingAcc}
-                          className="w-full flex justify-center items-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-foreground font-bold rounded-none transition-all disabled:opacity-50">
+                          className="w-full flex justify-center items-center gap-2 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all disabled:opacity-50">
                           {creatingAcc ? 'Creating…' : <><KeyIcon className="w-4 h-4" /> Create Account</>}
                         </button>
                       </form>
@@ -907,11 +907,11 @@ export default function SchoolsPage() {
               {assignTab === 'info' && (detail.status === 'pending' || !detail.status) && (
                 <div className="flex gap-3 p-6 border-t border-border flex-shrink-0">
                   <button onClick={() => updateStatus(detail.id, 'approved')} disabled={acting === detail.id}
-                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                     Approve School
                   </button>
                   <button onClick={() => updateStatus(detail.id, 'rejected')} disabled={acting === detail.id}
-                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                     Reject
                   </button>
                 </div>
@@ -922,13 +922,13 @@ export default function SchoolsPage() {
 
         {showCreate && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-none w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-background border border-border rounded-xl w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between p-6 border-b border-border">
                 <div>
                   <h3 className="font-bold text-foreground text-lg">{editingSchool ? 'Edit School' : 'Add Partner School'}</h3>
                   <p className="text-xs text-muted-foreground">{editingSchool ? `Modifying ${editingSchool.name}` : 'Create a school directly from the admin dashboard'}</p>
                 </div>
-                <button onClick={() => { setShowCreate(false); setEditingSchool(null); }} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={() => { setShowCreate(false); setEditingSchool(null); }} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                   <XCircleIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -939,7 +939,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.name}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="School name"
                       required
                     />
@@ -949,7 +949,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.schoolType}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, schoolType: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="Primary / Secondary"
                     />
                   </div>
@@ -958,7 +958,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.contactPerson}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, contactPerson: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="Principal / Admin"
                     />
                   </div>
@@ -967,7 +967,7 @@ export default function SchoolsPage() {
                     <select
                       value={createForm.status}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 appearance-none"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
                     >
                       <option value="approved">Approved</option>
                       <option value="pending">Pending</option>
@@ -981,7 +981,7 @@ export default function SchoolsPage() {
                   <input
                     value={createForm.address}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                     placeholder="School address"
                   />
                 </div>
@@ -992,7 +992,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.lga}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, lga: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="LGA"
                     />
                   </div>
@@ -1001,7 +1001,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.city}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="City"
                     />
                   </div>
@@ -1010,7 +1010,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.state}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, state: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="State"
                     />
                   </div>
@@ -1022,7 +1022,7 @@ export default function SchoolsPage() {
                     <input
                       value={createForm.phone}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="+234..."
                     />
                   </div>
@@ -1032,7 +1032,7 @@ export default function SchoolsPage() {
                       type="email"
                       value={createForm.email}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="email@school.com"
                     />
                   </div>
@@ -1042,13 +1042,13 @@ export default function SchoolsPage() {
                       type="number"
                       value={createForm.studentCount}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, studentCount: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="500"
                     />
                   </div>
                 </div>
 
-                <div className="bg-primary/5 border border-primary/10 rounded-none p-4">
+                <div className="bg-primary/5 border border-primary/10 rounded-xl p-4">
                   <div className="flex items-center gap-3 mb-4">
                     <ChartBarIcon className="w-4 h-4 text-primary" />
                     <span className="text-xs font-extrabold text-foreground uppercase tracking-widest">Financial & Quota terms</span>
@@ -1060,13 +1060,13 @@ export default function SchoolsPage() {
                         type="range" min="0" max="100" step="1"
                         value={createForm.rillcodQuotaPercent}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, rillcodQuotaPercent: e.target.value }))}
-                        className="flex-1 h-2 bg-muted rounded-none appearance-none cursor-pointer"
+                        className="flex-1 h-2 bg-muted rounded-xl appearance-none cursor-pointer"
                       />
                       <input
                         type="number"
                         value={createForm.rillcodQuotaPercent}
                         onChange={(e) => setCreateForm(prev => ({ ...prev, rillcodQuotaPercent: e.target.value }))}
-                        className="w-20 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
+                        className="w-20 px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-2 italic">The percentage of fees collected by the school that belongs to Rillcod Technologies.</p>
@@ -1084,7 +1084,7 @@ export default function SchoolsPage() {
                       type="text"
                       value={createForm.password}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 font-mono"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary font-mono"
                       placeholder="At least 6 characters"
                     />
                     <p className="text-[10px] text-muted-foreground mt-1">This will be the school&apos;s login password. Share it with them after creation.</p>
@@ -1096,7 +1096,7 @@ export default function SchoolsPage() {
                   <input
                     value={createForm.programInterest}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, programInterest: e.target.value }))}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                     placeholder="Coding Fundamentals, Robotics"
                   />
                 </div>
@@ -1105,7 +1105,7 @@ export default function SchoolsPage() {
                   <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Enrollment Types</label>
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {['school', 'bootcamp', 'online'].map((type) => (
-                      <label key={type} className="flex items-center gap-2 bg-card shadow-sm border border-border rounded-none px-3 py-2">
+                      <label key={type} className="flex items-center gap-2 bg-card shadow-sm border border-border rounded-xl px-3 py-2">
                         <input
                           type="checkbox"
                           checked={createForm.enrollmentTypes.includes(type)}
@@ -1121,7 +1121,7 @@ export default function SchoolsPage() {
                 <button
                   type="submit"
                   disabled={creatingSchool}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-foreground font-bold rounded-none transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {creatingSchool ? 'Saving…' : <>{editingSchool ? <PencilSquareIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />} {editingSchool ? 'Update School' : 'Create School'}</>}
                 </button>
@@ -1226,7 +1226,7 @@ function SchoolSelfView() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="bg-background border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+        <div className="bg-background border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-5 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-primary opacity-20 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
@@ -1248,8 +1248,8 @@ function SchoolSelfView() {
             { label: 'Avg Performance', value: `${stats.avgScore}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary from-primary to-primary' },
             { label: 'Graded Submissions', value: stats.submissions, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary from-primary to-primary' },
           ].map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-card shadow-sm border border-border rounded-none p-6 hover:bg-white/8 hover:border-border transition-all">
-              <div className={`w-11 h-11 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg`}>
+            <div key={label} className="bg-card shadow-sm border border-border rounded-xl p-6 hover:bg-white/8 hover:border-border transition-all">
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg`}>
                 <Icon className="h-5 w-5 text-foreground" />
               </div>
               <p className="text-3xl font-extrabold text-foreground">{value}</p>
@@ -1262,13 +1262,13 @@ function SchoolSelfView() {
           <div className="xl:col-span-2 space-y-6">
 
             {/* Quick Actions */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-6">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-6">
               <h2 className="text-lg font-bold text-foreground mb-5">Quick Actions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {quickActions.map(({ name, href, icon: Icon, desc }) => (
                   <Link key={name} href={href}
-                    className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
-                    <div className="w-10 h-10 rounded-none bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
+                    className="group flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-colors">
                       <Icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
@@ -1281,10 +1281,10 @@ function SchoolSelfView() {
             </div>
 
             {/* Recent Student Registrations */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-6">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-bold text-foreground">Recent Student Registrations</h2>
-                <button onClick={load} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
+                <button onClick={load} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
               </div>
@@ -1300,8 +1300,8 @@ function SchoolSelfView() {
                 <div className="space-y-1">
                   {recentStudents.map((s, i) => (
                     <div key={s.id} className={`flex items-center gap-3 py-3 ${i < recentStudents.length - 1 ? 'border-b border-border' : ''}`}>
-                      <div className="w-9 h-9 rounded-none bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-blue-400 text-xs font-black">{(s.full_name ?? '?')[0].toUpperCase()}</span>
+                      <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary text-xs font-black">{(s.full_name ?? '?')[0].toUpperCase()}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground text-sm truncate">{s.full_name}</p>
@@ -1321,9 +1321,9 @@ function SchoolSelfView() {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            <div className="bg-gradient-to-br from-primary/20 from-primary to-primary/20 border border-primary/20 rounded-none p-6">
+            <div className="bg-gradient-to-br from-primary/20 from-primary to-primary/20 border border-primary/20 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xl font-black text-foreground">
                   {(profile?.school_name ?? 'S')[0].toUpperCase()}
                 </div>
                 <div>
@@ -1342,7 +1342,7 @@ function SchoolSelfView() {
               </div>
             </div>
 
-            <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-5">
               <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
               <div className="space-y-1">
                 {[
@@ -1352,7 +1352,7 @@ function SchoolSelfView() {
                   { label: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
                 ].map(({ label, href, icon: Icon }) => (
                   <Link key={label} href={href}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
                     <Icon className="w-4 h-4 group-hover:text-primary transition-colors" />
                     {label}
                     <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />

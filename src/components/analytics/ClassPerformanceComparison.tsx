@@ -241,14 +241,14 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
       <div className="bg-card rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-foreground flex items-center">
-            <ChartBarIcon className="h-6 w-6 mr-2 text-blue-600" />
+            <ChartBarIcon className="h-6 w-6 mr-2 text-primary" />
             Class Performance Comparison
           </h2>
           <div className="flex gap-4">
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="px-3 py-2 border border-border rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-border rounded-md focus:ring-primary focus:border-primary"
             >
               <option value="all">All Classes</option>
               {classData.map(c => (
@@ -260,7 +260,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                 onClick={() => setViewMode('bar')}
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'bar' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-primary text-white' 
                     : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
@@ -270,7 +270,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                 onClick={() => setViewMode('line')}
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'line' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-primary text-white' 
                     : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
@@ -280,7 +280,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
                 onClick={() => setViewMode('radar')}
                 className={`px-3 py-2 text-sm font-medium ${
                   viewMode === 'radar' 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-primary text-white' 
                     : 'bg-card text-foreground/80 hover:bg-background'
                 }`}
               >
@@ -522,7 +522,7 @@ export default function ClassPerformanceComparison({ school_id }: ClassPerforman
             </div>
           </div>
           <div className="flex items-start">
-            <ArrowTrendingUpIcon className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
+            <ArrowTrendingUpIcon className="h-5 w-5 text-primary mr-3 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">Consistent Improvement</p>
               <p className="text-sm text-muted-foreground">All classes showing positive trends - maintain current teaching methods</p>

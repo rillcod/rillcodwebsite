@@ -205,8 +205,8 @@ export default function ImportExportPanel({
                 />
               </div>
 
-              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-muted-foreground">
-                <p className="font-bold text-blue-400 mb-1">Format Guide:</p>
+              <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg text-xs text-muted-foreground">
+                <p className="font-bold text-primary mb-1">Format Guide:</p>
                 {format === 'csv' && <p>CSV: front,back,tags,difficulty</p>}
                 {format === 'json' && <p>JSON: Array of objects with front/back</p>}
                 {format === 'anki' && <p>Anki: Tab-separated front and back</p>}
@@ -232,7 +232,7 @@ export default function ImportExportPanel({
           <button
             onClick={mode === 'import' ? handleImport : handleExport}
             disabled={processing || (mode === 'import' && !importData.trim())}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 rounded"
+            className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 rounded"
           >
             {processing ? (
               <>

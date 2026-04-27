@@ -84,7 +84,7 @@ export default function CommunicationReportsPage() {
         <p className="text-sm text-muted-foreground mt-1">Review reported conversations and track moderation progress.</p>
         <div className="mt-3 flex gap-2 flex-wrap">
           <Link href="/dashboard/progression/settings" className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:bg-muted/30">Back to LMS Settings</Link>
-          <Link href="/dashboard/progression/communication-safety" className="px-3 py-2 text-xs font-bold rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10">Open safety monitor</Link>
+          <Link href="/dashboard/progression/communication-safety" className="px-3 py-2 text-xs font-bold rounded-lg border border-primary/30 text-violet-300 hover:bg-primary/10">Open safety monitor</Link>
           <Link href="/dashboard/crm" className="px-3 py-2 text-xs font-bold rounded-lg border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/10">Open CRM</Link>
           <button
             type="button"

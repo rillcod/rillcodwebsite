@@ -418,7 +418,7 @@ export function ReceiptBuilderPanel() {
               disabled={
                 saving || !form.payer_name || form.items.every((i) => i.unit_price === 0)
               }
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-md shadow"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-md shadow"
             >
               {saving ? (
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />

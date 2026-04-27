@@ -22,7 +22,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
     id: 'modern',
     name: 'Modern',
     description: 'Sleek gradient design',
-    frontStyle: 'bg-gradient-to-br from-purple-600 to-blue-600 text-white shadow-xl',
+    frontStyle: 'bg-gradient-to-br from-purple-600 to-primary text-white shadow-xl',
     backStyle: 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-xl',
     textStyle: 'text-white',
     animation: 'slide',
@@ -79,15 +79,15 @@ export interface FlashcardTemplateStyle {
 
 export const CARD_TEMPLATE_STYLES: Record<string, FlashcardTemplateStyle> = {
   classic: {
-    front: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-2 border-blue-200 dark:border-blue-700',
+    front: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-2 border-blue-200 dark:border-primary',
     back: 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-2 border-emerald-200 dark:border-emerald-700',
     text: 'text-gray-800 dark:text-gray-100',
   },
   modern: {
-    front: 'bg-gradient-to-br from-violet-600 to-blue-600',
+    front: 'bg-gradient-to-br from-primary to-primary',
     back: 'bg-gradient-to-br from-orange-500 to-rose-500',
     text: 'text-white',
-    glow: 'shadow-violet-500/30',
+    glow: 'shadow-primary/30',
   },
   neon: {
     front: 'bg-black border-2 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)]',
@@ -102,7 +102,7 @@ export const CARD_TEMPLATE_STYLES: Record<string, FlashcardTemplateStyle> = {
   },
   playful: {
     front: 'bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-400',
-    back: 'bg-gradient-to-br from-green-300 via-cyan-300 to-blue-400',
+    back: 'bg-gradient-to-br from-green-300 via-cyan-300 to-primary',
     text: 'text-gray-800 font-bold',
     glow: 'shadow-pink-400/30',
   },

@@ -18,7 +18,7 @@ export default function PartnerSchoolScopeBanner() {
   if (FULLSCREEN_PATHS.some((p) => pathname.startsWith(p))) return null;
 
   return (
-    <div className="mb-4 rounded-none border border-primary/25 bg-primary/[0.06] px-4 py-3 flex gap-3 items-start">
+    <div className="mb-4 rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3 flex gap-3 items-start">
       <div className="mt-0.5 shrink-0 text-primary">
         <BuildingOffice2Icon className="h-5 w-5" aria-hidden />
       </div>

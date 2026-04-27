@@ -17,7 +17,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
   absent: { label: 'Absent', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', icon: XCircleIcon },
   late: { label: 'Late', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: ClockIcon },
-  excused: { label: 'Excused', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: ExclamationCircleIcon },
+  excused: { label: 'Excused', color: 'bg-primary/20 text-primary border-primary/30', icon: ExclamationCircleIcon },
 };
 
 export default function AttendancePage() {
@@ -541,14 +541,14 @@ function AttendanceContent() {
               { label: 'Present', value: present, color: 'text-emerald-400' },
               { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-400' : 'text-rose-400' },
             ].map(s => (
-              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 text-center">
+              <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5 text-center">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
               </div>
             ))}
           </div>
           {myAttendance.length === 0 ? (
-            <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+            <div className="text-center py-16 bg-card shadow-sm border border-border rounded-xl">
               <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">No attendance records yet.</p>
             </div>
@@ -557,7 +557,7 @@ function AttendanceContent() {
               {myAttendance.map((a: any) => {
                 const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.present;
                 return (
-                  <div key={a.id} className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center justify-between gap-4">
+                  <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center justify-between gap-4">
                     <div>
                       <p className="font-semibold text-foreground">{a.class_sessions?.topic || 'Session'}</p>
                       <p className="text-xs text-muted-foreground">
@@ -603,7 +603,7 @@ function AttendanceContent() {
         {!isMinimal && (
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <button onClick={() => router.back()}
-              className="w-10 h-10 flex items-center justify-center rounded-none bg-card shadow-sm hover:bg-muted border border-border transition-colors flex-shrink-0">
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-card shadow-sm hover:bg-muted border border-border transition-colors flex-shrink-0">
               <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
             </button>
             <div className="flex-1">
@@ -629,15 +629,15 @@ function AttendanceContent() {
 
         {/* Tabs */}
         {selectedClass && (
-          <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
+          <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit">
             {isCanMark && (
               <button onClick={() => setActiveTab('mark')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
                 <ClipboardDocumentCheckIcon className="w-4 h-4" /> Mark Attendance
               </button>
             )}
             <button onClick={() => setActiveTab('log')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'log' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'log' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
               <TableCellsIcon className="w-4 h-4" /> Attendance Log
             </button>
           </div>
@@ -647,13 +647,13 @@ function AttendanceContent() {
         {activeTab === 'mark' && (
           <>
             {/* Selectors */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Select Class</label>
                   <div className="relative">
                     <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedSession(''); }}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none">
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none">
                       <option value="">Choose a class…</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
                     </select>
@@ -665,7 +665,7 @@ function AttendanceContent() {
                   <div className="relative">
                     <select value={selectedSession} onChange={e => setSelectedSession(e.target.value)}
                       disabled={!selectedClass || sessions.length === 0}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none disabled:opacity-40">
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none disabled:opacity-40">
                       <option value="">Choose a session…</option>
                       {sessions.map(s => (
                         <option key={s.id} value={s.id}>
@@ -682,18 +682,18 @@ function AttendanceContent() {
                 <div className="flex flex-col gap-4 pt-2">
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button onClick={quickMarkToday} disabled={loading}
-                      className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-foreground font-extrabold rounded-none transition-all shadow-lg shadow-teal-900/30">
+                      className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-foreground font-extrabold rounded-xl transition-all shadow-lg shadow-teal-900/30">
                       <CalendarIcon className="w-5 h-5 text-teal-200" />
                       {loading ? 'Processing…' : 'Mark Today\'s Attendance'}
                     </button>
                     <button onClick={() => setShowNewSession(!showNewSession)}
-                      className="w-full sm:w-auto px-4 py-3.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
+                      className="w-full sm:w-auto px-4 py-3.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
                       Past / Custom Date
                     </button>
                     {selectedSession && (
                       <button
                         onClick={() => { setShowQrScanner(v => { if (v) { stopQrCamera(); setQrStudent(null); setQrMsg(''); } return !v; }); }}
-                        className={`w-full sm:w-auto px-4 py-3.5 border rounded-none text-xs font-bold transition-all ${showQrScanner ? 'bg-violet-600 border-violet-500 text-white' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                        className={`w-full sm:w-auto px-4 py-3.5 border rounded-xl text-xs font-bold transition-all ${showQrScanner ? 'bg-primary border-primary text-white' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                         📷 Scan QR
                       </button>
                     )}
@@ -701,23 +701,23 @@ function AttendanceContent() {
 
                   {/* QR Scanner Panel */}
                   {showQrScanner && selectedSession && (
-                    <div className="bg-card shadow-sm border border-violet-500/30 rounded-none p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">QR Code Attendance Scanner</p>
+                    <div className="bg-card shadow-sm border border-primary/30 rounded-xl p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">QR Code Attendance Scanner</p>
 
                       {/* No student yet — camera viewfinder + fallback */}
                       {!qrStudent && (
                         <div className="space-y-3">
                           {/* Camera viewfinder (auto-started) */}
                           {hasBarcodeDetector && (
-                            <div className="relative w-full max-w-xs mx-auto aspect-square bg-background rounded-none overflow-hidden">
+                            <div className="relative w-full max-w-xs mx-auto aspect-square bg-background rounded-xl overflow-hidden">
                               <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline muted />
                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <div className="w-48 h-48 border-2 border-violet-400 rounded-sm relative">
-                                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-violet-400" />
-                                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-violet-400" />
-                                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-violet-400" />
-                                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-violet-400" />
-                                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-violet-400/70 animate-bounce" style={{ animationDuration: '1.5s' }} />
+                                <div className="w-48 h-48 border-2 border-primary rounded-sm relative">
+                                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary" />
+                                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary" />
+                                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary" />
+                                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary" />
+                                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/70 animate-bounce" style={{ animationDuration: '1.5s' }} />
                                 </div>
                                 <p className="mt-3 text-white text-xs font-semibold drop-shadow">
                                   {qrScanning ? 'Point camera at student QR code' : 'Starting camera…'}
@@ -729,11 +729,11 @@ function AttendanceContent() {
                           <div className="flex gap-2">
                             {hasBarcodeDetector && !qrScanning && (
                               <button onClick={startQrCamera}
-                                className="flex-1 py-2 rounded-none text-xs font-bold border border-violet-500/30 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 transition-all">
+                                className="flex-1 py-2 rounded-xl text-xs font-bold border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all">
                                 🔄 Restart Camera
                               </button>
                             )}
-                            <label className={`${hasBarcodeDetector ? 'flex-1' : 'w-full'} py-2 rounded-none text-xs font-bold border border-violet-500/30 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 transition-all cursor-pointer text-center`}>
+                            <label className={`${hasBarcodeDetector ? 'flex-1' : 'w-full'} py-2 rounded-xl text-xs font-bold border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-all cursor-pointer text-center`}>
                               🖼 Upload Photo Instead
                               <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { stopQrCamera(); handleQrPhoto(f); } e.target.value = ''; }} />
                             </label>
@@ -748,8 +748,8 @@ function AttendanceContent() {
                       {/* Student found — show card + status buttons */}
                       {qrStudent && (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-none p-3">
-                            <div className="w-10 h-10 bg-violet-500/20 border border-violet-500/30 rounded-none flex items-center justify-center text-base font-black text-violet-400 flex-shrink-0">
+                          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                            <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center text-base font-black text-primary flex-shrink-0">
                               {qrStudent.name?.charAt(0) ?? '?'}
                             </div>
                             <div>
@@ -762,7 +762,7 @@ function AttendanceContent() {
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(STATUS_CONFIG).map(([val, c]) => (
                                 <button key={val} onClick={() => setQrStatus(val)}
-                                  className={`px-3 py-1.5 rounded-none text-xs font-bold border transition-all ${qrStatus === val ? `${c.color} scale-105` : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${qrStatus === val ? `${c.color} scale-105` : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
                                   {c.label}
                                 </button>
                               ))}
@@ -770,14 +770,14 @@ function AttendanceContent() {
                           </div>
                           <input type="text" value={qrNotes} onChange={e => setQrNotes(e.target.value)}
                             placeholder="Notes (optional)"
-                            className="w-full px-3 py-2 bg-background border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors" />
+                            className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
                           <div className="flex gap-2">
                             <button onClick={markQrStudent}
-                              className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-none text-xs font-bold transition-all">
+                              className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold transition-all">
                               ✓ Confirm Attendance
                             </button>
                             <button onClick={() => { setQrStudent(null); setQrMsg(''); }}
-                              className="px-4 py-2.5 bg-card border border-border text-muted-foreground hover:text-foreground rounded-none text-xs font-bold transition-all">
+                              className="px-4 py-2.5 bg-card border border-border text-muted-foreground hover:text-foreground rounded-xl text-xs font-bold transition-all">
                               Cancel
                             </button>
                           </div>
@@ -790,7 +790,7 @@ function AttendanceContent() {
                       {/* Scan next after success */}
                       {!qrStudent && qrMsg && qrMsgType === 'ok' && (
                         <button onClick={() => { setQrMsg(''); startQrCamera(); }}
-                          className="w-full py-2.5 bg-violet-600/20 border border-violet-500/30 text-violet-400 hover:bg-violet-600/30 rounded-none text-xs font-bold transition-all">
+                          className="w-full py-2.5 bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 rounded-xl text-xs font-bold transition-all">
                           📷 Scan Next Student
                         </button>
                       )}
@@ -798,12 +798,12 @@ function AttendanceContent() {
                   )}
 
                   {showNewSession && (
-                    <div className="bg-card shadow-sm border border-teal-500/10 rounded-none p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-card shadow-sm border border-teal-500/10 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                       <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest px-1">Session Options</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input type="date" value={newSession.session_date}
                           onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
-                          className="px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                          className="px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         <button onClick={async () => {
                           if (!newSession.session_date) return;
                           setLoading(true);
@@ -827,14 +827,14 @@ function AttendanceContent() {
                           }
                           setLoading(false);
                         }}
-                          className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-none text-xs font-bold hover:bg-teal-600/30 transition-all">
+                          className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
                           Confirm & Create
                         </button>
                       </div>
                       <input type="text" value={newSession.topic}
                         onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
                         placeholder="Topic / Lessons (optional)"
-                        className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                     </div>
                   )}
                 </div>
@@ -847,14 +847,14 @@ function AttendanceContent() {
             )}
 
             {!loading && selectedSession && students.length === 0 && (
-              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-xl">
                 <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground font-semibold">No enrolled students found for this class.</p>
                 <p className="text-muted-foreground text-sm mt-1">Enroll students first from the class detail page.</p>
                 {selectedClass && (
                   <a
                     href={`/dashboard/classes/${selectedClass}`}
-                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-none text-xs font-bold hover:bg-teal-600/30 transition-all"
+                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
                   >
                     Go to Class → Enroll Students
                   </a>
@@ -863,7 +863,7 @@ function AttendanceContent() {
             )}
 
             {!loading && selectedSession && students.length > 0 && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-5 border-b border-border flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <h3 className="font-bold text-foreground">
@@ -881,17 +881,17 @@ function AttendanceContent() {
                           setAttendance(next);
                           setSaved(false);
                         }}
-                          className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors capitalize">
+                          className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors capitalize">
                           All {s}
                         </button>
                       ))}
                       <button onClick={handlePrintSession}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-none transition-colors">
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-xl transition-colors">
                         <PrinterIcon className="w-4 h-4" />
                       </button>
                       {isCanMark && (
                         <button onClick={handleSave} disabled={saving}
-                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-none transition-colors disabled:opacity-50">
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-xl transition-colors disabled:opacity-50">
                           {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
                           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
                         </button>
@@ -940,7 +940,7 @@ function AttendanceContent() {
                     return (
                       <div key={student.id} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-none flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
+                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
                             {student.full_name?.charAt(0) ?? '?'}
                           </div>
                           <div className="min-w-0">
@@ -956,7 +956,7 @@ function AttendanceContent() {
                                 setSaved(false); 
                             }}
                               disabled={!isCanMark}
-                              className={`px-2.5 py-1.5 rounded-none text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'} ${!isCanMark ? 'cursor-default' : ''}`}>
+                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'} ${!isCanMark ? 'cursor-default' : ''}`}>
                               {c.label}
                             </button>
                           ))}
@@ -967,7 +967,7 @@ function AttendanceContent() {
                                 setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); 
                                 setSaved(false); 
                             }}
-                            className="hidden sm:block w-28 px-2 py-1.5 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                            className="hidden sm:block w-28 px-2 py-1.5 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
                       </div>
                     );
@@ -989,20 +989,20 @@ function AttendanceContent() {
         {/* Tab Content: ATTENDANCE LOG */}
         {activeTab === 'log' && (
           <div className="space-y-6">
-            <div className="bg-card shadow-sm border border-border rounded-none p-6 flex items-center justify-between gap-4">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-6 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold">Attendance History</h2>
                 <p className="text-muted-foreground text-sm">Review student performance metrics across all {sessions.length} sessions</p>
               </div>
               <button 
                 onClick={handlePrintLog}
-                className="flex items-center gap-2 px-6 py-3 bg-muted hover:bg-muted text-foreground text-xs font-bold rounded-none transition-all border border-border"
+                className="flex items-center gap-2 px-6 py-3 bg-muted hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all border border-border"
               >
                 <PrinterIcon className="w-4 h-4" /> Print Full Report
               </button>
             </div>
 
-            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-white/3">
@@ -1046,11 +1046,11 @@ function AttendanceContent() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           {rate >= 75 ? (
-                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase rounded-none border border-emerald-500/20">Good Standing</span>
+                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20">Good Standing</span>
                           ) : rate >= 50 ? (
-                            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-none border border-amber-500/20">At Risk</span>
+                            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-xl border border-amber-500/20">At Risk</span>
                           ) : (
-                            <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase rounded-none border border-rose-500/20">Critical</span>
+                            <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase rounded-xl border border-rose-500/20">Critical</span>
                           )}
                         </td>
                       </tr>

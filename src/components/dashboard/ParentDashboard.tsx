@@ -36,10 +36,10 @@ interface DashStats {
 
 const QUICK_ACTIONS = [
   { name: 'My Children',    href: '/dashboard/my-children',        icon: UserGroupIcon,              desc: 'View all linked children',      bg: 'from-primary to-primary',   ring: 'border-primary/30 bg-primary/5 hover:bg-primary/10' },
-  { name: 'Report Cards',   href: '/dashboard/parent-results',     icon: DocumentChartBarIcon,       desc: 'View academic progress',        bg: 'from-violet-600 to-violet-400',   ring: 'border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10' },
+  { name: 'Report Cards',   href: '/dashboard/parent-results',     icon: DocumentChartBarIcon,       desc: 'View academic progress',        bg: 'from-primary to-primary',   ring: 'border-primary/30 bg-primary/5 hover:bg-primary/10' },
   { name: 'Path Progress',  href: '/dashboard/parent-path-progress',icon: BookOpenIcon,                desc: 'See current week and path',     bg: 'from-fuchsia-600 to-fuchsia-400', ring: 'border-fuchsia-500/30 bg-fuchsia-500/5 hover:bg-fuchsia-500/10' },
   { name: 'Attendance',     href: '/dashboard/parent-attendance',  icon: ClipboardDocumentCheckIcon, desc: 'Check attendance records',      bg: 'from-emerald-600 to-emerald-400', ring: 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10' },
-  { name: 'Grades',         href: '/dashboard/parent-grades',      icon: ClipboardDocumentListIcon,  desc: 'View grades & assignments',     bg: 'from-blue-600 to-blue-400',       ring: 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10' },
+  { name: 'Grades',         href: '/dashboard/parent-grades',      icon: ClipboardDocumentListIcon,  desc: 'View grades & assignments',     bg: 'from-primary to-primary',       ring: 'border-primary/30 bg-primary/5 hover:bg-primary/10' },
   { name: 'Certificates',   href: '/dashboard/parent-certificates',icon: TrophyIcon,                 desc: "View child's certificates",     bg: 'from-amber-600 to-amber-400',     ring: 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10' },
   { name: 'Invoices & Pay', href: '/dashboard/parent-invoices',    icon: BanknotesIcon,              desc: 'Pay fees & view invoices',      bg: 'from-rose-600 to-rose-400',       ring: 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' },
   { name: 'Messages',       href: '/dashboard/messages',           icon: EnvelopeIcon,               desc: 'Contact teachers & staff',      bg: 'from-cyan-600 to-cyan-400',       ring: 'border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10' },
@@ -135,7 +135,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
     <div className="space-y-6">
 
       {/* Welcome Banner */}
-      <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-primary to-primary opacity-[0.04] blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -316,7 +316,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
       {milestones.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <BookOpenIcon className="w-4 h-4 text-violet-400" />
+            <BookOpenIcon className="w-4 h-4 text-primary" />
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class Learning Progress</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -328,7 +328,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     <p className="text-[10px] text-muted-foreground">{m.course_name}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">
                       Term {m.current_term}
                     </p>
                     <p className="text-sm font-black text-foreground">
@@ -341,11 +341,11 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 <div>
                   <div className="flex justify-between text-[9px] font-bold mb-1">
                     <span className="text-muted-foreground truncate max-w-[70%]">{m.last_topic}</span>
-                    <span className="text-violet-400">{m.progress_pct}% done</span>
+                    <span className="text-primary">{m.progress_pct}% done</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-violet-500 rounded-full transition-all duration-700"
+                      className="h-full bg-primary rounded-full transition-all duration-700"
                       style={{ width: `${Math.max(m.progress_pct, 3)}%` }}
                     />
                   </div>
@@ -353,7 +353,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
 
                 <Link
                   href="/dashboard/parent-results"
-                  className="text-[9px] font-black text-violet-400 uppercase tracking-widest hover:underline flex items-center gap-1"
+                  className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1"
                 >
                   View full report <ArrowRightIcon className="w-3 h-3" />
                 </Link>

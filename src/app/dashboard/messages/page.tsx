@@ -254,7 +254,7 @@ export default function MessagesPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
           {/* Thread list */}
-          <div className="lg:col-span-1 bg-card border border-border rounded-none overflow-y-auto">
+          <div className="lg:col-span-1 bg-card border border-border rounded-xl overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-8"><div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
             ) : threads.length === 0 ? (
@@ -285,7 +285,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Chat area */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-none flex flex-col">
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl flex flex-col">
             {!selected ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
@@ -309,7 +309,7 @@ export default function MessagesPage() {
                         </div>
                         <div className={`max-w-[70%] space-y-1 ${isOwn ? 'items-end' : ''}`}>
                           {!isOwn && <p className="text-xs font-bold text-muted-foreground">{msg.portal_users?.full_name}</p>}
-                          <div className={`px-3 py-2 rounded-none text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-muted border border-border text-foreground'}`}>
+                          <div className={`px-3 py-2 rounded-xl text-sm ${isOwn ? 'bg-primary/90 text-white' : 'bg-muted border border-border text-foreground'}`}>
                             {msg.body}
                           </div>
                           <p className="text-[10px] text-muted-foreground">
@@ -327,9 +327,9 @@ export default function MessagesPage() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     placeholder="Type a message…"
-                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-none text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
+                    className="flex-1 bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
-                  <button onClick={sendMessage} disabled={!input.trim() || sending} className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-none transition-colors">
+                  <button onClick={sendMessage} disabled={!input.trim() || sending} className="px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-white rounded-xl transition-colors">
                     <PaperAirplaneIcon className="w-4 h-4" />
                   </button>
                 </div>

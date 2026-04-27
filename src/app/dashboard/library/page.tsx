@@ -118,7 +118,7 @@ function InAppViewer({ item, onClose }: { item: ContentItem; onClose: () => void
       className={`fixed inset-0 z-50 bg-black/95 backdrop-blur-xl ${isFullscreen ? 'p-0' : 'p-4 md:p-8'}`}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className={`relative w-full h-full bg-background border border-border overflow-hidden ${isFullscreen ? 'rounded-none' : 'rounded-lg'}`}>
+      <div className={`relative w-full h-full bg-background border border-border overflow-hidden ${isFullscreen ? 'rounded-xl' : 'rounded-lg'}`}>
         
         {/* Header Controls */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-background/95 backdrop-blur-md border-b border-border p-4 flex items-center justify-between">
@@ -402,8 +402,8 @@ export default function ContentLibraryPage() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'video':        return 'from-red-600/30 to-primary/20';
-      case 'document':     return 'from-blue-600/30 to-indigo-600/20';
-      case 'interactive':  return 'from-violet-600/30 to-purple-600/20';
+      case 'document':     return 'from-primary/30 to-indigo-600/20';
+      case 'interactive':  return 'from-primary/30 to-purple-600/20';
       case 'presentation': return 'from-emerald-600/30 to-teal-600/20';
       default:             return 'from-primary/20 to-amber-600/10';
     }
@@ -434,7 +434,7 @@ export default function ContentLibraryPage() {
       {/* Enhanced Header */}
       <div className="bg-card border-b border-border relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -485,7 +485,7 @@ export default function ContentLibraryPage() {
         
         {/* Smart Recommendations - CONTEXT AWARE */}
         {selectedCourse && (
-          <div className="mb-8 p-6 bg-gradient-to-r from-primary/10 via-card to-violet-600/5 border border-primary/30 rounded-none relative overflow-hidden group">
+          <div className="mb-8 p-6 bg-gradient-to-r from-primary/10 via-card to-primary/5 border border-primary/30 rounded-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-2xl group-hover:bg-primary/10 transition-all" />
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
@@ -537,7 +537,7 @@ export default function ContentLibraryPage() {
                   onClick={() => setActiveTab(t.key as any)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
                     active
-                      ? 'bg-violet-600 text-white'
+                      ? 'bg-primary text-white'
                       : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                   }`}
                 >
@@ -574,7 +574,7 @@ export default function ContentLibraryPage() {
         </div>
 
         {/* Enhanced Search and Filters */}
-        <div className="bg-card border border-border p-4 sm:p-6 mb-6 space-y-4 sm:space-y-6 rounded-none">
+        <div className="bg-card border border-border p-4 sm:p-6 mb-6 space-y-4 sm:space-y-6 rounded-xl">
           {/* Search Bar */}
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -687,14 +687,14 @@ export default function ContentLibraryPage() {
             {canUpload && !search && (
               <button 
                 onClick={() => setShowUpload(true)}
-                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-none transition-colors"
+                className="px-6 py-3 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-colors"
               >
                 Upload First Resource
               </button>
             )}
           </div>
         ) : viewMode === 'list' ? (
-          <div className="bg-card border border-border divide-y divide-border rounded-none">
+          <div className="bg-card border border-border divide-y divide-border rounded-xl">
             {filtered.map((item, index) => (
               <motion.button
                 key={item.id}
@@ -704,7 +704,7 @@ export default function ContentLibraryPage() {
                 onClick={() => setViewerItem(item)}
                 className="w-full text-left flex items-center gap-3 sm:gap-4 p-3 sm:p-4 hover:bg-muted/30 transition-colors min-h-[72px]"
               >
-                <div className={`shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${getTypeColor(item.content_type)} flex items-center justify-center text-white/80 rounded-none`}>
+                <div className={`shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${getTypeColor(item.content_type)} flex items-center justify-center text-white/80 rounded-xl`}>
                   {item.files?.thumbnail_url ? (
                     <img src={item.files.thumbnail_url} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -925,7 +925,7 @@ function UploadModal({ onClose, onCreated }: {
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
-        className="bg-card border border-border rounded-t-2xl sm:rounded-none w-full sm:max-w-lg max-h-[92vh] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]"
+        className="bg-card border border-border rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[92vh] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">

@@ -20,8 +20,8 @@ const Hero: React.FC = () => {
     >
       {/* Background Orbs */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-blue-600/5 blur-[100px] rounded-none" />
-        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-primary/5 blur-[80px] rounded-none" />
+        <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-primary/5 blur-[100px] rounded-xl" />
+        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-primary/5 blur-[80px] rounded-xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-6 lg:px-20">
@@ -29,7 +29,7 @@ const Hero: React.FC = () => {
           
           {/* LEFT: Copy */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card border border-border backdrop-blur-sm mb-6 rounded-none">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card border border-border backdrop-blur-sm mb-6 rounded-xl">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 STEM Excellence Nigeria
@@ -52,14 +52,14 @@ const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
               <Link
                 href="/login"
-                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-none hover:bg-primary transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
+                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:bg-primary transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
               >
                 Student Login
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 href="/school-registration"
-                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none border border-border hover:bg-muted transition-all"
+                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border border-border hover:bg-muted transition-all"
               >
                 Register School
               </Link>
@@ -68,7 +68,7 @@ const Hero: React.FC = () => {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-card border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-brand-red-600/40">
+                <div key={s.label} className="bg-card border border-border rounded-xl p-4 sm:p-5 border-t-2 border-t-brand-red-600/40">
                   <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter">{s.value}</p>
                   <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
@@ -80,15 +80,15 @@ const Hero: React.FC = () => {
           <div className="relative order-first lg:order-last">
             <div className="relative w-full aspect-square max-w-[500px] mx-auto group">
               {/* Floating Accent */}
-              <div className="absolute -top-4 -right-4 z-20 bg-card border border-border border-t-2 border-t-brand-red-600 rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
-                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-none flex items-center justify-center mb-2">
+              <div className="absolute -top-4 -right-4 z-20 bg-card border border-border border-t-2 border-t-brand-red-600 rounded-xl p-3 sm:p-5 shadow-xl backdrop-blur-md">
+                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-xl flex items-center justify-center mb-2">
                     <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </div>
                  <p className="text-foreground font-black text-[8px] sm:text-[9px] uppercase tracking-widest">Robotics Hub</p>
               </div>
 
               {/* Image with Sharp Frame */}
-              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-border shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
+              <div className="relative z-10 w-full h-full rounded-xl overflow-hidden border border-border shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 z-10" />
                 <Image
                    src="/images/landing/hero.png"
@@ -114,7 +114,7 @@ const Hero: React.FC = () => {
               </div>
 
               {/* Halo */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-blue-600/5 blur-[80px] rounded-none -z-10" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-primary/5 blur-[80px] rounded-xl -z-10" />
             </div>
           </div>
 

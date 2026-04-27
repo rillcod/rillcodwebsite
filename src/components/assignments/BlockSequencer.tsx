@@ -69,7 +69,7 @@ function detectCategory(block: string): BlockCategory {
 
 const CATEGORY_BG: Record<BlockCategory, string> = {
   control: 'bg-primary',
-  motion: 'bg-blue-500',
+  motion: 'bg-primary',
   looks: 'bg-purple-500',
   sound: 'bg-pink-500',
   event: 'bg-yellow-400',
@@ -89,7 +89,7 @@ const CATEGORY_TEXT: Record<BlockCategory, string> = {
 
 const CATEGORY_BORDER: Record<BlockCategory, string> = {
   control: 'border-orange-700',
-  motion: 'border-blue-700',
+  motion: 'border-primary',
   looks: 'border-purple-700',
   sound: 'border-pink-700',
   event: 'border-yellow-600',
@@ -99,7 +99,7 @@ const CATEGORY_BORDER: Record<BlockCategory, string> = {
 
 const CATEGORY_HOVER: Record<BlockCategory, string> = {
   control: 'hover:bg-primary',
-  motion: 'hover:bg-blue-600',
+  motion: 'hover:bg-primary',
   looks: 'hover:bg-purple-600',
   sound: 'hover:bg-pink-600',
   event: 'hover:bg-yellow-500',
@@ -152,7 +152,7 @@ function PoolBlock({ block, category, dimmed, disabled, onClick }: PoolBlockProp
       title={`Add "${block}" to sequence`}
       className={[
         'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-mono font-semibold',
-        'border-2 rounded-none select-none transition-all duration-150',
+        'border-2 rounded-xl select-none transition-all duration-150',
         bg,
         text,
         border,
@@ -212,7 +212,7 @@ function SequenceBlock({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={[
-        'flex items-center gap-2 px-3 py-2 border-2 rounded-none',
+        'flex items-center gap-2 px-3 py-2 border-2 rounded-xl',
         'transition-all duration-150 select-none',
         bg,
         text,
@@ -226,7 +226,7 @@ function SequenceBlock({
       {/* Index badge */}
       <span
         className={[
-          'flex-shrink-0 w-6 h-6 rounded-none flex items-center justify-center',
+          'flex-shrink-0 w-6 h-6 rounded-xl flex items-center justify-center',
           'text-xs font-bold bg-black/20',
         ].join(' ')}
       >
@@ -258,7 +258,7 @@ function SequenceBlock({
             onClick={onMoveUp}
             disabled={index === 0}
             title="Move up"
-            className="w-6 h-6 flex items-center justify-center rounded-none bg-black/20 hover:bg-black/40 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-xl bg-black/20 hover:bg-black/40 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
               <path d="M8 4l-5 6h10L8 4z" />
@@ -269,7 +269,7 @@ function SequenceBlock({
             onClick={onMoveDown}
             disabled={index === total - 1}
             title="Move down"
-            className="w-6 h-6 flex items-center justify-center rounded-none bg-black/20 hover:bg-black/40 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-xl bg-black/20 hover:bg-black/40 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
               <path d="M8 12l5-6H3l5 6z" />
@@ -279,7 +279,7 @@ function SequenceBlock({
             type="button"
             onClick={onRemove}
             title="Remove block"
-            className="w-6 h-6 flex items-center justify-center rounded-none bg-black/20 hover:bg-red-600 transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-xl bg-black/20 hover:bg-red-600 transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -404,7 +404,7 @@ export default function BlockSequencer({
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col gap-0 border-2 border-border rounded-none overflow-hidden bg-background">
+    <div className="flex flex-col gap-0 border-2 border-border rounded-xl overflow-hidden bg-background">
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                               */}
       {/* ------------------------------------------------------------------ */}
@@ -424,7 +424,7 @@ export default function BlockSequencer({
           <button
             type="button"
             onClick={handleClearAll}
-            className="text-xs font-semibold text-muted-foreground hover:text-red-400 transition-colors uppercase tracking-wider px-2 py-1 border border-border rounded-none hover:border-red-400"
+            className="text-xs font-semibold text-muted-foreground hover:text-red-400 transition-colors uppercase tracking-wider px-2 py-1 border border-border rounded-xl hover:border-red-400"
           >
             Clear All
           </button>
@@ -449,7 +449,7 @@ export default function BlockSequencer({
                 <span
                   className={[
                     'flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-1',
-                    'border rounded-none self-center',
+                    'border rounded-xl self-center',
                     CATEGORY_BG[cat],
                     CATEGORY_TEXT[cat],
                     CATEGORY_BORDER[cat],
@@ -492,7 +492,7 @@ export default function BlockSequencer({
           <div
             className={[
               'flex flex-col items-center justify-center gap-2 py-10',
-              'border-2 border-dashed border-border rounded-none',
+              'border-2 border-dashed border-border rounded-xl',
               readOnly ? '' : 'text-muted-foreground',
             ].join(' ')}
           >

@@ -699,7 +699,7 @@ function LessonPlansPageInner() {
   if (authLoading || profileLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -709,7 +709,7 @@ function LessonPlansPageInner() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <DocumentTextIcon className="w-16 h-16 text-card-foreground/10" />
         <p className="text-card-foreground/50 text-lg font-semibold">Teacher or admin access required</p>
-        <Link href="/dashboard" className="text-sm text-violet-400 font-bold hover:underline">Back to dashboard</Link>
+        <Link href="/dashboard" className="text-sm text-primary font-bold hover:underline">Back to dashboard</Link>
       </div>
     );
   }
@@ -729,14 +729,14 @@ function LessonPlansPageInner() {
 
       {/* Header */}
       <div className="bg-card border border-white/[0.08] rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <DocumentTextIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-black text-violet-400 uppercase tracking-widest">
+              <DocumentTextIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-black text-primary uppercase tracking-widest">
                 {filterCourseId ? `Plans for ${courses.find(c => c.id === filterCourseId)?.title}` : 'Term Lesson Plans'}
               </span>
             </div>
@@ -769,7 +769,7 @@ function LessonPlansPageInner() {
               </button>
               <button
                 onClick={() => { setShowForm(true); }}
-                className="flex items-center gap-2 px-6 py-3 min-h-[44px] bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20"
+                className="flex items-center gap-2 px-6 py-3 min-h-[44px] bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/20"
               >
                 <PlusIcon className="w-4 h-4" /> New Plan
               </button>
@@ -784,13 +784,13 @@ function LessonPlansPageInner() {
           <div className="relative flex-1 sm:max-w-80">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
-              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 min-h-[44px]" />
           </div>
           <select
             value={filterProgramId}
             onChange={e => setFilterProgramId(e.target.value)}
             aria-label="Filter by programme"
-            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]"
+            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]"
           >
             <option value="">All programmes</option>
             {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -889,7 +889,7 @@ function LessonPlansPageInner() {
       {/* Plans Grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
@@ -912,14 +912,14 @@ function LessonPlansPageInner() {
                   setFilterStatus('');
                   setSearch('');
                 }}
-                className="text-violet-400 text-sm font-bold hover:underline px-3 py-1.5 border border-violet-500/30 rounded-lg min-h-[44px]"
+                className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg min-h-[44px]"
               >
                 Clear all filters
               </button>
             )}
             <Link
               href="/dashboard/curriculum"
-              className="px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-500/20 flex items-center gap-2"
+              className="px-6 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
             >
               <RocketLaunchIcon className="w-4 h-4" />
               Implement from Syllabus
@@ -944,7 +944,7 @@ function LessonPlansPageInner() {
             });
             return (
               <div key={plan.id} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden group flex flex-col">
-                <Link href={`/dashboard/lesson-plans/${plan.id}`} className="block p-5 hover:border-violet-500/30 transition-all flex-1">
+                <Link href={`/dashboard/lesson-plans/${plan.id}`} className="block p-5 hover:border-primary/30 transition-all flex-1">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex-1 min-w-0">
                       {/* Course name is the primary identifier — term + class are secondary context */}
@@ -957,13 +957,13 @@ function LessonPlansPageInner() {
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
                         {plan.curriculum_version_id && (
-                          <span className="text-xs text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/30 flex items-center gap-1">
+                          <span className="text-xs text-violet-300 bg-primary/15 px-2 py-0.5 rounded-full border border-primary/30 flex items-center gap-1">
                             <SparklesIcon className="w-3 h-3" />
                             From Syllabus
                           </span>
                         )}
                         {(plan.version ?? 1) > 1 && (
-                          <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
+                          <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
                         )}
                         {hasStrictRouteBadge && (
                           <span className="text-xs text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
@@ -984,7 +984,7 @@ function LessonPlansPageInner() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
-                    <AcademicCapIcon className="w-3.5 h-3.5 text-violet-400" />
+                    <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
                     <span className="text-xs text-card-foreground/30">
                       {plan.plan_data && typeof plan.plan_data === 'object' && 'weeks' in plan.plan_data
                         ? `${(plan.plan_data.weeks as unknown[]).length} weeks`
@@ -999,7 +999,7 @@ function LessonPlansPageInner() {
                 <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] bg-black/[0.06]">
                   <button
                     onClick={() => openEdit(plan)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-violet-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-violet-500/10 min-h-[44px]"
+                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-primary/10 min-h-[44px]"
                   >
                     <PencilIcon className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -1024,10 +1024,10 @@ function LessonPlansPageInner() {
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08] shrink-0">
               <div className="min-w-0">
                 <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
-                  <SparklesIcon className="w-5 h-5 text-violet-400" /> New Lesson Plan
+                  <SparklesIcon className="w-5 h-5 text-primary" /> New Lesson Plan
                 </h3>
                 {qpCourseId && prefilledFromUrl && (
-                  <p className="text-[10px] text-violet-400 uppercase tracking-widest font-black mt-1">
+                  <p className="text-[10px] text-primary uppercase tracking-widest font-black mt-1">
                     ← Pre-filled from Syllabus
                   </p>
                 )}
@@ -1049,7 +1049,7 @@ function LessonPlansPageInner() {
                   <select
                     value={form.program_id}
                     onChange={e => setForm(f => ({ ...f, program_id: e.target.value, course_id: '', curriculum_version_id: '' }))}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-card-foreground/60 focus:outline-none focus:border-violet-500/50 min-h-[40px]"
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-card-foreground/60 focus:outline-none focus:border-primary/50 min-h-[40px]"
                   >
                     <option value="">All programmes</option>
                     {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -1059,7 +1059,7 @@ function LessonPlansPageInner() {
                   value={form.course_id}
                   disabled={!!form.program_id && programCoursesLoading}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px] disabled:opacity-50"
                 >
                   <option value="">
                     {form.program_id && programCoursesLoading ? 'Loading…' : 'Select course…'}
@@ -1102,7 +1102,7 @@ function LessonPlansPageInner() {
                       onClick={() => setForm(f => ({ ...f, term: t }))}
                       className={`flex-1 py-2.5 rounded-xl text-xs font-black border transition-all min-h-[44px] ${
                         form.term === t
-                          ? 'bg-violet-600 border-violet-500 text-white'
+                          ? 'bg-primary border-primary text-white'
                           : 'bg-white/5 border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/10'
                       }`}
                     >
@@ -1113,7 +1113,7 @@ function LessonPlansPageInner() {
                 {form.term && form.term_start && form.term_end && (
                   <p className="text-[11px] text-card-foreground/40">
                     {new Date(form.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(form.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    <span className="ml-2 text-violet-400">· {form.academic_year}</span>
+                    <span className="ml-2 text-primary">· {form.academic_year}</span>
                   </p>
                 )}
               </div>
@@ -1128,7 +1128,7 @@ function LessonPlansPageInner() {
                 </div>
                 {isAdmin && schools.length > 0 && (
                   <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
                     <option value="">All schools</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -1137,7 +1137,7 @@ function LessonPlansPageInner() {
                   value={form.class_id}
                   onChange={e => { setForm(f => ({ ...f, class_id: e.target.value })); if (e.target.value) setAutoClassMatch(false); }}
                   disabled={isAdmin && !form.school_id}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px] disabled:opacity-50"
                 >
                   <option value="">{isAdmin && !form.school_id ? 'Select school first…' : '— No class (plan for all) —'}</option>
                   {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1155,7 +1155,7 @@ function LessonPlansPageInner() {
                   <div>
                     <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Academic Year</label>
                     <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value, term_start: '', term_end: '' }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
                       {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
@@ -1164,12 +1164,12 @@ function LessonPlansPageInner() {
                     <div>
                       <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
                       <input type="date" value={form.term_start} onChange={e => setForm(f => ({ ...f, term_start: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
                       <input type="date" value={form.term_end} onChange={e => setForm(f => ({ ...f, term_end: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
                     </div>
                   </div>
                   {/* Syllabus picker — only when multiple options */}
@@ -1177,7 +1177,7 @@ function LessonPlansPageInner() {
                     <div>
                       <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Syllabus version</label>
                       <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
                         <option value="">— Start blank —</option>
                         {visibleCurricula.map(c => (
                           <option key={c.id} value={c.id}>
@@ -1193,7 +1193,7 @@ function LessonPlansPageInner() {
                     <div className="flex items-center gap-3">
                       <input type="range" min="1" max="5" value={form.sessions_per_week}
                         onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                        className="flex-1 accent-violet-500" />
+                        className="flex-1 accent-primary" />
                       <span className="w-8 text-center font-black text-card-foreground text-sm">{form.sessions_per_week}</span>
                     </div>
                   </div>
@@ -1207,7 +1207,7 @@ function LessonPlansPageInner() {
                 Cancel
               </button>
               <button onClick={save} disabled={submitting || !form.term || !form.course_id || !form.term_start || !form.term_end}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
                 <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Creating…' : 'Create Plan'}
               </button>
             </div>
@@ -1279,7 +1279,7 @@ function LessonPlansPageInner() {
           <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl rounded-2xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
               <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
-                <PencilIcon className="w-5 h-5 text-violet-400" /> Edit Lesson Plan
+                <PencilIcon className="w-5 h-5 text-primary" /> Edit Lesson Plan
               </h3>
               <button onClick={() => setEditingPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px]">
                 <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
@@ -1290,7 +1290,7 @@ function LessonPlansPageInner() {
               <div>
                 <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Status</label>
                 <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]">
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
                   <option value="archived">Archived</option>
@@ -1301,12 +1301,12 @@ function LessonPlansPageInner() {
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
                   <input type="date" value={editForm.term_start} onChange={e => setEditForm(f => ({ ...f, term_start: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
                   <input type="date" value={editForm.term_end} onChange={e => setEditForm(f => ({ ...f, term_end: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-violet-500/50 min-h-[44px]" />
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
                 </div>
               </div>
 
@@ -1315,7 +1315,7 @@ function LessonPlansPageInner() {
                 <div className="flex items-center gap-3">
                   <input type="range" min="1" max="5" value={editForm.sessions_per_week}
                     onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                    className="flex-1 accent-violet-500" />
+                    className="flex-1 accent-primary" />
                   <span className="w-8 text-center font-black text-card-foreground text-sm">{editForm.sessions_per_week}</span>
                 </div>
               </div>
@@ -1327,7 +1327,7 @@ function LessonPlansPageInner() {
                 Cancel
               </button>
               <button onClick={saveEdit} disabled={savingEdit}
-                className="flex-1 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
                 {savingEdit ? 'Saving…' : 'Save Changes'}
               </button>
             </div>
@@ -1341,7 +1341,7 @@ function LessonPlansPageInner() {
 // ─── Filter chip row — used for Term / Class / Status quick-filters ──────────
 type ChipTone = 'violet' | 'cyan' | 'emerald';
 const CHIP_TONE: Record<ChipTone, { active: string; idle: string }> = {
-  violet:  { active: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
+  violet:  { active: 'bg-primary/20 text-violet-300 border-primary/40',
              idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
   cyan:    { active: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
              idle:   'border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/5' },
@@ -1395,7 +1395,7 @@ export default function LessonPlansPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <LessonPlansPageInner />

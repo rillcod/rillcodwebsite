@@ -123,7 +123,7 @@ export default function ProgressionSettingsHomePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -155,7 +155,7 @@ export default function ProgressionSettingsHomePage() {
               href={card.href}
               className="rounded-2xl border border-border bg-card p-4 hover:bg-muted/20 transition-colors"
             >
-              <div className="w-9 h-9 rounded-lg border border-violet-500/30 bg-violet-500/10 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg border border-primary/30 bg-primary/10 flex items-center justify-center">
                 <Icon className="w-5 h-5 text-violet-300" />
               </div>
               <p className="text-sm font-black text-foreground mt-3">{card.title}</p>

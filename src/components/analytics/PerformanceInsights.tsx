@@ -45,13 +45,13 @@ export function PerformanceInsights() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-lg shadow-blue-500/5 bg-card dark:bg-slate-900">
+                <Card className="border-none shadow-lg shadow-primary/5 bg-card dark:bg-slate-900">
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start">
                             <div className="p-3 bg-blue-50 rounded-2xl">
-                                <Brain className="w-5 h-5 text-blue-600" />
+                                <Brain className="w-5 h-5 text-primary" />
                             </div>
-                            <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-100">Top 5%</Badge>
+                            <Badge variant="outline" className="text-primary bg-blue-50 border-blue-100">Top 5%</Badge>
                         </div>
                         <div className="mt-4">
                             <p className="text-2xl font-black text-foreground dark:text-slate-100">850</p>
@@ -144,10 +144,10 @@ export function PerformanceInsights() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 <span>Web Engineering</span>
-                                <span className="text-blue-600">78%</span>
+                                <span className="text-primary">78%</span>
                             </div>
                             <div className="h-2 w-full bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: '78%' }} />
+                                <div className="h-full bg-primary rounded-full" style={{ width: '78%' }} />
                             </div>
                         </div>
 

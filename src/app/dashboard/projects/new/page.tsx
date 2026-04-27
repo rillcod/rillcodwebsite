@@ -97,7 +97,7 @@ const GRADING_MODES = [
         label: 'Rubric-Based',
         icon: ClipboardDocumentListIcon,
         desc: 'Define grading criteria with individual point values. Most structured method.',
-        color: 'border-violet-500/40 bg-violet-500/10 text-violet-300',
+        color: 'border-primary/40 bg-primary/10 text-violet-300',
     },
 ];
 
@@ -108,7 +108,7 @@ const STEPS = [
     { n: 4, label: 'Review',     icon: RocketLaunchIcon           },
 ];
 
-const INPUT    = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors';
+const INPUT    = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors';
 const LABEL    = 'block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1.5';
 const CARD     = 'bg-white/[0.02] border border-white/[0.06] p-6';
 
@@ -320,7 +320,7 @@ export default function NewProjectActivityPage() {
         }
     }
 
-    if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
     if (!isStaff) return <div className="min-h-screen bg-background flex items-center justify-center text-white/40">Access denied</div>;
 
     const filteredStudents = students.filter(s => !studentSearch || (s.full_name || '').toLowerCase().includes(studentSearch.toLowerCase()));
@@ -351,7 +351,7 @@ export default function NewProjectActivityPage() {
                                     <button
                                         onClick={() => done && setStep(s.n)}
                                         className={`flex items-center gap-2 px-3 py-2 transition-all text-[10px] font-black uppercase tracking-widest border-b-2 ${
-                                            active ? 'border-violet-500 text-violet-400' :
+                                            active ? 'border-primary text-primary' :
                                             done   ? 'border-emerald-500/60 text-emerald-400 cursor-pointer hover:text-emerald-300' :
                                                      'border-transparent text-white/20 cursor-default'
                                         }`}
@@ -371,7 +371,7 @@ export default function NewProjectActivityPage() {
                     <div className="flex items-center gap-3">
                         <span className="text-[10px] font-black text-white/20 uppercase tracking-widest md:hidden">Step {step}/4</span>
                         <button onClick={() => { setAiOpen(true); setAiError(''); }}
-                            className="flex items-center gap-2 px-3 py-2 bg-violet-600/20 border border-violet-500/40 text-violet-300 text-[10px] font-black uppercase tracking-widest hover:bg-violet-600/30 transition-all">
+                            className="flex items-center gap-2 px-3 py-2 bg-primary/20 border border-primary/40 text-violet-300 text-[10px] font-black uppercase tracking-widest hover:bg-primary/30 transition-all">
                             <SparklesIcon className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Generate with AI</span>
                             <span className="sm:hidden">AI</span>
@@ -383,10 +383,10 @@ export default function NewProjectActivityPage() {
             {/* ── AI Generation Panel ────────────────────────────────────────── */}
             {aiOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className="w-full max-w-lg bg-[#0d0d18] border border-violet-500/30 shadow-2xl">
-                        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-violet-500/5">
-                            <div className="w-8 h-8 bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
-                                <SparklesIcon className="w-4 h-4 text-violet-400" />
+                    <div className="w-full max-w-lg bg-[#0d0d18] border border-primary/30 shadow-2xl">
+                        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-primary/5">
+                            <div className="w-8 h-8 bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                                <SparklesIcon className="w-4 h-4 text-primary" />
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-black text-white uppercase tracking-widest">AI Project Generator</p>
@@ -403,7 +403,7 @@ export default function NewProjectActivityPage() {
                                     onChange={e => setAiPrompt(e.target.value)}
                                     rows={4}
                                     placeholder={"e.g. Build a weather app using Python that fetches data from an API and displays temperature and humidity for Nigerian cities\n\nor: Create a simple HTML/CSS portfolio webpage for JSS3 students\n\nor: Arduino LED traffic light project for beginners"}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors resize-none"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors resize-none"
                                     autoFocus
                                 />
                             </div>
@@ -412,7 +412,7 @@ export default function NewProjectActivityPage() {
                                 <span className="text-[9px] font-black text-white/20 uppercase tracking-widest self-center">Try:</span>
                                 {['Python calculator app', 'HTML portfolio page', 'Arduino LED project', 'AI chatbot with Python', 'Scratch animation story'].map(ex => (
                                     <button key={ex} onClick={() => setAiPrompt(ex)}
-                                        className="text-[9px] text-violet-400/70 border border-violet-500/20 px-2 py-1 hover:border-violet-500/50 hover:text-violet-300 transition-all">
+                                        className="text-[9px] text-primary/70 border border-primary/20 px-2 py-1 hover:border-primary/50 hover:text-violet-300 transition-all">
                                         {ex}
                                     </button>
                                 ))}
@@ -431,7 +431,7 @@ export default function NewProjectActivityPage() {
                                     Cancel
                                 </button>
                                 <button onClick={handleAiGenerate} disabled={!aiPrompt.trim() || aiLoading}
-                                    className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                    className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
                                     {aiLoading
                                         ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Generating...</>
                                         : <><SparklesIcon className="w-3.5 h-3.5" /> Generate Activity</>
@@ -446,7 +446,7 @@ export default function NewProjectActivityPage() {
 
             {/* ── Progress bar ──────────────────────────────────────────────── */}
             <div className="h-0.5 bg-white/5">
-                <div className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-500" style={{ width: `${(step / 4) * 100}%` }} />
+                <div className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-500" style={{ width: `${(step / 4) * 100}%` }} />
             </div>
 
             {/* ── Error banner ──────────────────────────────────────────────── */}
@@ -500,9 +500,9 @@ export default function NewProjectActivityPage() {
                                             <label className={LABEL}>Tags</label>
                                             <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
                                                 {tagList.map(t => (
-                                                    <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/20 border border-violet-500/40 text-violet-300 text-[10px] font-black">
+                                                    <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-primary/20 border border-primary/40 text-violet-300 text-[10px] font-black">
                                                         {t}
-                                                        <button type="button" onClick={() => setTagList(prev => prev.filter(x => x !== t))} className="text-violet-400/50 hover:text-rose-400 transition-colors leading-none ml-0.5">×</button>
+                                                        <button type="button" onClick={() => setTagList(prev => prev.filter(x => x !== t))} className="text-primary/50 hover:text-rose-400 transition-colors leading-none ml-0.5">×</button>
                                                     </span>
                                                 ))}
                                                 {tagList.length === 0 && <span className="text-[10px] text-white/20 italic">No tags yet — pick below or type a custom one</span>}
@@ -513,7 +513,7 @@ export default function NewProjectActivityPage() {
                                                     return (
                                                         <button key={t} type="button"
                                                             onClick={() => setTagList(prev => active ? prev.filter(x => x !== t) : [...prev, t])}
-                                                            className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${active ? 'bg-violet-500/20 border-violet-500/40 text-violet-300' : 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:border-white/20 hover:text-white/60'}`}>
+                                                            className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${active ? 'bg-primary/20 border-primary/40 text-violet-300' : 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:border-white/20 hover:text-white/60'}`}>
                                                             {active ? '✓ ' : ''}{t}
                                                         </button>
                                                     );
@@ -530,7 +530,7 @@ export default function NewProjectActivityPage() {
                                                         }
                                                     }}
                                                     placeholder="Add custom tag (Enter or comma to add)"
-                                                    className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors"
+                                                    className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 text-xs text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors"
                                                 />
                                                 <button type="button"
                                                     onClick={() => {
@@ -698,24 +698,24 @@ export default function NewProjectActivityPage() {
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
                                                 <label className={`${LABEL} mb-0`}>Rubric Criteria</label>
-                                                <p className="text-[10px] text-white/20 mt-0.5">Total: <span className="text-violet-400 font-black">{rubricTotal} pts</span></p>
+                                                <p className="text-[10px] text-white/20 mt-0.5">Total: <span className="text-primary font-black">{rubricTotal} pts</span></p>
                                             </div>
                                             <button type="button" onClick={addCriterion}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-600/30 transition-all">
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/30 transition-all">
                                                 <PlusIcon className="w-3 h-3" /> Add Criterion
                                             </button>
                                         </div>
                                         <div className="space-y-3">
                                             {rubric.map((c, i) => (
-                                                <div key={c.id} className="bg-violet-500/5 border border-violet-500/20 p-4 space-y-2">
+                                                <div key={c.id} className="bg-primary/5 border border-primary/20 p-4 space-y-2">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-[9px] font-black text-violet-400/60 uppercase tracking-widest w-4 flex-shrink-0">#{i + 1}</span>
+                                                        <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest w-4 flex-shrink-0">#{i + 1}</span>
                                                         <input value={c.name} onChange={e => updateCriterion(c.id, 'name', e.target.value)}
                                                             placeholder="Criterion name (e.g. Code Quality)"
-                                                            className="flex-1 bg-transparent border-b border-white/10 text-sm font-black text-white focus:outline-none focus:border-violet-500 pb-0.5 transition-colors" />
+                                                            className="flex-1 bg-transparent border-b border-white/10 text-sm font-black text-white focus:outline-none focus:border-primary pb-0.5 transition-colors" />
                                                         <div className="flex items-center gap-1 flex-shrink-0">
                                                             <input type="number" min="1" max="200" value={c.maxPts} onChange={e => updateCriterion(c.id, 'maxPts', parseInt(e.target.value) || 0)}
-                                                                className="w-14 text-center bg-violet-500/10 border border-violet-500/30 text-violet-300 text-sm font-black focus:outline-none py-0.5" />
+                                                                className="w-14 text-center bg-primary/10 border border-primary/30 text-violet-300 text-sm font-black focus:outline-none py-0.5" />
                                                             <span className="text-[10px] text-white/30 font-bold">pts</span>
                                                         </div>
                                                         {rubric.length > 1 && (
@@ -777,7 +777,7 @@ export default function NewProjectActivityPage() {
                                             { key: 'class',  label: 'Specific Class', sub: 'Only students in a chosen class can see this', icon: '📚' },
                                         ] as const).map(opt => (
                                             <button key={opt.key} type="button" onClick={() => setVisibilityType(opt.key)}
-                                                className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${visibilityType === opt.key ? 'bg-violet-500/10 border-violet-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
+                                                className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${visibilityType === opt.key ? 'bg-primary/10 border-primary/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
                                                 <span className="text-lg leading-none flex-shrink-0">{opt.icon}</span>
                                                 <div>
                                                     <p className={`text-xs font-black uppercase tracking-widest ${visibilityType === opt.key ? 'text-violet-300' : 'text-white/50'}`}>{opt.label}</p>
@@ -964,8 +964,8 @@ export default function NewProjectActivityPage() {
                                 </div>
 
                                 {/* Summary card */}
-                                <div className="bg-[#0d0d18] border border-violet-500/20 overflow-hidden">
-                                    <div className="h-1 bg-gradient-to-r from-violet-600 to-indigo-500" />
+                                <div className="bg-[#0d0d18] border border-primary/20 overflow-hidden">
+                                    <div className="h-1 bg-gradient-to-r from-primary to-indigo-500" />
                                     <div className="p-6 space-y-5">
                                         <div className="flex items-start justify-between gap-4">
                                             <div>
@@ -1021,12 +1021,12 @@ export default function NewProjectActivityPage() {
                                                 <p className={LABEL}>Grading Rubric</p>
                                                 <div className="space-y-1.5">
                                                     {rubric.map(c => (
-                                                        <div key={c.id} className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 px-3 py-2">
+                                                        <div key={c.id} className="flex items-center justify-between bg-primary/5 border border-primary/20 px-3 py-2">
                                                             <div>
                                                                 <p className="text-xs font-black text-white">{c.name || 'Unnamed'}</p>
                                                                 {c.desc && <p className="text-[10px] text-white/30">{c.desc}</p>}
                                                             </div>
-                                                            <span className="text-sm font-black text-violet-400 flex-shrink-0 ml-4">{c.maxPts} pts</span>
+                                                            <span className="text-sm font-black text-primary flex-shrink-0 ml-4">{c.maxPts} pts</span>
                                                         </div>
                                                     ))}
                                                     <div className="flex items-center justify-between px-3 py-1.5">
@@ -1043,7 +1043,7 @@ export default function NewProjectActivityPage() {
                                                 <p className={LABEL}>Tags</p>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {tagList.map(t => (
-                                                        <span key={t} className="text-[9px] font-bold px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400">{t}</span>
+                                                        <span key={t} className="text-[9px] font-bold px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary">{t}</span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1064,7 +1064,7 @@ export default function NewProjectActivityPage() {
                                 {/* Publish options */}
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <button type="button" onClick={() => handlePublish(false)} disabled={saving}
-                                        className="flex-1 flex items-center justify-center gap-2 py-4 bg-violet-600 hover:bg-violet-500 text-white font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                                        className="flex-1 flex items-center justify-center gap-2 py-4 bg-primary hover:bg-primary text-white font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
                                         Publish Activity
                                     </button>
@@ -1089,7 +1089,7 @@ export default function NewProjectActivityPage() {
                                     <Link href="/dashboard/projects" className="text-white/30 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors">Cancel</Link>
                                 )}
                                 <button type="button" onClick={() => { if (canProceed()) { setError(''); setStep(s => s + 1); } else { setError(step === 1 ? 'Enter a title (min 3 chars) to continue' : 'Select at least one submission type'); } }}
-                                    className={`flex items-center gap-2 px-6 py-2.5 font-black uppercase tracking-widest text-sm transition-all ${canProceed() ? 'bg-violet-600 hover:bg-violet-500 text-white' : 'bg-white/5 border border-white/10 text-white/30 cursor-not-allowed'}`}>
+                                    className={`flex items-center gap-2 px-6 py-2.5 font-black uppercase tracking-widest text-sm transition-all ${canProceed() ? 'bg-primary hover:bg-primary text-white' : 'bg-white/5 border border-white/10 text-white/30 cursor-not-allowed'}`}>
                                     Next: {STEPS[step]?.label} <ChevronRightIcon className="w-3.5 h-3.5" />
                                 </button>
                             </div>

@@ -62,7 +62,7 @@ export default function EditExamPage() {
     finally { setSubmitting(false); }
   }
 
-  if (authLoading || loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (authLoading || loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!canManage) return <div className="p-6 text-center text-card-foreground/50">Access denied</div>;
 
   return (
@@ -72,7 +72,7 @@ export default function EditExamPage() {
           <ArrowLeftIcon className="w-5 h-5 text-card-foreground/50" />
         </Link>
         <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-          <AcademicCapIcon className="w-7 h-7 text-blue-400" /> Edit Exam
+          <AcademicCapIcon className="w-7 h-7 text-primary" /> Edit Exam
         </h1>
       </div>
 
@@ -80,7 +80,7 @@ export default function EditExamPage() {
         <div>
           <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Course</label>
           <select value={form.course_id} onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50">
+            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
             <option value="">Select a course…</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
@@ -88,12 +88,12 @@ export default function EditExamPage() {
         <div>
           <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Title</label>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required
-            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50" />
+            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
         </div>
         <div>
           <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Description</label>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
-            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50 resize-none" />
+            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 resize-none" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           {[
@@ -105,7 +105,7 @@ export default function EditExamPage() {
             <div key={f.key}>
               <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">{f.label}</label>
               <input type="number" min={1} value={(form as any)[f.key]} onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50" />
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
             </div>
           ))}
         </div>
@@ -117,7 +117,7 @@ export default function EditExamPage() {
           ].map(t => (
             <label key={t.key} className="flex items-center gap-3 cursor-pointer">
               <div onClick={() => setForm(f => ({ ...f, [t.key]: !(f as any)[t.key] }))}
-                className={`w-10 h-5 rounded-full transition-all relative ${(form as any)[t.key] ? 'bg-blue-500' : 'bg-white/10'}`}>
+                className={`w-10 h-5 rounded-full transition-all relative ${(form as any)[t.key] ? 'bg-primary' : 'bg-white/10'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-card shadow transition-transform ${(form as any)[t.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
               <span className="text-sm text-card-foreground/70">{t.label}</span>
@@ -127,7 +127,7 @@ export default function EditExamPage() {
         <div className="flex gap-3 pt-2">
           <Link href={`/dashboard/exams/${id}`} className="flex-1 py-2.5 text-center bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all">Cancel</Link>
           <button type="submit" disabled={submitting}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all">
             <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Saving…' : 'Save Changes'}
           </button>
         </div>

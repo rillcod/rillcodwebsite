@@ -26,7 +26,7 @@ export default function LogoFallback({ size = 'md', showText = true, className =
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
-      <div className={`${sizeClasses[size]} rounded-lg overflow-hidden shadow-lg flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center`}>
+      <div className={`${sizeClasses[size]} rounded-lg overflow-hidden shadow-lg flex-shrink-0 bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center`}>
         <span className={`text-white font-bold ${iconSizes[size]}`}>RA</span>
       </div>
       {showText && (

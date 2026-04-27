@@ -92,7 +92,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             )}
@@ -176,7 +176,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   onClick={() => handlePageChange(page)}
                   className={`px-3 py-1 text-sm font-medium rounded-md ${
                     currentPage === page
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary text-white'
                       : 'text-muted-foreground bg-card border border-border hover:bg-background'
                   }`}
                 >

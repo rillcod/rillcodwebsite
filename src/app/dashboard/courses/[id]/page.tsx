@@ -293,7 +293,7 @@ export default function CourseDetailPage() {
         {/* Back + Header */}
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()}
-            className="p-2 rounded-none bg-card shadow-sm hover:bg-muted border border-border transition-colors">
+            className="p-2 rounded-xl bg-card shadow-sm hover:bg-muted border border-border transition-colors">
             <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
           </button>
           <div className="flex-1">
@@ -305,7 +305,7 @@ export default function CourseDetailPage() {
           </div>
           {canEdit && (
             <Link href={`/dashboard/courses/${id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 border border-border rounded-none text-sm font-bold transition-colors">
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 border border-border rounded-xl text-sm font-bold transition-colors">
               <PencilIcon className="w-4 h-4" /> Edit
             </Link>
           )}
@@ -317,7 +317,7 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Course overview */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-4">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-4">
               <h2 className="font-bold text-foreground">About This Course</h2>
               {course.description && (
                 <p className="text-sm text-muted-foreground leading-relaxed">{course.description}</p>
@@ -340,10 +340,10 @@ export default function CourseDetailPage() {
 
             {/* Programme */}
             {prog && (
-              <div className="bg-card shadow-sm border border-border rounded-none p-6">
+              <div className="bg-card shadow-sm border border-border rounded-xl p-6">
                 <h2 className="font-bold text-foreground mb-3">Programme</h2>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-none bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <AcademicCapIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
@@ -362,7 +362,7 @@ export default function CourseDetailPage() {
             )}
 
             {/* Lessons */}
-            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
               <div className="p-5 border-b border-border flex items-center justify-between">
                 <h2 className="font-bold text-foreground">Lessons</h2>
                 <span className="text-xs text-muted-foreground">{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</span>
@@ -381,7 +381,7 @@ export default function CourseDetailPage() {
                         <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {i + 1}
                         </span>
-                        <div className="w-8 h-8 rounded-none bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
                           <Icon className="w-4 h-4 text-cyan-400" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -392,7 +392,7 @@ export default function CourseDetailPage() {
                           <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                         )}
                         <Link href={`/dashboard/lessons/${lesson.id}`}
-                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-none transition-colors">
+                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors">
                           <PlayIcon className="w-3 h-3" /> Open
                         </Link>
                       </div>
@@ -403,7 +403,7 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Live sessions */}
-            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
               <div className="p-5 border-b border-border flex items-center justify-between">
                 <h2 className="font-bold text-foreground">Live Sessions</h2>
                 <span className="text-xs text-muted-foreground">{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
@@ -422,7 +422,7 @@ export default function CourseDetailPage() {
                     const isJoinable = session.status === 'live' || session.status === 'scheduled';
                     return (
                       <div key={session.id} className="flex items-center gap-4 px-5 py-4 hover:bg-card shadow-sm transition-colors">
-                        <div className="w-8 h-8 rounded-none bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <CalendarIcon className="w-4 h-4 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -434,14 +434,14 @@ export default function CourseDetailPage() {
                         <button
                           onClick={() => handleJoinSession(session.id)}
                           disabled={!isJoinable}
-                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${isJoinable ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-card shadow-sm cursor-not-allowed'}`}
+                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${isJoinable ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-card shadow-sm cursor-not-allowed'}`}
                         >
                           <PlayIcon className="w-3 h-3" /> Join
                         </button>
                         {canEdit && (
                           <button
                             onClick={() => loadSessionManagement(session.id)}
-                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${managedSessionId === session.id ? 'text-primary bg-primary/20' : 'text-primary bg-primary/10 hover:bg-primary/20'}`}
+                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${managedSessionId === session.id ? 'text-primary bg-primary/20' : 'text-primary bg-primary/10 hover:bg-primary/20'}`}
                           >
                             Manage
                           </button>
@@ -470,7 +470,7 @@ export default function CourseDetailPage() {
                     <div className="text-xs text-muted-foreground">Loading session tools...</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-4">
+                      <div className="bg-card shadow-sm border border-border rounded-xl p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-foreground">Breakout Rooms</p>
                           <span className="text-xs text-muted-foreground">{rooms.length}</span>
@@ -480,7 +480,7 @@ export default function CourseDetailPage() {
                         ) : (
                           <div className="space-y-2">
                             {rooms.map((room) => (
-                              <div key={room.id} className="flex items-center justify-between text-xs text-muted-foreground bg-card shadow-sm rounded-none px-3 py-2">
+                              <div key={room.id} className="flex items-center justify-between text-xs text-muted-foreground bg-card shadow-sm rounded-xl px-3 py-2">
                                 <span>{room.name}</span>
                                 <span className="text-muted-foreground">{room.status}</span>
                               </div>
@@ -492,25 +492,25 @@ export default function CourseDetailPage() {
                             value={roomForm.name}
                             onChange={(e) => setRoomForm((s) => ({ ...s, name: e.target.value }))}
                             placeholder="Room name"
-                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                            className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                             required
                           />
                           <input
                             value={roomForm.maxParticipants}
                             onChange={(e) => setRoomForm((s) => ({ ...s, maxParticipants: e.target.value }))}
                             placeholder="Max participants (optional)"
-                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                            className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                           />
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
                           >
                             Create Room
                           </button>
                         </form>
                       </div>
 
-                      <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-4">
+                      <div className="bg-card shadow-sm border border-border rounded-xl p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-foreground">Live Polls</p>
                           <span className="text-xs text-muted-foreground">{polls.length}</span>
@@ -520,7 +520,7 @@ export default function CourseDetailPage() {
                         ) : (
                           <div className="space-y-2">
                             {polls.map((poll) => (
-                              <div key={poll.id} className="text-xs text-muted-foreground bg-card shadow-sm rounded-none px-3 py-2">
+                              <div key={poll.id} className="text-xs text-muted-foreground bg-card shadow-sm rounded-xl px-3 py-2">
                                 <p className="font-semibold">{poll.question}</p>
                                 <p className="text-muted-foreground">{poll.poll_type} · {poll.status}</p>
                               </div>
@@ -532,14 +532,14 @@ export default function CourseDetailPage() {
                             value={pollForm.question}
                             onChange={(e) => setPollForm((s) => ({ ...s, question: e.target.value }))}
                             placeholder="Poll question"
-                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                            className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                             required
                           />
                           <div className="flex items-center gap-2">
                             <select
                               value={pollForm.pollType}
                               onChange={(e) => setPollForm((s) => ({ ...s, pollType: e.target.value }))}
-                              className="flex-1 bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground"
+                              className="flex-1 bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                             >
                               <option value="poll">Poll</option>
                               <option value="quiz">Quiz</option>
@@ -565,7 +565,7 @@ export default function CourseDetailPage() {
                                   setPollForm((s) => ({ ...s, options: next }));
                                 }}
                                 placeholder={`Option ${index + 1}`}
-                                className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
+                                className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                                 required={index < 2}
                               />
                             ))}
@@ -574,7 +574,7 @@ export default function CourseDetailPage() {
                             <button
                               type="button"
                               onClick={() => setPollForm((s) => ({ ...s, options: [...s.options, ''] }))}
-                              className="flex-1 text-xs font-semibold px-3 py-2 rounded-none bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
+                              className="flex-1 text-xs font-semibold px-3 py-2 rounded-xl bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
                             >
                               Add option
                             </button>
@@ -582,7 +582,7 @@ export default function CourseDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => setPollForm((s) => ({ ...s, options: s.options.slice(0, -1) }))}
-                                className="flex-1 text-xs font-semibold px-3 py-2 rounded-none bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
+                                className="flex-1 text-xs font-semibold px-3 py-2 rounded-xl bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
                               >
                                 Remove option
                               </button>
@@ -590,7 +590,7 @@ export default function CourseDetailPage() {
                           </div>
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
                           >
                             Create Poll
                           </button>
@@ -611,13 +611,13 @@ export default function CourseDetailPage() {
                       value={sessionForm.title}
                       onChange={(e) => setSessionForm((s) => ({ ...s, title: e.target.value }))}
                       placeholder="Session title"
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                      className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                       required
                     />
                     <select
                       value={sessionForm.provider}
                       onChange={(e) => setSessionForm((s) => ({ ...s, provider: e.target.value }))}
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
+                      className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-sm text-foreground"
                     >
                       <option value="zoom">Zoom</option>
                       <option value="google_meet">Google Meet</option>
@@ -627,14 +627,14 @@ export default function CourseDetailPage() {
                       type="datetime-local"
                       value={sessionForm.scheduledStart}
                       onChange={(e) => setSessionForm((s) => ({ ...s, scheduledStart: e.target.value }))}
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
+                      className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-sm text-foreground"
                       required
                     />
                     <input
                       type="datetime-local"
                       value={sessionForm.scheduledEnd}
                       onChange={(e) => setSessionForm((s) => ({ ...s, scheduledEnd: e.target.value }))}
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
+                      className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-sm text-foreground"
                       required
                     />
                   </div>
@@ -642,7 +642,7 @@ export default function CourseDetailPage() {
                     value={sessionForm.description}
                     onChange={(e) => setSessionForm((s) => ({ ...s, description: e.target.value }))}
                     placeholder="Description (optional)"
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                    className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                     rows={2}
                   />
                   <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -687,7 +687,7 @@ export default function CourseDetailPage() {
                     <button
                       type="submit"
                       disabled={sessionSaving}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-50"
                     >
                       {sessionSaving ? 'Scheduling...' : 'Schedule Session'}
                     </button>
@@ -701,7 +701,7 @@ export default function CourseDetailPage() {
           <div className="space-y-5">
 
             {/* Status + instructor */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+            <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</p>
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
@@ -717,7 +717,7 @@ export default function CourseDetailPage() {
               {myEnrollment && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border capitalize ${myEnrollment.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border capitalize ${myEnrollment.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                     {myEnrollment.status}
                   </span>
                 </div>
@@ -726,7 +726,7 @@ export default function CourseDetailPage() {
 
             {/* Enrolment stats (staff) */}
             {isStaff && (
-              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-4 border-b border-border flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground">Enrolled Students</h3>
                   <span className="text-xs text-muted-foreground">{enrollments.length}</span>
@@ -749,7 +749,7 @@ export default function CourseDetailPage() {
                             {enr.enrollment_date ? new Date(enr.enrollment_date).toLocaleDateString() : '—'}
                           </p>
                         </div>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${enr.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${enr.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                           {enr.status}
                         </span>
                       </div>
@@ -760,7 +760,7 @@ export default function CourseDetailPage() {
             )}
 
             <Link href="/dashboard/courses"
-              className="flex items-center gap-2 w-full py-3 px-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold text-muted-foreground transition-colors">
+              className="flex items-center gap-2 w-full py-3 px-4 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold text-muted-foreground transition-colors">
               <ArrowLeftIcon className="w-4 h-4" /> All Courses
             </Link>
           </div>

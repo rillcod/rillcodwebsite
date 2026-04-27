@@ -94,7 +94,7 @@ export default function ExamsPage() {
   }
 
   if (authLoading || profileLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   const filtered = exams.filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.courses?.title?.toLowerCase().includes(search.toLowerCase()));
@@ -107,7 +107,7 @@ export default function ExamsPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
           <CommandLineIcon className="w-4 h-4" /> CBT Exams
         </Link>
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-black">
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
           <DocumentCheckIcon className="w-4 h-4" /> Written Exams
         </span>
       </div>
@@ -115,7 +115,7 @@ export default function ExamsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-            <AcademicCapIcon className="w-7 h-7 text-blue-400" />
+            <AcademicCapIcon className="w-7 h-7 text-primary" />
             Written Exams
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
@@ -124,7 +124,7 @@ export default function ExamsPage() {
         </div>
         {canManage && (
           <Link href="/dashboard/exams/new"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20">
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
             <PlusIcon className="w-4 h-4" /> New Exam
           </Link>
         )}
@@ -133,10 +133,10 @@ export default function ExamsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Exams', value: exams.length, icon: DocumentTextIcon, color: 'text-blue-400' },
+          { label: 'Total Exams', value: exams.length, icon: DocumentTextIcon, color: 'text-primary' },
           { label: 'Active', value: exams.filter(e => e.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400' },
           { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-400' },
-          { label: 'Avg Pass Score', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + e.passing_score, 0) / exams.length)}%` : '—', icon: ChartBarIcon, color: 'text-violet-400' },
+          { label: 'Avg Pass Score', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + e.passing_score, 0) / exams.length)}%` : '—', icon: ChartBarIcon, color: 'text-primary' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-white/[0.08] rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
@@ -149,8 +149,8 @@ export default function ExamsPage() {
       </div>
 
       {/* Disambiguation notice */}
-      <div className="flex items-start gap-3 bg-blue-500/[0.07] border border-blue-500/20 rounded-xl p-4">
-        <InformationCircleIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4">
+        <InformationCircleIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
         <div className="text-sm">
           <p className="font-bold text-blue-300">Written Exams vs CBT Exams</p>
           <p className="text-blue-300/70 mt-0.5">
@@ -165,10 +165,10 @@ export default function ExamsPage() {
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-blue-500/50" />
+            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
         <select value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-blue-500/50">
+          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
           <option value="">All Courses</option>
           {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
@@ -179,17 +179,17 @@ export default function ExamsPage() {
 
       {/* Exam List */}
       {loading ? (
-        <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <AcademicCapIcon className="w-16 h-16 text-card-foreground/10" />
           <p className="text-card-foreground/40 font-semibold">No exams found</p>
-          {canManage && <Link href="/dashboard/exams/new" className="text-blue-400 text-sm font-bold hover:underline">Create first exam</Link>}
+          {canManage && <Link href="/dashboard/exams/new" className="text-primary text-sm font-bold hover:underline">Create first exam</Link>}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map(exam => (
-            <div key={exam.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-blue-500/30 transition-all group">
+            <div key={exam.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-primary/30 transition-all group">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -220,7 +220,7 @@ export default function ExamsPage() {
               {/* Actions */}
               <div className="flex items-center gap-2 pt-3 border-t border-white/[0.06]">
                 <Link href={`/dashboard/exams/${exam.id}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-bold rounded-xl transition-all">
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-all">
                   <EyeIcon className="w-3.5 h-3.5" />
                   {canManage ? 'Manage' : 'View'}
                 </Link>

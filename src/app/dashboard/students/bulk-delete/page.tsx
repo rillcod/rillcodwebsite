@@ -178,7 +178,7 @@ export default function BulkDeletePage() {
       </div>
 
       {/* Danger banner */}
-      <div className="bg-rose-500/10 border border-rose-500/30 rounded-none p-4 mb-5 flex items-start gap-3">
+      <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 mb-5 flex items-start gap-3">
         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-rose-300/80 leading-relaxed">
           <strong className="text-rose-300">This action is irreversible.</strong>{' '}
@@ -188,7 +188,7 @@ export default function BulkDeletePage() {
 
       {/* Result banner */}
       {result && (
-        <div className={`rounded-none p-4 border mb-5 ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+        <div className={`rounded-xl p-4 border mb-5 ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
@@ -213,7 +213,7 @@ export default function BulkDeletePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
-            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
@@ -221,7 +221,7 @@ export default function BulkDeletePage() {
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
             >
               <option value="">All classes</option>
               {allClasses.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -230,7 +230,7 @@ export default function BulkDeletePage() {
           <button
             onClick={loadStudents}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -240,7 +240,7 @@ export default function BulkDeletePage() {
 
       {/* Selection action bar */}
       {someSelected && (
-        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-rose-500/10 border border-rose-500/30 rounded-none gap-3 flex-wrap">
+        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-rose-500/10 border border-rose-500/30 rounded-xl gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
             <UserGroupIcon className="w-4 h-4 text-rose-400" />
             <span className="text-rose-300 font-bold">{selected.size} selected</span>
@@ -250,7 +250,7 @@ export default function BulkDeletePage() {
           </div>
           <button
             onClick={() => { setConfirm(''); setShowModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded-none text-sm transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded-xl text-sm transition-colors"
           >
             <TrashIcon className="w-4 h-4" />
             Wipe {selected.size} Student{selected.size !== 1 ? 's' : ''}
@@ -259,7 +259,7 @@ export default function BulkDeletePage() {
       )}
 
       {/* Student list */}
-      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+      <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
@@ -353,7 +353,7 @@ export default function BulkDeletePage() {
       {/* Confirmation modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl rounded-none p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
+          <div className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl rounded-xl p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
 
             <div className="flex items-start gap-4 mb-5">
               <div className="w-10 h-10 flex-shrink-0 rounded-full bg-rose-500/20 flex items-center justify-center">
@@ -370,7 +370,7 @@ export default function BulkDeletePage() {
             </div>
 
             {/* Selected names preview */}
-            <div className="bg-black/30 rounded-none p-3 mb-4 max-h-32 overflow-y-auto">
+            <div className="bg-black/30 rounded-xl p-3 mb-4 max-h-32 overflow-y-auto">
               {selectedStudents.slice(0, 50).map((s) => (
                 <div key={s.id} className="flex items-center gap-2 py-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
@@ -382,7 +382,7 @@ export default function BulkDeletePage() {
             </div>
 
             {/* What gets deleted */}
-            <div className="bg-rose-500/5 border border-rose-500/20 rounded-none p-3 mb-4">
+            <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 mb-4">
               <p className="text-rose-300 text-[11px] font-bold mb-1.5 uppercase tracking-wider">What gets permanently deleted:</p>
               <ul className="text-rose-300/60 text-[11px] space-y-0.5 list-disc list-inside">
                 <li>Supabase Auth account</li>
@@ -402,21 +402,21 @@ export default function BulkDeletePage() {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value.toUpperCase())}
                 placeholder={CONFIRM_WORD}
-                className="w-full px-4 py-2.5 bg-black/30 border border-rose-500/30 rounded-none text-foreground font-mono text-sm focus:outline-none focus:border-rose-500 transition-colors placeholder-muted-foreground"
+                className="w-full px-4 py-2.5 bg-black/30 border border-rose-500/30 rounded-xl text-foreground font-mono text-sm focus:outline-none focus:border-rose-500 transition-colors placeholder-muted-foreground"
               />
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowModal(false); setConfirm(''); }}
-                className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none text-sm transition-colors"
+                className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-xl text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={confirm !== CONFIRM_WORD || deleting}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black rounded-none text-sm transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
               >
                 {deleting
                   ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Wiping…</>

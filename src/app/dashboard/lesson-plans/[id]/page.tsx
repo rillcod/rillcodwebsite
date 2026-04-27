@@ -1046,7 +1046,7 @@ export default function LessonPlanDetailPage() {
 
 
   if (authLoading || loading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   if (!plan) return null;
@@ -1190,9 +1190,9 @@ export default function LessonPlanDetailPage() {
 
         {/* AI Lesson Assistant banner — discoverable entry point */}
         {weeks.some(w => !linkedLessons.find(l => l.metadata?.week === w.week)) && (
-          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10">
+          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
                 <SparklesIcon className="w-4 h-4 text-violet-300" />
               </div>
               <div className="min-w-0">
@@ -1223,7 +1223,7 @@ export default function LessonPlanDetailPage() {
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
               {(plan.version ?? 1) > 1 && (
-                <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">v{plan.version}</span>
+                <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">v{plan.version}</span>
               )}
             </div>
             <h1 className="text-xl font-black text-card-foreground">
@@ -1234,7 +1234,7 @@ export default function LessonPlanDetailPage() {
           <div className="flex items-center gap-2 print:hidden">
             {nextStatuses.map(ns => (
               <button key={ns} onClick={() => transitionStatus(ns)} disabled={saving}
-                className="px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all capitalize">
+                className="px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all capitalize">
                 {ns === 'published' ? 'Publish' : ns === 'archived' ? 'Archive' : ns}
               </button>
             ))}
@@ -1252,7 +1252,7 @@ export default function LessonPlanDetailPage() {
         {/* Linked curriculum + visible syllabus (this term) */}
         {plan.curriculum_version_id && (
           <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded-xl px-3 py-2">
               <div className="flex items-center gap-2 min-w-0">
                 <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="min-w-0">
@@ -1269,12 +1269,12 @@ export default function LessonPlanDetailPage() {
               )}
             </div>
             {syllabusTermContent ? (
-              <details className="print:hidden rounded-xl border border-blue-500/25 bg-blue-500/[0.04] overflow-hidden">
+              <details className="print:hidden rounded-xl border border-primary/25 bg-primary/[0.04] overflow-hidden">
                 <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-blue-200 uppercase tracking-widest hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
                   <span>Show syllabus for this term (reference)</span>
                   <BookOpenIcon className="w-4 h-4 opacity-70" />
                 </summary>
-                <div className="border-t border-blue-500/20 px-2 py-3 max-h-[min(32rem,70vh)] overflow-y-auto bg-background/40">
+                <div className="border-t border-primary/20 px-2 py-3 max-h-[min(32rem,70vh)] overflow-y-auto bg-background/40">
                   <SyllabusPreview content={syllabusTermContent} courseTitle={courseTitle} />
                 </div>
               </details>
@@ -1377,7 +1377,7 @@ export default function LessonPlanDetailPage() {
           onClick={() => setActiveTab('weeks')}
           className={`px-4 py-2 text-sm font-bold transition-all ${
             activeTab === 'weeks'
-              ? 'text-violet-400 border-b-2 border-violet-400'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-card-foreground/50 hover:text-card-foreground/70'
           }`}
         >
@@ -1387,7 +1387,7 @@ export default function LessonPlanDetailPage() {
           onClick={() => setActiveTab('content')}
           className={`px-4 py-2 text-sm font-bold transition-all ${
             activeTab === 'content'
-              ? 'text-violet-400 border-b-2 border-violet-400'
+              ? 'text-primary border-b-2 border-primary'
               : 'text-card-foreground/50 hover:text-card-foreground/70'
           }`}
         >
@@ -1401,7 +1401,7 @@ export default function LessonPlanDetailPage() {
         <div className="flex items-center justify-between print:hidden">
           <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
           <button onClick={addWeek} disabled={saving || weekDraft !== null}
-            className="flex items-center gap-2 px-3 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
             <PlusIcon className="w-4 h-4" /> Add Week
           </button>
         </div>
@@ -1418,7 +1418,7 @@ export default function LessonPlanDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(w)}>
                         <div className="flex items-center flex-wrap gap-1.5 mb-2">
-                          <span className="text-xs font-black text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
+                          <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
                           {(w.gating_state ?? 'unlocked') === 'locked' && (
                             <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Locked</span>
                           )}
@@ -1445,8 +1445,8 @@ export default function LessonPlanDetailPage() {
                             </div>
                           )}
                           {(w.assignment?.title || w.assignment?.brief) && (
-                            <div className="bg-blue-500/[0.03] border border-blue-500/10 rounded-xl p-2.5">
-                              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Assignment Brief</p>
+                            <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-2.5">
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Assignment Brief</p>
                               <p className="text-xs font-bold text-blue-100/90 line-clamp-1">{w.assignment.title || 'Untitled Task'}</p>
                               {w.assignment.brief && <p className="text-[10px] text-blue-300/50 mt-1 line-clamp-2 leading-relaxed">{w.assignment.brief}</p>}
                             </div>
@@ -1478,10 +1478,10 @@ export default function LessonPlanDetailPage() {
                             week: w,
                             courseTitle,
                           })}
-                          className="p-1.5 hover:bg-violet-500/10 rounded-lg transition-all"
+                          className="p-1.5 hover:bg-primary/10 rounded-lg transition-all"
                           title="Generate lesson for this week"
                         >
-                          <SparklesIcon className="w-3.5 h-3.5 text-violet-400" />
+                          <SparklesIcon className="w-3.5 h-3.5 text-primary" />
                         </Link>
                         <Link
                           href={buildPlanWeekCreateCbtUrl({
@@ -2342,7 +2342,7 @@ export default function LessonPlanDetailPage() {
                                 type="button"
                                 onClick={() => updateTermStatus('approved')}
                                 disabled={statusSaving}
-                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-primary hover:bg-primary text-white disabled:opacity-50"
                               >
                                 Set Approved
                               </button>
@@ -2370,14 +2370,14 @@ export default function LessonPlanDetailPage() {
                             <button
                               onClick={() => bulkGenerate('lessons')}
                               disabled={generating !== null}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate Lessons
                             </button>
                             <button
                               onClick={() => bulkGenerate('assignments')}
                               disabled={generating !== null}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate Assignments
                             </button>
@@ -2421,7 +2421,7 @@ export default function LessonPlanDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => setLmsSettings((s) => ({ ...s, enabled: !s.enabled }))}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${lmsSettings.enabled ? 'bg-violet-500' : 'bg-white/10'}`}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${lmsSettings.enabled ? 'bg-primary' : 'bg-white/10'}`}
                                 role="switch"
                                 aria-checked={lmsSettings.enabled}
                               >
@@ -2444,7 +2444,7 @@ export default function LessonPlanDetailPage() {
                                           ? s.types.filter((x) => x !== t)
                                           : [...s.types, t],
                                       }))}
-                                      className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all capitalize ${checked ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10'}`}
+                                      className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all capitalize ${checked ? 'bg-primary/20 text-violet-300 border border-primary/40' : 'bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10'}`}
                                     >
                                       {checked ? '✓ ' : ''}{t}
                                     </button>
@@ -2461,7 +2461,7 @@ export default function LessonPlanDetailPage() {
                                     key={n}
                                     type="button"
                                     onClick={() => setLmsSettings((s) => ({ ...s, maxWeeksPerBatch: n }))}
-                                    className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all ${lmsSettings.maxWeeksPerBatch === n ? 'bg-violet-500 text-white' : 'bg-white/5 text-card-foreground/60 border border-white/10 hover:bg-white/10'}`}
+                                    className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all ${lmsSettings.maxWeeksPerBatch === n ? 'bg-primary text-white' : 'bg-white/5 text-card-foreground/60 border border-white/10 hover:bg-white/10'}`}
                                   >
                                     {n === 0 ? 'All' : `${n} week${n > 1 ? 's' : ''}`}
                                   </button>
@@ -2474,7 +2474,7 @@ export default function LessonPlanDetailPage() {
                                 type="button"
                                 onClick={saveLmsSettings}
                                 disabled={savingLms}
-                                className="px-4 py-2 text-sm font-black rounded-2xl bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 transition-all"
+                                className="px-4 py-2 text-sm font-black rounded-2xl bg-primary hover:bg-primary text-white disabled:opacity-50 transition-all"
                               >
                                 {savingLms ? 'Saving…' : 'Save LMS Settings'}
                               </button>
@@ -2502,7 +2502,7 @@ export default function LessonPlanDetailPage() {
                       </div>
                       <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-violet-500 h-full transition-all duration-300"
+                          className="bg-primary h-full transition-all duration-300"
                           style={{ width: `${(genProgress.generated / genProgress.total) * 100}%` }}
                         />
                       </div>
@@ -2519,12 +2519,12 @@ export default function LessonPlanDetailPage() {
               <h3 className="text-sm font-black text-card-foreground">Content Overview</h3>
               <div className="flex items-center gap-3 flex-wrap">
                 {linkedLessons.length > 0 && (
-                  <Link href={`/dashboard/lessons?lesson_plan_id=${id}`} className="text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors">
+                  <Link href={`/dashboard/lessons?lesson_plan_id=${id}`} className="text-xs text-primary hover:text-violet-300 font-bold transition-colors">
                     {linkedLessons.length} lesson{linkedLessons.length !== 1 ? 's' : ''} →
                   </Link>
                 )}
                 {linkedAssignments.length > 0 && (
-                  <Link href={`/dashboard/assignments?lesson_plan_id=${id}`} className="text-xs text-blue-400 hover:text-blue-300 font-bold transition-colors">
+                  <Link href={`/dashboard/assignments?lesson_plan_id=${id}`} className="text-xs text-primary hover:text-blue-300 font-bold transition-colors">
                     {linkedAssignments.length} assignment{linkedAssignments.length !== 1 ? 's' : ''} →
                   </Link>
                 )}
@@ -2549,7 +2549,7 @@ export default function LessonPlanDetailPage() {
                   return (
                     <div key={w.week} className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-violet-400">Week {w.week}</span>
+                        <span className="text-xs font-black text-primary">Week {w.week}</span>
                         {w.completed && <span className="text-[10px] font-black text-emerald-300">✓ Completed</span>}
                         <span className="text-sm text-card-foreground truncate">{w.topic}</span>
                       </div>
@@ -2564,11 +2564,11 @@ export default function LessonPlanDetailPage() {
                           </Link>
                         )}
                         {weekAssignment ? (
-                          <Link href={`/dashboard/assignments/${weekAssignment.id}`} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-400 border border-blue-500/30 rounded hover:bg-blue-500/10 transition-colors">
+                          <Link href={`/dashboard/assignments/${weekAssignment.id}`} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-primary border border-primary/30 rounded hover:bg-primary/10 transition-colors">
                             ✓ Assignment
                           </Link>
                         ) : (
-                          <Link href={addAssignmentHref} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-blue-500/30 hover:text-blue-400 transition-colors">
+                          <Link href={addAssignmentHref} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-card-foreground/50 border border-white/10 rounded hover:border-primary/30 hover:text-primary transition-colors">
                             + Assignment
                           </Link>
                         )}
@@ -2597,11 +2597,11 @@ export default function LessonPlanDetailPage() {
           <div className="bg-card border border-white/[0.12] w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0">
-                  <SparklesIcon className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">AI Generation</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">AI Generation</p>
                   <h3 className="text-base font-black text-card-foreground capitalize">Generate {genConfirm.type}</h3>
                 </div>
               </div>
@@ -2642,7 +2642,7 @@ export default function LessonPlanDetailPage() {
               <button
                 onClick={confirmAndGenerate}
                 disabled={genConfirm.preview.projected_generations === 0}
-                className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-black rounded-xl min-h-[44px] transition-all"
+                className="flex-1 py-3 bg-primary hover:bg-primary disabled:opacity-40 text-white font-black rounded-xl min-h-[44px] transition-all"
               >
                 Generate {genConfirm.preview.projected_generations} {genConfirm.type}
               </button>
@@ -2748,7 +2748,7 @@ export default function LessonPlanDetailPage() {
                   {/* General Details */}
                   <section className="space-y-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       <h3 className="text-xs font-black uppercase tracking-widest text-violet-300/70">Curriculum Foundation</h3>
                     </div>
                     <div className="space-y-4 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl">
@@ -2759,7 +2759,7 @@ export default function LessonPlanDetailPage() {
                           value={weekDraft.topic}
                           onChange={(e) => setWeekDraft({ ...weekDraft, topic: e.target.value })}
                           placeholder="e.g., Introduction to Neural Networks"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-violet-500/50 focus:ring-0 transition-all"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
                         />
                       </label>
                       <label className="block space-y-1.5">
@@ -2769,7 +2769,7 @@ export default function LessonPlanDetailPage() {
                           value={weekDraft.objectives}
                           onChange={(e) => setWeekDraft({ ...weekDraft, objectives: e.target.value })}
                           placeholder="What should students master this week?"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
                         />
                       </label>
                       <label className="block space-y-1.5">
@@ -2779,7 +2779,7 @@ export default function LessonPlanDetailPage() {
                           value={weekDraft.activities}
                           onChange={(e) => setWeekDraft({ ...weekDraft, activities: e.target.value })}
                           placeholder="Detail the planned flow and exercises."
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
                         />
                       </label>
                       <label className="block space-y-1.5">
@@ -2789,7 +2789,7 @@ export default function LessonPlanDetailPage() {
                           value={weekDraft.notes ?? ''}
                           onChange={(e) => setWeekDraft({ ...weekDraft, notes: e.target.value })}
                           placeholder="Internal notes visible only to teachers."
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-violet-500/50 focus:ring-0 transition-all resize-none"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
                         />
                       </label>
                     </div>
@@ -2826,26 +2826,26 @@ export default function LessonPlanDetailPage() {
                   {/* Assignment Section */}
                   <section className="space-y-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       <h3 className="text-xs font-black uppercase tracking-widest text-blue-300/70">Assignment Brief</h3>
                     </div>
-                    <div className="space-y-4 bg-blue-500/[0.02] border border-blue-500/10 p-4 rounded-2xl">
+                    <div className="space-y-4 bg-primary/[0.02] border border-primary/10 p-4 rounded-2xl">
                       <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-400/60 ml-1">Task Title</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Task Title</span>
                         <input
                           type="text"
                           value={weekDraft.assignment?.title || ''}
                           onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), title: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-blue-500/50 focus:ring-0 transition-all"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
                         />
                       </label>
                       <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-400/60 ml-1">Submission Brief</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Submission Brief</span>
                         <textarea
                           rows={4}
                           value={weekDraft.assignment?.brief || ''}
                           onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), brief: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-blue-500/50 focus:ring-0 transition-all resize-none"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
                         />
                       </label>
                     </div>
@@ -2893,7 +2893,7 @@ export default function LessonPlanDetailPage() {
                   <button onClick={cancelEdit} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
                     Cancel Changes
                   </button>
-                  <button onClick={saveWeekEdit} className="flex-1 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-2xl shadow-lg shadow-violet-500/20 transition-all">
+                  <button onClick={saveWeekEdit} className="flex-1 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 transition-all">
                     Save Week
                   </button>
                 </div>

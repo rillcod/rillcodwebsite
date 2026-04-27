@@ -86,7 +86,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   key={item.name}
                   href={item.href}
                   onClick={() => setActiveTab(item.href)}
-                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 relative ${
+                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 relative ${
                     isActive
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-white'
@@ -99,7 +99,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   
                   {/* Active indicator */}
                   {isActive && (
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-none shadow-[0_0_8px_rgba(255,145,77,0.8)]"></div>
+                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-xl shadow-[0_0_8px_rgba(255,145,77,0.8)]"></div>
                   )}
                 </Link>
               );
@@ -128,7 +128,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 text-muted-foreground hover:text-white"
+        className="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 text-muted-foreground hover:text-white"
       >
         <PlusIcon className="h-5 w-5 mb-1" />
         <span className="text-[9px] font-black uppercase tracking-widest">More</span>
@@ -144,7 +144,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
           />
           
           {/* Menu */}
-          <div className="absolute bottom-20 right-0 mb-2 bg-card border border-border rounded-none shadow-2xl py-3 min-w-[200px] z-50">
+          <div className="absolute bottom-20 right-0 mb-2 bg-card border border-border rounded-xl shadow-2xl py-3 min-w-[200px] z-50">
             <div className="px-4 py-2 border-b border-border mb-2">
                 <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.3em]">Extended Protocol</span>
             </div>
@@ -192,7 +192,7 @@ export function FloatingActionButton() {
             <Link
               key={action.name}
               href={action.href}
-              className="flex items-center justify-center w-14 h-14 bg-card text-primary border border-border rounded-none shadow-2xl hover:border-primary transition-all duration-200 transform hover:scale-110"
+              className="flex items-center justify-center w-14 h-14 bg-card text-primary border border-border rounded-xl shadow-2xl hover:border-primary transition-all duration-200 transform hover:scale-110"
               style={{
                 animationDelay: `${index * 100}ms`,
                 animation: 'slideInUp 0.3s ease-out forwards'
@@ -207,7 +207,7 @@ export function FloatingActionButton() {
       {/* Main FAB */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-none shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-primary transition-all duration-200 transform hover:rotate-90 group"
+        className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-xl shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-primary transition-all duration-200 transform hover:rotate-90 group"
       >
         {isOpen ? (
           <XMarkIcon className="h-8 w-8" />

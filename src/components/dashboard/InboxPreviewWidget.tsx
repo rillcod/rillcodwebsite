@@ -168,7 +168,7 @@ export default function InboxPreviewWidget() {
   if (!hasAccess) return null;
 
   return (
-    <div className="bg-[#111b21] border border-white/[0.08] rounded-none shadow-2xl overflow-hidden">
+    <div className="bg-[#111b21] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 bg-[#1f2c34] border-b border-white/[0.05]">
         <div className="flex items-center gap-3">
@@ -227,7 +227,7 @@ export default function InboxPreviewWidget() {
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-lg ${
                     conv.type === 'students' ? 'bg-emerald-600' : 
                     conv.type === 'parents' ? 'bg-primary' : 
-                    conv.type === 'teachers' ? 'bg-violet-600' : 'bg-blue-700'
+                    conv.type === 'teachers' ? 'bg-primary' : 'bg-primary'
                   }`}>
                     {initials(conv.contact_name)}
                   </div>
@@ -262,8 +262,8 @@ export default function InboxPreviewWidget() {
                           <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border border-white/[0.08] ${
                             conv.type === 'students' ? 'bg-emerald-500/10 text-emerald-400' :
                             conv.type === 'parents'  ? 'bg-primary/10 text-primary' :
-                            conv.type === 'teachers' ? 'bg-violet-500/10 text-violet-400' :
-                                                       'bg-blue-500/10 text-blue-400'
+                            conv.type === 'teachers' ? 'bg-primary/10 text-primary' :
+                                                       'bg-primary/10 text-primary'
                           }`}>
                             {conv.type === 'students' ? 'WhatsApp' : conv.type === 'parents' ? 'Parent' : conv.type === 'teachers' ? 'Teacher' : 'School'}
                           </span>

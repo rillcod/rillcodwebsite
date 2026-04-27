@@ -1443,7 +1443,7 @@ export default function CardBuilderPage() {
                 ) : null}
 
                 {/* Bulk Register link */}
-                <div className="bg-blue-500/[0.06] border border-blue-500/20 p-4 text-xs text-blue-300/80">
+                <div className="bg-primary/[0.06] border border-primary/20 p-4 text-xs text-blue-300/80">
                   <p className="font-bold text-blue-300 mb-0.5">Tip: Bulk Register &amp; Print</p>
                   <p>After bulk-registering students, come back here and use <strong>Load Students</strong> to immediately generate their access cards.</p>
                 </div>

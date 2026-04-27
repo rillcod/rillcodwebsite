@@ -25,7 +25,7 @@ import StudioUI from './StudioUI';
 
 // ─── Constants ───────────────────────────────────────────────
 const LANGUAGES = [
-  { id: 'python',     name: 'Python',      emoji: '🐍', color: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/30',    desc: 'Powerful & Readable' },
+  { id: 'python',     name: 'Python',      emoji: '🐍', color: 'text-primary',    bg: 'bg-primary/10',    border: 'border-primary/30',    desc: 'Powerful & Readable' },
   { id: 'javascript', name: 'JavaScript',  emoji: '⚡', color: 'text-yellow-400',  bg: 'bg-yellow-500/10',  border: 'border-yellow-500/30',  desc: 'Web & Beyond' },
   { id: 'html',       name: 'HTML/CSS',    emoji: '🌐', color: 'text-primary',  bg: 'bg-primary/10',  border: 'border-primary/30',  desc: 'UI & Web Design' },
   { id: 'blockly',    name: 'Blockly',     emoji: '🧩', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', desc: 'Visual Logic' },

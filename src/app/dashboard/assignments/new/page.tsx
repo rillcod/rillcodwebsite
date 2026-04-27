@@ -304,17 +304,17 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <h1 className="text-3xl font-black italic tracking-tight">Create Assignment</h1>
             {!isMinimal && <p className="text-muted-foreground text-sm mt-1 font-medium italic">Define challenges for applied learning</p>}
           </div>
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
             {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
 
         {preLessonPlanId && (
-          <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-500/20 p-4">
-            <span className="text-violet-400 flex-shrink-0">📋</span>
+          <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 p-4">
+            <span className="text-primary flex-shrink-0">📋</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Linked to Lesson Plan</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Linked to Lesson Plan</p>
               <p className="text-sm font-bold text-foreground">
                 {preWeek ? `Week ${preWeek} · ` : ''}This assignment will be tracked in the plan
               </p>
@@ -339,7 +339,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         )}
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
@@ -352,7 +352,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
           <div className="flex items-center justify-between relative px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-none bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-primary/30 flex-shrink-0">
                 <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
@@ -422,7 +422,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           )}
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className={`bg-card shadow-sm border rounded-none p-6 space-y-5 transition-all duration-700 ${aiJustGenerated ? 'border-amber-500/60 shadow-amber-500/10 shadow-lg' : 'border-border'}`}>
+        <form ref={formRef} onSubmit={handleSubmit} className={`bg-card shadow-sm border rounded-xl p-6 space-y-5 transition-all duration-700 ${aiJustGenerated ? 'border-amber-500/60 shadow-amber-500/10 shadow-lg' : 'border-border'}`}>
 
           {aiJustGenerated && (
             <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold animate-in fade-in duration-300">
@@ -438,7 +438,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <input type="text" required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Python Functions Exercise"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
           </div>
 
           {/* Programme + Course */}
@@ -456,7 +456,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     setForm(f => ({ ...f, course_id: '' }));
                   }
                 }}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                 <option value="">Select a programme…</option>
                 {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -468,7 +468,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               <select required value={form.course_id}
                 onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
                 disabled={!selectedProgramId}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40">
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40">
                 <option value="">{selectedProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
                 {courses.filter((c: any) => c.program_id === selectedProgramId)
                   .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
@@ -482,7 +482,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Type</label>
               <select value={form.assignment_type}
                 onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                 <option value="homework">📚 Homework</option>
                 <option value="project">🛠 Project / Lab</option>
                 <option value="coding">💻 Coding Challenge</option>
@@ -502,7 +502,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
                 <input type="number" min="1" max="1000" value={form.max_points}
                   onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
@@ -511,7 +511,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <input type="number" min="0" max="200" value={form.weight}
                   onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
                   placeholder="0"
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                 <p className="text-[10px] text-white/30 mt-1">Points this counts toward final report (0 = excluded)</p>
               </div>
             </div>
@@ -523,7 +523,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               </label>
               <input type="datetime-local" value={form.due_date}
                 onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
             </div>
           </div>
 
@@ -533,7 +533,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <textarea rows={3} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Brief overview of the assignment…"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
           </div>
 
           {/* Instructions */}
@@ -542,7 +542,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             <textarea rows={4} value={form.instructions}
               onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
               placeholder="Step-by-step instructions for students…"
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
           </div>
 
           {/* ── Project Metadata (shown when assignment type = project) ── */}
@@ -569,7 +569,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       <input type="text" value={d}
                         onChange={e => setProjectMeta(p => ({ ...p, deliverables: p.deliverables.map((x, i) => i === di ? e.target.value : x) }))}
                         placeholder={`e.g. Working Python script with comments`}
-                        className="flex-1 px-3 py-2 bg-card border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                        className="flex-1 px-3 py-2 bg-card border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                       {projectMeta.deliverables.length > 1 && (
                         <button type="button"
                           onClick={() => setProjectMeta(p => ({ ...p, deliverables: p.deliverables.filter((_, i) => i !== di) }))}
@@ -599,14 +599,14 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       <input type="text" value={r.criterion}
                         onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, criterion: e.target.value } : x) }))}
                         placeholder="Criterion (e.g. Code Quality)"
-                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                        className="px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                       <input type="text" value={r.description}
                         onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, description: e.target.value } : x) }))}
                         placeholder="Description (e.g. Code is clean, commented, and follows best practices)"
-                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                        className="px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                       <input type="number" min="1" max="100" value={r.maxPoints}
                         onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, maxPoints: parseInt(e.target.value) || 10 } : x) }))}
-                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-amber-500 transition-colors text-center" />
+                        className="px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-amber-500 transition-colors text-center" />
                       <button type="button"
                         onClick={() => setProjectMeta(p => ({ ...p, rubric: p.rubric.filter((_, i) => i !== ri) }))}
                         className="px-2 py-2 text-rose-400/60 hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
@@ -633,13 +633,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 <p className="text-[10px] text-muted-foreground mt-0.5">Optional: Add questions for an interactive homework experience</p>
               </div>
               <button type="button" onClick={addQuestion}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
                 <PlusIcon className="w-3.5 h-3.5" /> Add Question
               </button>
             </div>
 
             {questions.map((q, qi) => (
-              <div key={qi} className="bg-white/3 border border-border rounded-none overflow-hidden">
+              <div key={qi} className="bg-white/3 border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2 bg-card shadow-sm border-b border-border">
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Q{qi + 1}</span>
                   <div className="flex items-center gap-1">
@@ -661,14 +661,14 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                   <textarea rows={2} value={q.question_text}
                     onChange={e => updateQuestion(qi, { question_text: e.target.value })}
                     placeholder="Enter question text…"
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                       <select value={q.question_type}
                         onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
-                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none cursor-pointer">
+                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none cursor-pointer">
                         <option value="multiple_choice">Multiple Choice</option>
                         <option value="true_false">True / False</option>
                         <option value="fill_blank">Fill in Blank</option>
@@ -681,7 +681,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                       <input type="number" min="1" value={q.points}
                         onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
-                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none" />
+                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none" />
                     </div>
                     {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
                       <div className="sm:col-span-1">
@@ -689,7 +689,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                         <input type="text" value={q.correct_answer}
                           onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                           placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading guide..."}
-                          className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                          className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                       </div>
                     )}
 
@@ -699,7 +699,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                          <input type="text" value={q.correct_answer}
                             onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                             placeholder="e.g. Green Flag, 10"
-                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                       </div>
                     )}
                   </div>
@@ -711,14 +711,14 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                           <input type="text" value={q.metadata?.logic_sentence}
                              onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_sentence: e.target.value } })}
                              placeholder="e.g. When [BLANK] clicked, move [BLANK] steps"
-                             className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                             className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                         </div>
                         <div>
                           <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Draggable Options (comma separated)</label>
                           <input type="text" value={q.metadata?.logic_blocks?.join(', ')}
                             onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_blocks: e.target.value.split(',').map(s=>s.trim()) } })}
                             placeholder="e.g. Green Flag, 10, Space Key"
-                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                         </div>
                     </div>
                   )}
@@ -734,14 +734,14 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                             updateQuestion(qi, { metadata: { ...q.metadata, blocks } });
                           }}
                           placeholder={"When green flag clicked\nmove 10 steps\nturn 90 degrees\nplay sound Pop (distractor)"}
-                          className="w-full px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 resize-none" />
+                          className="w-full px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 resize-none" />
                       </div>
                       <div>
                         <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Correct Sequence (comma-separated, in order)</label>
                         <input type="text" value={q.correct_answer}
                           onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                           placeholder="When green flag clicked, move 10 steps, turn 90 degrees"
-                          className="w-full px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                          className="w-full px-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                       </div>
                     </div>
                   )}
@@ -753,7 +753,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                           key={opt}
                           type="button"
                           onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-none border font-bold transition-all ${q.correct_answer === opt ? 'bg-amber-600 border-amber-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-amber-600 border-amber-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                         >
                           {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
                           {opt}
@@ -767,7 +767,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                       <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Options (Select correct one)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((opt, oi) => (
-                          <div key={oi} className={`flex items-center gap-2 p-1 rounded-none border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-card shadow-sm border-border'}`}>
+                          <div key={oi} className={`flex items-center gap-2 p-1 rounded-xl border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-card shadow-sm border-border'}`}>
                             <button
                               type="button"
                               onClick={() => updateQuestion(qi, { correct_answer: opt })}
@@ -796,11 +796,11 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
           <div className="flex items-center gap-3 pt-2">
             <Link href="/dashboard/assignments"
-              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none transition-colors">
+              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
               Cancel
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : 'Create Assignment'}
             </button>

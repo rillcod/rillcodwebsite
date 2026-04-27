@@ -31,7 +31,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           <div className="flex items-center">
             {Icon && (
               <div className="flex-shrink-0 mr-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-600 rounded-lg flex items-center justify-center">
                   <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>

@@ -20,7 +20,7 @@ import {
 
 const achievements = [
   { id: 1, title: 'National Coding Competition', description: 'Rillcod students took first place in the 2024 National Youth Coding Challenge — representing the best of Nigerian tech talent.', icon: Code, badge: '1st Place', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
-  { id: 2, title: 'Robotics Innovation Award', description: 'Our young engineers built a solar-powered irrigation control system, winning the regional hardware innovation prize.', icon: Cpu, badge: 'Innovation', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  { id: 2, title: 'Robotics Innovation Award', description: 'Our young engineers built a solar-powered irrigation control system, winning the regional hardware innovation prize.', icon: Cpu, badge: 'Innovation', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
   { id: 3, title: 'Science Fair Excellence', description: 'Rillcod students presented groundbreaking environmental monitoring research at the inter-school science exhibition.', icon: Beaker, badge: 'Excellence', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   { id: 4, title: 'Mobile App Development', description: 'Students shipped real mobile apps solving local community problems — from school alerts to waste management tracking.', icon: Monitor, badge: 'Community', color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
   { id: 5, title: '3D Printing Workshop', description: 'Students designed and printed functional prototypes for local small businesses — end-to-end hardware engineering.', icon: Rocket, badge: 'Skills Dev', color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
@@ -39,14 +39,14 @@ export default function NigerianSTEMShowcase() {
       {/* Grid Pattern Background */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none dark:opacity-[0.05]" 
            style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-600/5 blur-[150px] rounded-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-primary/5 blur-[150px] rounded-xl" />
 
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-20 relative z-10">
 
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">
           <div>
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-none shadow-sm">
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-card border border-border rounded-xl shadow-sm">
                <Trophy className="w-4 h-4 text-primary" />
                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Impact</span>
             </div>
@@ -65,13 +65,13 @@ export default function NigerianSTEMShowcase() {
           {achievements.map((item) => (
             <div
               key={item.id}
-              className="group relative bg-card border border-border rounded-none p-8 transition-all hover:bg-muted shadow-xl border-t-2 border-t-transparent hover:border-t-brand-red-600"
+              className="group relative bg-card border border-border rounded-xl p-8 transition-all hover:bg-muted shadow-xl border-t-2 border-t-transparent hover:border-t-brand-red-600"
             >
               <div className="absolute top-6 right-8">
-                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-background px-4 py-1.5 rounded-none border border-border shadow-sm`}>{item.badge}</span>
+                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-background px-4 py-1.5 rounded-xl border border-border shadow-sm`}>{item.badge}</span>
               </div>
               
-              <div className={`w-14 h-14 ${item.bg} rounded-none flex items-center justify-center mb-6 border ${item.border} group-hover:scale-110 transition-transform shadow-inner`}>
+              <div className={`w-14 h-14 ${item.bg} rounded-xl flex items-center justify-center mb-6 border ${item.border} group-hover:scale-110 transition-transform shadow-inner`}>
                  <item.icon className={`w-7 h-7 ${item.color}`} />
               </div>
 
@@ -99,10 +99,10 @@ export default function NigerianSTEMShowcase() {
             {testimonials.map((t) => (
               <div
                 key={t.id}
-                className="bg-card border border-border rounded-none p-10 hover:bg-muted transition-all relative group shadow-2xl border-l-2 border-l-brand-red-600/20 hover:border-l-brand-red-600"
+                className="bg-card border border-border rounded-xl p-10 hover:bg-muted transition-all relative group shadow-2xl border-l-2 border-l-brand-red-600/20 hover:border-l-brand-red-600"
               >
                 <div className="flex items-center gap-5 mb-8">
-                  <div className="w-14 h-14 rounded-none bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary shadow-inner">
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary shadow-inner">
                     {t.name[0]}
                   </div>
                   <div>
@@ -115,7 +115,7 @@ export default function NigerianSTEMShowcase() {
                   "{t.quote}"
                 </p>
 
-                <div className="inline-flex items-center gap-3 px-5 py-2 bg-muted border border-border rounded-none shadow-sm">
+                <div className="inline-flex items-center gap-3 px-5 py-2 bg-muted border border-border rounded-xl shadow-sm">
                    <Trophy className="w-4 h-4 text-primary" />
                    <span className="text-[10px] font-black uppercase text-primary tracking-[0.3em] font-mono">{t.achievement}</span>
                 </div>
@@ -125,12 +125,12 @@ export default function NigerianSTEMShowcase() {
         </div>
 
         {/* High-Contrast Unified CTA */}
-        <div className="relative bg-card border border-border rounded-none p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-brand-red-600">
-           <div className="absolute top-0 right-0 w-[50%] h-[150%] bg-blue-600/5 rotate-12 -translate-y-1/2 pointer-events-none" />
+        <div className="relative bg-card border border-border rounded-xl p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-brand-red-600">
+           <div className="absolute top-0 right-0 w-[50%] h-[150%] bg-primary/5 rotate-12 -translate-y-1/2 pointer-events-none" />
            
            <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center text-center lg:text-left">
               <div>
-                <div className="inline-flex items-center gap-3 mb-6 px-5 py-2 bg-muted border border-border rounded-none shadow-sm">
+                <div className="inline-flex items-center gap-3 mb-6 px-5 py-2 bg-muted border border-border rounded-xl shadow-sm">
                     <Command className="w-4 h-4 text-primary" />
                     <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest">Join Us</span>
                 </div>
@@ -142,7 +142,7 @@ export default function NigerianSTEMShowcase() {
               <div className="flex justify-center lg:justify-end">
                 <a
                   href="/school-registration"
-                  className="flex items-center gap-6 px-12 py-6 bg-primary text-white font-black text-xs uppercase rounded-none hover:bg-primary transition-all shadow-xl shadow-primary/20 tracking-[0.4em]"
+                  className="flex items-center gap-6 px-12 py-6 bg-primary text-white font-black text-xs uppercase rounded-xl hover:bg-primary transition-all shadow-xl shadow-primary/20 tracking-[0.4em]"
                 >
                   Join Network
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />

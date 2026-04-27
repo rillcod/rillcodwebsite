@@ -117,9 +117,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
       case 'warning':
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />;
       case 'info':
-        return <InformationCircleIcon className="h-5 w-5 text-blue-400" />;
+        return <InformationCircleIcon className="h-5 w-5 text-primary" />;
       default:
-        return <InformationCircleIcon className="h-5 w-5 text-blue-400" />;
+        return <InformationCircleIcon className="h-5 w-5 text-primary" />;
     }
   };
 
@@ -227,9 +227,9 @@ export const Toast: React.FC<{
       case 'warning':
         return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />;
       case 'info':
-        return <InformationCircleIcon className="h-5 w-5 text-blue-400" />;
+        return <InformationCircleIcon className="h-5 w-5 text-primary" />;
       default:
-        return <InformationCircleIcon className="h-5 w-5 text-blue-400" />;
+        return <InformationCircleIcon className="h-5 w-5 text-primary" />;
     }
   };
 

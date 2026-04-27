@@ -15,7 +15,7 @@ import {
 const STATUS_BADGE: Record<string, string> = {
   active:    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  completed: 'bg-primary/20 text-primary border-primary/30',
 };
 
 export default function ClassesPage() {
@@ -114,7 +114,7 @@ export default function ClassesPage() {
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/reports/builder"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-none transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors"
             >
               <ChartBarIcon className="w-4 h-4 text-primary" />
               Reports
@@ -123,7 +123,7 @@ export default function ClassesPage() {
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/classes/add"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-orange-900/30"
             >
               <PlusIcon className="w-4 h-4" />
               Add Class
@@ -134,7 +134,7 @@ export default function ClassesPage() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-none">
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
           <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-300 transition-colors">
@@ -147,12 +147,12 @@ export default function ClassesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-blue-500/10',   color: 'text-blue-400'   },
+          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   color: 'text-primary'   },
           { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10',color: 'text-emerald-400' },
           { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', color: 'text-purple-400'  },
         ].map(s => (
-          <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-            <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+          <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
+            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
             <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -170,13 +170,13 @@ export default function ClassesPage() {
             placeholder="Search by class name or programme..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
@@ -187,8 +187,8 @@ export default function ClassesPage() {
 
       {/* Classes list */}
       {filtered.length === 0 ? (
-        <div className="bg-card shadow-sm border border-border rounded-none p-16 flex flex-col items-center justify-center text-center">
-          <div className="w-12 h-12 bg-primary/10 rounded-none flex items-center justify-center mb-4">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-16 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
             <AcademicCapIcon className="w-6 h-6 text-primary" />
           </div>
           <h3 className="text-base font-bold text-foreground mb-1">No classes found</h3>
@@ -200,7 +200,7 @@ export default function ClassesPage() {
           {profile?.role !== 'school' && !searchTerm && filterStatus === 'all' && (
             <Link
               href="/dashboard/classes/add"
-              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-none transition-colors"
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Class
             </Link>
@@ -209,12 +209,12 @@ export default function ClassesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(cls => (
-            <div key={cls.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col">
+            <div key={cls.id} className="bg-card shadow-sm border border-border rounded-xl flex flex-col">
 
               {/* Card top accent by status */}
               <div className={`h-1 w-full ${
                 cls.status === 'active' ? 'bg-emerald-500' :
-                cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-blue-500'
+                cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-primary'
               }`} />
 
               <div className="p-5 flex flex-col gap-4 flex-1">
@@ -319,19 +319,19 @@ export default function ClassesPage() {
 
       {/* Quick links — staff only */}
       {profile?.role !== 'school' && (
-        <div className="bg-card shadow-sm border border-border rounded-none p-6">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
           <h2 className="text-sm font-bold text-foreground mb-4">Quick Links</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students'    },
-              { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments' },
+              { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-primary',   bg: 'bg-primary/10',   href: '/dashboard/assignments' },
               { label: 'CBT Exams',   desc: 'Online tests',       icon: AcademicCapIcon, color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'         },
               { label: 'Lessons',     desc: 'Curriculum content', icon: BookOpenIcon,    color: 'text-purple-400', bg: 'bg-purple-500/10', href: '/dashboard/lessons'     },
             ].map(a => (
               <Link
                 key={a.label}
                 href={a.href}
-                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-none group"
+                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-xl group"
               >
                 <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
                   <a.icon className={`w-4 h-4 ${a.color}`} />

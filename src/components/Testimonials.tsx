@@ -17,8 +17,8 @@ const Testimonials: React.FC = () => {
 
   return (
     <section className="py-24 bg-background relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-none pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-none pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-primary/5 blur-[100px] rounded-xl pointer-events-none" />
 
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="text-center mb-24">
@@ -31,7 +31,7 @@ const Testimonials: React.FC = () => {
           <div className="w-24 h-1 bg-primary mx-auto mt-12"></div>
         </div>
 
-        <div className="max-w-5xl mx-auto bg-card border border-border rounded-none shadow-2xl p-12 mb-24 relative border-t-8 border-t-brand-red-600">
+        <div className="max-w-5xl mx-auto bg-card border border-border rounded-xl shadow-2xl p-12 mb-24 relative border-t-8 border-t-brand-red-600">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
             {[...Array(5)].map((_, i) => (
@@ -44,7 +44,7 @@ const Testimonials: React.FC = () => {
           </p>
 
           <div className="flex items-center justify-center">
-            <div className="w-16 h-16 bg-muted border border-border rounded-none flex items-center justify-center text-primary mr-6">
+            <div className="w-16 h-16 bg-muted border border-border rounded-xl flex items-center justify-center text-primary mr-6">
               <School className="w-8 h-8" />
             </div>
             <div className="text-left">
@@ -58,9 +58,9 @@ const Testimonials: React.FC = () => {
           {schools.map((school, index) => (
             <div
               key={index}
-              className="bg-card border border-border rounded-none p-10 flex flex-col items-center hover:border-primary transition-all group"
+              className="bg-card border border-border rounded-xl p-10 flex flex-col items-center hover:border-primary transition-all group"
             >
-              <div className="w-20 h-20 bg-muted border border-border group-hover:border-primary rounded-none flex items-center justify-center text-primary font-black text-2xl mb-6 transition-all">
+              <div className="w-20 h-20 bg-muted border border-border group-hover:border-primary rounded-xl flex items-center justify-center text-primary font-black text-2xl mb-6 transition-all">
                 {school.logo}
               </div>
               <h3 className="text-center font-black text-foreground uppercase tracking-tighter italic text-sm">{school.name}</h3>
@@ -79,7 +79,7 @@ const Testimonials: React.FC = () => {
           </p>
           <Link
             href="/school-registration"
-            className="inline-flex items-center justify-center px-16 py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.5em] rounded-none shadow-xl shadow-primary/20 hover:bg-primary transition-all"
+            className="inline-flex items-center justify-center px-16 py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.5em] rounded-xl shadow-xl shadow-primary/20 hover:bg-primary transition-all"
           >
             Partner With Us
           </Link>

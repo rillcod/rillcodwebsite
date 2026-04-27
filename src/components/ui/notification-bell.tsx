@@ -64,7 +64,7 @@ export function NotificationBell() {
       case 'error':
         return 'text-red-600 bg-red-50'
       default:
-        return 'text-blue-600 bg-blue-50'
+        return 'text-primary bg-blue-50'
     }
   }
 
@@ -111,7 +111,7 @@ export function NotificationBell() {
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm text-primary hover:text-blue-800"
                     >
                       Mark all as read
                     </button>
@@ -138,7 +138,7 @@ export function NotificationBell() {
                           notification.type === 'warning' ? 'bg-yellow-500' :
                           notification.type === 'success' ? 'bg-green-500' :
                           notification.type === 'error' ? 'bg-red-500' :
-                          'bg-blue-500'
+                          'bg-primary'
                         }`} />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
@@ -163,7 +163,7 @@ export function NotificationBell() {
               </div>
               
               <div className="p-4 border-t">
-                <button className="w-full text-center text-sm text-blue-600 hover:text-blue-800">
+                <button className="w-full text-center text-sm text-primary hover:text-blue-800">
                   View all notifications
                 </button>
               </div>

@@ -159,7 +159,7 @@ export default function ImportStudentsPage() {
       </div>
 
       {/* Template Download */}
-      <div className="bg-primary/10 border border-primary/20 rounded-none p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="text-primary font-bold text-sm">Need the CSV template?</p>
           <p className="text-primary/60 text-xs mt-0.5">
@@ -168,7 +168,7 @@ export default function ImportStudentsPage() {
         </div>
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors flex-shrink-0"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Download Template
         </button>
@@ -184,7 +184,7 @@ export default function ImportStudentsPage() {
           if (f) handleFile(f);
         }}
         onClick={() => fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-none p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-border bg-muted'}`}
+        className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-border bg-muted'}`}
       >
         <ArrowUpTrayIcon className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
         <p className="text-foreground font-bold">{fileName || 'Drag & drop your CSV here'}</p>
@@ -195,7 +195,7 @@ export default function ImportStudentsPage() {
 
       {/* Preview */}
       {parsed.length > 0 && (
-        <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden mb-6">
+        <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden mb-6">
           <div className="flex items-center justify-between p-5 border-b border-border">
             <div className="flex items-center gap-3">
               <UserGroupIcon className="w-5 h-5 text-muted-foreground" />
@@ -248,7 +248,7 @@ export default function ImportStudentsPage() {
               <button
                 onClick={runImport}
                 disabled={importing}
-                className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 text-foreground font-bold rounded-none transition-colors"
+                className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 text-foreground font-bold rounded-xl transition-colors"
               >
                 {importing ? 'Importing...' : `Import ${validRows.length} Students`}
               </button>
@@ -259,7 +259,7 @@ export default function ImportStudentsPage() {
 
       {/* Result */}
       {result && (
-        <div className={`rounded-none p-5 border ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+        <div className={`rounded-xl p-5 border ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
           <div className="flex items-center gap-3 mb-3">
             <CheckCircleIcon className="w-6 h-6 text-emerald-400" />
             <p className="text-foreground font-bold">Import Complete</p>
@@ -270,10 +270,10 @@ export default function ImportStudentsPage() {
             <p key={i} className="text-rose-400/60 text-xs mt-1 font-mono">{e}</p>
           ))}
           <div className="flex gap-3 mt-4">
-            <Link href="/dashboard/students" className="px-4 py-2 bg-muted text-foreground text-sm font-bold rounded-none hover:bg-muted transition-colors">
+            <Link href="/dashboard/students" className="px-4 py-2 bg-muted text-foreground text-sm font-bold rounded-xl hover:bg-muted transition-colors">
               View Students
             </Link>
-            <Link href="/dashboard/approvals" className="px-4 py-2 bg-[#7a0606] text-foreground text-sm font-bold rounded-none hover:bg-[#9a0808] transition-colors">
+            <Link href="/dashboard/approvals" className="px-4 py-2 bg-[#7a0606] text-foreground text-sm font-bold rounded-xl hover:bg-[#9a0808] transition-colors">
               Go to Approvals
             </Link>
           </div>
@@ -281,7 +281,7 @@ export default function ImportStudentsPage() {
       )}
 
       {/* Column reference */}
-      <div className="mt-8 bg-[#0d1526] border border-border rounded-none p-5">
+      <div className="mt-8 bg-[#0d1526] border border-border rounded-xl p-5">
         <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">CSV Column Reference</h3>
         <div className="grid grid-cols-2 gap-2">
           {ALL_COLS.map(col => (

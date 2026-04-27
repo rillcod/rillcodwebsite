@@ -123,10 +123,10 @@ export default function CommandPalette() {
           )}
 
           {canRosterSearch && results.classes.length > 0 && (
-            <CommandGroup heading={<span className="text-[10px] font-black text-violet-500/60 uppercase tracking-[0.3em] px-4 py-2 block">Learning Cells</span>}>
+            <CommandGroup heading={<span className="text-[10px] font-black text-primary/60 uppercase tracking-[0.3em] px-4 py-2 block">Learning Cells</span>}>
               {results.classes.map((c) => (
                 <CommandItem key={c.id} onSelect={() => runCommand(() => router.push(`/dashboard/classes/${c.id}`))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-                  <div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl group-hover:scale-110 transition-transform">
+                  <div className="p-3 bg-primary/10 text-primary rounded-xl group-hover:scale-110 transition-transform">
                     <AcademicCapIcon className="w-5 h-5" />
                   </div>
                   <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground">{c.name}</span>
@@ -160,7 +160,7 @@ export default function CommandPalette() {
               </CommandItem>
             )}
             <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/messages'))} className="flex items-center gap-4 px-4 py-4 rounded-2xl hover:bg-card shadow-sm cursor-pointer group transition-all">
-              <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-violet-500/20 group-hover:text-violet-400 transition-all">
+              <div className="p-3 bg-card shadow-sm text-muted-foreground rounded-xl group-hover:bg-primary/20 group-hover:text-primary transition-all">
                 <EnvelopeIcon className="w-5 h-5" />
               </div>
               <span className="text-sm font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider">Messages</span>

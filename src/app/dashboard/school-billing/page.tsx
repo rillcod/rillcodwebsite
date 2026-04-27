@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   past_due:    { label: 'Past Due',  color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',       icon: ExclamationTriangleIcon },
   paid:        { label: 'Paid',      color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: CheckCircleIcon },
   cancelled:   { label: 'Cancelled', color: 'text-muted-foreground/70 bg-zinc-500/10 border-zinc-500/20',       icon: InformationCircleIcon },
-  rolled_over: { label: 'Rolled Over', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: ArrowPathIcon },
+  rolled_over: { label: 'Rolled Over', color: 'text-primary bg-primary/10 border-primary/20',    icon: ArrowPathIcon },
 };
 
 function BillingPaymentModal({
@@ -83,7 +83,7 @@ function BillingPaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-none w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-card border border-border rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
             <p className="font-black text-foreground text-sm">Pay Billing Cycle</p>
@@ -117,14 +117,14 @@ function BillingPaymentModal({
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="Optional note (bank ref, paid by, etc)"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
-            <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-none text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
+            <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
               {uploading ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload screenshot / PDF</>}
               <input type="file" accept="image/*,application/pdf" className="hidden" disabled={uploading} onChange={uploadProof} />
             </label>
             {uploaded && (
-              <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-none">
+              <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
                 <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <p className="text-[11px] text-emerald-400 font-bold">Proof uploaded. Finance team will review and confirm payment.</p>
               </div>
@@ -232,7 +232,7 @@ export default function SchoolBillingPage() {
         </div>
         <button
           onClick={loadData}
-          className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-bold rounded-none border border-border transition-colors"
+          className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-bold rounded-xl border border-border transition-colors"
         >
           <ArrowPathIcon className="w-3.5 h-3.5" /> Refresh
         </button>
@@ -240,7 +240,7 @@ export default function SchoolBillingPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-none p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Current Balance Due</p>
           <p className={`text-2xl font-black ${totalOwed > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {fmt(totalOwed)}
@@ -249,14 +249,14 @@ export default function SchoolBillingPage() {
             {totalOwed > 0 ? 'Outstanding payment required' : 'All cycles settled'}
           </p>
         </div>
-        <div className="bg-card border border-border rounded-none p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Active Cycle</p>
           <p className="text-lg font-black text-foreground truncate">{activeCycle?.term_label || '—'}</p>
           {activeCycle && (
             <p className="text-[11px] text-muted-foreground mt-1">Due {relDate(activeCycle.due_date)}</p>
           )}
         </div>
-        <div className="bg-card border border-border rounded-none p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">School Contact</p>
           <p className="text-sm font-bold text-foreground truncate">{school?.email || '—'}</p>
           <p className="text-[11px] text-muted-foreground mt-1">{school?.phone || 'No phone on file'}</p>
@@ -264,7 +264,7 @@ export default function SchoolBillingPage() {
       </div>
 
       {/* Billing Cycles */}
-      <div className="bg-card border border-border rounded-none overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
             <CalendarDaysIcon className="w-4 h-4 text-primary" />
@@ -316,7 +316,7 @@ export default function SchoolBillingPage() {
       </div>
 
       {/* Payment Instructions */}
-      <div className="bg-card border border-border rounded-none overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
             <CreditCardIcon className="w-4 h-4 text-primary" />
@@ -346,7 +346,7 @@ export default function SchoolBillingPage() {
                   </div>
                 </div>
                 {acct.payment_note && (
-                  <p className="mt-3 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-none border border-border">
+                  <p className="mt-3 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-xl border border-border">
                     {acct.payment_note}
                   </p>
                 )}
@@ -358,7 +358,7 @@ export default function SchoolBillingPage() {
 
       {/* Billing Contact */}
       {billingContact && (
-        <div className="bg-card border border-border rounded-none overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border bg-muted/30">
             <div className="flex items-center gap-3">
               <BuildingOfficeIcon className="w-4 h-4 text-primary" />
@@ -388,7 +388,7 @@ export default function SchoolBillingPage() {
       )}
 
       {/* Footer note */}
-      <div className="flex items-start gap-3 bg-muted/30 border border-border rounded-none p-4">
+      <div className="flex items-start gap-3 bg-muted/30 border border-border rounded-xl p-4">
         <InformationCircleIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
           To update your billing contact or dispute a cycle, email{' '}

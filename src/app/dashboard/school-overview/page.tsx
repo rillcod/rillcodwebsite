@@ -37,8 +37,8 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: any; label: string; value: string | number; sub?: string; color: string;
 }) {
   return (
-    <div className="bg-card border border-border rounded-none p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-none flex items-center justify-center flex-shrink-0 ${color}`}>
+    <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
         <Icon className="w-6 h-6" />
       </div>
       <div>
@@ -280,19 +280,19 @@ export default function SchoolOverviewPage() {
         <div className="flex gap-3">
           <Link
             href={`/dashboard/timetable?school_id=${profile?.school_id}`}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-colors"
           >
             <CalendarDaysIcon className="w-4 h-4" /> View Schedule
           </Link>
           <Link
             href="/dashboard/students/import"
-            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors"
           >
             <UserGroupIcon className="w-4 h-4" /> Import Students
           </Link>
           <button
             onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-destructive hover:opacity-90 text-foreground text-sm font-bold rounded-none transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-destructive hover:opacity-90 text-foreground text-sm font-bold rounded-xl transition-colors"
           >
             <DocumentArrowDownIcon className="w-4 h-4" /> Export PDF
           </button>
@@ -390,7 +390,7 @@ export default function SchoolOverviewPage() {
       )}
 
       {/* Student Table */}
-      <div className="bg-card border border-border rounded-none overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-border flex-wrap gap-3">
           <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Students</h2>
           <div className="flex gap-2 flex-wrap">
@@ -399,12 +399,12 @@ export default function SchoolOverviewPage() {
               placeholder="Search student..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-primary w-44"
+              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary w-44"
             />
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
-              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none"
+              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-xl"
             >
               <option value="grade">Sort: Grade</option>
               <option value="attendance">Sort: Attendance</option>

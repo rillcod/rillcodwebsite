@@ -56,7 +56,7 @@ interface StudentOption {
 
 const INVOICE_STATUS_STYLES: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground border-border',
-  sent: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  sent: 'bg-primary/10 text-primary border-primary/30',
   paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
   overdue: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
   cancelled: 'bg-muted text-muted-foreground border-border',
@@ -257,14 +257,14 @@ export function InvoicesPanel() {
       {(isAdmin || isSchool) && (
         <Link
           href="/dashboard/finance?tab=billing_cycles"
-          className="block rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 p-4 sm:p-5 hover:border-violet-500/60 transition-colors"
+          className="block rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10 p-4 sm:p-5 hover:border-primary/60 transition-colors"
         >
           <div className="flex items-start sm:items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white inline-flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary text-white inline-flex items-center justify-center shrink-0">
               <ArrowTrendingUpIcon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/80">
                 Recommended for schools
               </p>
               <p className="text-sm sm:text-base font-black text-foreground">
@@ -274,7 +274,7 @@ export function InvoicesPanel() {
                 Auto-splits Rillcod commission vs. school settlement, keeps invoices linked to a term.
               </p>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-violet-500">
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-primary">
               Open →
             </span>
           </div>
@@ -445,7 +445,7 @@ export function InvoicesPanel() {
                     <button
                       onClick={() => sendEmail(inv)}
                       disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-blue-500/50 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-md"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-primary/50 text-primary text-[10px] font-black uppercase tracking-widest rounded-md"
                       title="Email this invoice to the payer"
                     >
                       <EnvelopeIcon className="w-3 h-3" /> Email

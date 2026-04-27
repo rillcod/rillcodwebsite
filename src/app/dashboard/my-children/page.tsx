@@ -45,9 +45,9 @@ function calcAge(dob: string | null): string | null {
 }
 
 const QUICK_LINKS = (id: string) => [
-  { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,      icon: DocumentChartBarIcon,      color: 'bg-violet-500/20 text-violet-400', hover: 'group-hover/link:bg-violet-500/30' },
+  { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,      icon: DocumentChartBarIcon,      color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
   { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`,   icon: ClipboardDocumentCheckIcon, color: 'bg-emerald-500/20 text-emerald-400', hover: 'group-hover/link:bg-emerald-500/30' },
-  { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,       icon: ClipboardDocumentListIcon,  color: 'bg-blue-500/20 text-blue-400', hover: 'group-hover/link:bg-blue-500/30' },
+  { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,       icon: ClipboardDocumentListIcon,  color: 'bg-primary/20 text-primary', hover: 'group-hover/link:bg-primary/30' },
   { label: 'Invoices',      href: `/dashboard/parent-invoices?student=${id}`,     icon: BanknotesIcon,              color: 'bg-rose-500/20 text-rose-400', hover: 'group-hover/link:bg-rose-500/30' },
   { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon,                 color: 'bg-amber-500/20 text-amber-400', hover: 'group-hover/link:bg-amber-500/30' },
 ];
@@ -198,7 +198,7 @@ export default function MyChildrenPage() {
                         <span className="text-xs text-primary font-bold">{child.parent_relationship}</span>
                       )}
                       {s?.teacherName && (
-                        <span className="text-xs text-violet-400 flex items-center gap-1" title={s.teacherPhone ?? undefined}>
+                        <span className="text-xs text-primary flex items-center gap-1" title={s.teacherPhone ?? undefined}>
                           <UserIcon className="w-3 h-3" /> Teacher: {s.teacherName}
                         </span>
                       )}

@@ -998,7 +998,7 @@ export default function ParentsPage() {
         <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
           <UserGroupIcon className="w-4 h-4" /> Students
         </Link>
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
           <UserPlusIcon className="w-4 h-4" /> Parents
         </span>
         <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -1375,8 +1375,8 @@ export default function ParentsPage() {
                       onClick={() => openSlide('edit', parent)}
                       title="Edit parent profile"
                       className="group flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-border hover:border-white/30 transition-all">
-                      <span className="w-6 h-6 rounded-sm bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
-                        <PencilSquareIcon className="w-3.5 h-3.5 text-violet-400" />
+                      <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <PencilSquareIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors hidden sm:block">Edit</span>
                     </button>
@@ -1431,11 +1431,11 @@ export default function ParentsPage() {
                     {/* Message */}
                     <a href={`/dashboard/messages?to=${parent.id}`}
                       title="Send message to parent"
-                      className="group flex items-center gap-2 px-3 py-2 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 hover:border-blue-500/50 transition-all">
-                      <span className="w-6 h-6 rounded-sm bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                        <EnvelopeIcon className="w-3.5 h-3.5 text-blue-400" />
+                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
+                      <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 hidden sm:block">Message</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary hidden sm:block">Message</span>
                     </a>
 
                     {/* Card Studio shortcut */}
@@ -1557,10 +1557,10 @@ export default function ParentsPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-primary/20' : 'bg-violet-500/20'}`}>
+                <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-primary/20' : 'bg-primary/20'}`}>
                   {slideMode === 'add'
                     ? <PlusIcon className="w-4 h-4 text-primary" />
-                    : <PencilSquareIcon className="w-4 h-4 text-violet-400" />}
+                    : <PencilSquareIcon className="w-4 h-4 text-primary" />}
                 </div>
                 <div>
                   <h2 className="text-sm font-black text-foreground uppercase tracking-widest">

@@ -41,7 +41,7 @@ interface UpcomingClass {
 }
 
 const COLORS = [
-  'bg-primary', 'bg-blue-500', 'bg-emerald-500',
+  'bg-primary', 'bg-primary', 'bg-emerald-500',
   'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'
 ];
 
@@ -196,7 +196,7 @@ function TeacherPersonalDashboard() {
           setRecentStudents(registeredStudents);
 
           // Performance bars from real classes
-          const COLORS_PERF = ['bg-primary', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
+          const COLORS_PERF = ['bg-primary', 'bg-primary', 'bg-emerald-500', 'bg-amber-500'];
           setPerfData(classRows.slice(0, 4).map((c: any, i: number) => ({
             label: c.name,
             value: c.current_students && c.max_students ? Math.round((c.current_students / c.max_students) * 100) : 0,
@@ -233,7 +233,7 @@ function TeacherPersonalDashboard() {
 
   const quickActions = [
     { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-primary hover:bg-orange-700' },
-    { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-blue-600 hover:bg-blue-700' },
+    { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-primary hover:bg-primary' },
     { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/assignments', color: 'bg-amber-600 hover:bg-amber-700' },
     { label: 'View Progress', icon: ChartBarIcon, href: '/dashboard/progress', color: 'bg-emerald-600 hover:bg-emerald-700' },
     { label: 'Lesson Plans', icon: DocumentTextIcon, href: '/dashboard/lessons', color: 'bg-cyan-600 hover:bg-cyan-700' },
@@ -252,7 +252,7 @@ function TeacherPersonalDashboard() {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.3em] rounded-none shadow-xl">
+                <div className="px-5 py-2 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.3em] rounded-xl shadow-xl">
                    Teacher Nucleus
                 </div>
                 <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ function TeacherPersonalDashboard() {
               </h1>
               
               <div className="flex items-center gap-6 pt-2">
-                <div className="flex items-center gap-2.5 px-6 py-3 bg-card shadow-sm border border-border rounded-none text-[11px] font-black uppercase tracking-widest text-muted-foreground shadow-xl" suppressHydrationWarning>
+                <div className="flex items-center gap-2.5 px-6 py-3 bg-card shadow-sm border border-border rounded-xl text-[11px] font-black uppercase tracking-widest text-muted-foreground shadow-xl" suppressHydrationWarning>
                    <ClockIcon className="w-4 h-4 text-primary" />
                    {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                 </div>
@@ -280,7 +280,7 @@ function TeacherPersonalDashboard() {
                <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
                  {profile?.full_name?.[0]?.toUpperCase() || '?'}
                </div>
-               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-none flex items-center justify-center text-black shadow-2xl rotate-12">
+               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-xl flex items-center justify-center text-black shadow-2xl rotate-12">
                  <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                </div>
             </div>
@@ -290,10 +290,10 @@ function TeacherPersonalDashboard() {
         {/* ── STAT CARDS ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((card) => (
-            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-none bg-card shadow-sm border border-border p-5 sm:p-6 hover:border-primary/30 hover:bg-white/8 transition-all duration-300">
+            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-xl bg-card shadow-sm border border-border p-5 sm:p-6 hover:border-primary/30 hover:bg-white/8 transition-all duration-300">
               <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
               <div className="flex items-start justify-between mb-4 sm:mb-6">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform`}>
                   <card.icon className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
@@ -324,20 +324,20 @@ function TeacherPersonalDashboard() {
             
             <div className="grid grid-cols-1 gap-4">
               {upcomingClasses.length === 0 ? (
-                <div className="py-12 text-center bg-card shadow-sm border border-border rounded-none">
+                <div className="py-12 text-center bg-card shadow-sm border border-border rounded-xl">
                   <p className="text-muted-foreground text-xs font-black uppercase tracking-widest italic">No classes scheduled yet</p>
                 </div>
               ) : (
                 upcomingClasses.map((cls, i) => (
-                  <div key={cls.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 hover:bg-muted hover:border-primary/30 transition-all">
-                    <div className={`w-14 h-14 rounded-none ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-2xl`}>
+                  <div key={cls.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-card shadow-sm border border-border rounded-xl p-5 sm:p-6 hover:bg-muted hover:border-primary/30 transition-all">
+                    <div className={`w-14 h-14 rounded-xl ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-2xl`}>
                       <BookOpenIcon className="w-7 h-7 text-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-black text-foreground mb-1.5 truncate group-hover:text-primary transition-colors">{cls.name}</h3>
                       <div className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground/70">
                         <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-primary" />{cls.time}</span>
-                        <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-blue-500" />{cls.students} Enrollments</span>
+                        <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-primary" />{cls.students} Enrollments</span>
                       </div>
                     </div>
                     <div className={`mt-2 sm:mt-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${cls.day === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card shadow-sm text-muted-foreground border-border'}`}>
@@ -357,7 +357,7 @@ function TeacherPersonalDashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {quickActions.map((action) => (
                   <Link key={action.label} href={action.href}
-                    className={`flex flex-col gap-3 ${action.color} text-foreground font-black text-[10px] uppercase tracking-widest px-5 py-6 rounded-none transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl hover:shadow-black active:scale-95 border border-border`}
+                    className={`flex flex-col gap-3 ${action.color} text-foreground font-black text-[10px] uppercase tracking-widest px-5 py-6 rounded-xl transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl hover:shadow-black active:scale-95 border border-border`}
                   >
                     <action.icon className="w-6 h-6 opacity-60" />
                     {action.label}
@@ -371,10 +371,10 @@ function TeacherPersonalDashboard() {
           <div className="space-y-6">
 
             {/* Recent Activity */}
-            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden shadow-2xl">
+            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden shadow-2xl">
               <div className="p-5 sm:p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
                 <h3 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-3">
-                  <BellIcon className="w-4 h-4 text-blue-500" /> Live Logs
+                  <BellIcon className="w-4 h-4 text-primary" /> Live Logs
                 </h3>
               </div>
               <div className="divide-y divide-white/5">
@@ -395,13 +395,13 @@ function TeacherPersonalDashboard() {
             </div>
 
             {/* Performance Summary */}
-            <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl shadow-primary/5">
+            <div className="bg-background border border-border rounded-xl p-6 sm:p-8 shadow-2xl shadow-primary/5">
               <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-3">
                 <StarIcon className="w-4 h-4 text-amber-400 shadow-xl" /> Scores
               </h3>
               <div className="space-y-6">
                 {perfData.length === 0 ? (
-                  <p className="text-muted-foreground text-xs italic font-bold tracking-widest uppercase px-2 py-8 text-center border-2 border-dashed border-border rounded-none">No metrics yet</p>
+                  <p className="text-muted-foreground text-xs italic font-bold tracking-widest uppercase px-2 py-8 text-center border-2 border-dashed border-border rounded-xl">No metrics yet</p>
                 ) : perfData.map((item) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex justify-between items-center px-1">
@@ -422,10 +422,10 @@ function TeacherPersonalDashboard() {
             {/* Pending Grading Banner */}
             {stats.pendingGrades > 0 && (
               <div className="relative group overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary to-rose-600 rounded-none opacity-10 group-hover:opacity-20 transition-opacity"></div>
-                <div className="relative bg-card shadow-sm border border-amber-500/20 rounded-none p-6 sm:p-8">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary to-rose-600 rounded-xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                <div className="relative bg-card shadow-sm border border-amber-500/20 rounded-xl p-6 sm:p-8">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-none bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
                       <ClipboardDocumentListIcon className="w-6 h-6 text-amber-400" />
                     </div>
                     <div className="flex-1">
@@ -445,14 +445,14 @@ function TeacherPersonalDashboard() {
         </div>
 
         {/* ── FOOTER STATS ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-card shadow-sm p-4 sm:p-6 rounded-none border border-border">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-card shadow-sm p-4 sm:p-6 rounded-xl border border-border">
           {[
             { label: 'Classes', value: stats.myClasses, icon: AcademicCapIcon, color: 'text-primary' },
-            { label: 'Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'text-blue-400' },
+            { label: 'Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'text-primary' },
             { label: 'Pending', value: stats.pendingGrades, icon: DocumentTextIcon, color: 'text-amber-400' },
             { label: 'Efficiency', value: `${stats.avgPerformance}%`, icon: FireIcon, color: 'text-emerald-400' },
           ].map((item) => (
-            <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-card shadow-sm rounded-none transition-all group">
+            <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-card shadow-sm rounded-xl transition-all group">
               <item.icon className={`w-5 h-5 ${item.color} mb-3 group-hover:scale-110 transition-transform`} />
               <p className="text-xl sm:text-2xl font-black text-foreground group-hover:text-primary transition-colors tabular-nums">{item.value}</p>
               <p className="text-xs text-muted-foreground/70 font-black uppercase tracking-widest mt-1">{item.label}</p>
@@ -723,10 +723,10 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {/* Credentials Modal */}
       {credentials && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#161628] border border-border rounded-none w-full max-w-md shadow-2xl overflow-hidden">
+          <div className="bg-[#161628] border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-none flex items-center justify-center">
+                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
                   <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
@@ -734,12 +734,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   <p className="text-xs text-muted-foreground">Credentials for {credentials.name}</p>
                 </div>
               </div>
-              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-muted rounded-none transition-colors">
+              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-muted rounded-xl transition-colors">
                 <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-xs text-amber-300 flex items-start gap-2">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>Copy these now. The teacher should change their password on first login.</span>
               </div>
@@ -750,12 +750,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 <div key={label}>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{label}</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-foreground font-mono text-sm select-all">
+                    <code className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-foreground font-mono text-sm select-all">
                       {value}
                     </code>
                     <button
                       onClick={() => navigator.clipboard.writeText(value)}
-                      className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors">
+                      className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-colors">
                       <ClipboardIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -766,7 +766,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`);
                   setCredentials(null);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all">
                 <ClipboardIcon className="w-4 h-4" /> Copy & Close
               </button>
             </div>
@@ -781,7 +781,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
           <Link href="/dashboard/schools" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
             <BuildingOfficeIcon className="w-4 h-4" /> Schools
           </Link>
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
             <AcademicCapIcon className="w-4 h-4" /> Teachers
           </span>
           <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -809,7 +809,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
             <p className="text-muted-foreground text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
           </div>
           <button onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-primary/20">
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
             <PlusIcon className="w-4 h-4" /> Add Teacher
           </button>
         </div>
@@ -821,7 +821,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
             { label: 'Active', value: teachers.filter(t => t.is_active).length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Inactive', value: teachers.filter(t => !t.is_active).length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className={`${s.bg} border border-border rounded-none p-5`}>
+            <div key={s.label} className={`${s.bg} border border-border rounded-xl p-5`}>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
             </div>
@@ -833,13 +833,13 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
           <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name or email…"
-            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
+            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground" />
         </div>
 
         {/* Teacher list */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-card shadow-sm border border-border rounded-none animate-pulse" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-card shadow-sm border border-border rounded-xl animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
@@ -854,14 +854,14 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   <div className="flex flex-col lg:flex-row lg:items-center gap-6 sm:gap-8">
                     
                   <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-none bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm sm:text-base font-black text-foreground shrink-0 shadow-2xl">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm sm:text-base font-black text-foreground shrink-0 shadow-2xl">
                         {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-foreground text-lg sm:text-xl truncate tracking-tight">{t.full_name}</h3>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground mt-1.5">
                           <span className="flex items-center gap-1.5 min-w-0 truncate"><EnvelopeIcon className="w-3.5 h-3.5 text-primary shrink-0" /><span className="truncate">{t.email}</span></span>
-                          {t.phone && <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-3.5 h-3.5 text-blue-400" />{t.phone}</span>}
+                          {t.phone && <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-3.5 h-3.5 text-primary" />{t.phone}</span>}
                         </div>
                       </div>
                     </div>
@@ -871,13 +871,13 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                       <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mr-1 lg:hidden">Schools:</span>
                       {staffDeployment[t.id]?.length > 0 ? (
                         staffDeployment[t.id].map(a => (
-                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-[180px]">
+                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest max-w-[180px]">
                             <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
                             <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
                           </div>
                         ))
                       ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
                           <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
                           Unassigned
                         </div>
@@ -888,41 +888,41 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                     <div className="flex items-center gap-2 shrink-0 pt-3 lg:pt-0 border-t lg:border-0 border-border w-full lg:w-auto justify-between lg:justify-end">
                       {/* Manage Deployment — prominent on mobile */}
                       <button onClick={() => startEdit(t)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-none text-xs font-bold transition-all lg:hidden">
+                        className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl text-xs font-bold transition-all lg:hidden">
                         <PencilSquareIcon className="w-3.5 h-3.5" /> Manage
                       </button>
 
-                      <div className="flex items-center gap-1 bg-card shadow-sm p-1 rounded-none border border-border">
+                      <div className="flex items-center gap-1 bg-card shadow-sm p-1 rounded-xl border border-border">
                         <button onClick={() => toggleActive(t.id, t.is_active)}
                           disabled={toggling === t.id}
-                          className="p-2.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
+                          className="p-2.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
                           title={t.is_active ? 'Deactivate' : 'Activate'}>
                           {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
                         </button>
                         <button onClick={() => startEdit(t)}
-                          className="hidden lg:block p-2.5 rounded-none hover:bg-blue-500/10 text-blue-400/60 hover:text-blue-400 transition-all"
+                          className="hidden lg:block p-2.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-all"
                           title="Edit / Manage Deployment">
                           <PencilSquareIcon className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
-                          className="p-2.5 rounded-none hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
+                          className="p-2.5 rounded-xl hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
                           title="Reset Password">
                           <KeyIcon className="w-4 h-4" />
                         </button>
                         <Link
                           href={`/dashboard/card-studio?mode=issuance&type=teacher&q=${encodeURIComponent(t.full_name || t.email || '')}`}
-                          className="p-2.5 rounded-none hover:bg-primary/10 text-primary/40 hover:text-primary transition-all"
+                          className="p-2.5 rounded-xl hover:bg-primary/10 text-primary/40 hover:text-primary transition-all"
                           title="Print Access Card"
                         >
                           <ClipboardIcon className="w-4 h-4" />
                         </Link>
                         <button onClick={() => handlePromoteToAdmin(t)} disabled={promoting === t.id}
-                          className="p-2.5 rounded-none hover:bg-primary/10 text-primary/40 hover:text-primary transition-all disabled:opacity-50"
+                          className="p-2.5 rounded-xl hover:bg-primary/10 text-primary/40 hover:text-primary transition-all disabled:opacity-50"
                           title="Promote to Admin">
                           {promoting === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
                         </button>
                         <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
-                          className="p-2.5 rounded-none hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
+                          className="p-2.5 rounded-xl hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
                           title="Delete Teacher">
                           <TrashIcon className="w-4 h-4" />
                         </button>
@@ -940,20 +940,20 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
-          <div className="relative w-full max-w-md bg-background border border-border rounded-none shadow-2xl">
+          <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
                 <h2 className="text-lg font-extrabold text-foreground">Reset Password</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">For: <span className="text-muted-foreground font-semibold">{resetTarget.name}</span></p>
               </div>
-              <button onClick={() => setResetTarget(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setResetTarget(null)} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleResetPw} className="p-6 space-y-4">
               {resetMsg && (
-                <div className={`rounded-none px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
                   {resetMsg.text}
                 </div>
               )}
@@ -961,16 +961,16 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">New Password</label>
                 <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
                 <p className="text-xs text-white/25 mt-1.5">Share this new password with the teacher via phone or in person.</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setResetTarget(null)}
-                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all">
+                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl border border-border transition-all">
                   Cancel
                 </button>
                 <button type="submit" disabled={resetting || resetPw.length < 8}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                   {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                   {resetting ? 'Updating…' : 'Set Password'}
                 </button>
@@ -984,12 +984,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInvite(false)} />
-          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-border rounded-t-3xl rounded-none shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-border rounded-t-3xl rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-none bg-primary/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                   <AcademicCapIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
@@ -1003,7 +1003,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
               </div>
               <button
                 onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
-                className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1015,13 +1015,13 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
                 {/* Alerts */}
                 {inviteErr && (
-                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-none px-4 py-3 text-rose-400 text-sm">
+                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">
                     <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     {inviteErr}
                   </div>
                 )}
                 {inviteOk && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none px-4 py-3 text-emerald-400 text-sm">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm">
                     {inviteOk}
                   </div>
                 )}
@@ -1041,7 +1041,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="e.g. Adeola Johnson"
                         value={inviteForm.full_name}
                         onChange={e => setInviteForm(p => ({ ...p, full_name: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     <div>
@@ -1053,7 +1053,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="+234 800 000 0000"
                         value={inviteForm.phone}
                         onChange={e => setInviteForm(p => ({ ...p, phone: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     <div>
@@ -1065,7 +1065,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="e.g. Robotics, Python"
                         value={inviteForm.subject}
                         onChange={e => setInviteForm(p => ({ ...p, subject: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                       />
                     </div>
                   </div>
@@ -1086,7 +1086,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="teacher@email.com"
                         value={inviteForm.email}
                         onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
-                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     {!editingTeacher && (
@@ -1099,7 +1099,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                           placeholder="Min 8 characters — auto-generated if empty"
                           value={inviteForm.password}
                           onChange={e => setInviteForm(p => ({ ...p, password: e.target.value }))}
-                          className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground font-mono focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
+                          className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground font-mono focus:outline-none focus:border-primary transition-colors placeholder-muted-foreground"
                         />
                         <p className="text-[10px] text-muted-foreground mt-1.5">
                           The teacher will be prompted to change their password on first login.
@@ -1115,7 +1115,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                     <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">School Assignment</span><span className="h-px flex-1 bg-card shadow-sm" />
                   </p>
                   {schools.length === 0 ? (
-                    <div className="px-4 py-6 bg-white/3 border border-border rounded-none text-center">
+                    <div className="px-4 py-6 bg-white/3 border border-border rounded-xl text-center">
                       <BuildingOfficeIcon className="w-8 h-8 text-white/15 mx-auto mb-2" />
                       <p className="text-white/25 text-sm">No schools yet — create a school first.</p>
                     </div>
@@ -1126,7 +1126,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         return (
                           <label
                             key={s.id}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-none cursor-pointer transition-all border ${
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all border ${
                               checked
                                 ? 'bg-primary/10 border-primary/30 text-foreground'
                                 : 'bg-white/3 border-border text-muted-foreground hover:bg-white/6 hover:text-muted-foreground'
@@ -1166,14 +1166,14 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 <button
                   type="button"
                   onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
-                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all"
+                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl border border-border transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={inviting}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {inviting
                     ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>

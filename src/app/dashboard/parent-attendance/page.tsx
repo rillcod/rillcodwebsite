@@ -21,14 +21,14 @@ const STATUS_STYLE: Record<string, string> = {
   present: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
   absent: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
   late: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
-  excused: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+  excused: 'bg-primary/10 border-primary/30 text-primary',
 };
 
 const STATUS_DOT: Record<string, string> = {
   present: 'bg-emerald-400',
   absent: 'bg-rose-400',
   late: 'bg-amber-400',
-  excused: 'bg-blue-400',
+  excused: 'bg-primary',
 };
 
 const STATUS_LABEL: Record<StatusFilter, string> = {
@@ -46,7 +46,7 @@ const TAB_ACTIVE: Record<StatusFilter, string> = {
   present: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
   absent: 'bg-rose-500/15 border-rose-500/40 text-rose-400',
   late: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
-  excused: 'bg-blue-500/15 border-blue-500/40 text-blue-400',
+  excused: 'bg-primary/15 border-primary/40 text-primary',
 };
 
 const EMPTY_ICON_COLOR: Record<StatusFilter, string> = {
@@ -54,7 +54,7 @@ const EMPTY_ICON_COLOR: Record<StatusFilter, string> = {
   present: 'text-emerald-400',
   absent: 'text-rose-400',
   late: 'text-amber-400',
-  excused: 'text-blue-400',
+  excused: 'text-primary',
 };
 
 /** Get ISO week number (Mon-based) from a date string */
@@ -150,7 +150,7 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
   const maxTotal = Math.max(...weeks.map(w => w.present + w.absent + w.late), 1);
 
   return (
-    <div className="bg-card border border-border rounded-none p-5">
+    <div className="bg-card border border-border rounded-xl p-5">
       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
         Weekly Breakdown — Last {weeks.length} Week{weeks.length !== 1 ? 's' : ''}
       </p>
@@ -297,7 +297,7 @@ function ParentAttendanceContent() {
           {children.map(child => (
             <button key={child.id}
               onClick={() => setSelectedId(child.id)}
-              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-none transition-all ${
+              className={`px-4 py-2 text-xs font-black uppercase tracking-widest border rounded-xl transition-all ${
                 selectedId === child.id
                   ? 'bg-primary border-primary text-white'
                   : 'bg-card border-border text-muted-foreground hover:border-primary/50'
@@ -309,7 +309,7 @@ function ParentAttendanceContent() {
       )}
 
       {!loadingChildren && children.length === 0 && (
-        <div className="bg-card border border-border rounded-none p-10 text-center">
+        <div className="bg-card border border-border rounded-xl p-10 text-center">
           <AcademicCapIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
         </div>
@@ -323,7 +323,7 @@ function ParentAttendanceContent() {
 
           {/* ── ATTENDANCE RING + STATS ── */}
           {!loadingRecords && records.length > 0 && attendancePct != null && (
-            <div className="bg-card border border-border rounded-none p-6">
+            <div className="bg-card border border-border rounded-xl p-6">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
                 {/* Attendance Ring */}
                 <div className="shrink-0">
@@ -334,7 +334,7 @@ function ParentAttendanceContent() {
                 <div className="flex-1 w-full">
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {/* Attendance Rate card */}
-                    <div className="bg-white/5 border border-white/10 rounded-none p-4 col-span-2 sm:col-span-1 flex flex-col gap-2">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 col-span-2 sm:col-span-1 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full ${
                           attendancePct >= 80 ? 'bg-emerald-400' : attendancePct >= 60 ? 'bg-amber-400' : 'bg-rose-400'
@@ -348,7 +348,7 @@ function ParentAttendanceContent() {
                     </div>
 
                     {/* Present */}
-                    <div className="bg-white/5 border border-white/10 rounded-none p-4 flex flex-col gap-2">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Present</span>
@@ -358,7 +358,7 @@ function ParentAttendanceContent() {
                     </div>
 
                     {/* Absent */}
-                    <div className="bg-white/5 border border-white/10 rounded-none p-4 flex flex-col gap-2">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Absent</span>
@@ -368,7 +368,7 @@ function ParentAttendanceContent() {
                     </div>
 
                     {/* Late */}
-                    <div className="bg-white/5 border border-white/10 rounded-none p-4 flex flex-col gap-2">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Late</span>
@@ -379,12 +379,12 @@ function ParentAttendanceContent() {
 
                     {/* Excused */}
                     {excusedCount > 0 && (
-                      <div className="bg-white/5 border border-white/10 rounded-none p-4 flex flex-col gap-2 col-span-2 sm:col-span-1">
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2 col-span-2 sm:col-span-1">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                           <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Excused</span>
                         </div>
-                        <div className="text-3xl font-black text-blue-400">{excusedCount}</div>
+                        <div className="text-3xl font-black text-primary">{excusedCount}</div>
                         <div className="text-[9px] text-muted-foreground">excused absences</div>
                       </div>
                     )}
@@ -410,7 +410,7 @@ function ParentAttendanceContent() {
                   <button
                     key={tab}
                     onClick={() => setStatusFilter(tab)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-xl transition-all ${
                       isActive
                         ? TAB_ACTIVE[tab]
                         : 'bg-card border-border text-muted-foreground hover:border-white/20 hover:text-white/60'
@@ -431,7 +431,7 @@ function ParentAttendanceContent() {
           {loadingRecords && (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border rounded-none p-4 animate-pulse flex justify-between">
+                <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse flex justify-between">
                   <div className="h-4 bg-muted rounded w-1/4" />
                   <div className="h-4 bg-muted rounded w-1/4" />
                   <div className="h-4 bg-muted rounded w-16" />
@@ -441,7 +441,7 @@ function ParentAttendanceContent() {
           )}
 
           {!loadingRecords && records.length === 0 && (
-            <div className="bg-card border border-border rounded-none p-10 text-center">
+            <div className="bg-card border border-border rounded-xl p-10 text-center">
               <ClipboardDocumentCheckIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">No attendance records</p>
               <p className="text-[11px] text-muted-foreground mt-1">No records have been logged yet for this student.</p>
@@ -449,7 +449,7 @@ function ParentAttendanceContent() {
           )}
 
           {!loadingRecords && records.length > 0 && filteredRecords.length === 0 && (
-            <div className="bg-card border border-border rounded-none p-10 text-center">
+            <div className="bg-card border border-border rounded-xl p-10 text-center">
               <ClipboardDocumentCheckIcon className={`w-8 h-8 mx-auto mb-3 ${EMPTY_ICON_COLOR[statusFilter]}`} />
               <p className="text-sm font-black text-foreground uppercase tracking-wider">
                 No {STATUS_LABEL[statusFilter]} records
@@ -461,7 +461,7 @@ function ParentAttendanceContent() {
           )}
 
           {!loadingRecords && filteredRecords.length > 0 && (
-            <div className="bg-card border border-border rounded-none overflow-hidden">
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 px-5 py-2.5 border-b border-border bg-muted">
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date</span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground hidden sm:block">Course</span>
@@ -494,7 +494,7 @@ function ParentAttendanceContent() {
 
 export default function ParentAttendancePage() {
   return (
-    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-none" />}>
+    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border rounded-xl" />}>
       <ParentAttendanceContent />
     </Suspense>
   );

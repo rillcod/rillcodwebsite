@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<AttendanceStatus, { label: string; emoji: string; bg
   present:  { label: 'Present',  emoji: '✅', bg: 'bg-emerald-500/20 hover:bg-emerald-500/40', ring: 'ring-emerald-500', text: 'text-emerald-400' },
   late:     { label: 'Late',     emoji: '⏰', bg: 'bg-amber-500/20  hover:bg-amber-500/40',  ring: 'ring-amber-500',   text: 'text-amber-400'   },
   absent:   { label: 'Absent',   emoji: '❌', bg: 'bg-red-500/20    hover:bg-red-500/40',    ring: 'ring-red-500',     text: 'text-red-400'     },
-  excused:  { label: 'Excused',  emoji: '📋', bg: 'bg-blue-500/20   hover:bg-blue-500/40',   ring: 'ring-blue-500',    text: 'text-blue-400'    },
+  excused:  { label: 'Excused',  emoji: '📋', bg: 'bg-primary/20   hover:bg-primary/40',   ring: 'ring-primary',    text: 'text-primary'    },
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -260,8 +260,8 @@ export default function StaffQRScanner() {
                   {supportsBarcodeDetector && (
                     <button onClick={startCamera}
                       className="w-full flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition-all">
-                      <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-                        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-violet-400" stroke="currentColor" strokeWidth="2">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-primary" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3"/>
                           <path d="M3 9V7a2 2 0 012-2h2M3 15v2a2 2 0 002 2h2M17 5h2a2 2 0 012 2v2M17 19h2a2 2 0 002-2v-2"/>
                         </svg>
@@ -303,7 +303,7 @@ export default function StaffQRScanner() {
                       <div className="w-48 h-48 relative">
                         {/* Corner brackets */}
                         {[['top-0 left-0','border-t-2 border-l-2'],['top-0 right-0','border-t-2 border-r-2'],['bottom-0 left-0','border-b-2 border-l-2'],['bottom-0 right-0','border-b-2 border-r-2']].map(([pos, cls]) => (
-                          <div key={pos} className={`absolute ${pos} w-8 h-8 ${cls} border-red-400 rounded-none`} />
+                          <div key={pos} className={`absolute ${pos} w-8 h-8 ${cls} border-red-400 rounded-xl`} />
                         ))}
                         {/* Scanning line */}
                         <div className="absolute inset-x-0 h-px bg-red-400/60 animate-[scan_2s_ease-in-out_infinite]" style={{ top: '50%' }} />
@@ -324,7 +324,7 @@ export default function StaffQRScanner() {
               {/* ── LOADING ── */}
               {state === 'loading' && (
                 <div className="flex flex-col items-center justify-center py-10 gap-4">
-                  <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   <p className="text-white/40 text-sm">Looking up student...</p>
                 </div>
               )}

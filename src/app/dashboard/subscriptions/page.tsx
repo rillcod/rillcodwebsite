@@ -121,7 +121,7 @@ export default function SubscriptionsPage() {
   }
 
   if (authLoading || !profile) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
   if (!isAdmin) {
@@ -173,7 +173,7 @@ export default function SubscriptionsPage() {
           { label: 'Active', value: subs.filter(s => s.status === 'active').length, color: 'text-emerald-400' },
           { label: 'Expired', value: subs.filter(s => s.status === 'expired').length, color: 'text-rose-400' },
           { label: 'Suspended', value: subs.filter(s => s.status === 'suspended').length, color: 'text-amber-400' },
-          { label: 'Est. MRR', value: `₦${Math.round(revenue).toLocaleString()}`, color: 'text-blue-400' },
+          { label: 'Est. MRR', value: `₦${Math.round(revenue).toLocaleString()}`, color: 'text-primary' },
         ].map(s => (
           <div key={s.label} className="bg-card border border-white/[0.08] rounded-xl p-4 text-center">
             <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>

@@ -498,7 +498,7 @@ ${mode === 'staff' ? `
         </Link>
 
         {/* Exam header */}
-        <div className="bg-card shadow-sm border border-border rounded-none p-6">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -518,12 +518,12 @@ ${mode === 'staff' ? `
                   <div className="relative" ref={printMenuRef}>
                     <button
                       onClick={() => setPrintMenuOpen(o => !o)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-none transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors">
                       <PrinterIcon className="w-3.5 h-3.5" /> Print
                       <svg className="w-3 h-3 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     {printMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border shadow-2xl shadow-black/40 rounded-none w-72" onMouseLeave={() => setPrintMenuOpen(false)}>
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border shadow-2xl shadow-black/40 rounded-xl w-72" onMouseLeave={() => setPrintMenuOpen(false)}>
 
                         {/* ── Section: Question Type ── */}
                         <div className="px-4 py-2.5 border-b border-border">
@@ -531,7 +531,7 @@ ${mode === 'staff' ? `
                           <div className="flex gap-1">
                             {(['all', 'mcq', 'theory'] as const).map(f => (
                               <button key={f} onClick={() => setPrintFilter(f)}
-                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-none border transition-colors ${printFilter === f ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
+                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-xl border transition-colors ${printFilter === f ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
                                 {f === 'all' ? 'Both' : f === 'mcq' ? 'Objective' : 'Theory'}
                               </button>
                             ))}
@@ -554,7 +554,7 @@ ${mode === 'staff' ? `
                                   value={printMcqCount}
                                   onChange={e => setPrintMcqCount(e.target.value)}
                                   placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
                                 />
                               </div>
                             )}
@@ -570,7 +570,7 @@ ${mode === 'staff' ? `
                                   value={printTheoryCount}
                                   onChange={e => setPrintTheoryCount(e.target.value)}
                                   placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
                                 />
                               </div>
                             )}
@@ -590,7 +590,7 @@ ${mode === 'staff' ? `
                                 value={printDuration}
                                 onChange={e => setPrintDuration(e.target.value)}
                                 placeholder={exam?.duration_minutes ? String(exam.duration_minutes) : 'Auto'}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
                               />
                             </div>
                             <div>
@@ -602,7 +602,7 @@ ${mode === 'staff' ? `
                                 value={printPassMark}
                                 onChange={e => setPrintPassMark(e.target.value)}
                                 placeholder={String(exam?.passing_score ?? 70)}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-none"
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
                               />
                             </div>
                           </div>
@@ -630,7 +630,7 @@ ${mode === 'staff' ? `
                     )}
                   </div>
                   <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
                     <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
                   </Link>
                 </>
@@ -645,13 +645,13 @@ ${mode === 'staff' ? `
           {!isStaff && !mySession && (
             <div className="mt-4">
               <Link href={`/dashboard/cbt/${exam.id}/take`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold text-sm rounded-none transition-all">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold text-sm rounded-xl transition-all">
                 Start Exam
               </Link>
             </div>
           )}
           {mySession && (
-            <div className={`mt-4 p-4 rounded-none border ${mySession.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+            <div className={`mt-4 p-4 rounded-xl border ${mySession.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
               <div className="flex items-center gap-2">
                 {mySession.status === 'passed'
                   ? <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
@@ -669,7 +669,7 @@ ${mode === 'staff' ? `
             <div className="mt-3">
               <button
                 onClick={() => setShowReview(v => !v)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-border text-xs font-bold text-foreground rounded-none transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-border text-xs font-bold text-foreground rounded-xl transition-colors"
               >
                 {showReview ? 'Hide Review' : 'Review Answers'}
               </button>
@@ -712,7 +712,7 @@ ${mode === 'staff' ? `
           return (
             <div className="space-y-4">
               {/* Summary stats bar */}
-              <div className="bg-card border border-border rounded-none p-4 flex flex-wrap gap-4 items-center">
+              <div className="bg-card border border-border rounded-xl p-4 flex flex-wrap gap-4 items-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-auto">Answer Review</p>
                 <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                   <CheckIcon className="w-3.5 h-3.5" />
@@ -727,7 +727,7 @@ ${mode === 'staff' ? `
                     Pending Review: {pendingCount}
                   </span>
                 )}
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-none border ${scorePct >= passing ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${scorePct >= passing ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
                   Score: {scorePct}%
                 </span>
               </div>
@@ -752,7 +752,7 @@ ${mode === 'staff' ? `
                   const ptsLabel = isEssay ? `?/${pts} pts` : `${earnedPts}/${pts} pts`;
 
                   return (
-                    <div key={q.id} className="bg-card border border-border p-5 space-y-4 rounded-none">
+                    <div key={q.id} className="bg-card border border-border p-5 space-y-4 rounded-xl">
                       {/* Card header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -762,7 +762,7 @@ ${mode === 'staff' ? `
                           <MarkdownText text={q.question_text} className="text-sm text-foreground leading-relaxed" />
                         </div>
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                          <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border rounded-none ${badgeCls}`}>
+                          <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border rounded-xl ${badgeCls}`}>
                             {badgeLabel}
                           </span>
                           <span className={`text-[10px] font-bold ${ptsCls}`}>{ptsLabel}</span>
@@ -782,7 +782,7 @@ ${mode === 'staff' ? `
                             if (isWrong)  optCls = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
 
                             return (
-                              <div key={oi} className={`flex items-center gap-2.5 px-3 py-2 border rounded-none text-xs font-medium ${optCls}`}>
+                              <div key={oi} className={`flex items-center gap-2.5 px-3 py-2 border rounded-xl text-xs font-medium ${optCls}`}>
                                 <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center border border-current rounded-full text-[10px] font-black">
                                   {String.fromCharCode(65 + oi)}
                                 </span>
@@ -800,13 +800,13 @@ ${mode === 'staff' ? `
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-8">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Your Answer</p>
-                            <div className={`px-3 py-2.5 border rounded-none text-xs font-mono ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                            <div className={`px-3 py-2.5 border rounded-xl text-xs font-mono ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
                               {studentAnswer || <span className="italic opacity-60">No answer</span>}
                             </div>
                           </div>
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Correct Answer</p>
-                            <div className="px-3 py-2.5 border rounded-none text-xs font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                            <div className="px-3 py-2.5 border rounded-xl text-xs font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
                               {q.correct_answer || <span className="italic opacity-60">N/A</span>}
                             </div>
                           </div>
@@ -817,7 +817,7 @@ ${mode === 'staff' ? `
                       {isEssay && (
                         <div className="pl-8 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Answer</p>
-                          <div className="px-3 py-2.5 border border-border bg-white/5 rounded-none text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                          <div className="px-3 py-2.5 border border-border bg-white/5 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                             {studentAnswer || <span className="italic text-muted-foreground">No answer submitted</span>}
                           </div>
                           <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Awaiting manual review</p>
@@ -833,7 +833,7 @@ ${mode === 'staff' ? `
 
         {/* Staff: sessions */}
         {isStaff && sessions.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h2 className="font-bold flex items-center gap-2">
                 <ChartBarIcon className="w-5 h-5 text-emerald-400" /> Student Results ({sessions.length})
@@ -853,11 +853,11 @@ ${mode === 'staff' ? `
                     <div className="text-right">
                       <div className="flex items-center gap-2 mb-1">
                         {s.status === 'pending_grading' ? (
-                          <span className="px-2.5 py-1 rounded-none bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
                             Pending Grading
                           </span>
                         ) : (
-                          <span className={`px-2.5 py-1 rounded-none border text-[10px] font-black uppercase tracking-widest ${
+                          <span className={`px-2.5 py-1 rounded-xl border text-[10px] font-black uppercase tracking-widest ${
                             s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
                             : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                             : 'bg-card shadow-sm border-border text-muted-foreground'
@@ -872,7 +872,7 @@ ${mode === 'staff' ? `
                     </div>
                     {/* Always show Grade/Review button for staff */}
                     <Link href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-none transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
                         s.status === 'pending_grading'
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground shadow-lg shadow-emerald-900/30'
                           : 'bg-muted hover:bg-muted text-muted-foreground'
@@ -889,7 +889,7 @@ ${mode === 'staff' ? `
 
         {/* Staff: questions preview */}
         {isStaff && questions.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h2 className="font-bold">Questions Preview</h2>
             </div>

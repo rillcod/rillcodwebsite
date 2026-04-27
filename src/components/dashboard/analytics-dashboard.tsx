@@ -93,7 +93,7 @@ export function AnalyticsDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
                 <p className="text-2xl font-bold">23</p>
-                <p className="text-xs text-blue-600">8 due this week</p>
+                <p className="text-xs text-primary">8 due this week</p>
               </div>
               <div className="text-3xl">📚</div>
             </div>
@@ -197,7 +197,7 @@ export function AnalyticsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-background rounded-none">
+              <div className="flex items-center justify-between p-3 bg-background rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <div>
@@ -208,9 +208,9 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">Science</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-background rounded-none">
+              <div className="flex items-center justify-between p-3 bg-background rounded-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <div>
                     <p className="font-medium">New lesson plan created</p>
                     <p className="text-sm text-muted-foreground">4 hours ago</p>
@@ -219,7 +219,7 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">Physics</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-background rounded-none">
+              <div className="flex items-center justify-between p-3 bg-background rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   <div>
@@ -230,7 +230,7 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">IoT</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-background rounded-none">
+              <div className="flex items-center justify-between p-3 bg-background rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                   <div>

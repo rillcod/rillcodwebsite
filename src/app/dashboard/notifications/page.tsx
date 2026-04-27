@@ -26,9 +26,9 @@ interface Notification {
 const typeConfig = {
   info: {
     icon: InformationCircleIcon,
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/10',
-    borderColor: 'border-blue-500/30',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
+    borderColor: 'border-primary/30',
     emoji: '💡'
   },
   success: {

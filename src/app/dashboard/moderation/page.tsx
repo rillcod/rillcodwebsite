@@ -30,7 +30,7 @@ interface FlaggedItem {
 
 const STATUS_CONFIG: Record<FlagStatus, { label: string; color: string; icon: any }> = {
   pending:   { label: 'Pending',   color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   icon: ClockIcon },
-  reviewed:  { label: 'Reviewed',  color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',      icon: EyeIcon },
+  reviewed:  { label: 'Reviewed',  color: 'bg-primary/20 text-primary border-primary/30',      icon: EyeIcon },
   dismissed: { label: 'Dismissed', color: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30',      icon: XCircleIcon },
   removed:   { label: 'Removed',   color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',      icon: TrashIcon },
 };
@@ -98,7 +98,7 @@ export default function ModerationPage() {
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -151,7 +151,7 @@ export default function ModerationPage() {
           const Icon = cfg.icon;
           return (
             <button key={s} onClick={() => setStatusFilter(s === statusFilter ? 'all' : s)}
-              className={`bg-card border rounded-xl p-4 text-left transition-all hover:border-white/20 ${statusFilter === s ? 'border-violet-500/50 bg-violet-500/5' : 'border-white/[0.08]'}`}>
+              className={`bg-card border rounded-xl p-4 text-left transition-all hover:border-white/20 ${statusFilter === s ? 'border-primary/50 bg-primary/5' : 'border-white/[0.08]'}`}>
               <div className="flex items-center justify-between mb-2">
                 <Icon className={`w-5 h-5 ${cfg.color.split(' ')[1]}`} />
                 <span className="text-2xl font-black text-card-foreground">{counts[s]}</span>
@@ -169,14 +169,14 @@ export default function ModerationPage() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by reason or reporter…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50"
+            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50"
           />
         </div>
         <div className="flex items-center gap-2">
           <FunnelIcon className="w-4 h-4 text-card-foreground/40" />
           {(['all', 'pending', 'reviewed', 'dismissed', 'removed'] as const).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${statusFilter === s ? 'bg-violet-500 text-white' : 'bg-white/5 text-card-foreground/60 hover:bg-white/10'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${statusFilter === s ? 'bg-primary text-white' : 'bg-white/5 text-card-foreground/60 hover:bg-white/10'}`}>
               {s === 'all' ? `All (${counts.all})` : s}
             </button>
           ))}
@@ -186,7 +186,7 @@ export default function ModerationPage() {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -211,7 +211,7 @@ export default function ModerationPage() {
                 {filtered.map(item => (
                   <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${item.content_type === 'topic' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${item.content_type === 'topic' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                         <ChatBubbleLeftRightIcon className="w-3 h-3" />
                         {item.content_type}
                       </span>
@@ -221,8 +221,8 @@ export default function ModerationPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-violet-500/20 rounded-full flex items-center justify-center">
-                          <UserIcon className="w-3.5 h-3.5 text-violet-400" />
+                        <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-3.5 h-3.5 text-primary" />
                         </div>
                         <div>
                           <p className="font-semibold text-card-foreground text-xs">{item.reporter?.full_name ?? 'Unknown'}</p>
@@ -237,7 +237,7 @@ export default function ModerationPage() {
                     <td className="px-4 py-3 text-right">
                       {item.status === 'pending' && (
                         <button onClick={() => { setSelected(item); setNotes(''); }}
-                          className="px-3 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 text-xs font-bold rounded-lg transition-all">
+                          className="px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-lg transition-all">
                           Review
                         </button>
                       )}
@@ -286,7 +286,7 @@ export default function ModerationPage() {
                   value={notes} onChange={e => setNotes(e.target.value)}
                   rows={3}
                   placeholder="Add notes about your decision…"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-violet-500/50 resize-none"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 resize-none"
                 />
               </div>
             </div>

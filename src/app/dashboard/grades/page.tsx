@@ -42,7 +42,7 @@ const QUICK_GRADES = [
 function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
     const map: Record<string, Record<string, string>> = {
         emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500', ring: 'ring-emerald-500' },
-        blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500', ring: 'ring-blue-500' },
+        blue: { text: 'text-primary', bg: 'bg-primary', border: 'border-primary', ring: 'ring-primary' },
         amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', ring: 'ring-amber-500' },
         orange: { text: 'text-primary', bg: 'bg-primary', border: 'border-primary', ring: 'ring-primary' },
         rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500', ring: 'ring-rose-500' },
@@ -54,7 +54,7 @@ function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
 function Badge({ status }: { status: string }) {
     const map: Record<string, string> = {
         graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        submitted: 'bg-blue-500/20    text-blue-400    border-blue-500/30',
+        submitted: 'bg-primary/20    text-primary    border-primary/30',
         late: 'bg-amber-500/20   text-amber-400   border-amber-500/30',
         missing: 'bg-rose-500/20    text-rose-400    border-rose-500/30',
     };
@@ -313,7 +313,7 @@ function GradeModal({ sub, onClose, onSaved }: {
 
     return (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-border rounded-t-[32px] rounded-none w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
+            <div className="bg-[#161628] border border-border rounded-t-[32px] rounded-xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Drag handle (mobile) */}
@@ -335,7 +335,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                     <select value={status} onChange={e => setStatus(e.target.value)}
                                         className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
                                             status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                            status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                            status === 'submitted' ? 'bg-primary/20 text-primary border-primary/30' :
                                             status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
                                             'bg-rose-500/20 text-rose-400 border-rose-500/30'
                                         }`}>
@@ -349,7 +349,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-none transition-colors flex-shrink-0">
+                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0">
                         <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                     </button>
                 </div>
@@ -363,7 +363,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 {QUICK_GRADES.map(q => (
                                     <button key={q.label}
                                         onClick={() => applyQuick(q.pct)}
-                                        className={`py-2.5 rounded-none text-xs font-black transition-all border ${info?.letter === q.label
+                                        className={`py-2.5 rounded-xl text-xs font-black transition-all border ${info?.letter === q.label
                                                 ? `${colorClass(q.color, 'bg')} text-foreground border-transparent`
                                                 : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                                             }`}>
@@ -374,7 +374,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                         </div>
 
                         {/* Score input + ring */}
-                        <div className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-none p-4">
+                        <div className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-xl p-4">
                             {info ? (
                                 <GradeRing pct={info.pct} letter={info.letter} color={info.color} size="md" />
                             ) : (
@@ -389,7 +389,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <div className="flex items-center gap-3">
                                     <input type="number" min={0} max={max} value={grade}
                                         onChange={e => { setGrade(e.target.value); setErr(''); }}
-                                        className="w-24 px-3 py-2.5 bg-muted border border-border rounded-none text-foreground text-xl font-black text-center focus:outline-none focus:border-primary transition-colors"
+                                        className="w-24 px-3 py-2.5 bg-muted border border-border rounded-xl text-foreground text-xl font-black text-center focus:outline-none focus:border-primary transition-colors"
                                         placeholder="0"
                                     />
                                     <span className="text-muted-foreground text-sm font-bold">/ {max}</span>
@@ -410,13 +410,13 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <div>
                                 <button
                                     onClick={() => setShowContent(v => !v)}
-                                    className="w-full flex items-center justify-between px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-muted-foreground hover:text-foreground transition-colors">
                                     <span className="font-semibold">View Student Work</span>
                                     {showContent ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                                 </button>
                                 {showContent && (
                                     <div className="mt-2 space-y-3">
-                                        <div className="bg-card shadow-sm border border-border rounded-none p-3">
+                                        <div className="bg-card shadow-sm border border-border rounded-xl p-3">
                                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Edit Student Text</label>
                                             <textarea value={subText} rows={4}
                                                 onChange={e => setSubText(e.target.value)}
@@ -426,7 +426,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                         </div>
                                         {sub.file_url && (
                                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-primary p-3 bg-blue-400/5 rounded-none border border-blue-400/10">
+                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary p-3 bg-primary/5 rounded-xl border border-primary/10">
                                                 <PaperClipIcon className="w-3 h-3" /> View attached file
                                             </a>
                                         )}
@@ -450,7 +450,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                             </div>
                                         ) : (
                                             <button onClick={() => setConfirmDelete(true)}
-                                                className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
+                                                className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
                                                 <TrashIcon className="w-3 h-3" />
                                                 Delete Submission
                                             </button>
@@ -461,7 +461,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                         )}
 
                         {!sub.submission_text && !sub.file_url && sub.status !== 'missing' && (
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-sm text-amber-400 flex items-center gap-2">
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400 flex items-center gap-2">
                                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
                                 No text or file — grade based on verbal/in-person work if applicable.
                             </div>
@@ -476,7 +476,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <button
                                     onClick={generateAIFeedback}
                                     disabled={isAIThinking}
-                                    className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-none text-[10px] font-black uppercase tracking-widest text-brand-red-600 transition-all disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-brand-red-600 transition-all disabled:opacity-50"
                                 >
                                     {isAIThinking ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                     {isAIThinking ? 'Analyzing...' : 'AI Assistant'}
@@ -485,7 +485,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <textarea value={feedback} rows={3}
                                 onChange={e => setFb(e.target.value)}
                                 placeholder="Write specific, constructive feedback for the student…"
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none min-h-[100px]"
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none min-h-[100px]"
                             />
                         </div>
 
@@ -496,11 +496,11 @@ function GradeModal({ sub, onClose, onSaved }: {
                 {/* Footer */}
                 <div className="p-5 border-t border-border flex gap-3 flex-shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                     <button onClick={onClose}
-                        className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                        className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors">
                         Cancel
                     </button>
                     <button onClick={save} disabled={saving}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground rounded-none transition-all disabled:opacity-60">
+                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground rounded-xl transition-all disabled:opacity-60">
                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                         {saving ? 'Saving…' : 'Submit Grade'}
                     </button>
@@ -523,16 +523,16 @@ function DistBar({ items }: { items: any[] }) {
     const bars: Array<{ label: string; count: number; color: string }> = [
         { label: 'A+', count: counts['A+'], color: 'bg-emerald-500' },
         { label: 'A', count: counts.A, color: 'bg-emerald-400' },
-        { label: 'B', count: counts.B, color: 'bg-blue-500' },
+        { label: 'B', count: counts.B, color: 'bg-primary' },
         { label: 'C', count: counts.C, color: 'bg-amber-500' },
         { label: 'D', count: counts.D, color: 'bg-primary' },
         { label: 'F', count: counts.F, color: 'bg-rose-500' },
     ].filter(b => b.count > 0);
 
     return (
-        <div className="bg-card shadow-sm border border-border rounded-none p-5">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-5">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Grade Distribution · {total} graded</p>
-            <div className="flex h-8 rounded-none overflow-hidden gap-0.5">
+            <div className="flex h-8 rounded-xl overflow-hidden gap-0.5">
                 {bars.map(b => (
                     <div key={b.label} title={`${b.label}: ${b.count}`}
                         className={`${b.color} flex items-center justify-center transition-all duration-500`}
@@ -587,11 +587,11 @@ function AchievementBadges({ items }: { items: any[] }) {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {badges.map(b => (
-                <div key={b.label} className={`rounded-none p-4 border transition-all ${b.earned ? (
+                <div key={b.label} className={`rounded-xl p-4 border transition-all ${b.earned ? (
                         b.color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' :
                             b.color === 'orange' ? 'bg-primary/10 border-primary/20' :
                                 b.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
-                                    'bg-blue-500/10 border-blue-500/20'
+                                    'bg-primary/10 border-primary/20'
                     ) : 'bg-card shadow-sm border-border opacity-40 grayscale'
                     }`}>
                     <b.icon className={`w-5 h-5 mb-2 ${b.earned ? colorClass(b.color, 'text') : 'text-muted-foreground'}`} />
@@ -622,7 +622,7 @@ function CourseBreakdown({ items }: { items: any[] }) {
 
     if (!list.length) return null;
     return (
-        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+        <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Breakdown</p>
             {list.map(c => (
                 <div key={c.name}>
@@ -947,10 +947,10 @@ export default function GradesPage() {
                     <div className="h-8 bg-muted rounded w-64" />
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-28 animate-pulse" />)}
+                    {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-28 animate-pulse" />)}
                 </div>
                 <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-20 animate-pulse" />)}
+                    {[1, 2, 3, 4, 5].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-xl h-20 animate-pulse" />)}
                 </div>
             </div>
         </div>
@@ -961,7 +961,7 @@ export default function GradesPage() {
             <div className="text-center">
                 <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground mb-4">Sign in to view grades</p>
-                <Link href="/login" className="px-5 py-2 bg-primary text-foreground rounded-none text-sm font-bold">Sign In</Link>
+                <Link href="/login" className="px-5 py-2 bg-primary text-foreground rounded-xl text-sm font-bold">Sign In</Link>
             </div>
         </div>
     );
@@ -1017,19 +1017,19 @@ export default function GradesPage() {
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
                                     <DocumentTextIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>
                                 {isStaff && (
                                     <button onClick={() => setShowSyncModal(true)}
-                                        className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-indigo-900/20 group">
+                                        className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-indigo-900/20 group">
                                         <SparklesIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />
                                         Batch-Sync Reports
                                     </button>
                                 )}
                                 <button onClick={() => exportCSV(items, isStaff)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
                                     <ArrowDownTrayIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export CSV</span>
                                 </button>
@@ -1040,7 +1040,7 @@ export default function GradesPage() {
 
                 {/* ── Error ─────────────────────────────────────── */}
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
@@ -1078,9 +1078,9 @@ export default function GradesPage() {
                             color: avgPct == null ? 'orange' : avgPct >= 70 ? 'emerald' : avgPct >= 50 ? 'amber' : 'rose',
                         },
                     ].map(s => (
-                        <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-5">
+                        <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-4 sm:p-5">
                             <div className="flex items-start justify-between mb-3">
-                                <div className={`w-9 h-9 rounded-none flex items-center justify-center ${s.color === 'orange' ? 'bg-primary/10' :
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.color === 'orange' ? 'bg-primary/10' :
                                         s.color === 'amber' ? 'bg-amber-500/10' :
                                             s.color === 'emerald' ? 'bg-emerald-500/10' :
                                                 'bg-rose-500/10'
@@ -1100,14 +1100,14 @@ export default function GradesPage() {
 
                 {/* ── Pending alert (staff) ──────────────────────── */}
                 {isStaff && pending > 0 && (
-                    <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-none p-4">
+                    <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
                         <ClockIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="font-bold text-amber-400 text-sm">{pending} submission{pending !== 1 ? 's' : ''} waiting to be graded</p>
                             <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">Click the pencil icon on any row to open the grade panel</p>
                         </div>
                         <button onClick={() => setFilter('submitted')}
-                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-none transition-colors flex-shrink-0">
+                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors flex-shrink-0">
                             Show only
                         </button>
                     </div>
@@ -1139,10 +1139,10 @@ export default function GradesPage() {
                                     <p className="text-xs text-rose-400 font-bold">{bot._pct}% · {pctInfo(bot.grade, bot.assignments.max_points).letter}</p>
                                 </div>
                             </div>
-                            <div className="bg-blue-500/5 border border-blue-500/20 p-4 flex items-center gap-3">
-                                <BoltIcon className="w-7 h-7 text-blue-400 flex-shrink-0" />
+                            <div className="bg-primary/5 border border-primary/20 p-4 flex items-center gap-3">
+                                <BoltIcon className="w-7 h-7 text-primary flex-shrink-0" />
                                 <div className="min-w-0">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-0.5">Pass Rate</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-0.5">Pass Rate</p>
                                     <p className={`text-2xl font-black ${passRate >= 70 ? 'text-emerald-400' : passRate >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{passRate}%</p>
                                     <p className="text-xs text-muted-foreground">{withPct.filter((s: any) => s._pct >= 70).length}/{withPct.length} passed</p>
                                 </div>
@@ -1158,7 +1158,7 @@ export default function GradesPage() {
                 {!isStaff && items.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {/* GPA Card */}
-                        <div className="lg:col-span-1 bg-gradient-to-br from-[#1a1a2e] to-[#252545] border border-border rounded-none p-6 flex flex-col items-center justify-center text-center">
+                        <div className="lg:col-span-1 bg-gradient-to-br from-[#1a1a2e] to-[#252545] border border-border rounded-xl p-6 flex flex-col items-center justify-center text-center">
                             {avgPct != null ? (
                                 <>
                                     <GradeRing pct={avgPct} letter={pctInfo(avgPct, 100).letter} color={pctInfo(avgPct, 100).color} size="lg" />
@@ -1185,8 +1185,8 @@ export default function GradesPage() {
                                 const totalPossible = weightedItems.reduce((a: number, s: any) => a + (s.assignments?.weight ?? 0), 0);
                                 const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
                                 return (
-                                    <div className="bg-card shadow-sm border border-violet-500/20 rounded-none p-5 space-y-3">
-                                        <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Weighted Grade Total</p>
+                                    <div className="bg-card shadow-sm border border-primary/20 rounded-xl p-5 space-y-3">
+                                        <p className="text-xs font-bold text-primary uppercase tracking-widest">Weighted Grade Total</p>
                                         <div className="flex items-end gap-3">
                                             <span className="text-3xl font-black text-foreground">{totalEarned}</span>
                                             <span className="text-muted-foreground text-sm mb-0.5">/ {totalPossible} pts</span>
@@ -1214,20 +1214,20 @@ export default function GradesPage() {
                             <input type="text"
                                 placeholder={isStaff ? 'Search by assignment or student…' : 'Search assignments…'}
                                 value={search} onChange={e => setSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
+                                className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                             />
                         </div>
                         {programs.length > 0 && (
                             <select value={filterProgram}
                                 onChange={e => { setFilterProgram(e.target.value); setFilterCourse(''); }}
-                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All Programmes</option>
                                 {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         )}
                         {filterProgram && filteredCourseOptions.length > 0 && (
                             <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
-                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All Courses</option>
                                 {filteredCourseOptions.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
@@ -1235,7 +1235,7 @@ export default function GradesPage() {
                     </div>
                     <div className="flex gap-2">
                         <select value={filter} onChange={e => setFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                            className="flex-1 sm:flex-none px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                             <option value="all">All Status</option>
                             <option value="submitted">Submitted</option>
                             <option value="graded">Graded</option>
@@ -1243,12 +1243,12 @@ export default function GradesPage() {
                             <option value="missing">Missing</option>
                         </select>
                         <button onClick={() => toggleSort('date')}
-                            className={`px-3 py-3 rounded-none text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
+                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
                             <ArrowsUpDownIcon className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Date</span>
                         </button>
                         <button onClick={() => toggleSort('grade')}
-                            className={`px-3 py-3 rounded-none text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
+                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
                             <ChartBarIcon className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Grade</span>
                         </button>
@@ -1265,7 +1265,7 @@ export default function GradesPage() {
 
                 {/* ── Empty state ────────────────────────────────── */}
                 {filtered.length === 0 && !error && (
-                    <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+                    <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
                         <ClipboardDocumentCheckIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
                         <p className="text-lg font-semibold text-muted-foreground">No submissions found</p>
                         <p className="text-sm text-muted-foreground mt-1">
@@ -1273,7 +1273,7 @@ export default function GradesPage() {
                         </p>
                         {(search || filter !== 'all' || filterProgram || filterCourse) && (
                             <button onClick={() => { setSearch(''); setFilter('all'); setFilterProgram(''); setFilterCourse(''); }}
-                                className="mt-4 px-4 py-2 bg-muted hover:bg-muted rounded-none text-sm font-bold text-muted-foreground transition-colors">
+                                className="mt-4 px-4 py-2 bg-muted hover:bg-muted rounded-xl text-sm font-bold text-muted-foreground transition-colors">
                                 Clear Filters
                             </button>
                         )}
@@ -1282,7 +1282,7 @@ export default function GradesPage() {
 
                 {/* ══ STAFF LIST ═══════════════════════════════════ */}
                 {isStaff && filtered.length > 0 && (
-                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                         {/* Table header (desktop) */}
                         <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1fr_80px] gap-4 px-5 py-3 border-b border-border text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-foreground transition-colors text-left">
@@ -1352,7 +1352,7 @@ export default function GradesPage() {
                                             {/* Grade button */}
                                             {canGrade ? (
                                                 <button onClick={() => setGrading(s)}
-                                                    className={`p-2.5 rounded-none transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
+                                                    className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
                                                             ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground'
                                                             : 'bg-card shadow-sm hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100'
                                                         }`}
@@ -1367,7 +1367,7 @@ export default function GradesPage() {
                                         {/* Expandable submission preview */}
                                         {expanded && s.submission_text && (
                                             <div className="px-5 pb-4">
-                                                <div className="bg-card shadow-sm border border-border rounded-none p-3 max-h-32 overflow-y-auto">
+                                                <div className="bg-card shadow-sm border border-border rounded-xl p-3 max-h-32 overflow-y-auto">
                                                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Student work</p>
                                                     <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{s.submission_text}</p>
                                                 </div>
@@ -1390,7 +1390,7 @@ export default function GradesPage() {
 
                             return (
                                 <div key={s.id}
-                                    className={`bg-card shadow-sm border rounded-none overflow-hidden transition-all ${s.status === 'graded' ? 'border-emerald-500/20' :
+                                    className={`bg-card shadow-sm border rounded-xl overflow-hidden transition-all ${s.status === 'graded' ? 'border-emerald-500/20' :
                                             s.status === 'missing' ? 'border-rose-500/20' : 'border-border'
                                         }`}>
                                     {/* Top progress strip */}
@@ -1449,7 +1449,7 @@ export default function GradesPage() {
                                                         <span className={`text-xs font-bold ${colorClass(info.color, 'text')}`}>{info.pct}% · {info.label}</span>
                                                         <span className="text-xs text-muted-foreground">{s.grade}/{max} pts</span>
                                                         {s.weighted_score != null && (s.assignments?.weight ?? 0) > 0 && (
-                                                            <span className="text-[10px] font-black text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                                                            <span className="text-[10px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                                                                 {s.weighted_score}/{s.assignments.weight} weighted
                                                             </span>
                                                         )}
@@ -1462,7 +1462,7 @@ export default function GradesPage() {
                                         {s.feedback && (
                                             <div className="mt-3">
                                                 <button onClick={() => toggleExpand(s.id)}
-                                                    className="w-full text-left flex items-center justify-between px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-muted-foreground hover:text-muted-foreground transition-colors">
+                                                    className="w-full text-left flex items-center justify-between px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-muted-foreground hover:text-muted-foreground transition-colors">
                                                     <span className="flex items-center gap-1.5">
                                                         <AcademicCapIcon className="w-3.5 h-3.5" />
                                                         Teacher Feedback
@@ -1470,7 +1470,7 @@ export default function GradesPage() {
                                                     {expanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
                                                 </button>
                                                 {expanded && (
-                                                    <div className="mt-2 px-3 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-none">
+                                                    <div className="mt-2 px-3 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
                                                         <p className="text-sm text-muted-foreground leading-relaxed">{s.feedback}</p>
                                                     </div>
                                                 )}

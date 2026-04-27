@@ -510,7 +510,7 @@ ${questionRows}
             {questions.some(q => q.question_text.trim()) && (
               <div className="flex items-center gap-1">
                 {/* Question type filter for print */}
-                <div className="flex border border-primary/30 rounded-none overflow-hidden">
+                <div className="flex border border-primary/30 rounded-xl overflow-hidden">
                   {(['all', 'mcq', 'theory'] as const).map(f => (
                     <button key={f} type="button" onClick={() => setPrintFilter(f)}
                       className={`px-2.5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${printFilter === f ? 'bg-primary/30 text-primary' : 'bg-primary/10 text-primary/50 hover:bg-primary/20 hover:text-primary'}`}>
@@ -521,13 +521,13 @@ ${questionRows}
                 <button
                   type="button"
                   onClick={handlePrintExam}
-                  className="flex items-center gap-2 px-5 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all"
                 >
                   Print Exam
                 </button>
               </div>
             )}
-            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
+            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH EXAM')}
             </button>
@@ -535,7 +535,7 @@ ${questionRows}
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
@@ -634,7 +634,7 @@ ${questionRows}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}
-          <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Exam Details</h2>
 
             <div>
@@ -644,7 +644,7 @@ ${questionRows}
               <input type="text" required value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="e.g. Python Programming Midterm"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -662,7 +662,7 @@ ${questionRows}
                       course_id: currentCourse?.program_id === pid ? f.course_id : '',
                     }));
                   }}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                   <option value="">Select programme…</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -675,7 +675,7 @@ ${questionRows}
                 <select value={form.course_id}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
                   disabled={!form.program_id}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
                   <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
                   {courses.filter(c => c.program_id === form.program_id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
@@ -709,19 +709,19 @@ ${questionRows}
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Duration (min)</label>
                 <input type="number" min="5" value={form.duration_minutes}
                   onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Passing Score (%)</label>
                 <input type="number" min="1" max="100" value={form.passing_score}
                   onChange={e => setForm(f => ({ ...f, passing_score: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Status</label>
                 <select value={form.is_active ? 'active' : 'inactive'}
                   onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'active' }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
@@ -733,13 +733,13 @@ ${questionRows}
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date/Time</label>
                 <input type="datetime-local" value={form.start_date}
                   onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">End Date/Time</label>
                 <input type="datetime-local" value={form.end_date}
                   onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
             </div>
 
@@ -748,19 +748,19 @@ ${questionRows}
               <textarea rows={2} value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="Optional exam description…"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
             </div>
           </div>
 
           {/* Section Weights */}
-          <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-4">
+          <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Section Weighting</h2>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Assign % weight per section. Total must equal 100%.</p>
               </div>
               <button type="button" onClick={() => setUseWeights(w => !w)}
-                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
                 {useWeights ? 'Weighted ON' : 'Flat Points (default)'}
               </button>
             </div>
@@ -773,7 +773,7 @@ ${questionRows}
                       <input type="number" min="0" max="100"
                         value={sectionWeights[sec]}
                         onChange={e => setSectionWeights(w => ({ ...w, [sec]: parseInt(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                     </div>
                   ))}
                 </div>
@@ -811,12 +811,12 @@ ${questionRows}
                         setSelectedQuestions(new Set(questions.map((_, i) => i)));
                       }
                     }}
-                    className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 bg-card shadow-sm rounded-none border border-border">
+                    className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 bg-card shadow-sm rounded-xl border border-border">
                     {selectedQuestions.size === questions.length ? 'Deselect All' : 'Select All'}
                   </button>
                 )}
                 <button type="button" onClick={addQuestion}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-none transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
                   <PlusIcon className="w-3.5 h-3.5" /> Add Question
                 </button>
               </div>
@@ -825,7 +825,7 @@ ${questionRows}
             {questions.map((q, qi) => {
               const isSelected = selectedQuestions.has(qi);
               return (
-              <div key={qi} className={`border rounded-none overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
+              <div key={qi} className={`border rounded-xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
                 <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
                   <div className="flex items-center gap-3">
                     {/* Selection checkbox */}
@@ -855,7 +855,7 @@ ${questionRows}
                   </div>
                   {questions.length > 1 && (
                     <button type="button" onClick={() => removeQuestion(qi)}
-                      className="p-1.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors scale-90 opacity-40 group-hover:opacity-100 group-hover:scale-100">
+                      className="p-1.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors scale-90 opacity-40 group-hover:opacity-100 group-hover:scale-100">
                       <TrashIcon className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -866,14 +866,14 @@ ${questionRows}
                 <textarea rows={2} value={q.question_text}
                   onChange={e => updateQuestion(qi, { question_text: e.target.value })}
                   placeholder="Enter question text…"
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                     <select value={q.question_type}
                       onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '', section: e.target.value === 'essay' ? 'subjective' : q.section })}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                       <option value="multiple_choice">Multiple Choice</option>
                       <option value="true_false">True / False</option>
                       <option value="fill_blank">Fill in Blank</option>
@@ -884,7 +884,7 @@ ${questionRows}
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Section</label>
                     <select value={q.section}
                       onChange={e => updateQuestion(qi, { section: e.target.value as Question['section'] })}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                       <option value="objective">Objective</option>
                       <option value="subjective">Subjective</option>
                       <option value="practical">Practical</option>
@@ -894,7 +894,7 @@ ${questionRows}
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                     <input type="number" min="1" value={q.points}
                       onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                   </div>
                   {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
                     <div className="sm:col-span-2">
@@ -902,7 +902,7 @@ ${questionRows}
                         <input type="text" value={q.correct_answer}
                             onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                             placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading rubric or points guide..."}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                     </div>
                   )}
                 </div>
@@ -914,7 +914,7 @@ ${questionRows}
                         key={opt}
                         type="button"
                         onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-none border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                       >
                         {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
                         {opt}
@@ -937,9 +937,9 @@ ${questionRows}
                             onClick={(e) => {
                               if (opt.trim()) updateQuestion(qi, { correct_answer: opt });
                             }}
-                            className={`flex items-center gap-2 p-1.5 rounded-none border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-card shadow-sm border-border hover:border-border'}`}
+                            className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-card shadow-sm border-border hover:border-border'}`}
                           >
-                            <div className={`w-8 h-8 rounded-none border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : 'border-border group-hover/opt:border-border text-muted-foreground'}`}>
+                            <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : 'border-border group-hover/opt:border-border text-muted-foreground'}`}>
                               {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{String.fromCharCode(65 + oi)}</span>}
                             </div>
                             <input 
@@ -973,11 +973,11 @@ ${questionRows}
           {/* Actions */}
           <div className="flex items-center gap-3 pt-2">
             <Link href="/dashboard/cbt"
-              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none transition-colors">
+              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
               Cancel
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : 'Create Exam'}
             </button>
