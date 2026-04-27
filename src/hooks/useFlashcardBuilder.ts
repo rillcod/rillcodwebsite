@@ -25,6 +25,7 @@ export function useFlashcardBuilder(
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [removedCardIds, setRemovedCardIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +62,13 @@ export function useFlashcardBuilder(
   }, []);
 
   const removeCard = useCallback((id: number) => {
-    setCards(prev => prev.length > 1 ? prev.filter(card => card.id !== id) : prev);
+    setCards(prev => {
+      const cardToRemove = prev.find(c => c.id === id);
+      if (cardToRemove?.dbId) {
+        setRemovedCardIds(r => [...r, cardToRemove.dbId!]);
+      }
+      return prev.filter(card => card.id !== id);
+    });
   }, []);
 
   const updateCard = useCallback((id: number, field: keyof FlashcardBuilderCard, value: unknown) => {
@@ -70,11 +77,21 @@ export function useFlashcardBuilder(
     );
   }, []);
 
+  const clearAll = useCallback(() => {
+    setCards(prev => {
+      const idsToRemove = prev.filter(c => c.dbId).map(c => c.dbId!);
+      if (idsToRemove.length > 0) {
+        setRemovedCardIds(r => [...r, ...idsToRemove]);
+      }
+      return [{ id: Date.now(), front: '', back: '' }];
+    });
+  }, []);
+
   const saveCards = useCallback(async () => {
     const validCards = cards.filter(card => card.front.trim() && card.back.trim());
     
-    if (validCards.length === 0) {
-      setError('Please add at least one complete card with both front and back content');
+    if (validCards.length === 0 && removedCardIds.length === 0) {
+      setError('Please add at least one complete card or remove existing cards');
       return;
     }
 
@@ -82,24 +99,42 @@ export function useFlashcardBuilder(
     setError(null);
 
     try {
-      const promises = validCards.map((card, index) => {
+      // 1. Delete removed cards
+      const deletePromises = removedCardIds.map(dbId => 
+        fetch(`/api/flashcards/cards/${dbId}`, { method: 'DELETE' })
+      );
+
+      // 2. Save remaining cards (Update existing or Create new)
+      const savePromises = validCards.map((card, index) => {
         const cardData = mapBuilderCardToCreateRequest(card, index, selectedTemplate.id);
-        return fetch(`/api/flashcards/decks/${deckId}/cards`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cardData)
-        });
+        
+        if (card.dbId) {
+          // UPDATE existing card
+          return fetch(`/api/flashcards/cards/${card.dbId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cardData)
+          });
+        } else {
+          // CREATE new card
+          return fetch(`/api/flashcards/decks/${deckId}/cards`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cardData)
+          });
+        }
       });
 
-      const results = await Promise.all(promises);
-      const failedSaves = results.filter(res => !res.ok);
+      const allResults = await Promise.all([...deletePromises, ...savePromises]);
+      const failed = allResults.filter(res => !res.ok);
 
-      if (failedSaves.length > 0) {
-        setError(`Failed to save ${failedSaves.length} cards. Please try again.`);
+      if (failed.length > 0) {
+        setError(`Failed to process ${failed.length} operations. Some changes might not have saved.`);
         return;
       }
 
-      setSuccess(`Successfully saved ${validCards.length} cards!`);
+      setSuccess(`Successfully saved changes!`);
+      setRemovedCardIds([]);
       onCardCreated();
       setTimeout(() => onClose(), 1500);
     } catch (_err) {
@@ -107,7 +142,7 @@ export function useFlashcardBuilder(
     } finally {
       setSaving(false);
     }
-  }, [cards, deckId, selectedTemplate.id, onCardCreated, onClose]);
+  }, [cards, deckId, selectedTemplate.id, removedCardIds, onCardCreated, onClose]);
 
   const clearError = useCallback(() => setError(null), []);
   const clearSuccess = useCallback(() => setSuccess(null), []);
@@ -133,6 +168,7 @@ export function useFlashcardBuilder(
     addCard,
     removeCard,
     updateCard,
+    clearAll,
     importCards,
     setSelectedTemplate,
     setPreviewDevice,

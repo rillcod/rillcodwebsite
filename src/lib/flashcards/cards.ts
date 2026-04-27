@@ -4,6 +4,7 @@ export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
 export interface FlashcardBuilderCard {
   id: number;
+  dbId?: string;
   front: string;
   back: string;
   frontImage?: string;
@@ -72,6 +73,7 @@ export function mapGeneratedCardToBuilderCard(
 export function mapApiCardToBuilderCard(card: FlashcardCard, index: number): FlashcardBuilderCard {
   return {
     id: index + 1,
+    dbId: card.id,
     front: card.front,
     back: card.back,
     frontImage: card.front_image_url ?? '',

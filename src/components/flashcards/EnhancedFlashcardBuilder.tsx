@@ -35,6 +35,7 @@ export default function EnhancedFlashcardBuilder({
     addCard,
     removeCard,
     updateCard,
+    clearAll,
     importCards,
     setSelectedTemplate,
     setPreviewDevice,
@@ -96,8 +97,7 @@ export default function EnhancedFlashcardBuilder({
             onClose={() => setShowMobileSidebar(false)}
             onClearAll={() => {
               if (confirm('Clear all cards? This cannot be undone.')) {
-                cards.forEach((card) => removeCard(card.id));
-                addCard();
+                clearAll();
               }
             }}
           />

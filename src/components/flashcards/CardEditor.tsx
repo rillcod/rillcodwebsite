@@ -60,17 +60,16 @@ export default function CardEditor({
                   <option value="hard">Hard</option>
                 </select>
                 
-                {cards.length > 1 && (
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => onRemoveCard(card.id)}
-                    className="p-1 hover:bg-red-500/10 rounded text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </motion.button>
-                )}
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onRemoveCard(card.id)}
+                  className="p-2 hover:bg-red-500/10 rounded-full text-red-400 hover:text-red-300 transition-colors border border-transparent hover:border-red-500/20"
+                  title="Remove Card"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </motion.button>
               </div>
             </div>
             
