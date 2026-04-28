@@ -67,3 +67,117 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+    error: authErr,
+  } = await supabase.auth.getUser();
+  if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin', 'teacher'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  const catalogVersion = searchParams.get('catalog_version');
+  const programId = searchParams.get('program_id');
+
+  if (id) {
+    const { error } = await supabase
+      .from('platform_syllabus_week_template')
+      .delete()
+      .eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, message: 'Blueprint purged from engine' });
+  }
+
+  if (catalogVersion && programId) {
+    const { error } = await supabase
+      .from('platform_syllabus_week_template')
+      .delete()
+      .eq('catalog_version', catalogVersion)
+      .eq('program_id', programId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, message: `All ${catalogVersion} blueprints for program ${programId} purged.` });
+  }
+
+  return NextResponse.json({ error: 'Provide either id OR (catalog_version AND program_id)' }, { status: 400 });
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+    error: authErr,
+  } = await supabase.auth.getUser();
+  if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin', 'teacher'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json();
+    const { 
+      catalog_version, 
+      program_id, 
+      lane_index, 
+      track, 
+      week_number, 
+      topic,
+      grade_key,
+      grade_label,
+      syllabus_phase,
+      week_index,
+      year_number,
+      term_number,
+      subtopics,
+      metadata 
+    } = body;
+
+    if (!catalog_version || !program_id || !topic) {
+      return NextResponse.json({ error: 'Version, Program, and Topic are required' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('platform_syllabus_week_template')
+      .insert({
+        catalog_version,
+        program_id,
+        lane_index: lane_index ?? 0,
+        track: (track ?? 'core').toLowerCase(),
+        week_number: week_number ?? 1,
+        week_index: week_index ?? 1,
+        year_number: year_number ?? 1,
+        term_number: term_number ?? 1,
+        topic,
+        grade_key: grade_key ? grade_key.toLowerCase() : null,
+        grade_label: grade_label || null,
+        syllabus_phase: syllabus_phase || null,
+        subtopics: subtopics || [],
+        metadata: metadata || {}
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

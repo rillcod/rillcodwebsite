@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowPathIcon, ArrowLeftIcon } from '@/lib/icons';
+import { 
+  ArrowPathIcon, 
+  ArrowLeftIcon, 
+  AcademicCapIcon, 
+  ShieldCheckIcon, 
+  BeakerIcon, 
+  EyeIcon 
+} from '@/lib/icons';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -55,15 +62,15 @@ function toEditablePolicy(program: PolicyProgram): EditablePolicy {
 
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (
-    <label className="flex items-start gap-3 cursor-pointer group">
-      <div className="relative mt-0.5 shrink-0">
+    <label className="flex items-start gap-4 cursor-pointer group">
+      <div className="relative mt-1 shrink-0">
         <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
-        <div className={`w-10 h-6 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-muted'}`} />
-        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-card transition-transform ${checked ? 'translate-x-4' : ''}`} />
+        <div className={`w-12 h-6.5 rounded-full transition-all duration-500 border border-border/50 ${checked ? 'bg-primary shadow-[0_0_15px_rgba(124,58,237,0.4)]' : 'bg-muted/50'}`} />
+        <div className={`absolute top-1 left-1 w-4.5 h-4.5 rounded-full bg-white shadow-xl transition-transform duration-500 ${checked ? 'translate-x-5.5' : ''}`} />
       </div>
-      <div>
-        <p className="text-sm font-bold text-foreground group-hover:text-violet-300 transition-colors">{label}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{hint}</p>}
+      <div className="space-y-1">
+        <p className="text-[13px] font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground leading-relaxed italic opacity-70">{hint}</p>}
       </div>
     </label>
   );
@@ -165,7 +172,7 @@ export default function ProgressionPoliciesPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Save failed');
       setPrograms(prev => prev.map(p => p.id === selectedProgram.id ? (json.data as PolicyProgram) : p));
-      toast.success('Settings saved for ' + selectedProgram.name);
+      toast.success('Governance rules updated for ' + selectedProgram.name);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -187,8 +194,8 @@ export default function ProgressionPoliciesPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Save failed');
       toast.success(scope === 'all'
-        ? `Updated ${json.data?.updated_count ?? 0} classes`
-        : 'Updated selected class');
+        ? `Visibility updated for ${json.data?.updated_count ?? 0} classes`
+        : 'Visibility updated for selected class');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -198,288 +205,320 @@ export default function ProgressionPoliciesPage() {
 
   if (authLoading || loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!canManage) return (
-    <div className="p-6 text-sm text-muted-foreground">Teacher or Admin access required.</div>
+    <div className="p-20 text-center text-muted-foreground font-black uppercase tracking-widest italic opacity-50">Staff access required.</div>
   );
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5">
-
-      {/* Header */}
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground mb-3">
-          <ArrowLeftIcon className="w-4 h-4" /> Back to LMS Settings
+    <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-12 pb-32">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-card border border-border rounded-[4rem] p-10 sm:p-16 shadow-2xl">
+        <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-primary/10 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[40rem] h-[40rem] bg-violet-600/5 rounded-full blur-[120px] -ml-48 -mb-48 pointer-events-none" />
+        
+        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
+          <ArrowLeftIcon className="w-4 h-4" /> Back to Intelligence Hub
         </Link>
-        <h1 className="text-xl font-black">Program Rules</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Control how each program runs — how often classes meet, how students unlock content, and what gets checked automatically.
-        </p>
+        
+        <div className="relative z-10 space-y-6">
+          <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-card-foreground leading-tight">Program Excellence Rules</h1>
+          <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed italic">
+            Define the academic DNA of your programs. Configure delivery requirements, 
+            learning path behavior, and automated quality standards.
+          </p>
+        </div>
       </div>
 
-      {/* Program picker */}
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-2">
-        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Which program are you setting rules for?</label>
-        <select
-          title="Select program"
-          value={selectedProgramId}
-          onChange={e => setSelectedProgramId(e.target.value)}
-          className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-        >
-          {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        {programs.length === 0 && (
-          <p className="text-xs text-amber-400">No programs found. <Link href="/dashboard/programs" className="underline">Create a program first.</Link></p>
-        )}
+      {/* Program Selector */}
+      <div className="bg-card/50 backdrop-blur-3xl border border-border rounded-[2.5rem] p-8 shadow-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div className="flex-1 space-y-3">
+            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-6">Target Academic Program</label>
+            <select
+              title="Select program"
+              value={selectedProgramId}
+              onChange={e => setSelectedProgramId(e.target.value)}
+              className="w-full px-8 py-5 bg-background border border-border rounded-2xl font-black uppercase tracking-widest focus:border-primary outline-none transition-all shadow-inner appearance-none"
+            >
+              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          {programs.length === 0 && (
+            <p className="text-sm text-rose-400 font-black uppercase tracking-widest shrink-0">No programs found. <Link href="/dashboard/programs" className="underline">Create one →</Link></p>
+          )}
+        </div>
       </div>
 
       {selectedProgram && (
-        <>
-          {/* Basic setup */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div>
-              <p className="text-sm font-black text-foreground">Basic Setup</p>
-              <p className="text-xs text-muted-foreground mt-0.5">The fundamentals — is this program required, and how often do students attend?</p>
-            </div>
-
-            <Toggle
-              checked={enabled}
-              onChange={setEnabled}
-              label="This program is active"
-              hint="Turn off to pause progression tracking for this program without deleting anything."
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Is this program required or optional?</label>
-                <select
-                  title="Delivery type"
-                  value={deliveryType}
-                  onChange={e => setDeliveryType(e.target.value === 'optional' ? 'optional' : 'compulsory')}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="compulsory">Required — all students must complete it</option>
-                  <option value="optional">Optional — students choose to join</option>
-                </select>
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          {/* 1. Academic Fundamentals */}
+          <div className="bg-card border border-border rounded-[3.5rem] overflow-hidden shadow-2xl">
+            <div className="p-10 border-b border-border bg-muted/10 flex items-center gap-6">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <AcademicCapIcon className="w-6 h-6 text-emerald-400" />
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">How many sessions per week?</label>
-                <select
-                  title="Session frequency"
-                  value={frequency}
-                  onChange={e => setFrequency(e.target.value === '2' ? 2 : 1)}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="1">Once a week</option>
-                  <option value="2">Twice a week</option>
-                </select>
+              <div>
+                <h2 className="text-[11px] font-black text-foreground uppercase tracking-[0.3em] leading-none">01 · Academic Fundamentals</h2>
+                <p className="text-sm text-muted-foreground mt-2 italic">Core settings governing program status and attendance frequency.</p>
+              </div>
+            </div>
+            <div className="p-10 sm:p-14 space-y-12">
+              <Toggle
+                checked={enabled}
+                onChange={setEnabled}
+                label="Program Active Status"
+                hint="When disabled, progression tracking and automated content generation are paused for this program."
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 pt-4">
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Completion Requirement</label>
+                  <select
+                    title="Delivery type"
+                    value={deliveryType}
+                    onChange={e => setDeliveryType(e.target.value === 'optional' ? 'optional' : 'compulsory')}
+                    className="w-full px-8 py-4 bg-background border border-border rounded-2xl font-black uppercase tracking-widest outline-none focus:border-primary transition-all shadow-sm"
+                  >
+                    <option value="compulsory">Required (Core Program)</option>
+                    <option value="optional">Optional (Elective Path)</option>
+                  </select>
+                </div>
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Session Frequency</label>
+                  <select
+                    title="Session frequency"
+                    value={frequency}
+                    onChange={e => setFrequency(e.target.value === '2' ? 2 : 1)}
+                    className="w-full px-8 py-4 bg-background border border-border rounded-2xl font-black uppercase tracking-widest outline-none focus:border-primary transition-all shadow-sm"
+                  >
+                    <option value="1">Standard (1 session / week)</option>
+                    <option value="2">Intensive (2 sessions / week)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* How students move through content */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div>
-              <p className="text-sm font-black text-foreground">How Students Move Through Content</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Control whether students must pass each step before moving on, or can browse freely.</p>
+          {/* 2. Learning Experience */}
+          <div className="bg-card border border-border rounded-[3.5rem] overflow-hidden shadow-2xl">
+            <div className="p-10 border-b border-border bg-muted/10 flex items-center gap-6">
+              <div className="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                <BeakerIcon className="w-6 h-6 text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-[11px] font-black text-foreground uppercase tracking-[0.3em] leading-none">02 · Learning Experience</h2>
+                <p className="text-sm text-muted-foreground mt-2 italic">Control how students encounter and unlock their learning materials.</p>
+              </div>
             </div>
+            <div className="p-10 sm:p-14 space-y-12">
+              <div className="space-y-4">
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Unlocking Logic</label>
+                <select
+                  title="Mastery mode"
+                  value={form.mastery_mode}
+                  onChange={e => setForm(f => ({ ...f, mastery_mode: e.target.value === 'soft' ? 'soft' : 'strict' }))}
+                  className="w-full px-8 py-5 bg-background border border-border rounded-2xl font-black uppercase tracking-widest outline-none focus:border-primary transition-all shadow-inner"
+                >
+                  <option value="strict">Linear Lock (Pass one to unlock next)</option>
+                  <option value="soft">Exploration Mode (Open browsing allowed)</option>
+                </select>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Content unlocking</label>
-              <select
-                title="Mastery mode"
-                value={form.mastery_mode}
-                onChange={e => setForm(f => ({ ...f, mastery_mode: e.target.value === 'soft' ? 'soft' : 'strict' }))}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-              >
-                <option value="strict">Locked — students must pass each lesson to unlock the next</option>
-                <option value="soft">Open — students can browse all content freely</option>
-              </select>
-            </div>
-
-            <Toggle
-              checked={form.strict_route_default}
-              onChange={v => setForm(f => ({ ...f, strict_route_default: v }))}
-              label="Follow the set learning path"
-              hint="Students follow lessons in the order you set. Turn off to let them jump around."
-            />
-
-            <Toggle
-              checked={form.essential_routes_only}
-              onChange={v => setForm(f => ({ ...f, essential_routes_only: v }))}
-              label="Core lessons only"
-              hint="Only show the essential lessons — hide bonus and extension content. Good for tight schedules."
-            />
-
-            <Toggle
-              checked={form.auto_flashcards_default}
-              onChange={v => setForm(f => ({ ...f, auto_flashcards_default: v }))}
-              label="Auto-create flashcards from lessons"
-              hint="When a lesson is generated, flashcard decks are created automatically for students to review."
-            />
-
-            <Toggle
-              checked={form.project_based_default}
-              onChange={v => setForm(f => ({ ...f, project_based_default: v }))}
-              label="Project-based learning"
-              hint="Lessons are built around hands-on projects rather than traditional step-by-step lessons."
-            />
-          </div>
-
-          {/* Grading & quality checks */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div>
-              <p className="text-sm font-black text-foreground">Grading & Quality Checks</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Set the minimum score to pass, and how strictly the system checks lesson structure.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Minimum pass score (%)</label>
-                <input
-                  type="number"
-                  title="Minimum pass score"
-                  min={40} max={100}
-                  value={form.qa_min_pass_score}
-                  onChange={e => setForm(f => ({ ...f, qa_min_pass_score: Math.min(100, Math.max(40, Number(e.target.value || 75))) }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4">
+                <Toggle
+                  checked={form.strict_route_default}
+                  onChange={v => setForm(f => ({ ...f, strict_route_default: v }))}
+                  label="Enforced Path Following"
+                  hint="Ensures students follow the designed pedagogical sequence."
                 />
-                <p className="text-[10px] text-muted-foreground">Students need this score to pass a lesson or assessment.</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Teacher steps per lesson</label>
-                <input
-                  type="number"
-                  title="Teacher steps required"
-                  min={1} max={8}
-                  value={form.qa_required_teacher_steps}
-                  onChange={e => setForm(f => ({ ...f, qa_required_teacher_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                <Toggle
+                  checked={form.essential_routes_only}
+                  onChange={v => setForm(f => ({ ...f, essential_routes_only: v }))}
+                  label="Focused Core Delivery"
+                  hint="Hides bonus/extension content to prioritize primary objectives."
                 />
-                <p className="text-[10px] text-muted-foreground">How many teaching steps a lesson must have (e.g. intro, explain, practice…).</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Student steps per lesson</label>
-                <input
-                  type="number"
-                  title="Student steps required"
-                  min={1} max={8}
-                  value={form.qa_required_student_steps}
-                  onChange={e => setForm(f => ({ ...f, qa_required_student_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
+                <Toggle
+                  checked={form.auto_flashcards_default}
+                  onChange={v => setForm(f => ({ ...f, auto_flashcards_default: v }))}
+                  label="Instant Review Decks"
+                  hint="Automatically generate flashcard sets from new lesson content."
                 />
-                <p className="text-[10px] text-muted-foreground">How many student activity steps a lesson must include.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If assessments drift off-topic</label>
-                <select
-                  title="Assessment drift mode"
-                  value={form.qa_assessment_drift_mode}
-                  onChange={e => setForm(f => ({ ...f, qa_assessment_drift_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="warn">Show a warning but allow it</option>
-                  <option value="fail">Block it — must be fixed first</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If exams drift off-topic</label>
-                <select
-                  title="Exam drift mode"
-                  value={form.qa_exam_drift_mode}
-                  onChange={e => setForm(f => ({ ...f, qa_exam_drift_mode: e.target.value === 'warn' ? 'warn' : 'fail' }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="fail">Block it — must be fixed first</option>
-                  <option value="warn">Show a warning but allow it</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">If a lesson is missing steps</label>
-                <select
-                  title="5-step break mode"
-                  value={form.qa_five_step_mode}
-                  onChange={e => setForm(f => ({ ...f, qa_five_step_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="warn">Show a warning but allow it</option>
-                  <option value="fail">Block it — must be fixed first</option>
-                </select>
+                <Toggle
+                  checked={form.project_based_default}
+                  onChange={v => setForm(f => ({ ...f, project_based_default: v }))}
+                  label="Hands-on Project Priority"
+                  hint="Prioritize practical projects over traditional lecture-style lessons."
+                />
               </div>
             </div>
           </div>
 
-          {/* What students & parents can see */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <div>
-              <p className="text-sm font-black text-foreground">What Students & Parents Can See</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Control how much of the learning path is visible to students and parents.</p>
+          {/* 3. Excellence Standards */}
+          <div className="bg-card border border-border rounded-[3.5rem] overflow-hidden shadow-2xl">
+            <div className="p-10 border-b border-border bg-muted/10 flex items-center gap-6">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <ShieldCheckIcon className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-[11px] font-black text-foreground uppercase tracking-[0.3em] leading-none">03 · Excellence Standards</h2>
+                <p className="text-sm text-muted-foreground mt-2 italic">Set the quality floor and automated compliance checks for content.</p>
+              </div>
             </div>
+            <div className="p-10 sm:p-14 space-y-14">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Pass Threshold (%)</label>
+                  <input
+                    type="number"
+                    min={40} max={100}
+                    value={form.qa_min_pass_score}
+                    onChange={e => setForm(f => ({ ...f, qa_min_pass_score: Math.min(100, Math.max(40, Number(e.target.value || 75))) }))}
+                    className="w-full px-8 py-4 bg-background border border-border rounded-2xl font-black text-xl outline-none focus:border-amber-500 transition-all shadow-inner"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Teaching Milestones</label>
+                  <input
+                    type="number"
+                    min={1} max={8}
+                    value={form.qa_required_teacher_steps}
+                    onChange={e => setForm(f => ({ ...f, qa_required_teacher_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                    className="w-full px-8 py-4 bg-background border border-border rounded-2xl font-black text-xl outline-none focus:border-amber-500 transition-all shadow-inner"
+                  />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-4 opacity-50">Steps per lesson.</p>
+                </div>
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Activity Depth</label>
+                  <input
+                    type="number"
+                    min={1} max={8}
+                    value={form.qa_required_student_steps}
+                    onChange={e => setForm(f => ({ ...f, qa_required_student_steps: Math.min(8, Math.max(1, Number(e.target.value || 5))) }))}
+                    className="w-full px-8 py-4 bg-background border border-border rounded-2xl font-black text-xl outline-none focus:border-amber-500 transition-all shadow-inner"
+                  />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-4 opacity-50">Student activities.</p>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Visibility level</label>
-                <select
-                  title="Path visibility mode"
-                  value={pathMode}
-                  onChange={e => setPathMode(e.target.value === 'milestone' ? 'milestone' : 'full')}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  <option value="full">Full — show all lessons and weeks</option>
-                  <option value="milestone">Milestones only — show key checkpoints, not every lesson</option>
-                </select>
+              <div className="space-y-8 p-10 bg-muted/20 rounded-[2.5rem] border border-border shadow-inner">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-500/70 text-center">Identity & Structural Integrity Controls</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Assignment Drift</label>
+                    <select
+                      value={form.qa_assessment_drift_mode}
+                      onChange={e => setForm(f => ({ ...f, qa_assessment_drift_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                      className="w-full px-6 py-4 bg-background border border-border rounded-xl font-black uppercase tracking-widest text-[11px] outline-none focus:border-amber-500 transition-all"
+                    >
+                      <option value="warn">Warn only</option>
+                      <option value="fail">Block & Enforce</option>
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Examination Drift</label>
+                    <select
+                      value={form.qa_exam_drift_mode}
+                      onChange={e => setForm(f => ({ ...f, qa_exam_drift_mode: e.target.value === 'warn' ? 'warn' : 'fail' }))}
+                      className="w-full px-6 py-4 bg-background border border-border rounded-xl font-black uppercase tracking-widest text-[11px] outline-none focus:border-amber-500 transition-all"
+                    >
+                      <option value="fail">Block & Enforce</option>
+                      <option value="warn">Warn only</option>
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Structure Guard</label>
+                    <select
+                      value={form.qa_five_step_mode}
+                      onChange={e => setForm(f => ({ ...f, qa_five_step_mode: e.target.value === 'fail' ? 'fail' : 'warn' }))}
+                      className="w-full px-6 py-4 bg-background border border-border rounded-xl font-black uppercase tracking-widest text-[11px] outline-none focus:border-amber-500 transition-all"
+                    >
+                      <option value="warn">Warn only</option>
+                      <option value="fail">Block & Enforce</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Apply to one class</label>
-                <select
-                  title="Select class"
-                  value={selectedClassId}
-                  onChange={e => setSelectedClassId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm"
-                >
-                  {classes.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}{c.schools?.name ? ` (${c.schools.name})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => applyPathVisibility('one')}
-                disabled={pathSaving || !selectedClassId}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-border hover:bg-muted/30 disabled:opacity-50"
-              >
-                Apply to this class
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPathVisibility('all')}
-                disabled={pathSaving}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-primary/30 text-violet-300 hover:bg-primary/10 disabled:opacity-50"
-              >
-                Apply to all classes
-              </button>
             </div>
           </div>
 
-          {/* Save */}
-          <button
-            type="button"
-            onClick={savePolicy}
-            disabled={saving}
-            className="w-full py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2"
-          >
-            {saving && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-            Save rules for {selectedProgram.name}
-          </button>
-        </>
+          {/* 4. Public Transparency */}
+          <div className="bg-card border border-border rounded-[3.5rem] overflow-hidden shadow-2xl">
+            <div className="p-10 border-b border-border bg-muted/10 flex items-center gap-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <EyeIcon className="w-6 h-6 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-[11px] font-black text-foreground uppercase tracking-[0.3em] leading-none">04 · Public Transparency</h2>
+                <p className="text-sm text-muted-foreground mt-2 italic">Configure visibility for students and parents on the portal.</p>
+              </div>
+            </div>
+            <div className="p-10 sm:p-14 space-y-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Path Visibility Mode</label>
+                  <select
+                    value={pathMode}
+                    onChange={e => setPathMode(e.target.value === 'milestone' ? 'milestone' : 'full')}
+                    className="w-full px-8 py-5 bg-background border border-border rounded-2xl font-black uppercase tracking-widest outline-none focus:border-blue-500 transition-all shadow-inner"
+                  >
+                    <option value="full">Full Access (All weeks visible)</option>
+                    <option value="milestone">Milestones Only (Checkpoints only)</option>
+                  </select>
+                </div>
+                <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-4">Scope targeting</label>
+                  <select
+                    value={selectedClassId}
+                    onChange={e => setSelectedClassId(e.target.value)}
+                    className="w-full px-8 py-5 bg-background border border-border rounded-2xl font-black uppercase tracking-widest outline-none focus:border-blue-500 transition-all shadow-inner"
+                  >
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}{c.schools?.name ? ` — ${c.schools.name}` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => applyPathVisibility('one')}
+                  disabled={pathSaving || !selectedClassId}
+                  className="px-10 py-4 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl border border-border hover:bg-muted/30 transition-all disabled:opacity-50 shadow-sm"
+                >
+                  Apply to Class
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPathVisibility('all')}
+                  disabled={pathSaving}
+                  className="px-10 py-4 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl border border-blue-500/30 text-blue-400 hover:bg-blue-500/5 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/5"
+                >
+                  Apply to All Modules
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Sync Button */}
+          <div className="pt-8">
+            <button
+              type="button"
+              onClick={savePolicy}
+              disabled={saving}
+              className="group relative w-full overflow-hidden rounded-[2.5rem] bg-primary py-8 text-sm font-black uppercase tracking-[0.4em] text-white shadow-[0_40px_100px_rgba(124,58,237,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <div className="flex items-center justify-center gap-4">
+                <ArrowPathIcon className={`w-6 h-6 ${saving ? 'animate-spin' : ''}`} />
+                {saving ? 'Synchronizing Governance Rules...' : `Commit Excellence Standards`}
+              </div>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

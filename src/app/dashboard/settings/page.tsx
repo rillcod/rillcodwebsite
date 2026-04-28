@@ -943,14 +943,14 @@ export default function SettingsPage() {
 
                     {/* Academic Policies */}
                     <div>
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Academic & Engagement Policies</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Daily Academic Rules</h3>
                       <div className="space-y-4">
                         {[
-                          { key: 'lms_teacher_isolation', label: 'Teacher Data Isolation', desc: 'Teachers only see their own assigned classes and students.' },
-                          { key: 'lms_auto_portals', label: 'Automated Student Portals', desc: 'Automatically create accounts for new student registrations.' },
-                          { key: 'lms_gamification_enabled', label: 'Engagement Gamification', desc: 'Enable XP, Badges, and Leaderboards for all students.' },
-                          { key: 'lms_auto_certificates', label: 'Auto-Certificate Issuance', desc: 'Generate completion certificates automatically on course finish.' },
-                          { key: 'lms_course_locking', label: 'Syllabus Progression Lock', desc: 'Force students to complete lessons in linear order.' },
+                          { key: 'lms_teacher_isolation', label: 'Class Privacy for Teachers', desc: 'Teachers only see their own assigned classes and students for better focus.' },
+                          { key: 'lms_auto_portals', label: 'Instant Student Access', desc: 'Automatically create accounts and login details for new student registrations.' },
+                          { key: 'lms_gamification_enabled', label: 'Learning Rewards & Badges', desc: 'Turn on XP points, badges, and the school leaderboard to boost engagement.' },
+                          { key: 'lms_auto_certificates', label: 'Automatic Certificates', desc: 'Instantly generate completion certificates when a student finishes a course.' },
+                          { key: 'lms_course_locking', label: 'Step-by-Step Learning Mode', desc: 'Ensure students finish lessons in the correct order before moving ahead.' },
                         ].map(opt => (
                           <div key={opt.key} className="flex items-start justify-between py-2">
                             <div className="max-w-md">
