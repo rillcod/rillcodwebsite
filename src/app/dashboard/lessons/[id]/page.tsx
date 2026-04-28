@@ -13,7 +13,7 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
-  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon
+  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon, TrashIcon, ArrowsPointingOutIcon
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,149 @@ import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
 import NeuralVoiceReader from '@/components/ai/NeuralVoiceReader';
 import StudyAssistant from '@/components/ai/StudyAssistant';
+
+type ResourceItem = {
+  id: string;
+  title: string;
+  file_url: string;
+  file_type?: string;
+  content_type?: string;
+  subject?: string;
+};
+
+function InAppViewer({ item, onClose }: { 
+  item: ResourceItem; 
+  onClose: () => void;
+}) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const fileUrl = item.file_url;
+  const fileType = item.file_type || item.content_type;
+
+  const isVideo = fileType?.startsWith('video/') || item.content_type === 'video';
+  const isImage = fileType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].some(ext => fileUrl?.toLowerCase().includes(ext));
+  const isPDF = fileType === 'application/pdf' || fileUrl?.toLowerCase().includes('.pdf');
+  const isDocument = ['document', 'guide'].includes(item.content_type || '') || isPDF;
+
+  const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (isFullscreen) setIsFullscreen(false);
+      else onClose();
+    }
+  }, [isFullscreen, onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    const timer = setTimeout(() => {
+      setLoading(false);
+      if (isPDF && fileUrl) setTotalPages(10); 
+    }, 1200);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(timer);
+    };
+  }, [handleKeyDown, isPDF, fileUrl]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`fixed inset-0 z-[110] flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4 md:p-12'}`}
+    >
+      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-3xl" onClick={onClose} />
+      
+      <div className={`relative w-full h-full bg-slate-900 border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col ${isFullscreen ? 'rounded-0' : 'rounded-[40px]'}`}>
+        
+        <div className="shrink-0 h-20 bg-slate-900/50 backdrop-blur-xl border-b border-white/10 px-8 flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors text-white">
+              <ChevronRightIcon className="w-6 h-6 rotate-180" />
+            </button>
+            <div>
+              <h3 className="font-black text-white tracking-tight text-lg">{item.title}</h3>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">{item.content_type || 'Resource'} • {item.subject || 'Academic Asset'}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
+              <button onClick={toggleFullscreen} className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-all" title="Toggle Fullscreen">
+                <ArrowsPointingOutIcon className="w-5 h-5" />
+              </button>
+              {fileUrl && (
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-all" title="Download">
+                  <ArrowDownTrayIcon className="w-5 h-5" />
+                </a>
+              )}
+            </div>
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white ml-2 transition-all">
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 relative bg-slate-950 overflow-hidden">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center z-20">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Loading Neural Stream...</p>
+              </div>
+            </div>
+          )}
+
+          <div className="w-full h-full overflow-auto flex items-center justify-center p-8 custom-scrollbar">
+            {isVideo && fileUrl ? (
+              <div className="w-full max-w-6xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+                <VideoPlayer url={fileUrl} title={item.title} cinemaMode />
+              </div>
+            ) : isImage && fileUrl ? (
+              <motion.img
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                src={fileUrl} alt={item.title}
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-2xl"
+                onLoad={() => setLoading(false)}
+              />
+            ) : isPDF && fileUrl ? (
+              <div className="w-full h-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                <iframe src={`${fileUrl}#toolbar=0&navpanes=0`} className="w-full h-full border-0" onLoad={() => setLoading(false)} title={item.title} />
+              </div>
+            ) : isDocument && fileUrl ? (
+              <div className="w-full h-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                <iframe src={fileUrl} className="w-full h-full border-0" onLoad={() => setLoading(false)} title={item.title} />
+              </div>
+            ) : (
+              <div className="text-center space-y-6">
+                <div className="w-24 h-24 rounded-[32px] bg-white/5 flex items-center justify-center mx-auto border border-white/10">
+                  <DocumentIcon className="w-10 h-10 text-white/20" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black text-white tracking-tight">Format Unsupported</h4>
+                  <p className="text-sm text-white/40 max-w-xs mx-auto">This asset requires external processing or download for full resolution.</p>
+                </div>
+                {fileUrl && (
+                  <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-4 px-10 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-3xl shadow-[0_20px_40px_rgba(234,88,12,0.3)] hover:-translate-y-1 transition-all">
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Download Intelligence
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 const CodeVisualizer = dynamic(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false }) as any;
 const BlocklyEditor = dynamic(() => import('@/components/studio/BlocklyEditor'), { ssr: false }) as any;
@@ -2215,6 +2358,7 @@ export default function LessonDetailPage() {
   const hookFetchedRef = useRef(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [viewerItem, setViewerItem] = useState<ResourceItem | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactions, setInteractions] = useState<Set<number>>(new Set());
   const [explainRequest, setExplainRequest] = useState<string | undefined>(undefined);
@@ -2505,65 +2649,67 @@ export default function LessonDetailPage() {
       </div>
 
       {/* Sidebar - Course Syllabus (Nucleus Style) */}
-      <aside className={`fixed inset-0 z-[60] md:relative md:inset-auto transition-all duration-700 ease-in-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0 w-full md:w-[360px]' : '-translate-x-full w-full md:w-0 overflow-hidden'}`}>
+      <aside className={`fixed inset-0 z-[100] md:relative md:inset-auto transition-all duration-700 ease-in-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0 w-full md:w-[380px]' : '-translate-x-full w-full md:w-0 overflow-hidden'}`}>
         {/* Mobile Backdrop */}
-        <div className={`md:hidden absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
+        <div className={`md:hidden absolute inset-0 bg-slate-950/80 backdrop-blur-3xl transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
 
-        <div className="relative h-full bg-background border-r border-border flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
-          <div className="p-8 border-b border-border flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
+        <div className="relative h-full bg-slate-950/50 backdrop-blur-3xl border-r border-white/10 flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[40px_0_100px_rgba(0,0,0,0.5)]">
+          <div className="p-10 border-b border-white/10 flex items-center justify-between bg-gradient-to-br from-white/[0.05] to-transparent">
             <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Curriculum</h2>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Curriculum Nucleus</h2>
               </div>
-              <p className="font-black text-foreground text-lg leading-tight truncate max-w-[200px]">{lesson.courses?.programs?.name || 'Academic Track'}</p>
+              <p className="font-black text-white text-xl leading-tight truncate max-w-[200px] tracking-tight">{lesson.courses?.programs?.name || 'Academic Track'}</p>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-3 bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-all hover:bg-rose-500/10 active:scale-95">
-              <XMarkIcon className="w-5 h-5" />
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden w-12 h-12 bg-white/5 border border-white/10 rounded-2xl text-white flex items-center justify-center transition-all hover:bg-rose-500/20 hover:border-rose-500/30">
+              <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-card/20">
-            <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-xl mb-6 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-600/10 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
-              <h3 className="text-xs font-bold text-primary uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Course'}</h3>
-              <div className="flex items-center gap-2 mt-2 relative z-10">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{courseLessons.length} lessons</span>
-                <div className="h-px flex-1 bg-muted" />
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+            <div className="px-8 py-6 bg-white/5 border border-white/10 rounded-[32px] mb-8 shadow-3xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+              <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] relative z-10">{lesson.courses?.title || 'Course'}</h3>
+              <div className="flex items-center gap-3 mt-3 relative z-10">
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{courseLessons.length} units of intelligence</span>
+                <div className="h-px flex-1 bg-white/10" />
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {courseLessons.map((l, idx) => {
                 const isActive = l.id === id;
                 const isCompleted = completedIds.has(l.id);
                 return (
                   <Link key={l.id} href={`/dashboard/lessons/${l.id}${classId ? `?class_id=${classId}` : ''}`}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-4 p-4 rounded-xl transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
-                    {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_cyan]" />}
-
-                    <div className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-card text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
-                      {isCompleted ? <CheckBadgeIcon className="w-4 h-4" /> : idx + 1}
+                    className={`flex items-center gap-5 p-5 rounded-[24px] transition-all relative group overflow-hidden ${isActive ? 'bg-primary/20 text-white border border-primary/30 shadow-2xl' : 'hover:bg-white/5 text-white/50 hover:text-white border border-transparent'}`}>
+                    
+                    <div className={`shrink-0 w-10 h-10 rounded-2xl border flex items-center justify-center text-[10px] font-black transition-all duration-500 ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-[0_10px_20px_rgba(16,185,129,0.3)]' : isActive ? 'bg-white text-black border-white' : 'border-white/10 group-hover:border-white/20 group-hover:bg-white/5'}`}>
+                      {isCompleted ? <CheckBadgeIcon className="w-5 h-5" /> : idx + 1}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <span className={`text-[11px] font-black block truncate leading-tight uppercase tracking-wide ${isActive ? 'text-foreground' : 'text-current group-hover:text-muted-foreground'}`}>{l.title}</span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[8px] uppercase tracking-widest font-black opacity-30">{l.lesson_type}</span>
-                        {isCompleted && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest">Done</span>}
+                      <span className={`text-[12px] font-black block truncate leading-tight uppercase tracking-wide ${isActive ? 'text-white' : 'group-hover:text-white transition-colors'}`}>{l.title}</span>
+                      <div className="flex items-center gap-2 mt-1.5 opacity-40">
+                        <span className="text-[8px] uppercase tracking-[0.2em] font-black">{l.lesson_type}</span>
+                        {isCompleted && <span className="w-1 h-1 rounded-full bg-emerald-500" />}
+                        {isCompleted && <span className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Mastered</span>}
                       </div>
                     </div>
+
+                    {isActive && <motion.div layoutId="active-indicator" className="absolute right-4 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(234,88,12,0.8)]" />}
                   </Link>
                 );
               })}
             </div>
           </div>
 
-          <div className="p-8 border-t border-border bg-gradient-to-t from-black to-transparent">
-            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
-              <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-              {classId ? 'Back to Class' : 'Back to Lessons'}
+          <div className="p-10 border-t border-white/10 bg-gradient-to-t from-slate-950 to-transparent">
+            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-4 px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] text-[10px] font-black text-white/60 hover:text-white uppercase tracking-[0.4em] transition-all group shadow-2xl">
+              <ArrowLeftIcon className="w-5 h-5 transition-transform group-hover:-translate-x-2" />
+              {classId ? 'Return to Class' : 'System Exit'}
             </Link>
           </div>
         </div>
@@ -2589,12 +2735,14 @@ export default function LessonDetailPage() {
         )}
 
         {!isCinemaMode && (
-          <div className={`max-w-6xl mx-auto px-4 sm:px-12 py-8 sm:py-20 space-y-10 sm:space-y-16 ${isReading ? 'max-w-4xl' : ''}`}>
+          <div className={`max-w-6xl mx-auto px-6 sm:px-16 py-12 sm:py-24 space-y-12 sm:space-y-20 ${isReading ? 'max-w-4xl' : ''}`}>
             {/* Header */}
-            <header className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-top-12 duration-1000">
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-card shadow-sm border border-border rounded-xl text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
-                  <BoltIcon className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+            <header className="space-y-12 sm:space-y-20 animate-in fade-in slide-in-from-top-12 duration-1000 relative">
+              <div className="absolute -left-20 -top-20 w-96 h-96 bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+              
+              <div className="flex flex-wrap items-center gap-5 sm:gap-8">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-white/50 hover:text-primary hover:border-primary/30 transition-all shadow-2xl group items-center justify-center backdrop-blur-xl">
+                  <BoltIcon className="w-8 h-8 group-hover:rotate-12 transition-transform duration-500" />
                 </button>
                 {lesson.metadata?.lesson_plan_id && isStaff && (
                   <Link
@@ -2975,25 +3123,30 @@ export default function LessonDetailPage() {
                         const iconColor = isVideo ? 'bg-red-500/10 text-red-400' : isPdf ? 'bg-rose-500/10 text-rose-400' : 'bg-cyan-500/10 text-cyan-400';
                         const Icon = isVideo ? VideoCameraIcon : isPdf ? DocumentIcon : PaperClipIcon;
                         return (
-                          <div key={m.id} className="group bg-card border border-white/[0.08] rounded-2xl p-5 flex items-center gap-4 hover:border-cyan-500/20 transition-all">
-                            <div className={`p-3 rounded-xl flex-shrink-0 ${iconColor}`}>
-                              <Icon className="w-5 h-5" />
+                          <div key={m.id} 
+                            onClick={() => setViewerItem(m)}
+                            className="group bg-white/5 border border-white/10 rounded-[32px] p-6 flex items-center gap-6 hover:border-primary/40 hover:bg-white/10 transition-all duration-500 cursor-pointer shadow-xl"
+                          >
+                            <div className={`p-4 rounded-2xl flex-shrink-0 ${iconColor} transition-transform duration-500 group-hover:scale-110`}>
+                              <Icon className="w-6 h-6" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-card-foreground/40">{m.file_type || 'Resource'}</p>
-                              <p className="text-sm font-bold text-card-foreground truncate">{m.title}</p>
+                              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-1">{m.file_type || 'Academic Asset'}</p>
+                              <p className="text-base font-black text-white truncate group-hover:text-primary transition-colors">{m.title}</p>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <a href={m.file_url} target="_blank" rel="noopener noreferrer"
-                                className="p-2 hover:bg-cyan-500/10 text-card-foreground/40 hover:text-cyan-400 rounded-lg transition-all">
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                              </a>
-                              {isStaff && (
-                                <button onClick={() => handleDeleteResource(m.id)}
-                                  className="p-2 hover:bg-rose-500/10 text-card-foreground/20 hover:text-rose-400 rounded-lg transition-all">
-                                  <XMarkIcon className="w-4 h-4" />
-                                </button>
-                              )}
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <button onClick={(e) => { e.stopPropagation(); window.open(m.file_url, '_blank'); }}
+                                className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl transition-all">
+                                <ArrowDownTrayIcon className="w-5 h-5" />
+                              </button>
+                                {isStaff && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteResource(m.id); }}
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-400 rounded-xl transition-all"
+                                    title="Purge Asset"
+                                  >
+                                    <TrashIcon className="w-5 h-5" />
+                                  </button>
+                                )}
                             </div>
                           </div>
                         );
@@ -3123,6 +3276,15 @@ export default function LessonDetailPage() {
           />
         )}
       </main>
+
+      <AnimatePresence>
+        {viewerItem && (
+          <InAppViewer 
+            item={viewerItem} 
+            onClose={() => setViewerItem(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
