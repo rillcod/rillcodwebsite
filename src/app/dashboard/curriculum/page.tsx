@@ -985,13 +985,13 @@ export default function CurriculumPage() {
           const scope = curr.school_id ? curr.school_id : 'platform';
           setGenerateScope(scope);
           restoreGradeForScope(scope);
-          
+
           // Only auto-select if there's exactly one version, 
           // or if we are a learner (learners always see the best/published one).
           if (items.length === 1 || isLearnerRole) {
             setCurriculum(curr);
           }
-          
+
           // Tracking is a staff-only feature
           // avoid a 401 that can interfere with session cookie handling.
           if (!isLearnerRole) {
@@ -1461,11 +1461,11 @@ export default function CurriculumPage() {
         throw new Error(j.error || 'Failed to delete curriculum');
       }
       toast.success('Curriculum version deleted');
-      
+
       // Update local lists
       const newList = curriculumList.filter(c => c.id !== curriculum.id);
       setCurriculumList(newList);
-      
+
       if (newList.length > 0) {
         // Switch to the first available version
         setCurriculum(newList[0]);
@@ -2045,7 +2045,7 @@ export default function CurriculumPage() {
 
           {/* Syllabus Tab (or no course selected) */}
           {(activeTab === 'syllabus' || !selectedCourse) && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -2284,7 +2284,7 @@ export default function CurriculumPage() {
                           Draft Mode
                         </span>
                       </div>
-                      
+
                       <div className="space-y-1">
                         <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
                           {selectedCourse.title}
@@ -2368,11 +2368,11 @@ export default function CurriculumPage() {
                                     e.stopPropagation();
                                     if (!confirm(`Delete "${c.content?.description || `Version ${c.version}`}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
                                     const res = await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
-                                      if (res.ok) {
-                                        const updated = curriculumList.filter(x => x.id !== c.id);
-                                        setCurriculumList(updated);
-                                        toast.success('Syllabus version deleted');
-                                      } else {
+                                    if (res.ok) {
+                                      const updated = curriculumList.filter(x => x.id !== c.id);
+                                      setCurriculumList(updated);
+                                      toast.success('Syllabus version deleted');
+                                    } else {
                                       const j = await res.json().catch(() => ({}));
                                       toast.error(j.error ?? 'Delete failed');
                                     }
@@ -2411,7 +2411,7 @@ export default function CurriculumPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="space-y-1">
                         <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
                           {curriculum.content.course_title}
