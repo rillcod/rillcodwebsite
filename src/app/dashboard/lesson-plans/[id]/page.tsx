@@ -2412,11 +2412,11 @@ export default function LessonPlanDetailPage() {
                         </div>
 
                         {lmsOpen && (
-                          <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] p-4 space-y-4">
+                          <div className="rounded-2xl border border-white/[0.10] bg-white/[0.04] p-5 space-y-5">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                               <div>
-                                <p className="text-sm font-black text-card-foreground">Auto-generate week-by-week</p>
-                                <p className="text-xs text-card-foreground/55 mt-0.5">When enabled, the system auto-generates content each week as the term progresses.</p>
+                                <p className="text-sm font-black text-card-foreground">Continuous Learning Stream</p>
+                                <p className="text-xs text-card-foreground/55 mt-0.5">When enabled, the system automatically builds next week's content as the term progresses.</p>
                               </div>
                               <button
                                 type="button"
@@ -2429,8 +2429,8 @@ export default function LessonPlanDetailPage() {
                               </button>
                             </div>
 
-                            <div className="space-y-2">
-                              <p className="text-xs font-black uppercase tracking-wider text-card-foreground/45">Content types</p>
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">What to generate</p>
                               <div className="flex flex-wrap gap-2">
                                 {(['lessons', 'assignments', 'projects'] as const).map((t) => {
                                   const checked = lmsSettings.types.includes(t);
@@ -2453,35 +2453,41 @@ export default function LessonPlanDetailPage() {
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              <p className="text-xs font-black uppercase tracking-wider text-card-foreground/45">Weeks per batch <span className="normal-case font-normal opacity-60">(0 = all)</span></p>
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70">Processing Mode</p>
                               <div className="flex flex-wrap gap-2">
-                                {([0, 1, 3, 5, 10] as const).map((n) => (
+                                {[
+                                  { n: 0, label: 'Full Term' },
+                                  { n: 1, label: 'One Week' },
+                                  { n: 3, label: 'Quick Batch (3)' },
+                                  { n: 5, label: 'Large Batch (5)' },
+                                  { n: 10, label: 'Max (10)' }
+                                ].map(({ n, label }) => (
                                   <button
                                     key={n}
                                     type="button"
                                     onClick={() => setLmsSettings((s) => ({ ...s, maxWeeksPerBatch: n }))}
                                     className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all ${lmsSettings.maxWeeksPerBatch === n ? 'bg-primary text-white' : 'bg-white/5 text-card-foreground/60 border border-white/10 hover:bg-white/10'}`}
                                   >
-                                    {n === 0 ? 'All' : `${n} week${n > 1 ? 's' : ''}`}
+                                    {label}
                                   </button>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3 pt-1 pb-[max(0px,env(safe-area-inset-bottom))]">
+                            <div className="flex items-center gap-3 pt-2">
                               <button
                                 type="button"
                                 onClick={saveLmsSettings}
                                 disabled={savingLms}
-                                className="px-4 py-2 text-sm font-black rounded-2xl bg-primary hover:bg-primary text-white disabled:opacity-50 transition-all"
+                                className="px-6 py-2 text-sm font-black rounded-2xl bg-primary hover:bg-primary text-white disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
                               >
-                                {savingLms ? 'Saving…' : 'Save LMS Settings'}
+                                {savingLms ? 'Saving…' : 'Apply Learning Settings'}
                               </button>
-                              <p className="text-[11px] text-card-foreground/40">
+                              <p className="text-[10px] text-card-foreground/40 leading-tight">
                                 {lmsSettings.enabled
-                                  ? `Auto-generate ${lmsSettings.types.join(', ')} · ${lmsSettings.maxWeeksPerBatch === 0 ? 'all weeks' : `${lmsSettings.maxWeeksPerBatch} week${lmsSettings.maxWeeksPerBatch > 1 ? 's' : ''} per batch`}`
-                                  : 'Auto-generate is off — use the buttons above to generate manually.'}
+                                  ? `Currently auto-generating ${lmsSettings.types.join(' and ')} in ${lmsSettings.maxWeeksPerBatch === 0 ? 'Full Term' : `${lmsSettings.maxWeeksPerBatch}-week`} chunks.`
+                                  : 'Auto-generation is currently disabled for this plan.'}
                               </p>
                             </div>
                           </div>

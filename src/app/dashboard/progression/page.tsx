@@ -8,6 +8,7 @@ import {
   UserGroupIcon, ExclamationTriangleIcon,
   SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon, RocketLaunchIcon,
   EyeIcon, BookOpenIcon, TrophyIcon, PlusIcon,
+  Cog6ToothIcon, BoltIcon, ShieldExclamationIcon,
 } from '@/lib/icons';
 import type {
   StudentLevelEnrollment, PromotionDecision,
@@ -114,372 +115,316 @@ export default function ProgressionPage() {
   }
 
   if (authLoading || !profile) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isStaff) return (
-    <div className="flex items-center justify-center min-h-screen text-muted-foreground text-sm">
-      Staff access required.
-    </div>
-  );
+  if (!isStaff) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Unauthorized Terminal Access</div>;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-12 pb-32">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
-            <ArrowRightIcon className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-foreground">Term Review</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              End-of-term decisions: Promote, Repeat, Complete, or Withdraw each student.
+      {/* Hero Governance Header */}
+      <div className="relative overflow-hidden bg-card border border-border rounded-[3rem] p-10 sm:p-14 shadow-2xl">
+        <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-primary/10 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-emerald-600/10 rounded-full blur-[120px] -ml-48 -mb-48 pointer-events-none" />
+        
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10 relative z-10">
+          <div className="space-y-4 max-w-2xl">
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] text-primary">Academic Authority</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{filterTerm} Cycle</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-card-foreground leading-tight">Progression Terminal</h1>
+            <p className="text-lg text-muted-foreground leading-relaxed italic max-w-xl">
+              Audit institutional performance, govern promotion cycles, and reconcile 
+              student outcomes from the master progression cockpit.
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <Link
-            href="/dashboard/curriculum/progress"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-colors rounded-lg"
-          >
-            <PresentationChartLineIcon className="w-3.5 h-3.5" /> Delivery Progress
-          </Link>
-          {canPromote && (
+
+          <div className="flex flex-col gap-3 shrink-0">
             <Link
-              href="/dashboard/reports/builder"
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors rounded-lg"
+              href="/dashboard/curriculum/progress"
+              className="group flex items-center justify-between gap-6 px-8 py-4 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-primary/50 transition-all shadow-xl"
             >
-              <DocumentChartBarIcon className="w-3.5 h-3.5" /> Build Report Cards
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monitoring</p>
+                <p className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-primary transition-colors">Delivery Progress</p>
+              </div>
+              <PresentationChartLineIcon className="w-5 h-5 text-primary" />
             </Link>
-          )}
+            {canPromote && (
+              <Link
+                href="/dashboard/reports/builder"
+                className="group flex items-center justify-between gap-6 px-8 py-4 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-amber-500/50 transition-all shadow-xl"
+              >
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Certification</p>
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-amber-400 transition-colors">Build Report Cards</p>
+                </div>
+                <DocumentChartBarIcon className="w-5 h-5 text-amber-400" />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* School read-only notice */}
-      {profile.role === 'school' && (
-        <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
-          <UserGroupIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <p className="text-blue-300">
-            You are viewing progression records for your school's students.
-            Promotion decisions can only be made by the assigned teacher or admin.
-          </p>
-        </div>
-      )}
-
-      {/* LMS settings tools control center — admin/teacher only */}
+      {/* Governance Operations Grid */}
       {canPromote && (
-        <div className="p-5 sm:p-6 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.03] to-fuchsia-500/[0.03]">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-              <RocketLaunchIcon className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/90">
-                Academic Operations
-              </p>
-              <h2 className="text-lg font-black text-foreground">LMS Controls & Delivery</h2>
-            </div>
+        <div className="space-y-8">
+          <div className="flex items-center gap-3 ml-4">
+             <RocketLaunchIcon className="w-5 h-5 text-primary" />
+             <h2 className="text-xl font-black uppercase tracking-widest text-foreground">Operational Controllers</h2>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { 
-                label: 'Global Settings', 
-                desc: 'Base system defaults', 
-                href: '/dashboard/progression/settings', 
-                icon: RocketLaunchIcon, 
-                color: 'violet' 
-              },
-              { 
-                label: 'Policies', 
-                desc: 'Rules for promotion', 
-                href: '/dashboard/progression/policies', 
-                icon: CheckCircleIcon, 
-                color: 'emerald' 
-              },
-              { 
-                label: 'Ops Center', 
-                desc: 'Session & week control', 
-                href: '/dashboard/progression/operations', 
-                icon: UserGroupIcon, 
-                color: 'blue' 
-              },
-              { 
-                label: 'Analytics', 
-                desc: 'Delivery tracking', 
-                href: '/dashboard/progression/analytics', 
-                icon: EyeIcon, 
-                color: 'fuchsia' 
-              },
-              { 
-                label: 'Project Seeds', 
-                desc: 'Curriculum source work', 
-                href: '/dashboard/progression/project-registry', 
-                icon: BookOpenIcon, 
-                color: 'orange' 
-              },
-              { 
-                label: 'QA Spines', 
-                desc: 'Compliance catalog', 
-                href: '/dashboard/progression/qa-spine-catalog', 
-                icon: SparklesIcon, 
-                color: 'amber' 
-              },
-              { 
-                label: 'Audit Log', 
-                desc: 'Activity trail', 
-                href: '/dashboard/progression/audit', 
-                icon: ExclamationTriangleIcon, 
-                color: 'rose',
-                roles: ['admin', 'school'] 
-              },
-              { 
-                label: 'Integrity', 
-                desc: 'Marker validation', 
-                href: '/dashboard/progression/marker-integrity', 
-                icon: TrophyIcon, 
-                color: 'cyan',
-                roles: ['admin', 'school'] 
-              },
-            ].filter(item => !item.roles || item.roles.includes(profile.role)).map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="group p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.12] transition-all duration-300"
-              >
-                <div className={`w-8 h-8 rounded-lg bg-${item.color}-500/10 flex items-center justify-center border border-${item.color}-500/20 mb-3 group-hover:scale-110 transition-transform`}>
-                  <item.icon className={`w-4 h-4 text-${item.color}-400`} />
+              { label: 'Academic Rules', desc: 'Syllabus standards & Promotion logic.', href: '/dashboard/progression/policies', icon: Cog6ToothIcon, color: 'violet' },
+              { label: 'System Vitals', desc: 'Calendar status & Weekly commands.', href: '/dashboard/progression/operations', icon: BoltIcon, color: 'blue' },
+              { label: 'Asset Vault', desc: 'Creative resources & Syllabus engine.', href: '/dashboard/progression/project-registry', icon: BookOpenIcon, color: 'orange' },
+              { label: 'Safety Lab', desc: 'Audit logs & Forensic reporting.', href: '/dashboard/progression/analytics', icon: ShieldExclamationIcon, color: 'rose' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group relative flex flex-col p-8 rounded-[2.5rem] border border-border bg-card hover:border-primary/50 transition-all duration-500 shadow-xl hover:shadow-primary/5 hover:-translate-y-2 overflow-hidden"
+                >
+                  <div className={`absolute top-0 right-0 w-24 h-24 bg-${item.color}-500/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-${item.color}-500/10 transition-all`} />
+                  <div className={`w-14 h-14 rounded-2xl border border-${item.color}-500/20 bg-${item.color}-500/5 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-${item.color}-500/20 transition-all shadow-lg`}>
+                    <Icon className={`w-6 h-6 text-${item.color}-400`} />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <p className="text-lg font-black text-foreground group-hover:text-primary transition-colors tracking-tight">{item.label}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">{item.desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          <Link
+            href="/dashboard/progression/settings"
+            className="flex items-center justify-center gap-4 p-8 rounded-[2.5rem] border border-dashed border-border bg-muted/5 hover:border-primary/50 hover:bg-primary/[0.02] transition-all group shadow-inner"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-all">
+              <SparklesIcon className="w-6 h-6 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-widest">Global Governance Settings</p>
+              <p className="text-xs text-muted-foreground font-bold">Access advanced platform-wide configuration and institutional overrides.</p>
+            </div>
+          </Link>
+        </div>
+      )}
+
+      {/* Promotion Cycle Manager */}
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
+           <div className="space-y-2">
+             <div className="flex items-center gap-3">
+               <UserGroupIcon className="w-5 h-5 text-emerald-400" />
+               <h2 className="text-xl font-black uppercase tracking-widest text-foreground">Cycle Management</h2>
+             </div>
+             <p className="text-sm text-muted-foreground italic">Execute end-of-term promotion decisions for current enrollments.</p>
+           </div>
+
+           {/* Quick Action Filters */}
+           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-card/50 backdrop-blur-xl border border-border p-3 rounded-[2rem] shadow-xl">
+              <select title="Program" value={filterProgram} onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all">
+                <option value="">All Programs</option>
+                {programs.map(p => <option key={p.id} value={p.id}>{p.name || p.title}</option>)}
+              </select>
+              <select title="Level" value={filterCourse} onChange={e => setFilterCourse(e.target.value)} disabled={!filterProgram} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all disabled:opacity-30">
+                <option value="">All Levels</option>
+                {availableCourses.map((c: any) => (
+                  <option key={c.id} value={c.id}>Level {c.level_order}</option>
+                ))}
+              </select>
+              <select title="Cycle" value={filterTerm} onChange={e => setFilterTerm(e.target.value)} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all">
+                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+           </div>
+        </div>
+
+        {/* Summary Indicators */}
+        {enrollments.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4">
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Scope</p>
+              <p className="text-3xl font-black text-foreground tracking-tighter">{enrollments.length}</p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1">Students Loaded</p>
+            </div>
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Pending Sync</p>
+              <p className="text-3xl font-black text-primary tracking-tighter">{decidedCount}</p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1">Decisions Buffered</p>
+            </div>
+            <div className="md:col-span-2 bg-card border border-border p-6 rounded-[2rem] shadow-lg flex items-center justify-between gap-6">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Bulk Commands</p>
+                <div className="flex gap-2">
+                  {(['promote', 'repeat', 'complete'] as PromotionDecision[]).map(d => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        const all: Record<string, PromotionDecision> = {};
+                        pending.forEach(e => { all[e.id] = d; });
+                        setDecisions(all);
+                      }}
+                      className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border border-border hover:border-primary hover:text-primary transition-all rounded-xl"
+                    >
+                      {d}
+                    </button>
+                  ))}
                 </div>
-                <h4 className="text-sm font-black text-foreground group-hover:text-violet-300 transition-colors">{item.label}</h4>
-                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">{item.desc}</p>
-              </Link>
-            ))}
-            
-            <Link
-              href="/dashboard/lesson-plans"
-              className="lg:col-span-4 p-3 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-primary/[0.02] transition-all flex items-center justify-center gap-3 group"
-            >
-              <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                <PlusIcon className="w-3 h-3 text-primary" />
               </div>
-              <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground">Open Lesson Plan Generation Pipeline</span>
-            </Link>
+              <div className="flex items-center gap-2">
+                {decisionCounts.map(({ d, count }) => (
+                  <span key={d} className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${DECISION_META[d].cls}`} title={`${count} ${d}`}>
+                    {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enrollment Grid */}
+        {loading ? (
+          <div className="py-40 text-center flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Scanning Institutional Records...</p>
+          </div>
+        ) : enrollments.length === 0 ? (
+          <div className="py-32 text-center bg-card border border-dashed border-border rounded-[3rem] mx-4 space-y-6">
+             <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mx-auto border border-border">
+               <UserGroupIcon className="w-10 h-10 text-muted-foreground/30" />
+             </div>
+             <div className="space-y-1">
+               <p className="text-lg font-black text-foreground uppercase tracking-widest">No Records Found</p>
+               <p className="text-sm text-muted-foreground italic">Institutional audit complete. No active enrollments in this scope.</p>
+             </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
+            {enrollments.map(enrollment => {
+              const student    = (enrollment as any).portal_users;
+              const course     = (enrollment as any).courses;
+              const isProcessed = submitted.includes(enrollment.id);
+              const decision   = decisions[enrollment.id];
+
+              return (
+                <div
+                  key={enrollment.id}
+                  className={`group relative bg-card border rounded-[2.5rem] p-8 transition-all duration-500 shadow-xl overflow-hidden ${
+                    isProcessed ? 'border-emerald-500/20 opacity-60 grayscale' : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                         <div className="flex items-center gap-3">
+                           <h3 className="text-xl font-black text-foreground tracking-tight group-hover:text-primary transition-colors">{student?.full_name ?? 'Anonymous Student'}</h3>
+                           {enrollment.start_week > 1 && (
+                             <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/20">Mid-Term Join</span>
+                           )}
+                         </div>
+                         <div className="flex items-center gap-3">
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Level {course?.level_order ?? '?'}</span>
+                           <span className="text-muted-foreground/30 text-[10px]">•</span>
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate max-w-[150px]">{course?.title ?? 'Unknown Unit'}</span>
+                         </div>
+                      </div>
+                      
+                      {decision && (
+                        <div className={`px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-widest shadow-lg ${DECISION_META[decision].cls}`}>
+                          {DECISION_META[decision].label}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-6 border-t border-border mt-auto">
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Outcome Prediction</p>
+                        <p className="text-[10px] font-bold text-foreground">
+                          {course?.next_course_id ? `Promotes to L${(course?.level_order ?? 0) + 1}` : 'Curriculum Capstone reached'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {canPromote && student?.id && (
+                          <Link
+                            href={`/dashboard/reports/builder?student_id=${student.id}`}
+                            className="p-3 rounded-xl border border-border bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
+                            title="Audit Performance"
+                          >
+                            <DocumentChartBarIcon className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {!isProcessed && canPromote && (
+                          <div className="flex gap-1.5 ml-2">
+                            {(['promote', 'repeat', 'withdraw'] as PromotionDecision[]).map(d => {
+                              const m = DECISION_META[d];
+                              const Icon = m.icon;
+                              const active = decision === d;
+                              if (d === 'promote' && !course?.next_course_id) return null;
+                              return (
+                                <button
+                                  key={d}
+                                  onClick={() => setDecisions(prev => ({ ...prev, [enrollment.id]: d }))}
+                                  className={`p-3 rounded-xl border transition-all shadow-sm ${
+                                    active ? m.cls + ' ring-2 ring-current' : 'border-border text-muted-foreground hover:bg-muted/30'
+                                  }`}
+                                  title={m.label}
+                                >
+                                  <Icon className="w-4 h-4" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Error Audit Report */}
+      {error && (
+        <div className="mx-4 flex items-start gap-4 px-6 py-4 bg-rose-500/5 border border-rose-500/20 rounded-[2rem] text-rose-400 text-sm shadow-xl">
+          <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-black uppercase tracking-widest text-xs">Sync Integrity Warning</p>
+            <p className="text-xs italic">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Program</label>
-          <select
-            title="Filter by program"
-            value={filterProgram}
-            onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary"
-          >
-            <option value="">— All Programs —</option>
-            {programs.map(p => <option key={p.id} value={p.id}>{p.name || p.title}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Course / Level</label>
-          <select
-            title="Filter by course"
-            value={filterCourse}
-            onChange={e => setFilterCourse(e.target.value)}
-            disabled={!filterProgram}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary disabled:opacity-40"
-          >
-            <option value="">— All Courses —</option>
-            {availableCourses.map((c: any) => (
-              <option key={c.id} value={c.id}>Level {c.level_order} — {c.title}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Term</label>
-          <select
-            title="Filter by term"
-            value={filterTerm}
-            onChange={e => setFilterTerm(e.target.value)}
-            className="w-full bg-background border border-border text-foreground px-3 py-2.5 text-sm rounded-lg focus:outline-none focus:border-primary"
-          >
-            {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Summary bar */}
-      {enrollments.length > 0 && (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-          <span className="font-bold text-foreground">{enrollments.length} students</span>
-          <span className="text-muted-foreground/50">·</span>
-          <span>{decidedCount} decisions selected</span>
-          {processedCount > 0 && (
-            <>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-emerald-400 font-bold">{processedCount} applied</span>
-            </>
-          )}
-          {/* Per-decision breakdown */}
-          {decisionCounts.length > 0 && (
-            <>
-              <span className="text-muted-foreground/50">·</span>
-              {decisionCounts.map(({ d, count }) => (
-                <span key={d} className={`px-2 py-0.5 border rounded text-[10px] font-black uppercase tracking-wider ${DECISION_META[d].cls}`}>
-                  {count} {DECISION_META[d].label}
-                </span>
-              ))}
-            </>
-          )}
-          {/* Quick-select all — admin/teacher only */}
-          {canPromote && (
-            <div className="ml-auto flex gap-2 flex-wrap">
-              {(['promote', 'repeat', 'complete'] as PromotionDecision[]).map(d => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    const all: Record<string, PromotionDecision> = {};
-                    pending.forEach(e => { all[e.id] = d; });
-                    setDecisions(all);
-                  }}
-                  className="px-2 py-1 text-[10px] font-black uppercase tracking-wider border border-border bg-muted/20 hover:bg-muted/50 text-muted-foreground transition-colors rounded"
-                >
-                  All → {d}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Student list */}
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">Loading enrollments…</div>
-      ) : enrollments.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border rounded-xl">
-          <UserGroupIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">No active enrollments for this filter.</p>
-          <p className="text-xs text-muted-foreground mt-1">Adjust the program, course, or term above.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {enrollments.map(enrollment => {
-            const student    = (enrollment as any).portal_users;
-            const course     = (enrollment as any).courses;
-            const isProcessed = submitted.includes(enrollment.id);
-            const decision   = decisions[enrollment.id];
-
-            return (
-              <div
-                key={enrollment.id}
-                className={`bg-card border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-all ${
-                  isProcessed ? 'border-emerald-500/20 opacity-60' : 'border-border'
-                }`}
-              >
-                {/* Student info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-foreground text-sm truncate">
-                      {student?.full_name ?? 'Unknown Student'}
-                    </p>
-                    {enrollment.start_week > 1 && (
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded">
-                        Joined Week {enrollment.start_week}
-                      </span>
-                    )}
-                    {isProcessed && (
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border rounded ${DECISION_META[decisions[enrollment.id]]?.cls ?? ''}`}>
-                        ✓ {DECISION_META[decisions[enrollment.id]]?.label}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Level {course?.level_order ?? '?'} — {course?.title ?? 'Unknown Course'}
-                    {course?.programs?.delivery_type === 'optional' && (
-                      <span className="ml-2 text-primary font-bold">Elective</span>
-                    )}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Cohort {enrollment.cohort_year} · {enrollment.term_label}
-                    {course?.next_course_id
-                      ? ` → promotes to Level ${(course?.level_order ?? 0) + 1}`
-                      : ' → end of track'}
-                  </p>
-                </div>
-
-                {/* View report link + decision buttons */}
-                <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  {/* Report Card link */}
-                  {canPromote && student?.id && (
-                    <Link
-                      href={`/dashboard/reports/builder?student_id=${student.id}`}
-                      className="flex items-center gap-1 px-2.5 py-1.5 border border-primary/30 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/20 transition-colors rounded"
-                    >
-                      <DocumentChartBarIcon className="w-3 h-3" />
-                      Report
-                    </Link>
-                  )}
-
-                  {/* Decision buttons — admin/teacher only, not yet processed */}
-                  {!isProcessed && canPromote && (
-                    <div className="flex gap-1.5 flex-wrap">
-                      {(['promote', 'repeat', 'complete', 'withdraw'] as PromotionDecision[]).map(d => {
-                        const m    = DECISION_META[d];
-                        const Icon = m.icon;
-                        const active = decision === d;
-                        if (d === 'complete' && course?.next_course_id) return null;
-                        if (d === 'promote'  && !course?.next_course_id) return null;
-                        return (
-                          <button
-                            key={d}
-                            onClick={() => setDecisions(prev => ({ ...prev, [enrollment.id]: d }))}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 border text-[10px] font-black uppercase tracking-wider transition-all rounded ${
-                              active ? m.cls + ' ring-1 ring-current' : 'border-border text-muted-foreground hover:bg-muted/30'
-                            }`}
-                          >
-                            <Icon className="w-3 h-3" />
-                            {m.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
-          <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" /> {error}
-        </div>
-      )}
-
-      {/* Submit sticky bar — admin/teacher only */}
+      {/* Executive Command Bar */}
       {canPromote && decidedCount > 0 && (
-        <div className="sticky bottom-4">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-50 animate-in fade-in slide-in-from-bottom-10 duration-700">
           <button
             onClick={submitAll}
             disabled={submitting}
-            className="w-full py-4 bg-primary hover:bg-primary disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-900/30 rounded-xl"
+            className="w-full py-6 bg-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 text-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(124,58,237,0.4)] transition-all flex items-center justify-center gap-4 group overflow-hidden relative"
           >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+            
             {submitting ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-                Processing…
+                <div className="w-5 h-5 border-3 border-white/60 border-t-white rounded-full animate-spin" />
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Executing Decisions...</span>
               </>
             ) : (
               <>
-                <SparklesIcon className="w-4 h-4" />
-                Apply {decidedCount} Decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm)}
+                <SparklesIcon className="w-5 h-5" />
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Commit {decidedCount} Outcome{decidedCount !== 1 ? 's' : ''} to {nextTerm(filterTerm)}</span>
               </>
             )}
           </button>
