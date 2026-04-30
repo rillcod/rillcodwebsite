@@ -86,7 +86,7 @@ export async function PATCH(
 // DELETE /api/portal-users/[id] — force-deletes portal row + auth account,
 // bypassing FK constraints by manually cleaning up all dependent records first.
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
@@ -169,6 +169,9 @@ export async function DELETE(
   // ── Step 1.6: Nullify teacher references in timetable slots ─────────
   // We keep the slot but clear the ID/name linkage
   await admin.from('timetable_slots').update({ teacher_id: null }).eq('teacher_id', id);
+
+  // ── Step 1.7: Nullify uploaded_by on files (keep the files themselves) ──
+  await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', id);
 
   // ── Step 2: If this is a school account, also delete the linked schools row ──
   if (pu?.role === 'school' && pu?.school_id) {
