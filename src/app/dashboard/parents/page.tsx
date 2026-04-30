@@ -313,7 +313,7 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
 
       {/* Preview */}
       <div className="flex-1 overflow-auto p-4 sm:p-8">
-        <div className="max-w-5xl mx-auto bg-card text-black rounded border border-border shadow-sm p-6 sm:p-8">
+        <div className="max-w-5xl mx-auto bg-card text-foreground rounded border border-border shadow-sm p-6 sm:p-8">
           {/* Print header */}
           <div className="mb-6 pb-4 border-b-2 border-gray-800">
             <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
@@ -619,7 +619,7 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
     : parents;
 
   return (
-    <div className="fixed inset-0 z-50 bg-card text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <div className="fixed inset-0 z-50 bg-card text-foreground" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Screen bar */}
       <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-muted border-b border-border sticky top-0 z-10">
         <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest truncate">Parent Access Cards</h2>

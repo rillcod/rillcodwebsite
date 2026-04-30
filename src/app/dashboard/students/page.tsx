@@ -2316,7 +2316,7 @@ function StudentSelfView() {
               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-primary to-primary from-primary to-primary flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
                 {profile?.full_name?.[0].toUpperCase()}
               </div>
-              <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-xl flex items-center justify-center text-black shadow-2xl -rotate-12">
+              <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-card rounded-xl flex items-center justify-center text-foreground shadow-2xl -rotate-12">
                 <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
               </div>
             </div>

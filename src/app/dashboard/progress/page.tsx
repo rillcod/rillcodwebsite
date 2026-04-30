@@ -381,7 +381,7 @@ export default function ProgressPage() {
               </div>
             </div>
           </div>
-          <p className="text-black text-sm italic">
+          <p className="text-foreground text-sm italic">
             Computed analytics for {selectedSchool !== 'all' ? schools.find(s => s.id === selectedSchool)?.name : (isStaff ? 'All Schools' : profile?.school_name)} 
             {selectedClass !== 'all' ? ` · Class: ${selectedClass}` : ''}
           </p>

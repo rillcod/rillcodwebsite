@@ -3037,7 +3037,7 @@ export default function LessonDetailPage() {
                             </div>
                           </div>
                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-card text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-xl hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-card text-foreground font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-xl hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
                             Start Lesson <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
                           </Link>
                         </div>

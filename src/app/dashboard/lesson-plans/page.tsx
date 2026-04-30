@@ -1170,7 +1170,6 @@ function LessonPlansPageInner() {
     </div>
   );
 }
-}
 
 // ─── Filter chip row — used for Term / Class / Status quick-filters ──────────
 type ChipTone = 'violet' | 'cyan' | 'emerald';

@@ -363,7 +363,7 @@ export default function CertificateManagement() {
                             onClick={() => setViewMode('library')}
                             className={cn(
                                 "px-3 sm:px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                                viewMode === 'library' ? "bg-card text-black" : "text-muted-foreground hover:text-white"
+                                viewMode === 'library' ? "bg-card text-foreground" : "text-muted-foreground hover:text-white"
                             )}
                         >Library</button>
                         {canManage && (
@@ -371,7 +371,7 @@ export default function CertificateManagement() {
                                 onClick={() => setViewMode('builder')}
                                 className={cn(
                                     "px-3 sm:px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                                    viewMode === 'builder' ? "bg-card text-black" : "text-muted-foreground hover:text-white"
+                                    viewMode === 'builder' ? "bg-card text-foreground" : "text-muted-foreground hover:text-white"
                                 )}
                             >Issue</button>
                         )}
@@ -450,7 +450,7 @@ export default function CertificateManagement() {
                                             </button>
                                             {canManage && !(cert.is_published || cert.metadata?.is_published) && (
                                                 <button onClick={() => handleAction(cert.id, 'publish')}
-                                                    className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black transition-all text-[10px] font-bold flex-1 justify-center">
+                                                    className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-bold flex-1 justify-center">
                                                     <CheckCircleIcon className="w-3.5 h-3.5" /> Publish
                                                 </button>
                                             )}
@@ -522,7 +522,7 @@ export default function CertificateManagement() {
                                                             {canManage && !(cert.is_published || cert.metadata?.is_published) && (
                                                                 <button
                                                                     onClick={() => handleAction(cert.id, 'publish')}
-                                                                    className="p-2.5 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black transition-all active:scale-95"
+                                                                    className="p-2.5 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-white transition-all active:scale-95"
                                                                     title="Publish"
                                                                 >
                                                                     <CheckCircleIcon className="w-4 h-4" />
@@ -667,7 +667,7 @@ export default function CertificateManagement() {
                                     <button 
                                         onClick={handleIssue}
                                         disabled={isIssuing || !issueForm.courseId || (issueForm.isBulk ? !issueForm.classId : !issueForm.studentId)}
-                                        className="w-full bg-primary text-black py-5 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-primary/90 transition-all disabled:opacity-30 active:scale-[0.98]"
+                                        className="w-full bg-primary text-white py-5 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-primary/90 transition-all disabled:opacity-30 active:scale-[0.98]"
                                     >
                                         {isIssuing ? 'Issuing...' : issueForm.isBulk ? 'Issue to Entire Class' : 'Issue Certificate'}
                                     </button>
@@ -705,7 +705,7 @@ export default function CertificateManagement() {
                                             onClick={() => setIssueForm(prev => ({ ...prev, templateId: t.id }))}
                                             className={cn(
                                                 "px-3 sm:px-4 py-2.5 border text-[9px] font-black uppercase tracking-widest transition-all flex-1 min-w-[70px]",
-                                                issueForm.templateId === t.id ? "bg-primary text-black border-primary" : "bg-white/[0.02] border-white/10 text-muted-foreground hover:border-white/20"
+                                                issueForm.templateId === t.id ? "bg-primary text-white border-primary" : "bg-white/[0.02] border-white/10 text-muted-foreground hover:border-white/20"
                                             )}
                                         >
                                             {t.label}
@@ -761,7 +761,7 @@ export default function CertificateManagement() {
                                                     document.body.removeAttribute('data-printing');
                                                 }, 500); 
                                             }}
-                                            className="flex-1 bg-card text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"
+                                            className="flex-1 bg-card text-foreground py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-muted transition-all"
                                         >
                                             <PrinterIcon className="w-4 h-4" /> Print
                                         </button>
@@ -779,7 +779,7 @@ export default function CertificateManagement() {
                                                 }
                                             }}
                                             disabled={isDownloadingPDF}
-                                            className="flex-1 bg-primary text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                            className="flex-1 bg-primary text-white py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 transition-all"
                                         >
                                             <ArrowDownTrayIcon className="w-4 h-4" />
                                             {isDownloadingPDF ? 'Saving...' : 'Download PDF'}

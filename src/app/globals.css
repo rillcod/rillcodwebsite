@@ -548,6 +548,61 @@ select {
   }
 }
 
+/* ── Dark mode safety nets ──────────────────────────────────────────────────
+   Prevent invisible text when hardcoded `text-black` or light bg-* classes
+   are used without dark: variants. These rules add a floor — they only fire
+   when no explicit text color is already applied via an inline style.      */
+
+.dark {
+  /* Inputs & textareas: ensure placeholder doesn't vanish */
+  & ::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+
+  /* Any element that carries bg-card should never inherit black text */
+  & .bg-card {
+    color: var(--card-foreground);
+  }
+
+  /* bg-muted areas: foreground text by default */
+  & .bg-muted {
+    color: var(--muted-foreground);
+  }
+
+  /* Ensure bg-background regions have proper foreground */
+  & .bg-background {
+    color: var(--foreground);
+  }
+
+  /* Tables: header cells often hardcoded light */
+  & th {
+    color: var(--foreground);
+  }
+
+  /* Slate/gray light backgrounds used without dark: variant — remap to muted */
+  & .bg-slate-50, & .bg-slate-100 {
+    background-color: var(--muted);
+    color: var(--foreground);
+  }
+  & .bg-gray-50, & .bg-gray-100 {
+    background-color: var(--muted);
+    color: var(--foreground);
+  }
+
+  /* Light hover states that would look wrong in dark mode */
+  & .hover\:bg-slate-100:hover,
+  & .hover\:bg-slate-200:hover,
+  & .hover\:bg-gray-100:hover {
+    background-color: var(--secondary) !important;
+  }
+}
+
+/* Light mode: ensure dark-only bg-white logos/containers also show in light mode */
+.bg-white\/80 {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
 /* ── Brand red accent utilities ── */
 @layer utilities {
   /* Red left border for active/selected items */
