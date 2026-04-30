@@ -106,3 +106,32 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+
+// DELETE /api/finance/reconciliation?id=<transaction_id>
+// Admin only — hard-deletes a payment_transaction row to resolve contradicting ledger entries.
+export async function DELETE(request: NextRequest) {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!profile || profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
+  }
+
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+  const admin = adminClient();
+  const { error: delErr } = await admin
+    .from('payment_transactions')
+    .delete()
+    .eq('id', id);
+
+  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
