@@ -86,6 +86,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // Nullify files.uploaded_by before portal_users delete (FK constraint, files are kept)
+    await supabaseAdmin.from('files').update({ uploaded_by: null }).in('uploaded_by', safeIds);
+
+    // Delete students registration rows — prevents orphaned records and re-registration duplicates
+    await supabaseAdmin.from('students').delete().in('user_id', safeIds);
+
     // ── Step 3: Delete portal_users rows (triggers 14 CASCADE deletes) ───
     const { error: profileDeleteErr } = await supabaseAdmin
       .from('portal_users')

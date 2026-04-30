@@ -5,6 +5,7 @@ import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { queueService } from '@/services/queue.service';
 import { XP_EVENTS } from '@/lib/grading';
 import { engagementTables } from '@/types/engagement';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,11 +146,28 @@ export async function POST(
             .single();
 
           if (gradedRow) {
-            // Trigger notification to student
-            queueService.queueNotification(effectiveUserId, 'email', {
-              subject: `Your assignment "${assignment.title || 'Assignment'}" has been graded`,
-              body: `Your submission has been automatically graded. Score: ${autoGrade}/${maxPts}. Check your dashboard for details.`
-            }).catch(console.error);
+            // Notify student with rich HTML email
+            admin.from('portal_users').select('email, full_name').eq('id', effectiveUserId).single()
+              .then(({ data: studentInfo }) => {
+                if (!studentInfo?.email) return;
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+                const html = buildRillcodTransactionalEmailHtml({
+                  title: 'Assignment Graded',
+                  bodyHtml: `<p>Hi ${escapeHtml(studentInfo.full_name?.split(' ')[0] || 'there')},</p><p>Your assignment has been automatically marked. Your result is below.</p>`,
+                  summaryRows: [
+                    { label: 'Assignment', value: assignment.title || 'Assignment' },
+                    { label: 'Score', value: `${autoGrade} / ${maxPts}` },
+                    ...(weightedScore !== null ? [{ label: 'Weighted Score', value: String(weightedScore) }] : []),
+                  ],
+                  cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results' },
+                });
+                return queueService.queueNotification(effectiveUserId, 'email', {
+                  to: studentInfo.email,
+                  subject: `Graded: "${assignment.title || 'Assignment'}"`,
+                  html,
+                });
+              })
+              .catch(console.error);
             return NextResponse.json({ data: gradedRow }, { status: 201 });
           }
         }
@@ -195,9 +213,26 @@ export async function POST(
     // Manual mode: status remains 'submitted', teacher grades later
 
     if (!isStaff && assignment.created_by) {
-      queueService.queueNotification(assignment.created_by, 'email', {
-          subject: `New submission: ${assignment.title || 'Assignment'}`,
-          body: `📚 A new submission was just received for your assignment "${assignment.title || 'Assignment'}". Log into the Rillcod dashboard to review and grade it.`
+      Promise.all([
+        admin.from('portal_users').select('email, full_name').eq('id', assignment.created_by).single(),
+        admin.from('portal_users').select('full_name').eq('id', effectiveUserId).single(),
+      ]).then(([{ data: teacher }, { data: student }]) => {
+        if (!teacher?.email) return;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+        const html = buildRillcodTransactionalEmailHtml({
+          title: 'New Assignment Submission',
+          bodyHtml: `<p>Hi ${escapeHtml(teacher.full_name?.split(' ')[0] || 'there')},</p><p><strong>${escapeHtml(student?.full_name || 'A student')}</strong> has just submitted work for your assignment.</p>`,
+          summaryRows: [
+            { label: 'Assignment', value: assignment.title || 'Assignment' },
+            { label: 'Student', value: student?.full_name || 'Unknown' },
+          ],
+          cta: { href: `${appUrl}/dashboard/assignments`, label: 'Review Submission' },
+        });
+        return queueService.queueNotification(assignment.created_by!, 'email', {
+          to: teacher.email,
+          subject: `New Submission: "${assignment.title || 'Assignment'}"`,
+          html,
+        });
       }).catch(console.error);
     }
 

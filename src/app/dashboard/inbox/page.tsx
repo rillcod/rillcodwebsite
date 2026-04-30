@@ -8,7 +8,7 @@ import {
   Loader2, X, MessageSquare, Users, Building2, Plus,
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
-  Pencil, AtSign, FileText, CheckCircle2,
+  Pencil, AtSign, FileText, CheckCircle2, Clock, ExternalLink, Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -164,6 +164,8 @@ export default function UnifiedInbox() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [sendError, setSendError] = useState('');
   const [policySignal, setPolicySignal] = useState<string>('');
+  const [waFallbackUrl, setWaFallbackUrl] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
   const [queueSummary, setQueueSummary] = useState<{ all: number; unassigned: number; overdue: number; needs_escalation: number } | null>(null);
   const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'overdue' | 'needs_escalation'>('all');
   const [convPriority, setConvPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -260,10 +262,9 @@ export default function UnifiedInbox() {
       .then((j) => {
         const d = j.data;
         if (!d) return;
-        if (typeof d.daily_remaining === 'number' && d.daily_limit < 9999) {
-          setPolicySignal(`Daily messages left: ${d.daily_remaining}/${d.daily_limit}. Cooldown: ${d.cooldown_seconds_between_messages}s.`);
-        } else {
-          setPolicySignal('Messaging safety policy is active.');
+        // Only show signal when approaching limits — suppress generic noise
+        if (typeof d.daily_remaining === 'number' && d.daily_limit < 9999 && d.daily_remaining <= 5) {
+          setPolicySignal(`⚠️ Only ${d.daily_remaining} message${d.daily_remaining !== 1 ? 's' : ''} left today.`);
         }
       })
       .catch(() => { });
@@ -318,9 +319,10 @@ export default function UnifiedInbox() {
   };
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
+  // School is a channel to students AND parents — show both tabs for school role
   const tabs = [
-    { id: 'students' as const, label: isParentOrStudent ? 'Contact Center' : 'WhatsApp', icon: MessageSquare },
-    ...(!isSchool && !isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
+    { id: 'students' as const, label: isParentOrStudent ? 'Contact Center' : 'Students & Contacts', icon: MessageSquare },
+    ...(!isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
     ...(isAdmin ? [{ id: 'teachers' as const, label: 'Teachers', icon: GraduationCap }] : []),
     ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
   ];
@@ -555,10 +557,14 @@ export default function UnifiedInbox() {
       } else if (cat === 'parents') {
         let q = supabase.from('parent_teacher_threads').select(`
           *, parent:portal_users!parent_id(id, full_name, avatar_url, phone, school_name),
-          student:portal_users!student_id(full_name),
+          student:portal_users!student_id(full_name, school_id),
           messages:parent_teacher_messages(body, sent_at, is_read, sender_id)
         `).order('created_at', { ascending: false });
         if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id);
+        // School sees all parent threads for students in their school
+        if (isSchool && profile?.school_id) {
+          q = (q as any).eq('portal_users!student_id.school_id', profile.school_id);
+        }
         const { data } = await q;
         if (data) setConversations(data.map(t => {
           const msgs = (t.messages ?? []) as any[];
@@ -827,22 +833,62 @@ export default function UnifiedInbox() {
 
   const dispatchSend = async (body: string) => {
     if (!activeConv || !profile) return;
+
+    // Optimistic insert — message appears instantly before API round-trip
+    const tempId = `temp_${Date.now()}`;
+    const optimistic: Message = {
+      id: tempId,
+      conversation_id: activeConv.id,
+      sender_id: profile.id,
+      direction: 'outbound',
+      body,
+      created_at: new Date().toISOString(),
+      status: 'sending',
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setConversations(prev => prev.map(c =>
+      c.id === activeConv.id ? { ...c, last_message_preview: body, last_message_at: new Date().toISOString() } : c
+    ));
+    setWaFallbackUrl(null);
+
     setIsSending(true);
     try {
       if (activeConv.type === 'students') {
-        const res = await fetch('/api/inbox/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: activeConv.id, message: body }) });
+        const res = await fetch('/api/inbox/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversation_id: activeConv.id, message: body }),
+        });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Send failed');
-        if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
-        if (json.policy && typeof json.policy.remaining_daily === 'number') {
-          setPolicySignal(`Daily messages left: ${json.policy.remaining_daily}.`);
+        if (!res.ok) {
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          if (res.status === 429 && json.cooldown_remaining_seconds) {
+            setCooldownSeconds(json.cooldown_remaining_seconds);
+            setSendError(`Please wait ${json.cooldown_remaining_seconds}s before sending again.`);
+            return;
+          }
+          throw new Error(json.error || 'Send failed');
         }
 
-        // Show warning if number is not on WhatsApp
+        // Replace optimistic bubble with real server message
+        if (json.data) {
+          setMessages(prev => prev.map(m => m.id === tempId ? normaliseMsg(json.data) : m));
+        }
+
+        // Update daily remaining — only show when running low
+        if (json.policy && typeof json.policy.remaining_daily === 'number' && json.policy.remaining_daily <= 5) {
+          setPolicySignal(`⚠️ Only ${json.policy.remaining_daily} message${json.policy.remaining_daily !== 1 ? 's' : ''} left today.`);
+        }
+
+        // Surface actionable fallback CTAs instead of plain error text
         if (json.is_not_whatsapp_user) {
-          setSendError(`⚠️ ${json.message || 'This number is not registered on WhatsApp'}`);
-        } else if (json.whatsapp_status === 'pending') {
-          setSendError(`ℹ️ ${json.message || 'Message saved but not sent via WhatsApp'}`);
+          setWaFallbackUrl(json.fallback_url || null);
+          setSendError(`+${activeConv.phone_number} is not on WhatsApp. Message saved.`);
+        } else if (json.is_rate_limit_error) {
+          setWaFallbackUrl(json.fallback_url || null);
+          setSendError(`Rate limit reached. Message saved — send via WhatsApp directly.`);
+        } else if (json.whatsapp_status === 'pending' && json.fallback_url) {
+          setWaFallbackUrl(json.fallback_url);
         }
       } else if (activeConv.type === 'parents') {
         const res = await fetch(`/api/parent-teacher/threads/${encodeURIComponent(activeConv.id)}/messages`, {
@@ -850,19 +896,27 @@ export default function UnifiedInbox() {
           body: JSON.stringify({ body }),
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Send failed');
-        if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
+        if (!res.ok) {
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          throw new Error(json.error || 'Send failed');
+        }
+        if (json.data) {
+          setMessages(prev => prev.map(m => m.id === tempId ? normaliseMsg(json.data) : m));
+        }
       } else {
-        // handles both 'school' and 'teachers' tabs
         const res = await fetch(`/api/school-teacher/conversations/${encodeURIComponent(activeConv.id)}/messages`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ body }),
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Send failed');
-        if (json.data) setMessages(prev => [...prev, normaliseMsg(json.data)]);
+        if (!res.ok) {
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          throw new Error(json.error || 'Send failed');
+        }
+        if (json.data) {
+          setMessages(prev => prev.map(m => m.id === tempId ? normaliseMsg(json.data) : m));
+        }
       }
-      setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, last_message_preview: body, last_message_at: new Date().toISOString() } : c));
     } catch (err: any) {
       setSendError(err.message || 'Failed to send');
     } finally { setIsSending(false); }
@@ -1414,11 +1468,36 @@ export default function UnifiedInbox() {
     await assignConversation(convId, profile.id);
   };
 
+  const deleteConversation = async (conv: Conversation) => {
+    if (!isStaff) return;
+    if (!window.confirm(`Delete conversation with "${conv.contact_name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/inbox/conversation?id=${encodeURIComponent(conv.id)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Delete failed');
+      setConversations(prev => prev.filter(c => c.id !== conv.id));
+      if (activeConv?.id === conv.id) {
+        setActiveConv(null);
+        setMessages([]);
+        setShowSidebar(true);
+      }
+    } catch (err: any) {
+      setSendError(err.message || 'Failed to delete conversation');
+    }
+  };
+
   const openEditContact = (c: Contact) => {
     setEditingContact(c);
     setAddContactForm({ full_name: c.full_name, phone: c.phone || '', email: c.email || '', school_name: c.school_name || '', role: c.role, class_name: c.class_name || '', notes: '' });
     setShowAddContact(true);
   };
+
+  // ── Cooldown countdown ticker ──────────────────────────────────────────────
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const t = setTimeout(() => setCooldownSeconds(s => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [cooldownSeconds]);
 
   // ── Auto-resize textarea ───────────────────────────────────────────────────
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1905,6 +1984,15 @@ export default function UnifiedInbox() {
                 <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
+                {isStaff && activeConv.type === 'students' && (
+                  <button
+                    onClick={() => deleteConversation(activeConv)}
+                    title="Delete conversation"
+                    className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1984,6 +2072,7 @@ export default function UnifiedInbox() {
                             <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-white/50' : 'text-white/30'}`}>
                               <span className="text-[10px]">{formatMsgTime(msg.created_at)}</span>
                               {isMine && (
+                                msg.status === 'sending' ? <Clock className="w-3.5 h-3.5 text-white/30 animate-pulse" /> :
                                 msg.is_read || msg.status === 'read' ? <CheckCheck className="w-3.5 h-3.5 text-primary" /> :
                                   msg.status === 'delivered' ? <CheckCheck className="w-3.5 h-3.5" /> :
                                     <Check className="w-3.5 h-3.5" />
@@ -2087,15 +2176,35 @@ export default function UnifiedInbox() {
 
             {/* Message Input */}
             <div className="shrink-0 bg-[#1f2c34] border-t border-white/[0.06]">
-              {sendError && (
-                <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10">
-                  <span>{sendError}</span>
-                  <button onClick={() => setSendError('')}><X className="w-3 h-3" /></button>
+              {(sendError || cooldownSeconds > 0) && (
+                <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10 gap-3">
+                  <span className="flex-1 flex items-center gap-2">
+                    {cooldownSeconds > 0 ? (
+                      <>
+                        <Clock className="w-3 h-3 shrink-0" />
+                        Wait {cooldownSeconds}s before sending again
+                      </>
+                    ) : sendError}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {waFallbackUrl && (
+                      <a
+                        href={waFallbackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-full transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Open WhatsApp
+                      </a>
+                    )}
+                    <button onClick={() => { setSendError(''); setWaFallbackUrl(null); setCooldownSeconds(0); }}><X className="w-3 h-3" /></button>
+                  </div>
                 </div>
               )}
               {policySignal && (
-                <div className="px-4 py-2 bg-cyan-500/10 text-cyan-300 text-[11px] font-bold border-b border-cyan-500/10">
-                  {policySignal}
+                <div className="px-4 py-2 bg-amber-500/10 text-amber-300 text-[11px] font-bold border-b border-amber-500/10 flex items-center justify-between">
+                  <span>{policySignal}</span>
+                  <button onClick={() => setPolicySignal('')}><X className="w-3 h-3 text-amber-300/50" /></button>
                 </div>
               )}
               {isParentOrStudent && showConfirmDetailsCard && (
@@ -2128,9 +2237,11 @@ export default function UnifiedInbox() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
                   placeholder="Type a message…" rows={1}
                   className="flex-1 bg-[#2a3942] text-white text-[14px] rounded-2xl px-4 py-2.5 outline-none resize-none placeholder-white/25 focus:ring-1 focus:ring-white/15 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
-                <button type="submit" disabled={!newMessage.trim() || isSending}
+                <button type="submit" disabled={!newMessage.trim() || isSending || cooldownSeconds > 0}
                   className="w-10 h-10 bg-primary hover:bg-primary disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-primary/20">
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-[15px] h-[15px] ml-0.5" />}
+                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                   cooldownSeconds > 0 ? <span className="text-[10px] font-black">{cooldownSeconds}</span> :
+                   <Send className="w-[15px] h-[15px] ml-0.5" />}
                 </button>
               </form>
             </div>

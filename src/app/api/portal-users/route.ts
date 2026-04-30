@@ -237,7 +237,7 @@ export async function DELETE(request: NextRequest) {
     }
     await admin.from('teacher_schools').delete().in('teacher_id', safeIds);
     await admin.from('student_progress_reports').update({ teacher_id: null }).in('teacher_id', safeIds);
-    await admin.from('students').update({ user_id: null }).in('user_id', safeIds);
+    await admin.from('students').delete().in('user_id', safeIds);
     await admin.from('students').update({ created_by: null }).in('created_by', safeIds);
     await admin.from('enrollments').delete().in('user_id', safeIds);
     await admin.from('assignment_submissions').delete().in('portal_user_id', safeIds);

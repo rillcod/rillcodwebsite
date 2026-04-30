@@ -717,105 +717,114 @@ function LessonPlansPageInner() {
   const currentCourse = courses.find(c => c.id === form.course_id);
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Shared pipeline stepper */}
-      <PipelineStepper
-        current="plans"
-        courseId={form.course_id || null}
-        programId={form.program_id || filterProgramId || null}
-        courseTitle={currentCourse?.title ?? null}
-        curriculumId={form.curriculum_version_id || null}
-      />
+    <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-primary/30 selection:text-white">
+      {/* Cinematic Background Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[100px]" />
+      </div>
 
-      {/* Header */}
-      <div className="bg-card border border-white/[0.08] rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <DocumentTextIcon className="w-5 h-5 text-primary" />
-              <span className="text-xs font-black text-primary uppercase tracking-widest">
-                {filterCourseId ? `Plans for ${courses.find(c => c.id === filterCourseId)?.title}` : 'Term Lesson Plans'}
-              </span>
+      <div className="relative z-10 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto">
+        {/* Shared pipeline stepper */}
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-3xl inline-block">
+          <PipelineStepper
+            current="plans"
+            courseId={form.course_id || null}
+            programId={form.program_id || filterProgramId || null}
+            courseTitle={currentCourse?.title ?? null}
+            curriculumId={form.curriculum_version_id || null}
+          />
+        </div>
+
+        {/* Header */}
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-violet-600 rounded-[40px] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
+          <div className="relative bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-[40px] p-8 sm:p-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(255,107,0,0.3)]">
+                  <DocumentTextIcon className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white">Academic Plans</h1>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Strategic Implementation Hub</p>
+                </div>
+              </div>
+              <p className="text-lg text-white/60 font-medium max-w-2xl leading-relaxed">
+                {filterCourseId 
+                  ? `Active session schedule and milestones for ${courses.find(c => c.id === filterCourseId)?.title}.`
+                  : 'Manage the bridge between syllabus theory and classroom execution. Track progress, schedule sessions, and monitor academic health.'}
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight break-words">
-              {filterCourseId ? 'Course Plans' : 'Lesson Plans'}
-            </h1>
-            <p className="text-muted-foreground mt-2 max-w-2xl">
-              {filterCourseId 
-                ? `Manage and schedule term-based lesson progression for ${courses.find(c => c.id === filterCourseId)?.title}.`
-                : 'Each plan links a course to a class for a specific term. Plans created here or from the Curriculum page appear in the same list.'}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {filterCourseId && (
-              <button 
-                onClick={() => {
-                  setFilterCourseId('');
-                  setFilterProgramId('');
-                  setSearch('');
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-widest border border-border transition-colors rounded-xl"
-              >
-                Clear Filter
-              </button>
-            )}
-            <div className="flex items-center gap-2">
-              <button onClick={load} aria-label="Refresh" className="p-3 min-h-[44px] min-w-[44px] bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
-                <ArrowPathIcon className={`w-4 h-4 text-card-foreground/50 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => { setShowForm(true); }}
-                className="flex items-center gap-2 px-6 py-3 min-h-[44px] bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/20"
-              >
-                <PlusIcon className="w-4 h-4" /> New Plan
-              </button>
+            
+            <div className="flex flex-wrap items-center gap-4">
+              {filterCourseId && (
+                <button 
+                  onClick={() => {
+                    setFilterCourseId('');
+                    setFilterProgramId('');
+                    setSearch('');
+                  }}
+                  className="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest border border-white/10 rounded-2xl transition-all"
+                >
+                  Reset Filter
+                </button>
+              )}
+              <div className="flex items-center gap-3">
+                <button onClick={load} className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all">
+                  <ArrowPathIcon className={`w-5 h-5 text-white/50 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_0_30px_rgba(255,107,0,0.3)]"
+                >
+                  <PlusIcon className="w-5 h-5" /> Initialize Plan
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Filters — search + programme + class + term + status chips */}
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1 sm:max-w-80">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search plans…"
-              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 min-h-[44px]" />
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4 items-center bg-white/5 backdrop-blur-2xl border border-white/10 p-4 rounded-3xl">
+          <div className="relative flex-1 min-w-[280px]">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+            <input 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+              placeholder="Search active plans..."
+              className="w-full pl-12 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary/50 transition-all" 
+            />
           </div>
           <select
             value={filterProgramId}
             onChange={e => setFilterProgramId(e.target.value)}
-            aria-label="Filter by programme"
-            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]"
+            className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70 focus:outline-none focus:border-primary/50 transition-all cursor-pointer hover:bg-white/10"
           >
-            <option value="">All programmes</option>
-            {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="" className="bg-slate-900">All Streams</option>
+            {programOptions.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>)}
           </select>
           {(filterClassId || filterTerm || filterStatus || filterProgramId || filterCourseId || search) && (
             <button
               onClick={() => {
+                setFilterProgramId('');
+                setFilterCourseId('');
                 setFilterClassId('');
                 setFilterTerm('');
                 setFilterStatus('');
-                setFilterProgramId('');
-                setFilterCourseId('');
                 setSearch('');
               }}
-              className="px-3 py-2.5 text-xs font-black uppercase tracking-widest text-card-foreground/60 hover:text-card-foreground border border-white/10 rounded-xl hover:bg-white/5 transition min-h-[44px]"
-              title="Clear all filters"
+              className="px-6 py-4 text-xs font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
             >
               Clear
             </button>
           )}
         </div>
 
-        {/* Chip filters — horizontally scrollable on mobile */}
+        {/* Chip filters */}
         {(classChipOptions.length > 0 || termChipOptions.length > 0) && (
-          <div className="flex flex-wrap gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+          <div className="flex flex-wrap gap-3">
             {termChipOptions.length > 0 && (
               <ChipGroup
                 label="Term"
@@ -834,508 +843,333 @@ function LessonPlansPageInner() {
                 tone="cyan"
               />
             )}
-            <ChipGroup
-              label="Status"
-              items={[
-                { id: 'draft', name: 'Draft' },
-                { id: 'published', name: 'Published' },
-                { id: 'archived', name: 'Archived' },
-              ]}
-              value={filterStatus}
-              onChange={setFilterStatus}
-              tone="emerald"
-            />
+          </div>
+        )}
+
+        {/* Plan Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence mode="popLayout">
+            {filtered.map(plan => {
+              const status = STATUS_BADGE[plan.status ?? 'draft'] ?? STATUS_BADGE.draft;
+              return (
+                <motion.div
+                  key={plan.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="group relative"
+                >
+                  <Link
+                    href={`/dashboard/lesson-plans/${plan.id}`}
+                    className="block bg-white/5 backdrop-blur-3xl border border-white/10 hover:border-primary/50 p-8 rounded-[32px] transition-all duration-500 hover:shadow-[0_20px_50px_rgba(255,107,0,0.1)] hover:-translate-y-2"
+                  >
+                    <div className="flex items-start justify-between mb-6">
+                      <div className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${status.cls}`}>
+                        {status.label}
+                      </div>
+                      <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                        <AcademicCapIcon className="w-5 h-5 text-primary" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-8">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{plan.classes?.name || 'Assigned Class'}</p>
+                      <h3 className="text-xl font-black text-white group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                        {plan.courses?.title || 'Course Plan'}
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Term</p>
+                        <p className="text-xs font-bold text-white/70 truncate">{plan.term || 'N/A'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Intensity</p>
+                        <p className="text-xs font-bold text-white/70">{plan.sessions_per_week || 0} Sessions/Week</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                        Open Plan Hub →
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {canManage && (
+                          <button
+                            onClick={(e) => { e.preventDefault(); openEdit(plan); }}
+                            className="p-2.5 text-white/30 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canManage && (
+                          <button
+                            onClick={(e) => { e.preventDefault(); openDeleteConfirm(plan); }}
+                            className="p-2.5 text-rose-500/30 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+
+        {/* Empty State */}
+        {!loading && filtered.length === 0 && (
+          <div className="py-32 flex flex-col items-center justify-center bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[40px] text-center px-6">
+            <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mb-6">
+              <DocumentTextIcon className="w-10 h-10 text-white/20" />
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2">No Active Plans Found</h3>
+            <p className="text-white/40 text-sm max-w-sm mb-8">Refine your search parameters or initialize a new academic plan for your class.</p>
+            <button
+              onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
+              className="px-8 py-3.5 bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-primary hover:text-white transition-all"
+            >
+              Clear All Filters
+            </button>
           </div>
         )}
       </div>
 
-      {/* Debris banner — admin + teacher, only shown when orphaned records exist */}
-      {canManage && debrisCount !== null && debrisCount > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-5 py-4">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <TrashIcon className="w-5 h-5 text-amber-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-sm font-black text-amber-300">
-                {debrisCount} orphaned records found — these plans have no linked course or class
-              </p>
-              <p className="text-xs text-amber-400/70 mt-0.5">
-                Lessons or assignments linked to deleted plans. Safe to clean up.
-              </p>
-            </div>
-          </div>
-          <button
-            disabled={cleaningDebris}
-            onClick={async () => {
-              setCleaningDebris(true);
-              try {
-                const res = await fetch('/api/admin/debris', { method: 'DELETE' });
-                if (!res.ok) throw new Error('Cleanup failed');
-                const j = await res.json();
-                toast.success(`Cleaned up ${j.deleted.lessons} lessons and ${j.deleted.assignments} assignments`);
-                setDebrisCount(0);
-              } catch {
-                toast.error('Debris cleanup failed');
-              } finally {
-                setCleaningDebris(false);
-              }
-            }}
-            className="shrink-0 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-widest rounded-xl min-h-[44px] transition-all"
-          >
-            {cleaningDebris ? 'Cleaning…' : 'Clean Up'}
-          </button>
-        </div>
-      )}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
 
-      {/* Plans Grid */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
-          <ClipboardDocumentListIcon className="w-16 h-16 text-card-foreground/10" />
-          <p className="text-card-foreground/40 font-semibold">
-            {plans.length === 0 ? 'No lesson plans yet' : 'No plans match — clear filters or create one'}
-          </p>
-          <p className="text-xs text-card-foreground/40 max-w-md">
-            {plans.length === 0 
-              ? 'Term lesson plans group your lessons by term, class and course. Generate a syllabus first for the best pre-fill.'
-              : 'Try clearing your search or category filters to see more plans.'}
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center mt-2">
-            {(filterProgramId || filterClassId || filterTerm || filterStatus || search) && plans.length > 0 && (
-              <button
-                onClick={() => {
-                  setFilterProgramId('');
-                  setFilterClassId('');
-                  setFilterTerm('');
-                  setFilterStatus('');
-                  setSearch('');
-                }}
-                className="text-primary text-sm font-bold hover:underline px-3 py-1.5 border border-primary/30 rounded-lg min-h-[44px]"
-              >
-                Clear all filters
-              </button>
-            )}
-            <Link
-              href="/dashboard/curriculum"
-              className="px-6 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
-            >
-              <RocketLaunchIcon className="w-4 h-4" />
-              Implement from Syllabus
-            </Link>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/70 text-xs font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all"
-            >
-              Custom Plan
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map(plan => {
-            const status = plan.status ?? 'draft';
-            const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
-            const courseTitle = plan.courses?.title ?? plan.lessons?.courses?.title ?? 'Unknown Course';
-            const hasStrictRouteBadge = getWeekEntries(plan.plan_data).some((w) => {
-              const badge = w.progression_badge;
-              return !!badge && typeof badge === 'object' && !!(badge as Record<string, unknown>).id;
-            });
-            return (
-              <div key={plan.id} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden group flex flex-col">
-                <Link href={`/dashboard/lesson-plans/${plan.id}`} className="block p-5 hover:border-primary/30 transition-all flex-1">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Course name is the primary identifier — term + class are secondary context */}
-                      <h3 className="font-black text-card-foreground text-base line-clamp-2 break-words leading-snug mb-1">
-                        {courseTitle}
-                      </h3>
-                      <p className="text-xs text-card-foreground/50 font-medium truncate">
-                        {plan.term ?? 'Term Plan'}{plan.classes?.name ? ` · ${plan.classes.name}` : ''}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${badge.cls}`}>{badge.label}</span>
-                        {plan.curriculum_version_id && (
-                          <span className="text-xs text-violet-300 bg-primary/15 px-2 py-0.5 rounded-full border border-primary/30 flex items-center gap-1">
-                            <SparklesIcon className="w-3 h-3" />
-                            From Syllabus
-                          </span>
-                        )}
-                        {(plan.version ?? 1) > 1 && (
-                          <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">v{plan.version}</span>
-                        )}
-                        {hasStrictRouteBadge && (
-                          <span className="text-xs text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                            Platform → School
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-card-foreground/50">
-                    {plan.term_start && plan.term_end && (
-                      <p>
-                        {new Date(plan.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(plan.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                    )}
-                    {plan.sessions_per_week && <p>{plan.sessions_per_week} sessions/week</p>}
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
-                    <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs text-card-foreground/30">
-                      {plan.plan_data && typeof plan.plan_data === 'object' && 'weeks' in plan.plan_data
-                        ? `${(plan.plan_data.weeks as unknown[]).length} weeks`
-                        : 'No weeks yet'}
-                    </span>
-                    <span className="ml-auto text-xs text-card-foreground/30">
-                      {new Date(plan.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </span>
-                  </div>
-                </Link>
-
-                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] bg-black/[0.06]">
-                  <button
-                    onClick={() => openEdit(plan)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/50 hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-primary/10 min-h-[44px]"
-                  >
-                    <PencilIcon className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <div className="flex-1" />
-                  <button
-                    onClick={() => openDeleteConfirm(plan)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-card-foreground/30 hover:text-rose-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-500/10 min-h-[44px]"
-                  >
-                    <TrashIcon className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Create Form Modal — mobile-first full-screen on xs, centered on sm+ */}
+      {/* Create Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-lg shadow-2xl sm:rounded-2xl flex flex-col max-h-screen">
-            <div className="flex items-center justify-between p-5 border-b border-white/[0.08] shrink-0">
-              <div className="min-w-0">
-                <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
-                  <SparklesIcon className="w-5 h-5 text-primary" /> New Lesson Plan
-                </h3>
-                {qpCourseId && prefilledFromUrl && (
-                  <p className="text-[10px] text-primary uppercase tracking-widest font-black mt-1">
-                    ← Pre-filled from Syllabus
-                  </p>
-                )}
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-slate-900 border border-white/10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between p-8 border-b border-white/5">
+              <div>
+                <h3 className="text-xl font-black text-white">Initialize Plan</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Configure Academic Session</p>
               </div>
-              <button onClick={() => { setShowForm(false); resetForm(); }} aria-label="Close" className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center">
-                <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
+                <XMarkIcon className="w-6 h-6 text-white/40" />
               </button>
             </div>
 
-            <div className="p-5 space-y-5 overflow-y-auto flex-1">
-
-              {/* ── Course ── */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">
-                  Course <span className="text-rose-400">*</span>
-                </label>
-                {/* Programme filter — subtle, above the course dropdown */}
-                {programOptions.length > 1 && (
-                  <select
-                    value={form.program_id}
-                    onChange={e => setForm(f => ({ ...f, program_id: e.target.value, course_id: '', curriculum_version_id: '' }))}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-card-foreground/60 focus:outline-none focus:border-primary/50 min-h-[40px]"
-                  >
-                    <option value="">All programmes</option>
-                    {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                )}
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Select Course Blueprint</label>
                 <select
                   value={form.course_id}
-                  disabled={!!form.program_id && programCoursesLoading}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px] disabled:opacity-50"
+                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
                 >
-                  <option value="">
-                    {form.program_id && programCoursesLoading ? 'Loading…' : 'Select course…'}
-                  </option>
+                  <option value="" className="bg-slate-900">Select course blueprint...</option>
                   {groupedCourses.groups.map(g => (
-                    <optgroup key={g.programName} label={g.programName}>
-                      {g.list.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    <optgroup key={g.programName} label={g.programName} className="bg-slate-900 text-white/40">
+                      {g.list.map(c => <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.title}</option>)}
                     </optgroup>
                   ))}
-                  {groupedCourses.others.length > 0 && (
-                    <optgroup label="Unassigned">
-                      {groupedCourses.others.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                    </optgroup>
-                  )}
                 </select>
-                {/* Syllabus auto-pick badge */}
-                {form.course_id && form.curriculum_version_id && (
-                  <p className="text-xs text-emerald-400 flex items-center gap-1">
-                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                    Syllabus linked — week topics will auto-fill
-                  </p>
-                )}
-                {form.course_id && !form.curriculum_version_id && visibleCurricula.length === 0 && (
-                  <p className="text-[11px] text-amber-400">
-                    No syllabus yet — <Link href={`/dashboard/curriculum?course_id=${form.course_id}`} className="underline">generate one</Link> for richer plans.
-                  </p>
-                )}
               </div>
 
-              {/* ── Term ── */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">
-                  Term <span className="text-rose-400">*</span>
-                </label>
-                <div className="flex gap-2">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Academic Term</label>
+                <div className="grid grid-cols-3 gap-3">
                   {(['First Term', 'Second Term', 'Third Term'] as const).map(t => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setForm(f => ({ ...f, term: t }))}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-black border transition-all min-h-[44px] ${
+                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                         form.term === t
-                          ? 'bg-primary border-primary text-white'
-                          : 'bg-white/5 border-white/10 text-card-foreground/60 hover:text-card-foreground hover:bg-white/10'
+                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
+                          : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       {t.split(' ')[0]}
                     </button>
                   ))}
                 </div>
-                {form.term && form.term_start && form.term_end && (
-                  <p className="text-[11px] text-card-foreground/40">
-                    {new Date(form.term_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} → {new Date(form.term_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    <span className="ml-2 text-primary">· {form.academic_year}</span>
-                  </p>
-                )}
               </div>
 
-              {/* ── Class ── */}
-              <div className="space-y-2" ref={scheduleStepRef}>
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-card-foreground/60 uppercase tracking-widest">Class</label>
-                  {autoPickedClassId && form.class_id === autoPickedClassId && (
-                    <span className="text-[10px] text-emerald-400 font-bold">Auto-matched</span>
-                  )}
-                </div>
-                {isAdmin && schools.length > 0 && (
-                  <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
-                    <option value="">All schools</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                )}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Target Class</label>
                 <select
                   value={form.class_id}
                   onChange={e => { setForm(f => ({ ...f, class_id: e.target.value })); if (e.target.value) setAutoClassMatch(false); }}
-                  disabled={isAdmin && !form.school_id}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px] disabled:opacity-50"
+                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
                 >
-                  <option value="">{isAdmin && !form.school_id ? 'Select school first…' : '— No class (plan for all) —'}</option>
-                  {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="" className="bg-slate-900">— Plan for all classes —</option>
+                  {formClasses.map(c => <option key={c.id} value={c.id} className="bg-slate-900">{c.name}</option>)}
                 </select>
               </div>
-
-              {/* ── Advanced (collapsed) ── */}
-              <details className="group">
-                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-card-foreground/40 hover:text-card-foreground/60 transition-colors select-none">
-                  <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
-                  Advanced options
-                </summary>
-                <div className="pt-3 space-y-4">
-                  {/* Academic year */}
-                  <div>
-                    <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Academic Year</label>
-                    <select value={form.academic_year} onChange={e => setForm(f => ({ ...f, academic_year: e.target.value, term_start: '', term_end: '' }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
-                      {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                  {/* Custom dates */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
-                      <input type="date" value={form.term_start} onChange={e => setForm(f => ({ ...f, term_start: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
-                      <input type="date" value={form.term_end} onChange={e => setForm(f => ({ ...f, term_end: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
-                    </div>
-                  </div>
-                  {/* Syllabus picker — only when multiple options */}
-                  {form.course_id && visibleCurricula.length > 1 && (
-                    <div>
-                      <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Syllabus version</label>
-                      <select value={form.curriculum_version_id} onChange={e => setForm(f => ({ ...f, curriculum_version_id: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
-                        <option value="">— Start blank —</option>
-                        {visibleCurricula.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.school_id ? (c.schools?.name ?? 'School') : 'Platform template'} — v{c.version}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {/* Sessions per week */}
-                  <div>
-                    <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Lessons per week</label>
-                    <div className="flex items-center gap-3">
-                      <input type="range" min="1" max="5" value={form.sessions_per_week}
-                        onChange={e => setForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                        className="flex-1 accent-primary" />
-                      <span className="w-8 text-center font-black text-card-foreground text-sm">{form.sessions_per_week}</span>
-                    </div>
-                  </div>
-                </div>
-              </details>
             </div>
 
-            <div className="sticky bottom-0 flex gap-3 p-4 sm:p-5 border-t border-white/[0.08] bg-card pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <button onClick={() => { setShowForm(false); resetForm(); }}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]">
-                Cancel
+            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
+              <button 
+                onClick={() => { setShowForm(false); resetForm(); }}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+              >
+                Discard
               </button>
-              <button onClick={save} disabled={submitting || !form.term || !form.course_id || !form.term_start || !form.term_end}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
-                <CheckCircleIcon className="w-4 h-4" /> {submitting ? 'Creating…' : 'Create Plan'}
+              <button 
+                onClick={save}
+                disabled={submitting || !form.term || !form.course_id}
+                className="flex-1 py-4 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-primary/20"
+              >
+                {submitting ? 'Initializing...' : 'Confirm Plan'}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {planToDelete && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl rounded-2xl flex flex-col overflow-hidden">
-            <div className="p-6 text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-2">
-                <TrashIcon className="w-8 h-8 text-rose-500" />
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden"
+          >
+            <div className="p-8 text-center space-y-6">
+              <div className="mx-auto w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center">
+                <TrashIcon className="w-10 h-10 text-rose-500" />
               </div>
-              <h3 className="text-xl font-black text-card-foreground">Delete Lesson Plan?</h3>
-              <p className="text-sm text-card-foreground/60">
-                Are you sure you want to delete <span className="text-card-foreground font-bold">{planToDelete.term}</span>? This action cannot be undone.
-              </p>
-
-              {loadingSummary ? (
-                <div className="flex justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : deletionSummary ? (
-                <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 text-left space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-1">Items to be removed:</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg">
-                      <span className="text-card-foreground/50">Lessons</span>
-                      <span className="font-bold text-rose-400">{deletionSummary.lessons}</span>
+              <div>
+                <h3 className="text-2xl font-black text-white">Permanently Delete?</h3>
+                <p className="text-white/40 text-sm mt-2 leading-relaxed">
+                  You are about to remove <span className="text-white font-bold">{planToDelete.courses?.title}</span> plan for <span className="text-white font-bold">{planToDelete.classes?.name}</span>. This will erase all progress tracking.
+                </p>
+              </div>
+              
+              {deletionSummary && (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-4">Affected Assets</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Lessons</p>
+                      <p className="text-lg font-black text-white">{deletionSummary.lessons}</p>
                     </div>
-                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg">
-                      <span className="text-card-foreground/50">Assignments</span>
-                      <span className="font-bold text-rose-400">{deletionSummary.assignments}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg col-span-2">
-                      <span className="text-card-foreground/50">Audit Entries</span>
-                      <span className="font-bold text-rose-400">{deletionSummary.audit}</span>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Audit Trail</p>
+                      <p className="text-lg font-black text-white">{deletionSummary.audit}</p>
                     </div>
                   </div>
-                  <p className="text-[10px] text-rose-400/60 mt-2 italic font-medium">Note: All associated progression data will also be permanently deleted.</p>
                 </div>
-              ) : null}
+              )}
             </div>
 
-            <div className="flex gap-3 p-6 border-t border-white/[0.08] bg-white/5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              <button
+            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
+              <button 
                 onClick={() => setPlanToDelete(null)}
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]"
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
               >
-                Cancel
+                Go Back
               </button>
-              <button
+              <button 
                 onClick={() => deletePlan(planToDelete.id)}
                 disabled={deleting}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl transition-all min-h-[44px] shadow-lg shadow-rose-600/20"
+                className="flex-1 py-4 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-rose-600/20"
               >
-                {deleting ? 'Deleting…' : 'Delete Permanently'}
+                {deleting ? 'Removing...' : 'Confirm Delete'}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
       {/* Edit Form Modal */}
       {editingPlan && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-white/[0.12] w-full sm:max-w-md shadow-2xl rounded-2xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
-              <h3 className="font-black text-card-foreground text-lg flex items-center gap-2">
-                <PencilIcon className="w-5 h-5 text-primary" /> Edit Lesson Plan
-              </h3>
-              <button onClick={() => setEditingPlan(null)} className="p-1.5 hover:bg-white/5 rounded-lg min-h-[44px] min-w-[44px]">
-                <XMarkIcon className="w-5 h-5 text-card-foreground/50" />
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between p-8 border-b border-white/5">
+              <div>
+                <h3 className="text-xl font-black text-white">Modify Plan</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Status & Parameters</p>
+              </div>
+              <button onClick={() => setEditingPlan(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
+                <XMarkIcon className="w-6 h-6 text-white/40" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Status</label>
-                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]">
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Start Date</label>
-                  <input type="date" value={editForm.term_start} onChange={e => setEditForm(f => ({ ...f, term_start: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">End Date</label>
-                  <input type="date" value={editForm.term_end} onChange={e => setEditForm(f => ({ ...f, term_end: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 min-h-[44px]" />
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Publication Status</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {Object.entries(STATUS_BADGE).map(([key, val]) => (
+                    <button
+                      key={key}
+                      onClick={() => setEditForm(f => ({ ...f, status: key }))}
+                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                        editForm.status === key
+                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
+                          : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {val.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Lessons per week</label>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="1" max="5" value={editForm.sessions_per_week}
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Sessions Per Week</label>
+                <div className="flex items-center gap-6 bg-white/5 p-6 rounded-2xl border border-white/10">
+                  <input 
+                    type="range" min="1" max="5" 
+                    value={editForm.sessions_per_week}
                     onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                    className="flex-1 accent-primary" />
-                  <span className="w-8 text-center font-black text-card-foreground text-sm">{editForm.sessions_per_week}</span>
+                    className="flex-1 accent-primary" 
+                  />
+                  <span className="text-2xl font-black text-white w-12 text-center">{editForm.sessions_per_week}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 p-5 border-t border-white/[0.08] bg-white/5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-              <button onClick={() => setEditingPlan(null)}
-                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all min-h-[44px]">
-                Cancel
+            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
+              <button 
+                onClick={() => setEditingPlan(null)}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+              >
+                Discard
               </button>
-              <button onClick={saveEdit} disabled={savingEdit}
-                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all min-h-[44px]">
-                {savingEdit ? 'Saving…' : 'Save Changes'}
+              <button 
+                onClick={saveEdit} 
+                disabled={savingEdit}
+                className="flex-1 py-4 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-primary/20"
+              >
+                {savingEdit ? 'Saving...' : 'Update Plan'}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>
   );
+}
 }
 
 // ─── Filter chip row — used for Term / Class / Status quick-filters ──────────

@@ -51,12 +51,23 @@ export default function InboxPreviewWidget() {
 
   const isSchool  = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
-  const hasAccess = ['admin', 'teacher', 'school', 'parent', 'student'].includes(profile?.role ?? '');
+  // Widget is staff-only — students/parents have their own minimal view inside the inbox page
+  const hasAccess = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
 
   useEffect(() => {
     if (!profile || !hasAccess) { setLoading(false); return; }
     loadPreview();
+
+    // Real-time: refresh preview on any new WhatsApp message or conversation update
+    const ch = supabase.channel(`inbox_widget_${profile.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
+        () => loadPreview())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations' },
+        () => loadPreview())
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, [profile?.id]); // eslint-disable-line
 
   const loadPreview = async () => {
@@ -188,7 +199,12 @@ export default function InboxPreviewWidget() {
           </div>
         </div>
         <Link href="/dashboard/inbox"
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-lg shadow-emerald-950/20">
+          className="relative flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-lg shadow-emerald-950/20">
+          {totalUnread > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full px-1 shadow-md">
+              {totalUnread > 99 ? '99+' : totalUnread}
+            </span>
+          )}
           Open App <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
