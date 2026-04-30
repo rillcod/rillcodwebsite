@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, ShieldCheck, Banknote, AlertTriangle, Receipt, Clock,
-  RefreshCw, Download, Loader2, Filter,
+  RefreshCw, Download, Loader2, Filter, Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { streamPillClasses, streamLabel, DEFAULT_COMMISSION_RATE, type FinanceStream } from '@/lib/finance/streams';
@@ -64,6 +64,7 @@ export default function FinanceReconciliationPage() {
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setErr(null);
@@ -99,6 +100,21 @@ export default function FinanceReconciliationPage() {
       alert(e.message);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const deleteTransaction = async (txId: string, ref: string) => {
+    if (!window.confirm(`Delete transaction "${ref}"?\n\nThis permanently removes it from the ledger. Use only to fix contradicting or duplicate entries.`)) return;
+    setDeleting(txId);
+    try {
+      const res = await fetch(`/api/finance/reconciliation?id=${encodeURIComponent(txId)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to delete');
+      setRows(prev => prev.filter(r => r.transaction_id !== txId));
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -245,6 +261,7 @@ export default function FinanceReconciliationPage() {
                     <Th>Status</Th>
                     <Th align="right">Amount</Th>
                     <Th>Receipt</Th>
+                    <Th>{''}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,6 +291,16 @@ export default function FinanceReconciliationPage() {
                         ) : (
                           <span className="text-[10px] text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <button
+                          onClick={() => deleteTransaction(r.transaction_id, r.reference || r.transaction_id.slice(0, 8))}
+                          disabled={deleting === r.transaction_id}
+                          title="Delete this transaction"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-40"
+                        >
+                          {deleting === r.transaction_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
                       </td>
                     </tr>
                   ))}
