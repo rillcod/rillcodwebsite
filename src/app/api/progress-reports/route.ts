@@ -45,13 +45,28 @@ export async function POST(request: NextRequest) {
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
-    'student_id', 'course_name', 'report_term', 'report_date',
+    // Identity
+    'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name',
+    'section_class', 'teacher_id',
+    // Session metadata
+    'report_term', 'report_date', 'report_period', 'instructor_name',
+    'current_module', 'next_module', 'course_duration', 'learning_milestones',
+    'school_section',
+    // WAEC 6-component scores (attendance_score stores assignments %, participation_score stores attendance %)
     'theory_score', 'practical_score', 'attendance_score', 'participation_score',
-    'overall_score', 'overall_grade', 'is_published',
-    'learning_milestones', 'instructor_name',
-    'key_strengths', 'areas_for_growth', 'projects_grade', 'homework_grade',
-    'fee_status', 'fee_amount', 'has_certificate', 'certificate_text',
-    'section_class', 'school_name',
+    'engagement_metrics',   // ← stores classwork_score (10%) and assessment_score (15%)
+    'overall_score', 'overall_grade',
+    // Qualitative
+    'participation_grade',  // ← Classwork & Participation qualifier
+    'projects_grade', 'homework_grade',
+    'key_strengths', 'areas_for_growth',
+    'proficiency_level',
+    // Publication & certificate
+    'is_published', 'has_certificate', 'certificate_text', 'course_completed',
+    // Photo
+    'photo_url',
+    // Payment / fee
+    'fee_status', 'fee_amount', 'fee_label', 'show_payment_notice',
   ];
 
   const updatePayload: TablesUpdate<'student_progress_reports'> = {};
