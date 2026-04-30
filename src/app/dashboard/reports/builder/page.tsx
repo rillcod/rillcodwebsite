@@ -314,6 +314,8 @@ function ReportBuilderInner() {
         is_published: false,
         photo_url: '',
         fee_status: '' as '' | 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived',
+        student_current_module: '',
+        student_next_module: '',
     });
 
     // ── UI state ──────────────────────────────────────────────────────────────
@@ -322,6 +324,7 @@ function ReportBuilderInner() {
     const [publishing, setPublishing] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [generating, setGenerating] = useState<string | null>(null);
+    const [generatingAll, setGeneratingAll] = useState(false);
     const [fetchingStats, setFetchingStats] = useState(false);
     const [studentStats, setStudentStats] = useState({
         attendance: 0, totalSessions: 0,
@@ -745,6 +748,8 @@ function ReportBuilderInner() {
             is_published: report?.is_published ?? false,
             photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
             fee_status: ((report as any)?.fee_status ?? '') as any,
+            student_current_module: report?.current_module && report.current_module !== sessionConfig.current_module ? report.current_module ?? '' : '',
+            student_next_module: report?.next_module && report.next_module !== sessionConfig.next_module ? report.next_module ?? '' : '',
         });
 
         // ── Fetch transparent stats for all 4 score categories ───────────────
@@ -1011,8 +1016,8 @@ function ReportBuilderInner() {
                 report_term: sessionConfig.report_term,
                 report_period: sessionConfig.report_period || null,
                 instructor_name: sessionConfig.instructor_name,
-                current_module: sessionConfig.current_module || null,
-                next_module: sessionConfig.next_module || null,
+                current_module: form.student_current_module || sessionConfig.current_module || null,
+                next_module: form.student_next_module || sessionConfig.next_module || null,
                 learning_milestones: sessionConfig.learning_milestones,
                 course_duration: sessionConfig.course_duration || null,
                 theory_score: parseFloat(form.theory_score) || 0,
@@ -1182,6 +1187,28 @@ function ReportBuilderInner() {
             setError(err.message ?? 'Generation failed');
         } finally {
             setGenerating(null);
+        }
+    };
+
+    // ── Generate All — one-click auto-fill all qualifier + AI fields ─────────
+    const handleGenerateAll = async () => {
+        setGeneratingAll(true);
+        try {
+            const { attendance, totalSessions, assignments, totalAssignments } = studentStats;
+            const attPct = totalSessions > 0 ? (attendance / totalSessions) * 100 : 0;
+            const assigPct = totalAssignments > 0 ? (assignments / totalAssignments) * 100 : 0;
+            const currentText = sessionConfig.current_module ? `${sessionConfig.current_module} — ` : '';
+            setForm(f => ({
+                ...f,
+                participation_grade: f.participation_grade || `${attendance}/${totalSessions} Meetings Attended (${attPct >= 80 ? 'Excellent' : attPct >= 60 ? 'Active' : 'Moderate'})`,
+                projects_grade: f.projects_grade || `${currentText}${assignments}/${totalAssignments} Lab Tasks Completed (${assigPct >= 90 ? 'Outstanding' : assigPct >= 70 ? 'Proficient' : 'Developing'})`,
+                homework_grade: f.homework_grade || `${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
+            }));
+            await handleAIGenerate('key_strengths');
+            await handleAIGenerate('areas_for_growth');
+            setSuccessMsg('All fields generated!');
+        } catch { /* silent */ } finally {
+            setGeneratingAll(false);
         }
     };
 
@@ -2120,6 +2147,8 @@ function ReportBuilderInner() {
                             <button
                                 disabled={currentStudentIdx <= 0}
                                 onClick={async () => {
+                                    if (saving || publishing) return;
+                                    await handleSave(false);
                                     const idx = currentStudentIdx - 1;
                                     if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
@@ -2142,6 +2171,8 @@ function ReportBuilderInner() {
                             <button
                                 disabled={currentStudentIdx >= filteredStudents.length - 1}
                                 onClick={async () => {
+                                    if (saving || publishing) return;
+                                    await handleSave(false);
                                     const idx = currentStudentIdx + 1;
                                     if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
@@ -2356,9 +2387,78 @@ function ReportBuilderInner() {
                                     </div>
                                 </Section>
 
+                                {/* Per-student module override */}
+                                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.02] border-b border-border">
+                                        <span className="text-[10px]">📖</span>
+                                        <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex-1">Module (this student)</h3>
+                                        <span className="text-[9px] text-muted-foreground/50">Overrides session default</span>
+                                    </div>
+                                    <div className="p-4 grid grid-cols-2 gap-3">
+                                        <Field label="Current Module">
+                                            <input
+                                                list="stu-cur-mod-list"
+                                                value={form.student_current_module || sessionConfig.current_module}
+                                                onChange={e => setForm(f => {
+                                                    const val = e.target.value;
+                                                    const sugg = getModuleSuggestions(sessionConfig.course_name);
+                                                    const idx = sugg.modules.indexOf(val);
+                                                    const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                                                    return { ...f, student_current_module: val, ...(autoNext && !f.student_next_module ? { student_next_module: autoNext } : {}) };
+                                                })}
+                                                className={INPUT} placeholder={sessionConfig.current_module || 'e.g. Functions & Scope'} />
+                                            <datalist id="stu-cur-mod-list">
+                                                {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
+                                            </datalist>
+                                        </Field>
+                                        <Field label="Next Module">
+                                            <input
+                                                list="stu-nxt-mod-list"
+                                                value={form.student_next_module || sessionConfig.next_module}
+                                                onChange={e => setForm(f => ({ ...f, student_next_module: e.target.value }))}
+                                                className={INPUT} placeholder={sessionConfig.next_module || 'e.g. OOP Basics'} />
+                                            <datalist id="stu-nxt-mod-list">
+                                                {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
+                                            </datalist>
+                                        </Field>
+                                    </div>
+                                </div>
+
                                 {/* Scores — 6 weighted components */}
                                 <Section title="Performance Scores" icon="📊">
                                     <div className="space-y-4">
+                                        {/* Quick-apply score profiles */}
+                                        <div className="flex flex-wrap gap-2 pb-3 border-b border-border">
+                                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest self-center flex-shrink-0">Quick:</span>
+                                            {([
+                                                { label: 'Excellent',   scores: [90, 85, 88, 85, 90, 88], color: 'emerald' },
+                                                { label: 'Good',        scores: [75, 72, 75, 70, 78, 72], color: 'primary' },
+                                                { label: 'Fair',        scores: [58, 55, 58, 55, 60, 55], color: 'amber'   },
+                                                { label: 'Struggling',  scores: [42, 40, 42, 40, 48, 40], color: 'rose'    },
+                                            ] as const).map(({ label, scores, color }) => (
+                                                <button
+                                                    key={label} type="button"
+                                                    onClick={() => setForm(f => ({
+                                                        ...f,
+                                                        theory_score:        String(scores[0]),
+                                                        classwork_score:     String(scores[1]),
+                                                        practical_score:     String(scores[2]),
+                                                        attendance_score:    String(scores[3]),
+                                                        participation_score: String(scores[4]),
+                                                        assessment_score:    String(scores[5]),
+                                                        proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
+                                                    }))}
+                                                    className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider border rounded-xl transition-all ${
+                                                        color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                                                        : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
+                                                        : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                                                        : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
                                         {([
                                             { key: 'theory_score',       label: 'Theory / Written Tests',      weight: '20%', color: '#6366f1', hint: `CBT exam: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
                                             { key: 'classwork_score',    label: 'Classwork & Participation',   weight: '10%', color: '#06b6d4', hint: `Assignment grade avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
@@ -2571,6 +2671,11 @@ function ReportBuilderInner() {
                                 <button onClick={() => setShowPreview(true)}
                                     className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
                                     <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
+                                </button>
+                                <button onClick={handleGenerateAll} disabled={generatingAll || !!generating}
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                                    {generatingAll ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
+                                    <span className="hidden sm:inline">{generatingAll ? 'Generating...' : 'Gen All'}</span>
                                 </button>
 
                                 <div className="ml-auto flex-shrink-0">
