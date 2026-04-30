@@ -265,9 +265,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                 weighted_score: ws,
                 feedback, status,
                 submission_text: subText || null,
-                graded_by: profile!.id,
             };
-            if (status === 'graded') payload.graded_at = new Date().toISOString();
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
             });
@@ -356,9 +354,11 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
                         status === 'submitted' ? 'bg-primary/20 text-primary border-primary/30' :
                         status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                        status === 'pending_review' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
                         'bg-rose-500/20 text-rose-400 border-rose-500/30'
                     }`}>
                     <option value="submitted">Submitted</option>
+                    <option value="pending_review">Pending Review</option>
                     <option value="graded">Graded</option>
                     <option value="late">Late</option>
                     <option value="missing">Missing</option>
@@ -652,6 +652,26 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* AI-suggested grade banner — shown when grading_mode is ai_assisted */}
+                    {sub.ai_suggested_grade != null && (
+                        <div className="border border-violet-500/30 bg-violet-500/8 rounded-xl p-4 space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">AI-Suggested Grade</p>
+                                    <p className="text-xl font-black text-white mt-0.5">{sub.ai_suggested_grade} <span className="text-sm text-white/30 font-normal">/ {max} pts</span></p>
+                                </div>
+                                <button type="button"
+                                    onClick={() => { handleGradeChange(String(sub.ai_suggested_grade)); if (sub.ai_suggested_feedback) setFb(sub.ai_suggested_feedback); }}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black text-violet-300 uppercase tracking-widest bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 transition-all rounded-lg flex-shrink-0">
+                                    ↺ Apply AI Suggestion
+                                </button>
+                            </div>
+                            {sub.ai_suggested_feedback && (
+                                <p className="text-xs text-white/50 leading-relaxed border-t border-violet-500/15 pt-2 mt-2">{sub.ai_suggested_feedback}</p>
+                            )}
                         </div>
                     )}
 

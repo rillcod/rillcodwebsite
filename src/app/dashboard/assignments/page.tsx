@@ -48,6 +48,7 @@ const SUB_BADGE: Record<string, string> = {
   late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   pending: 'bg-muted text-muted-foreground border-border',
+  pending_review: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
 };
 
 const SUB_ACCENT: Record<string, string> = {
@@ -56,6 +57,7 @@ const SUB_ACCENT: Record<string, string> = {
   late: 'bg-amber-500',
   missing: 'bg-rose-500',
   pending: 'bg-muted',
+  pending_review: 'bg-violet-500',
 };
 
 function isOverdue(due?: string | null) {
@@ -95,6 +97,7 @@ const STATUS_PILLS = [
   { value: 'graded', label: 'Graded' },
   { value: 'late', label: 'Late' },
   { value: 'missing', label: 'Missing' },
+  { value: 'pending_review', label: 'AI Review' },
 ];
 
 const STAFF_FILTER_TABS = [
@@ -170,7 +173,7 @@ export default function AssignmentsPage() {
 
     if (isStaff) {
       const subs = a.assignment_submissions ?? [];
-      const hasPending = subs.some((s: any) => s.status === 'submitted');
+      const hasPending = subs.some((s: any) => s.status === 'submitted' || s.status === 'pending_review');
       const overdue = isOverdue(a.due_date);
       let mTab = true;
       if (staffTab === 'needs_grading') mTab = hasPending;
@@ -188,8 +191,8 @@ export default function AssignmentsPage() {
   // Stats derived from real data
   const totalItems = items.length;
   const pendingCount = isStaff
-    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'submitted')).length
-    : items.filter((a: any) => a.status === 'submitted').length;
+    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'submitted' || s.status === 'pending_review')).length
+    : items.filter((a: any) => a.status === 'submitted' || a.status === 'pending_review').length;
   const gradedCount = isStaff
     ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'graded')).length
     : items.filter((a: any) => a.status === 'graded').length;

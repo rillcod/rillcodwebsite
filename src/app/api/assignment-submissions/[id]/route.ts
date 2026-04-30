@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,10 +139,42 @@ export async function PATCH(
       .from('assignment_submissions')
       .update(allowed)
       .eq('id', id)
-      .select('id, grade, status, file_url')
+      .select('id, grade, status, file_url, portal_user_id, weighted_score')
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Send grade email when a submission is marked graded
+    if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
+      (async () => {
+        const [{ data: student }, { data: asgn }] = await Promise.all([
+          admin.from('portal_users').select('email, full_name').eq('id', data.portal_user_id!).single(),
+          admin.from('assignments').select('title, max_points').eq('id', sub.assignment_id).single(),
+        ]);
+        if (!student?.email || !asgn) return;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+        const gradeVal = (data.grade ?? allowed.grade) as number | null;
+        const html = buildRillcodTransactionalEmailHtml({
+          title: 'Assignment Graded',
+          bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
+            <p>Your assignment <strong>${escapeHtml(asgn.title || 'Assignment')}</strong> has been graded by your teacher.</p>
+            ${(allowed.feedback as string) ? `<p><strong>Feedback:</strong> ${escapeHtml(allowed.feedback as string)}</p>` : ''}`,
+          summaryRows: [
+            { label: 'Assignment', value: asgn.title || 'Assignment' },
+            { label: 'Score', value: gradeVal != null ? `${gradeVal} / ${asgn.max_points ?? 100}` : 'Graded' },
+            ...(data.weighted_score != null ? [{ label: 'Weighted Score', value: String(data.weighted_score) }] : []),
+          ],
+          cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results & Feedback' },
+          footerNote: 'This grade was submitted by your teacher.',
+        });
+        await queueService.queueNotification(data.portal_user_id!, 'email', {
+          to: student.email,
+          subject: `Graded: "${asgn.title || 'Assignment'}"`,
+          html,
+        });
+      })().catch(console.error);
+    }
+
     return NextResponse.json({ data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

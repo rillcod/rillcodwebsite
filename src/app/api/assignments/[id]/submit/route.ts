@@ -83,7 +83,7 @@ export async function POST(
     // Fetch assignment to validate access
     const { data: assignment } = await admin
       .from('assignments')
-      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title, grading_mode')
+      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title, grading_mode, due_date')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -99,11 +99,16 @@ export async function POST(
       return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
     }
 
+    // Mark late if submitted after due_date (students only — staff on-behalf always 'submitted')
+    const isLate = !isStaff && assignment.due_date
+      ? new Date() > new Date(assignment.due_date)
+      : false;
+
     const upsertData: Record<string, unknown> = {
       assignment_id,
       portal_user_id: effectiveUserId,
       submitted_at:   new Date().toISOString(),
-      status:         'submitted',
+      status:         isLate ? 'late' : 'submitted',
       updated_at:     new Date().toISOString(),
     };
     if (submission_text !== undefined) upsertData.submission_text = submission_text || null;
