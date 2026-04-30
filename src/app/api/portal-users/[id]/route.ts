@@ -148,8 +148,8 @@ export async function DELETE(
   // Nullify teacher references in progress reports (keep the reports themselves)
   await admin.from('student_progress_reports').update({ teacher_id: null }).eq('teacher_id', id);
 
-  // Unlink students whose user_id points here (preserve the student records)
-  await admin.from('students').update({ user_id: null }).eq('user_id', id);
+  // Delete linked students registration row (prevents orphaned/duplicate records on re-register)
+  await admin.from('students').delete().eq('user_id', id);
 
   // Nullify created_by on students created by this user (keeps student records intact)
   await admin.from('students').update({ created_by: null }).eq('created_by', id);

@@ -127,6 +127,7 @@ export async function DELETE(
     }
 
     if (student?.user_id) {
+        await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', student.user_id);
         await admin.from('portal_users').delete().eq('id', student.user_id);
         await admin.auth.admin.deleteUser(student.user_id);
     }

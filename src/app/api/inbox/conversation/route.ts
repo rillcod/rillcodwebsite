@@ -81,3 +81,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status });
   }
 }
+
+// DELETE /api/inbox/conversation?id=<conversation_id>
+// Staff only. Teachers can only delete conversations assigned to them.
+// Cascades: deletes all messages first, then the conversation row.
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const admin = adminClient();
+    const { data: profile } = await admin
+      .from('portal_users')
+      .select('id, role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const conversationId = searchParams.get('id');
+    if (!conversationId) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    // Fetch conversation to enforce ownership for teachers
+    const { data: conv } = await admin
+      .from('whatsapp_conversations')
+      .select('id, assigned_staff_id, portal_user_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+
+    if (profile.role === 'teacher' && conv.assigned_staff_id !== profile.id) {
+      return NextResponse.json({ error: 'You can only delete conversations assigned to you' }, { status: 403 });
+    }
+
+    // Cascade: delete messages then conversation
+    await admin.from('whatsapp_messages').delete().eq('conversation_id', conversationId);
+    const { error: delErr } = await admin.from('whatsapp_conversations').delete().eq('id', conversationId);
+    if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    const status = err.message === 'Unauthorized' ? 401 : 500;
+    return NextResponse.json({ error: err.message }, { status });
+  }
+}

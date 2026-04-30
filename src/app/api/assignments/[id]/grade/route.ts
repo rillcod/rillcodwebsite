@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import type { Database, TablesUpdate } from '@/types/supabase';
 import { normalizeGradeValue } from '@/lib/api-guards';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,39 @@ async function getCaller(): Promise<Caller | null> {
     .eq('id', user.id)
     .single();
   return (caller as Caller) ?? null;
+}
+
+async function sendGradeEmail(
+  admin: ReturnType<typeof adminClient>,
+  studentId: string,
+  assignmentTitle: string,
+  grade: number | null | undefined,
+  assignMax: number,
+  weightedScore: number | null | undefined,
+  feedback?: string | null,
+) {
+  const { data: student } = await admin
+    .from('portal_users').select('email, full_name').eq('id', studentId).single();
+  if (!student?.email) return;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+  const html = buildRillcodTransactionalEmailHtml({
+    title: 'Assignment Graded',
+    bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
+      <p>Your assignment <strong>${escapeHtml(assignmentTitle)}</strong> has been graded by your teacher.</p>
+      ${feedback ? `<p><strong>Feedback:</strong> ${escapeHtml(feedback)}</p>` : ''}`,
+    summaryRows: [
+      { label: 'Assignment', value: assignmentTitle },
+      { label: 'Score', value: `${grade ?? 'N/A'} / ${assignMax}` },
+      ...(weightedScore != null ? [{ label: 'Weighted Score', value: String(weightedScore) }] : []),
+    ],
+    cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results & Feedback' },
+    footerNote: 'This grade was submitted by your teacher.',
+  });
+  await queueService.queueNotification(studentId, 'email', {
+    to: student.email,
+    subject: `Graded: "${assignmentTitle}"`,
+    html,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +85,7 @@ export async function POST(
     // Fetch assignment to verify access + get weight/max_points
     const { data: assignment } = await admin
       .from('assignments')
-      .select('weight, max_points, school_id, created_by')
+      .select('weight, max_points, school_id, created_by, title')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -133,12 +167,12 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       
       if (updatePayload.graded_by && data?.portal_user_id) {
-          queueService.queueNotification(data.portal_user_id, 'email', {
-              subject: 'Assignment Graded',
-              body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
-          }).catch(console.error);
+        sendGradeEmail(
+          admin, data.portal_user_id, assignment.title || 'Assignment',
+          data.grade, assignMax, data.weighted_score, feedback,
+        ).catch(console.error);
       }
-      
+
       return NextResponse.json({ data });
     }
 
@@ -164,10 +198,10 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       if (data?.portal_user_id) {
-          queueService.queueNotification(data.portal_user_id, 'email', {
-              subject: 'Assignment Graded',
-              body: `Your assignment has been graded! You scored ${data.grade}. Check your Rillcod dashboard for feedback.`
-          }).catch(console.error);
+        sendGradeEmail(
+          admin, data.portal_user_id, assignment.title || 'Assignment',
+          data.grade, assignMax, data.weighted_score, feedback,
+        ).catch(console.error);
       }
 
       return NextResponse.json({ data });

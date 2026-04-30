@@ -116,15 +116,17 @@ export async function DELETE(
   // 2. Find and delete all portal_users + their auth accounts
   const { data: portalUsers } = await admin.from('portal_users').select('id').eq('school_id', id);
   if (portalUsers && portalUsers.length > 0) {
+    const puIds = portalUsers.map((pu) => pu.id);
+    // Nullify file references and delete students rows before portal_users delete
+    await admin.from('files').update({ uploaded_by: null }).in('uploaded_by', puIds);
+    await admin.from('students').delete().in('user_id', puIds);
     for (const pu of portalUsers) {
-      // Delete from Auth (this also triggers any profile cleanup if there are triggers, 
-      // but we explicitly delete from portal_users too for safety)
       await admin.auth.admin.deleteUser(pu.id);
       await admin.from('portal_users').delete().eq('id', pu.id);
     }
   }
 
-  // 3. Unlink students (don't delete them, just remove the school link)
+  // 3. Unlink remaining students (those without portal accounts) — just remove the school link
   await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', id);
 
   // 4. Hard delete the school row itself
