@@ -245,6 +245,9 @@ export async function DELETE(request: NextRequest) {
     await admin.from('classes').update({ teacher_id: null }).in('teacher_id', safeIds);
     await admin.from('timetable_slots').update({ teacher_id: null }).in('teacher_id', safeIds);
     await admin.from('files').update({ uploaded_by: null }).in('uploaded_by', safeIds);
+    await admin.from('study_group_messages').update({ sender_id: null }).in('sender_id', safeIds);
+    await admin.from('study_group_members').delete().in('user_id', safeIds);
+    await admin.from('study_groups').update({ created_by: null }).in('created_by', safeIds);
 
     // Handle school-role accounts
     const schoolAccounts = (targets ?? []).filter(t => t.role === 'school' && t.school_id);

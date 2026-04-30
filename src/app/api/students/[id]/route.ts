@@ -128,6 +128,9 @@ export async function DELETE(
 
     if (student?.user_id) {
         await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', student.user_id);
+        await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', student.user_id);
+        await admin.from('study_group_members').delete().eq('user_id', student.user_id);
+        await admin.from('study_groups').update({ created_by: null }).eq('created_by', student.user_id);
         await admin.from('portal_users').delete().eq('id', student.user_id);
         await admin.auth.admin.deleteUser(student.user_id);
     }

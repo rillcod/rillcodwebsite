@@ -89,6 +89,11 @@ export async function POST(request: Request) {
     // Nullify files.uploaded_by before portal_users delete (FK constraint, files are kept)
     await supabaseAdmin.from('files').update({ uploaded_by: null }).in('uploaded_by', safeIds);
 
+    // Study groups cleanup
+    await supabaseAdmin.from('study_group_messages').update({ sender_id: null }).in('sender_id', safeIds);
+    await supabaseAdmin.from('study_group_members').delete().in('user_id', safeIds);
+    await supabaseAdmin.from('study_groups').update({ created_by: null }).in('created_by', safeIds);
+
     // Delete students registration rows — prevents orphaned records and re-registration duplicates
     await supabaseAdmin.from('students').delete().in('user_id', safeIds);
 

@@ -361,7 +361,10 @@ export async function POST() {
       await admin.auth.admin.updateUserById(matchingAuth.id, {
         user_metadata: { full_name: pu.full_name, role: pu.role },
       });
-      // Remove the stale wrong-ID row
+      // Remove the stale wrong-ID row (clean up study group refs first)
+      await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
+      await admin.from('study_group_members').delete().eq('user_id', pu.id);
+      await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
       await admin.from('portal_users').delete().eq('id', pu.id);
       results.id_mismatches_fixed.push(pu.email);
     } catch (err: any) {
@@ -395,6 +398,9 @@ export async function POST() {
           usedExisting = true;
         } else {
           // Force delete the orphaned portal row as requested if it can't be linked
+          await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
+          await admin.from('study_group_members').delete().eq('user_id', pu.id);
+          await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
           await admin.from('portal_users').delete().eq('id', pu.id);
           results.errors.push(`portal ${pu.email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
           continue;
@@ -410,6 +416,9 @@ export async function POST() {
         await admin.from('portal_users').upsert({
           ...pu, id: newAuthId, updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
+        await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
+        await admin.from('study_group_members').delete().eq('user_id', pu.id);
+        await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
         await admin.from('portal_users').delete().eq('id', pu.id);
       }
 
@@ -479,6 +488,9 @@ export async function DELETE() {
   const skipped: string[] = [];
 
   for (const pu of orphans) {
+    await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', pu.id);
+    await admin.from('study_group_members').delete().eq('user_id', pu.id);
+    await admin.from('study_groups').update({ created_by: null }).eq('created_by', pu.id);
     const { error } = await admin.from('portal_users').delete().eq('id', pu.id);
     if (error) {
       skipped.push(`${pu.email ?? pu.id} (${error.message})`);
