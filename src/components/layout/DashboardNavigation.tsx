@@ -445,7 +445,7 @@ export default function DashboardNavigation() {
         className={`
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
-          flex flex-col w-[240px] md:w-64
+          flex flex-col w-[240px] md:w-64 xl:w-72
           bg-sidebar
           border-r border-sidebar-foreground/[0.08]
           shadow-[4px_0_40px_rgba(0,0,0,0.3)]
