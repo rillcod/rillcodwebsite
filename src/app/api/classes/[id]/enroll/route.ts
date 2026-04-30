@@ -271,24 +271,23 @@ export async function POST(
   }
 
   // Enrollment email notification
-  admin.from('portal_users').select('email, full_name').eq('id', studentId).single()
-    .then(({ data: student }) => {
-      if (!student?.email) return;
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      const html = buildRillcodTransactionalEmailHtml({
-        title: `Enrolled in ${cls.name}`,
-        bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
-          <p>You have been successfully enrolled in <strong>${escapeHtml(cls.name)}</strong>. Your learning materials are ready.</p>`,
-        summaryRows: [{ label: 'Class', value: cls.name }],
-        cta: { href: `${appUrl}/dashboard`, label: 'Go to Dashboard' },
-      });
-      return queueService.queueNotification(studentId, 'email', {
-        to: student.email,
-        subject: `Enrolled in ${cls.name}`,
-        html,
-      });
-    })
-    .catch(console.error);
+  (async () => {
+    const { data: student } = await admin.from('portal_users').select('email, full_name').eq('id', studentId).single();
+    if (!student?.email) return;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+    const html = buildRillcodTransactionalEmailHtml({
+      title: `Enrolled in ${cls.name}`,
+      bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
+        <p>You have been successfully enrolled in <strong>${escapeHtml(cls.name)}</strong>. Your learning materials are ready.</p>`,
+      summaryRows: [{ label: 'Class', value: cls.name }],
+      cta: { href: `${appUrl}/dashboard`, label: 'Go to Dashboard' },
+    });
+    await queueService.queueNotification(studentId, 'email', {
+      to: student.email,
+      subject: `Enrolled in ${cls.name}`,
+      html,
+    });
+  })().catch(console.error);
 
   return NextResponse.json({ success: true });
 }
@@ -464,26 +463,25 @@ export async function PUT(
   }
 
   // Enrollment email notifications for batch (fire-and-forget)
-  admin.from('portal_users').select('id, email, full_name').in('id', allowedIds).eq('role', 'student')
-    .then(({ data: students }) => {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      for (const student of students ?? []) {
-        if (!student.email) continue;
-        const html = buildRillcodTransactionalEmailHtml({
-          title: `Enrolled in ${cls.name}`,
-          bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
-            <p>You have been successfully enrolled in <strong>${escapeHtml(cls.name)}</strong>. Your learning materials are ready.</p>`,
-          summaryRows: [{ label: 'Class', value: cls.name }],
-          cta: { href: `${appUrl}/dashboard`, label: 'Go to Dashboard' },
-        });
-        queueService.queueNotification(student.id, 'email', {
-          to: student.email,
-          subject: `Enrolled in ${cls.name}`,
-          html,
-        }).catch(console.error);
-      }
-    })
-    .catch(console.error);
+  (async () => {
+    const { data: students } = await admin.from('portal_users').select('id, email, full_name').in('id', allowedIds).eq('role', 'student');
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+    for (const student of students ?? []) {
+      if (!student.email) continue;
+      const html = buildRillcodTransactionalEmailHtml({
+        title: `Enrolled in ${cls.name}`,
+        bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
+          <p>You have been successfully enrolled in <strong>${escapeHtml(cls.name)}</strong>. Your learning materials are ready.</p>`,
+        summaryRows: [{ label: 'Class', value: cls.name }],
+        cta: { href: `${appUrl}/dashboard`, label: 'Go to Dashboard' },
+      });
+      await queueService.queueNotification(student.id, 'email', {
+        to: student.email,
+        subject: `Enrolled in ${cls.name}`,
+        html,
+      });
+    }
+  })().catch(console.error);
 
   return NextResponse.json({
     enrolled: allowedIds.length,
