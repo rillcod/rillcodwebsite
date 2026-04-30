@@ -177,6 +177,9 @@ export async function DELETE(
     return NextResponse.json({ error: 'Not authorized: assignment belongs to a different school or teacher' }, { status: 403 });
   }
 
+  // Delete submissions first to avoid FK violations if no CASCADE is set
+  await admin.from('assignment_submissions').delete().eq('assignment_id', id);
+
   const { error } = await admin.from('assignments').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
