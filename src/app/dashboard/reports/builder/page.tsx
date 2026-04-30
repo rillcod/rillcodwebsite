@@ -88,6 +88,14 @@ const MODULE_SUGGESTIONS: Record<string, { modules: string[]; next: string[] }> 
         modules: ['Variables & Data Types', 'Control Flow & Loops', 'Functions & Scope', 'Lists & Dictionaries', 'OOP Basics', 'File Handling', 'APIs & Libraries', 'Final Project'],
         next:    ['Control Flow & Loops', 'Functions & Scope', 'Lists & Dictionaries', 'OOP Basics', 'File Handling', 'APIs & Libraries', 'Final Project', 'Course Complete'],
     },
+    javascript: {
+        modules: ['Variables & Data Types', 'Control Flow & Conditionals', 'Functions & Scope', 'Arrays & Objects', 'DOM Manipulation', 'Events & Listeners', 'Async JS & Fetch API', 'Final JS Project'],
+        next:    ['Control Flow & Conditionals', 'Functions & Scope', 'Arrays & Objects', 'DOM Manipulation', 'Events & Listeners', 'Async JS & Fetch API', 'Final JS Project', 'Course Complete'],
+    },
+    html: {
+        modules: ['HTML Structure & Tags', 'Text, Links & Media', 'Tables & Forms', 'Semantic HTML5', 'CSS Selectors & Properties', 'Box Model & Layout', 'Flexbox & Grid', 'Final Webpage Project'],
+        next:    ['Text, Links & Media', 'Tables & Forms', 'Semantic HTML5', 'CSS Selectors & Properties', 'Box Model & Layout', 'Flexbox & Grid', 'Final Webpage Project', 'Course Complete'],
+    },
     web: {
         modules: ['HTML Fundamentals', 'CSS Styling & Layout', 'Flexbox & Grid', 'JavaScript Basics', 'DOM Manipulation', 'Forms & Validation', 'Responsive Design', 'Deployment'],
         next:    ['CSS Styling & Layout', 'Flexbox & Grid', 'JavaScript Basics', 'DOM Manipulation', 'Forms & Validation', 'Responsive Design', 'Deployment', 'Course Complete'],
@@ -116,12 +124,14 @@ const MODULE_SUGGESTIONS: Record<string, { modules: string[]; next: string[] }> 
 
 function getModuleSuggestions(courseName: string): { modules: string[]; next: string[] } {
     const lower = (courseName || '').toLowerCase();
-    if (lower.includes('python'))                                              return MODULE_SUGGESTIONS.python;
-    if (lower.includes('web') || lower.includes('html') || lower.includes('css')) return MODULE_SUGGESTIONS.web;
-    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml')) return MODULE_SUGGESTIONS.ai;
-    if (lower.includes('robot') || lower.includes('arduino'))                  return MODULE_SUGGESTIONS.robotics;
-    if (lower.includes('scratch'))                                             return MODULE_SUGGESTIONS.scratch;
-    if (lower.includes('game'))                                                return MODULE_SUGGESTIONS.game;
+    if (lower.includes('python'))                                                       return MODULE_SUGGESTIONS.python;
+    if (lower.includes('javascript') || lower.includes('js ') || lower === 'js')       return MODULE_SUGGESTIONS.javascript;
+    if (lower.startsWith('html') || lower.startsWith('css') || (lower.includes('html') && lower.includes('css') && !lower.includes('javascript'))) return MODULE_SUGGESTIONS.html;
+    if (lower.includes('web') || lower.includes('html') || lower.includes('css'))      return MODULE_SUGGESTIONS.web;
+    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml'))     return MODULE_SUGGESTIONS.ai;
+    if (lower.includes('robot') || lower.includes('arduino'))                          return MODULE_SUGGESTIONS.robotics;
+    if (lower.includes('scratch'))                                                      return MODULE_SUGGESTIONS.scratch;
+    if (lower.includes('game'))                                                         return MODULE_SUGGESTIONS.game;
     return MODULE_SUGGESTIONS.default;
 }
 const CLASS_PRESETS = [
@@ -152,6 +162,22 @@ const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
         'Successfully used Python libraries (e.g. math, random)',
         'Debugged and fixed at least 3 real code errors',
         'Completed Python exercises with 80%+ accuracy',
+    ],
+    javascript: [
+        'Mastered JS fundamentals: variables, functions, and arrays',
+        'Built interactive web features using DOM manipulation',
+        'Handled user events with event listeners and callbacks',
+        'Fetched and displayed live data from a public API',
+        'Debugged JavaScript errors using the browser console',
+        'Completed a final JavaScript project with real functionality',
+    ],
+    html: [
+        'Built well-structured HTML pages using semantic tags',
+        'Styled layouts using CSS properties and the box model',
+        'Created responsive designs with Flexbox or Grid',
+        'Built working forms with labels, validation, and inputs',
+        'Understood the difference between block and inline elements',
+        'Delivered a final multi-page styled HTML/CSS website',
     ],
     web: [
         'Built a fully styled HTML/CSS webpage from scratch',
@@ -197,12 +223,14 @@ const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
 
 function getMilestoneSuggestions(courseName: string): string[] {
     const lower = (courseName || '').toLowerCase();
-    if (lower.includes('python'))   return MILESTONE_SUGGESTIONS.python;
-    if (lower.includes('web') || lower.includes('html') || lower.includes('css')) return MILESTONE_SUGGESTIONS.web;
-    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml')) return MILESTONE_SUGGESTIONS.ai;
+    if (lower.includes('python'))                                                       return MILESTONE_SUGGESTIONS.python;
+    if (lower.includes('javascript') || lower.includes('js ') || lower === 'js')       return MILESTONE_SUGGESTIONS.javascript;
+    if (lower.startsWith('html') || lower.startsWith('css') || (lower.includes('html') && lower.includes('css') && !lower.includes('javascript'))) return MILESTONE_SUGGESTIONS.html;
+    if (lower.includes('web') || lower.includes('html') || lower.includes('css'))      return MILESTONE_SUGGESTIONS.web;
+    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml'))     return MILESTONE_SUGGESTIONS.ai;
     if (lower.includes('robot') || lower.includes('arduino') || lower.includes('iot')) return MILESTONE_SUGGESTIONS.robotics;
-    if (lower.includes('scratch')) return MILESTONE_SUGGESTIONS.scratch;
-    if (lower.includes('game'))    return MILESTONE_SUGGESTIONS.game;
+    if (lower.includes('scratch'))                                                      return MILESTONE_SUGGESTIONS.scratch;
+    if (lower.includes('game'))                                                         return MILESTONE_SUGGESTIONS.game;
     return MILESTONE_SUGGESTIONS.default;
 }
 
@@ -2656,44 +2684,84 @@ function ReportBuilderInner() {
                                     <span>{success || error}</span>
                                 </div>
                             )}
-                            <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-3 p-3 sm:p-4">
-                                <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
-                                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
-                                    <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Draft'}</span>
-                                    <span className="sm:hidden">{saving ? '…' : 'Draft'}</span>
-                                </button>
-                                <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
-                                    {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
-                                    {publishing ? 'Publishing…' : 'Publish'}
-                                </button>
-                                <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
-                                    <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
-                                </button>
-                                <button onClick={handleGenerateAll} disabled={generatingAll || !!generating}
-                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
-                                    {generatingAll ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
-                                    <span className="hidden sm:inline">{generatingAll ? 'Generating...' : 'Gen All'}</span>
-                                </button>
+                            <div className="max-w-5xl mx-auto p-3 sm:p-4 space-y-2">
+                                {/* Student identity row — always visible */}
+                                <div className="flex items-center justify-between gap-2 px-1">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                                            {selectedStudent?.full_name?.[0] ?? '?'}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-black text-foreground truncate leading-none">{selectedStudent?.full_name ?? 'Student'}</p>
+                                            <p className="text-[9px] text-muted-foreground leading-none mt-0.5 truncate">
+                                                {form.section_class || sessionConfig.section_class || selectedStudent?.section_class || ''}
+                                            </p>
+                                        </div>
+                                        {existingReport && (
+                                            <span className={`flex-shrink-0 text-[8px] px-1.5 py-0.5 rounded-full font-black ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                {form.is_published ? '✓ Published' : 'Draft'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] font-black text-muted-foreground flex-shrink-0 tabular-nums">
+                                        {currentStudentIdx + 1} / {filteredStudents.length}
+                                    </span>
+                                </div>
 
-                                <div className="ml-auto flex-shrink-0">
-                                    {currentStudentIdx < filteredStudents.length - 1 ? (
-                                        <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
-                                            <span className="hidden sm:inline">Next Student</span>
-                                            <span className="sm:hidden">Next</span>
-                                            <ChevronRightIcon className="w-4 h-4" />
+                                {/* Actions row */}
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <button onClick={() => handleSave(false)} disabled={saving || publishing}
+                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                                        {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
+                                        <span>{saving ? 'Saving…' : 'Draft'}</span>
+                                    </button>
+                                    <button onClick={() => handleSave(true)} disabled={saving || publishing}
+                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
+                                        {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <RocketLaunchIcon className="w-3.5 h-3.5" />}
+                                        <span>{publishing ? 'Publishing…' : 'Publish'}</span>
+                                    </button>
+                                    <button onClick={() => setShowPreview(true)}
+                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
+                                        <EyeIcon className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Preview</span>
+                                    </button>
+                                    <button onClick={handleGenerateAll} disabled={generatingAll || !!generating}
+                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                                        {generatingAll ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+                                        <span className="hidden sm:inline">{generatingAll ? 'Generating…' : 'Gen All'}</span>
+                                        <span className="sm:hidden">AI</span>
+                                    </button>
+
+                                    <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                                        {/* Previous student */}
+                                        <button
+                                            disabled={currentStudentIdx <= 0 || saving || publishing}
+                                            onClick={async () => {
+                                                if (saving || publishing || currentStudentIdx <= 0) return;
+                                                await handleSave(false);
+                                                const idx = currentStudentIdx - 1;
+                                                if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
+                                            }}
+                                            title="Previous student"
+                                            className="flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-25 border border-border">
+                                            <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                            <span className="hidden sm:inline">Prev</span>
                                         </button>
-                                    ) : (
-                                        <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
-                                            <span className="hidden sm:inline">Finish All</span>
-                                            <span className="sm:hidden">Done</span>
-                                            <CheckCircleIcon className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                        {/* Next student / finish */}
+                                        {currentStudentIdx < filteredStudents.length - 1 ? (
+                                            <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
+                                                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
+                                                <span>Next</span>
+                                                <ChevronRightIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
+                                                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
+                                                <CheckCircleIcon className="w-3.5 h-3.5" />
+                                                <span>Done</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
