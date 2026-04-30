@@ -173,6 +173,11 @@ export async function DELETE(
   // ── Step 1.7: Nullify uploaded_by on files (keep the files themselves) ──
   await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', id);
 
+  // ── Step 1.8: Study groups cleanup ──
+  await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', id);
+  await admin.from('study_group_members').delete().eq('user_id', id);
+  await admin.from('study_groups').update({ created_by: null }).eq('created_by', id);
+
   // ── Step 2: If this is a school account, also delete the linked schools row ──
   if (pu?.role === 'school' && pu?.school_id) {
     // Unlink any students tied to this school first

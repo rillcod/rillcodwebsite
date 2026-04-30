@@ -119,6 +119,9 @@ export async function DELETE(
     const puIds = portalUsers.map((pu) => pu.id);
     // Nullify file references and delete students rows before portal_users delete
     await admin.from('files').update({ uploaded_by: null }).in('uploaded_by', puIds);
+    await admin.from('study_group_messages').update({ sender_id: null }).in('sender_id', puIds);
+    await admin.from('study_group_members').delete().in('user_id', puIds);
+    await admin.from('study_groups').update({ created_by: null }).in('created_by', puIds);
     await admin.from('students').delete().in('user_id', puIds);
     for (const pu of portalUsers) {
       await admin.auth.admin.deleteUser(pu.id);
