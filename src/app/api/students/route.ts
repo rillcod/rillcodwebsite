@@ -249,8 +249,17 @@ export async function GET(request: Request) {
 
         if (myClassIds.length === 0) return NextResponse.json({ data: [] });
 
-        // 2. Filter students by those class IDs
-        query = query.in('class_id', myClassIds) as any;
+        // 2. class_id lives on portal_users, not students — get user_ids first
+        const { data: portalStudents } = await supabase
+          .from('portal_users')
+          .select('id')
+          .in('class_id', myClassIds)
+          .eq('role', 'student');
+        const studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
+
+        if (studentUserIds.length === 0) return NextResponse.json({ data: [] });
+
+        query = query.in('user_id', studentUserIds) as any;
       } else {
         // Collect all school IDs from teacher_schools + teacher's own school_id
         const schoolIds: string[] = [];
