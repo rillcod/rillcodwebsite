@@ -147,27 +147,26 @@ export async function POST(
 
           if (gradedRow) {
             // Notify student with rich HTML email
-            admin.from('portal_users').select('email, full_name').eq('id', effectiveUserId).single()
-              .then(({ data: studentInfo }) => {
-                if (!studentInfo?.email) return;
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-                const html = buildRillcodTransactionalEmailHtml({
-                  title: 'Assignment Graded',
-                  bodyHtml: `<p>Hi ${escapeHtml(studentInfo.full_name?.split(' ')[0] || 'there')},</p><p>Your assignment has been automatically marked. Your result is below.</p>`,
-                  summaryRows: [
-                    { label: 'Assignment', value: assignment.title || 'Assignment' },
-                    { label: 'Score', value: `${autoGrade} / ${maxPts}` },
-                    ...(weightedScore !== null ? [{ label: 'Weighted Score', value: String(weightedScore) }] : []),
-                  ],
-                  cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results' },
-                });
-                return queueService.queueNotification(effectiveUserId, 'email', {
-                  to: studentInfo.email,
-                  subject: `Graded: "${assignment.title || 'Assignment'}"`,
-                  html,
-                });
-              })
-              .catch(console.error);
+            (async () => {
+              const { data: studentInfo } = await admin.from('portal_users').select('email, full_name').eq('id', effectiveUserId).single();
+              if (!studentInfo?.email) return;
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+              const html = buildRillcodTransactionalEmailHtml({
+                title: 'Assignment Graded',
+                bodyHtml: `<p>Hi ${escapeHtml(studentInfo.full_name?.split(' ')[0] || 'there')},</p><p>Your assignment has been automatically marked. Your result is below.</p>`,
+                summaryRows: [
+                  { label: 'Assignment', value: assignment.title || 'Assignment' },
+                  { label: 'Score', value: `${autoGrade} / ${maxPts}` },
+                  ...(weightedScore !== null ? [{ label: 'Weighted Score', value: String(weightedScore) }] : []),
+                ],
+                cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results' },
+              });
+              await queueService.queueNotification(effectiveUserId, 'email', {
+                to: studentInfo.email,
+                subject: `Graded: "${assignment.title || 'Assignment'}"`,
+                html,
+              });
+            })().catch(console.error);
             return NextResponse.json({ data: gradedRow }, { status: 201 });
           }
         }
