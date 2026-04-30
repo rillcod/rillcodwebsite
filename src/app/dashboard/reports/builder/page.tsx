@@ -356,6 +356,13 @@ function ReportBuilderInner() {
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const pdfRef = useRef<HTMLDivElement>(null);
 
+    // ── Per-student module suggestion (derived from student's previous report) ──
+    const [suggestedModule, setSuggestedModule] = useState<{ current: string; next: string } | null>(null);
+
+    // ── Refs for restoring session after data load ────────────────────────────
+    const pendingRestoreStudentId = useRef<string | null>(null);
+    const pendingRestoreStudentIdx = useRef<number>(-1);
+
     const [branding, setBranding] = useState({
         org_name: '', org_tagline: '', org_address: '',
         org_phone: '', org_email: '', org_website: '', logo_url: '',
@@ -372,15 +379,26 @@ function ReportBuilderInner() {
     };
 
     // ── Restore session config from localStorage + init date ──────────────────
-    // ── Restore session config from localStorage + init date ──────────────────
     useEffect(() => {
         if (typeof window === 'undefined' || !profile?.id) return;
         const storageKey = `rillcod_report_session_${profile.id}`;
         try {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
-                const parsed = JSON.parse(saved) as Partial<SessionConfig>;
-                setSessionConfig(s => ({ ...s, ...parsed }));
+                const parsed = JSON.parse(saved) as Partial<SessionConfig> & {
+                    _step?: string; _sessionDone?: boolean;
+                    _selectedStudentId?: string; _currentStudentIdx?: number;
+                };
+                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, ...config } = parsed;
+                setSessionConfig(s => ({ ...s, ...config }));
+                if (_step && _step !== 'session') {
+                    setStep(_step as any);
+                    if (_sessionDone) setSessionDone(true);
+                }
+                if (_selectedStudentId) {
+                    pendingRestoreStudentId.current = _selectedStudentId;
+                    pendingRestoreStudentIdx.current = _currentStudentIdx ?? -1;
+                }
             }
         } catch { /* ignore */ }
         setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
@@ -403,14 +421,20 @@ function ReportBuilderInner() {
         return () => { clearTimeout(timer); obs?.disconnect(); };
     }, [showPreview]);
 
-    // ── Persist session config to localStorage on every change ────────────────
+    // ── Persist session config + navigation state to localStorage ────────────
     useEffect(() => {
         if (typeof window === 'undefined' || !profile?.id) return;
         const storageKey = `rillcod_report_session_${profile.id}`;
         try {
-            localStorage.setItem(storageKey, JSON.stringify(sessionConfig));
+            localStorage.setItem(storageKey, JSON.stringify({
+                ...sessionConfig,
+                _step: step,
+                _sessionDone: sessionDone,
+                _selectedStudentId: selectedStudent?.id ?? null,
+                _currentStudentIdx: currentStudentIdx,
+            }));
         } catch { /* ignore */ }
-    }, [sessionConfig, profile?.id]);
+    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, profile?.id]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {
@@ -549,6 +573,13 @@ function ReportBuilderInner() {
                 school_id: s.school_id || profile?.school_id || (schoolsList.length === 1 ? schoolsList[0].id : ''),
             }));
 
+                // Restore pending student (from localStorage navigation state)
+                const restoreId = pendingRestoreStudentId.current;
+                if (restoreId) {
+                    pendingRestoreStudentId.current = null;
+                    const s = processed.find((x: any) => x.id === restoreId || x._original_id === restoreId);
+                    if (s) { await selectStudent(s as PortalUser, pendingRestoreStudentIdx.current); return; }
+                }
                 if (prefStudentId) {
                     const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
                     if (s) selectStudent(s as PortalUser, 0);
@@ -601,6 +632,7 @@ function ReportBuilderInner() {
         setSelectedStudent(s);
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
+        setSuggestedModule(null);
 
         // Manual entry: skip DB lookup, go straight to empty form
         const isManual = s.id?.startsWith('manual-');
@@ -633,6 +665,35 @@ function ReportBuilderInner() {
                 .maybeSingle();
 
         setExistingReport(report ?? null);
+
+        // ── Smart module suggestion: look for a PREVIOUS report to advance from ──
+        // If the student has a previous report and its next_module != the current session
+        // module, show an "advance to next module?" hint for this individual student.
+        if (!isPrePortal && s.id) {
+            const { data: prevReport } = await db
+                .from('student_progress_reports')
+                .select('current_module, next_module')
+                .eq('student_id', s.id)
+                .order('updated_at', { ascending: false })
+                .range(1, 1)          // second-most-recent report
+                .maybeSingle();
+            if (!prevReport && report?.next_module) {
+                // Only one report found — suggest advancing from its next_module
+                const sugg = getModuleSuggestions(report.course_name ?? '');
+                const nextIdx = sugg.modules.indexOf(report.next_module);
+                const autoNext = nextIdx >= 0 && nextIdx + 1 < sugg.next.length
+                    ? sugg.next[nextIdx + 1]
+                    : sugg.next[sugg.modules.indexOf(report.next_module)] ?? '';
+                if (report.next_module && report.next_module !== report.current_module) {
+                    setSuggestedModule({ current: report.next_module, next: autoNext });
+                }
+            } else if (prevReport?.next_module) {
+                const sugg = getModuleSuggestions(report?.course_name ?? '');
+                const nextIdx = sugg.modules.indexOf(prevReport.next_module);
+                const autoNext = nextIdx >= 0 ? sugg.next[nextIdx] ?? '' : '';
+                setSuggestedModule({ current: prevReport.next_module, next: autoNext });
+            }
+        }
 
         // If an existing report has session-level fields, hydrate sessionConfig so
         // editing via direct URL (?student=id) doesn't overwrite them with blanks on save.
@@ -759,30 +820,19 @@ function ReportBuilderInner() {
             });
 
             // ── Auto-suggest all 6 WAEC components from real platform data ──────
-            // Only suggests when score is currently 0/unset (never overwrites teacher edits)
+            // Suggests when score is 0 or unset — never overwrites teacher edits
+            const isZero = (v: string) => !v || parseFloat(v) === 0;
             const attPct = sessionIds.length > 0
                 ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
                 : 0;
             setForm(f => ({
                 ...f,
-                // Theory (20%) → CBT examination score
-                ...(cbtScore > 0 && (f.theory_score === '0' || !f.theory_score)
-                    ? { theory_score: String(cbtScore) } : {}),
-                // Classwork (10%) → assignment grade average (quality proxy)
-                ...(assignmentAvg > 0 && (f.classwork_score === '0' || !f.classwork_score)
-                    ? { classwork_score: String(assignmentAvg) } : {}),
-                // Practical/Projects (25%) → lab + portfolio project ratio
-                ...(projectPct > 0 && (f.practical_score === '0' || !f.practical_score)
-                    ? { practical_score: String(projectPct) } : {}),
-                // Assignments (20%) → submission completion %
-                ...(assignmentPct > 0 && (f.attendance_score === '0' || !f.attendance_score)
-                    ? { attendance_score: String(assignmentPct) } : {}),
-                // Attendance (10%) → class sessions attendance %
-                ...(attPct > 0 && (f.participation_score === '0' || !f.participation_score)
-                    ? { participation_score: String(attPct) } : {}),
-                // Mid-term Assessment (15%) → CBT evaluation score
-                ...(evalScore > 0 && (f.assessment_score === '0' || !f.assessment_score)
-                    ? { assessment_score: String(evalScore) } : {}),
+                ...(cbtScore > 0 && isZero(f.theory_score)        ? { theory_score:        String(cbtScore) }     : {}),
+                ...(assignmentAvg > 0 && isZero(f.classwork_score) ? { classwork_score:     String(assignmentAvg) } : {}),
+                ...(projectPct > 0 && isZero(f.practical_score)    ? { practical_score:     String(projectPct) }   : {}),
+                ...(assignmentPct > 0 && isZero(f.attendance_score)? { attendance_score:    String(assignmentPct) }: {}),
+                ...(attPct > 0 && isZero(f.participation_score)    ? { participation_score: String(attPct) }       : {}),
+                ...(evalScore > 0 && isZero(f.assessment_score)    ? { assessment_score:    String(evalScore) }    : {}),
             }));
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
@@ -1335,7 +1385,17 @@ function ReportBuilderInner() {
                         </Field>
                         <Field label="Current Module">
                             <input list="mod-cur-bar" value={sessionConfig.current_module}
-                                onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    const sugg = getModuleSuggestions(sessionConfig.course_name);
+                                    const idx = sugg.modules.indexOf(val);
+                                    const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                                    setSessionConfig(s => ({
+                                        ...s,
+                                        current_module: val,
+                                        ...(autoNext && !s.next_module ? { next_module: autoNext } : {}),
+                                    }));
+                                }}
                                 className={INPUT} placeholder="e.g. Control Statements" />
                             <datalist id="mod-cur-bar">
                                 {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
@@ -1769,7 +1829,17 @@ function ReportBuilderInner() {
                                     <input
                                         list="module-current-list"
                                         value={sessionConfig.current_module}
-                                        onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            const sugg = getModuleSuggestions(sessionConfig.course_name);
+                                            const idx = sugg.modules.indexOf(val);
+                                            const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                                            setSessionConfig(s => ({
+                                                ...s,
+                                                current_module: val,
+                                                ...(autoNext && !s.next_module ? { next_module: autoNext } : {}),
+                                            }));
+                                        }}
                                         className={INPUT} placeholder="e.g. Control Statements" />
                                     <datalist id="module-current-list">
                                         {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
@@ -2080,6 +2150,31 @@ function ReportBuilderInner() {
                             </button>
                         </div>
 
+                        {/* Smart module suggestion banner */}
+                        {suggestedModule && (
+                            <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">
+                                <SparklesIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Smart Module Suggestion</p>
+                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
+                                        Previous report ended at <strong className="text-amber-300">{suggestedModule.current}</strong>
+                                        {suggestedModule.next && <> → Next: <strong className="text-amber-300">{suggestedModule.next}</strong></>}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSessionConfig(s => ({ ...s, current_module: suggestedModule.current, next_module: suggestedModule.next }));
+                                        setSuggestedModule(null);
+                                    }}
+                                    className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-black rounded-xl transition-colors flex-shrink-0">
+                                    Apply →
+                                </button>
+                                <button onClick={() => setSuggestedModule(null)} className="text-amber-400/40 hover:text-amber-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+
                         {/* Transparent score sources bar — 6 weighted components */}
                         {!fetchingStats && (
                             <div className="bg-[#0d1526] border border-border px-5 py-3 space-y-2">
@@ -2295,8 +2390,15 @@ function ReportBuilderInner() {
                                                         <div className="flex items-center gap-px flex-shrink-0">
                                                             <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
                                                             <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
-                                                            <input type="number" min="0" max="100" value={String(form[key])}
-                                                                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                            <input
+                                                                type="text" inputMode="numeric" pattern="[0-9]*"
+                                                                value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
+                                                                placeholder="0"
+                                                                onChange={e => {
+                                                                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                                                                    setForm(f => ({ ...f, [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))) }));
+                                                                }}
+                                                                onFocus={e => { if (!e.target.value) e.target.select(); }}
                                                                 className="w-9 text-center py-0.5 bg-card border border-border rounded-xl text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
                                                             <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
                                                             <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
