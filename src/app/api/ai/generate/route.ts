@@ -143,11 +143,18 @@ interface GenerateRequest {
   theoryScore?: number | string;
   practicalScore?: number | string;
   participationScore?: number | string;
+  classworkScore?: number | string;
+  assessmentScore?: number | string;
+  attendanceScore?: number | string;
   overallScore?: number | string;
   overallGrade?: string;
   proficiencyLevel?: string;
   courseName?: string;
   programName?: string;
+  // Qualifiers selected/typed by the teacher — used to ground AI output
+  participationGrade?: string;
+  projectsGrade?: string;
+  homeworkGrade?: string;
   prompt?: string;
   difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
@@ -195,6 +202,9 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
       const theory = Number(req.theoryScore ?? 0);
       const practical = Number(req.practicalScore ?? 0);
       const participation = Number(req.participationScore ?? 0);
+      const classwork = Number(req.classworkScore ?? 0);
+      const assessment = Number(req.assessmentScore ?? 0);
+      const attendance = Number(req.attendanceScore ?? 0);
       const proficiency = req.proficiencyLevel ?? 'intermediate';
 
       // Convert scores to descriptive bands — never expose raw numbers to the AI output
@@ -207,18 +217,30 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
         n >= 35 ? 'fair' : 'needs improvement';
 
       const overallBand = band(overallScore);
-      const theoryBand = band(theory);
-      const practicalBand = band(practical);
-      const participationBand = band(participation);
 
-      // Identify weakest/strongest area by label only
-      const scores = { Theory: theory, Practical: practical, Participation: participation };
-      const weakest = Object.entries(scores).sort(([, a], [, b]) => a - b)[0][0];
-      const strongest = Object.entries(scores).sort(([, a], [, b]) => b - a)[0][0];
+      // Identify weakest/strongest among all 6 WAEC components
+      const allScores = {
+        'Theory/Written Tests': theory,
+        'Classwork & Participation': classwork,
+        'Practical/Projects': practical,
+        'Assignments Submitted': attendance,
+        'Session Attendance': participation,
+        'Mid-term Assessment': assessment,
+      };
+      const sorted = Object.entries(allScores).filter(([, v]) => v > 0).sort(([, a], [, b]) => a - b);
+      const weakest = sorted[0]?.[0] ?? 'Theory';
+      const strongest = sorted[sorted.length - 1]?.[0] ?? 'Practical';
 
       const courseLine = req.courseName ? `Course: "${req.courseName}"` : '';
       const programLine = req.programName ? `Programme: "${req.programName}"` : '';
       const contextBlock = [courseLine, programLine].filter(Boolean).join('\n');
+
+      // Qualifier context — teacher-selected descriptors ground the AI to real observations
+      const qualifierLines = [
+        req.participationGrade ? `Classwork & participation (teacher's observation): "${req.participationGrade}"` : '',
+        req.projectsGrade      ? `Projects & practical (teacher's observation): "${req.projectsGrade}"` : '',
+        req.homeworkGrade      ? `Assignments & homework (teacher's observation): "${req.homeworkGrade}"` : '',
+      ].filter(Boolean).join('\n');
 
       return `You are an experienced Nigerian school administrator writing brief, professional student report card comments.
 
@@ -226,18 +248,19 @@ Student: "${req.studentName ?? 'The student'}"
 ${contextBlock}
 Current Topic/Module: "${req.topic}"
 Overall performance: ${overallBand}
-Theory: ${theoryBand} | Practical: ${practicalBand} | Participation: ${participationBand}
-Strongest area: ${strongest} | Area needing most attention: ${weakest}
+Scores by component: Theory=${band(theory)} | Classwork=${band(classwork)} | Practical=${band(practical)} | Assignments=${band(attendance)} | Attendance=${band(participation)} | Mid-term=${band(assessment)}
+Strongest component: ${strongest} | Component needing most attention: ${weakest}
 Proficiency level: ${proficiency}
+${qualifierLines ? `\nTeacher qualifiers (use these to make comments specific and grounded):\n${qualifierLines}` : ''}
 
 RULES — follow strictly:
 1. Write EXACTLY 2-3 short, clear sentences per section. No more, no less.
 2. NEVER include any numbers, percentages, or scores in your output — use only descriptive words (e.g. "excellent", "satisfactory", "needs more practice").
 3. Use simple, everyday English that parents and students can easily understand.
-4. Be SPECIFIC — reference the course or programme name to make the comment feel personal.
+4. Be SPECIFIC — reference the course or programme name AND any teacher qualifier phrases to make the comment feel personal and accurate.
 5. Sound like a caring but professional head teacher — warm, honest, and encouraging.
-6. Key Strengths: celebrate what the student genuinely did well, referencing their strongest area and overall performance level.
-7. Areas for Growth: give one clear, kind, achievable action the student can take in this specific course, focused on the weakest area.
+6. Key Strengths: celebrate what the student genuinely did well, using the strongest component and teacher qualifiers as evidence.
+7. Areas for Growth: give one clear, kind, achievable action the student can take in this specific course, focused on the weakest component and grounded in the teacher's observations.
 
 Return ONLY this JSON (no extra text):
 {

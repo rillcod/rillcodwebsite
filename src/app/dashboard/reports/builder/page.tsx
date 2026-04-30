@@ -365,6 +365,9 @@ function ReportBuilderInner() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // null = no issue | 'published' = already published this term | 'cross-session' = loaded from different course/term
+    const [duplicateWarning, setDuplicateWarning] = useState<null | 'published' | 'cross-session'>(null);
+    const [duplicateDetail, setDuplicateDetail] = useState<string>('');
 
     // Auto-clear success after 4 seconds
     const setSuccessMsg = (msg: string) => {
@@ -664,6 +667,8 @@ function ReportBuilderInner() {
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
         setSuggestedModule(null);
+        setDuplicateWarning(null);
+        setDuplicateDetail('');
 
         // Manual entry: skip DB lookup, go straight to empty form
         const isManual = s.id?.startsWith('manual-');
@@ -696,6 +701,19 @@ function ReportBuilderInner() {
                 .maybeSingle();
 
         setExistingReport(report ?? null);
+
+        // ── Duplicate / cross-session detection ──────────────────────────────────
+        if (report) {
+            const sameCourse = sessionConfig.course_id && report.course_id === sessionConfig.course_id;
+            const sameTerm   = sessionConfig.report_term && report.report_term === sessionConfig.report_term;
+            if (sameCourse && sameTerm && report.is_published) {
+                setDuplicateWarning('published');
+                setDuplicateDetail(`${report.course_name ?? 'this course'} — ${report.report_term}`);
+            } else if (sessionConfig.course_id && report.course_id && report.course_id !== sessionConfig.course_id) {
+                setDuplicateWarning('cross-session');
+                setDuplicateDetail(`${report.course_name ?? '?'} (${report.report_term ?? '?'})`);
+            }
+        }
 
         // ── Smart module suggestion: look for a PREVIOUS report to advance from ──
         // If the student has a previous report and its next_module != the current session
@@ -1183,12 +1201,20 @@ function ReportBuilderInner() {
                         programName: programName,
                         studentName: form.student_name || 'The Student',
                         gradeLevel: form.section_class || 'General Academic',
-                        theoryScore: form.theory_score,
-                        practicalScore: form.practical_score,
-                        participationScore: form.participation_score,
-                        overallScore: overallScore,
+                        // All 6 WAEC components
+                        theoryScore:        parseFloat(form.theory_score)        || 0,
+                        classworkScore:     parseFloat(form.classwork_score)     || 0,
+                        practicalScore:     parseFloat(form.practical_score)     || 0,
+                        attendanceScore:    parseFloat(form.attendance_score)    || 0,
+                        participationScore: parseFloat(form.participation_score) || 0,
+                        assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                        overallScore,
                         overallGrade: overallGradeLetter,
                         proficiencyLevel: form.proficiency_level,
+                        // Teacher-selected qualifiers — ground AI output in real observations
+                        participationGrade: form.participation_grade || '',
+                        projectsGrade:      form.projects_grade      || '',
+                        homeworkGrade:      form.homework_grade       || '',
                     }),
                 });
 
@@ -2229,6 +2255,36 @@ function ReportBuilderInner() {
                                     Apply →
                                 </button>
                                 <button onClick={() => setSuggestedModule(null)} className="text-amber-400/40 hover:text-amber-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Duplicate / cross-session warning banner */}
+                        {duplicateWarning === 'published' && (
+                            <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl px-4 py-3">
+                                <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Already Published This Term</p>
+                                    <p className="text-[11px] text-rose-300/70 mt-0.5">
+                                        A published report already exists for <strong className="text-rose-300">{selectedStudent?.full_name}</strong> in <strong className="text-rose-300">{duplicateDetail}</strong>. Saving will update the existing report — the student will see the new values.
+                                    </p>
+                                </div>
+                                <button onClick={() => setDuplicateWarning(null)} className="text-rose-400/40 hover:text-rose-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {duplicateWarning === 'cross-session' && (
+                            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                                <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Scores From a Different Course</p>
+                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
+                                        The pre-filled scores below are from a previous report for <strong className="text-amber-300">{duplicateDetail}</strong>, not the current session course. Review scores before saving.
+                                    </p>
+                                </div>
+                                <button onClick={() => setDuplicateWarning(null)} className="text-amber-400/40 hover:text-amber-400 transition-colors flex-shrink-0">
                                     <XMarkIcon className="w-3.5 h-3.5" />
                                 </button>
                             </div>
