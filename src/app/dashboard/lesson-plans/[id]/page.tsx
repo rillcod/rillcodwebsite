@@ -1163,14 +1163,14 @@ export default function LessonPlanDetailPage() {
       <div className="hidden print:block border-b border-black pb-3 mb-2">
         <div className="flex items-start gap-3">
           <img src="/logo.png" alt="Rillcod Technologies" className="w-14 h-14 object-contain" />
-          <div className="flex-1 min-w-0 text-black">
+          <div className="flex-1 min-w-0 text-foreground">
             <p className="text-lg font-black leading-tight">RILLCOD TECHNOLOGIES</p>
             <p className="text-[11px] leading-tight">Coding Today, Innovating Tomorrow</p>
             <p className="text-[10px] leading-tight mt-1">
               26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · 08116600091 · support@rillcod.com
             </p>
           </div>
-          <div className="text-right text-black">
+          <div className="text-right text-foreground">
             <p className="text-[10px] font-bold uppercase tracking-wider">Document</p>
             <p className="text-xs font-black uppercase">Term Lesson Plan</p>
             <p className="text-[10px] mt-1">{new Date().toLocaleDateString('en-GB')}</p>
