@@ -67,7 +67,7 @@ interface Course {
     tags?: string[];
   } | null;
 }
-interface Class { id: string; name: string; school_id?: string | null }
+interface Class { id: string; name: string; school_id?: string | null; teacher_id?: string | null }
 interface School { id: string; name: string }
 interface Program { id: string; name: string }
 interface Curriculum {
@@ -132,6 +132,7 @@ function LessonPlansPageInner() {
   const qpProgramId    = sp.get('program_id');
   const qpCurriculumId = sp.get('curriculum_id');
   const qpTerm         = sp.get('term');
+  const qpClassId      = sp.get('class_id');
 
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -175,7 +176,7 @@ function LessonPlansPageInner() {
     term: qpTerm ?? '',
     program_id: qpProgramId ?? '',
     course_id: qpCourseId ?? '',
-    class_id: '',
+    class_id: qpClassId ?? '',
     school_id: '',
     term_start: '',
     term_end: '',
@@ -255,11 +256,9 @@ function LessonPlansPageInner() {
     try {
       const [plansRes, coursesRes, classesRes, programsRes] = await Promise.all([
         fetch('/api/lesson-plans'),
-        // Lesson-plan form needs broad course coverage across programmes.
-        // /api/courses is paginated by default; request a high limit to avoid
-        // "programme selected but no courses visible" in Step 2.
         fetch('/api/courses?limit=500'),
-        fetch('/api/classes'),
+        // Teachers: only fetch their own classes so the form is already scoped
+        fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes'),
         fetch('/api/programs?is_active=true'),
       ]);
       const plansJson    = await plansRes.json();
@@ -330,6 +329,7 @@ function LessonPlansPageInner() {
   async function save() {
     if (!form.term) { toast.error('Please select a term'); return; }
     if (!form.course_id) { toast.error('Please select a course'); return; }
+    if (isTeacher && !form.class_id) { toast.error('Select the class you are teaching before creating a lesson plan'); return; }
     if (!form.term_start || !form.term_end) { toast.error('Start and end dates are required'); return; }
     const startDate = new Date(form.term_start);
     const endDate = new Date(form.term_end);
@@ -464,9 +464,14 @@ function LessonPlansPageInner() {
   // with grade_levels yet, we skip the grade filter entirely so the dropdown
   // is never accidentally empty.
   const formClasses = useMemo(() => {
-    const bySchool = form.school_id
-      ? allClasses.filter(c => c.school_id === form.school_id)
+    // Teachers can only assign lesson plans to classes they personally teach
+    const teacherScoped = isTeacher && profile?.id
+      ? allClasses.filter(c => c.teacher_id === profile.id)
       : allClasses;
+
+    const bySchool = form.school_id
+      ? teacherScoped.filter(c => c.school_id === form.school_id)
+      : teacherScoped;
 
     const selectedCourse = courses.find(c => c.id === form.course_id);
     const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);

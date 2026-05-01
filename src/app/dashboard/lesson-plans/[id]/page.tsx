@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
-  BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon,
+  BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon, AcademicCapIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -188,15 +188,28 @@ function buildPlanWeekCreateCbtUrl(opts: {
     topic: w.topic || '',
     minimal: 'true',
   });
-  // If it's week 3, 6 or last week, hint 'examination', else 'evaluation' (quiz)
   const isAssessmentWeek = [3, 6].includes(w.week);
-  const isExamWeek = w.week >= 8; // simplified heuristic
+  const isExamWeek = w.week >= 8;
   if (isExamWeek || isAssessmentWeek) {
     q.set('exam_type', 'examination');
   } else {
     q.set('exam_type', 'evaluation');
   }
   return `/dashboard/cbt/new?${q.toString()}`;
+}
+
+function buildPlanWeekFlashcardUrl(opts: { plan: LessonPlan; week: WeekEntry }): string {
+  const { plan, week: w } = opts;
+  const q = new URLSearchParams({
+    course_id: plan.course_id ?? '',
+    lesson_plan_id: plan.id,
+    program_id: plan.courses?.program_id ?? '',
+    curriculum_id: plan.curriculum_version_id ?? '',
+    week: String(w.week),
+    topic: w.topic || '',
+    source: 'lesson-plan-week',
+  });
+  return `/dashboard/flashcards?${q.toString()}`;
 }
 
 type ProgressionPreview = {
@@ -444,6 +457,9 @@ export default function LessonPlanDetailPage() {
   } | null>(null);
   const [lmsOpen, setLmsOpen] = useState(false);
   const [aiWeek, setAiWeek] = useState<WeekEntry | null>(null);
+  const [myClasses, setMyClasses] = useState<{ id: string; name: string; teacher_id?: string | null }[]>([]);
+  const [assigningClass, setAssigningClass] = useState(false);
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
     scopeLabel: string;
     preview: ProgressionPreview;
@@ -772,13 +788,16 @@ export default function LessonPlanDetailPage() {
   }
 
   async function bulkGenerate(type: 'lessons' | 'assignments' | 'projects' | 'cbt' | 'flashcards') {
-    if (!plan || plan.status !== 'published') {
-      toast.error('Only published plans can generate content');
-      return;
-    }
+    if (!plan) return;
 
     if (!plan.course_id || !plan.school_id) {
       toast.error('This plan needs a course and school linked before generating content — click Edit Plan to add them.');
+      return;
+    }
+
+    if (!plan.class_id) {
+      toast.error('Assign this plan to a class first — click the class badge in the header above.');
+      setClassPickerOpen(true);
       return;
     }
 
@@ -1047,6 +1066,35 @@ export default function LessonPlanDetailPage() {
   }
 
 
+  // Load teacher's own classes for inline class assignment
+  useEffect(() => {
+    if (!profile?.id || !['teacher', 'admin'].includes(profile.role ?? '')) return;
+    const url = profile.role === 'teacher' ? '/api/classes?mine=true' : '/api/classes';
+    fetch(url)
+      .then(r => r.json())
+      .then(j => setMyClasses((j.data ?? []) as { id: string; name: string; teacher_id?: string | null }[]))
+      .catch(() => {});
+  }, [profile?.id, profile?.role]);
+
+  async function assignClass(classId: string | null) {
+    setAssigningClass(true);
+    try {
+      const res = await fetch(`/api/lesson-plans/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: classId }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      toast.success(classId ? 'Class assigned' : 'Class removed');
+      setClassPickerOpen(false);
+      load();
+    } catch {
+      toast.error('Failed to assign class');
+    } finally {
+      setAssigningClass(false);
+    }
+  }
+
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -1231,7 +1279,55 @@ export default function LessonPlanDetailPage() {
             <h1 className="text-xl font-black text-card-foreground">
               {plan.term ?? 'Term Plan'} — {courseTitle}
             </h1>
-            {plan.classes?.name && <p className="text-card-foreground/50 text-sm mt-0.5">{plan.classes.name}</p>}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {plan.classes?.name ? (
+                <button
+                  onClick={() => setClassPickerOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-sm text-card-foreground/60 hover:text-card-foreground transition-colors group"
+                >
+                  <AcademicCapIcon className="w-3.5 h-3.5" />
+                  <span>{plan.classes.name}</span>
+                  <span className="text-xs text-primary/60 group-hover:text-primary">(change)</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setClassPickerOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20"
+                >
+                  <AcademicCapIcon className="w-3.5 h-3.5" />
+                  No class assigned — click to assign
+                </button>
+              )}
+            </div>
+            {classPickerOpen && (
+              <div className="mt-2 p-3 bg-card border border-white/[0.12] rounded-xl shadow-xl z-10 w-full max-w-xs">
+                <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/50 mb-2">Assign to class</p>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {myClasses.length === 0 && (
+                    <p className="text-xs text-card-foreground/40">No classes found — ensure you are assigned as teacher to a class first.</p>
+                  )}
+                  {myClasses.map(cls => (
+                    <button
+                      key={cls.id}
+                      onClick={() => assignClass(cls.id)}
+                      disabled={assigningClass}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold transition-colors ${plan.class_id === cls.id ? 'bg-primary/20 text-primary' : 'hover:bg-white/[0.06] text-card-foreground/80'}`}
+                    >
+                      {cls.name}
+                    </button>
+                  ))}
+                  {plan.class_id && (
+                    <button
+                      onClick={() => assignClass(null)}
+                      disabled={assigningClass}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-rose-400/70 hover:text-rose-400 transition-colors"
+                    >
+                      Remove class
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 print:hidden">
             {nextStatuses.map(ns => (
@@ -1400,6 +1496,38 @@ export default function LessonPlanDetailPage() {
       {/* Week Entries */}
       {activeTab === 'weeks' && (
         <div className="space-y-3">
+        {/* Quick Generate bar */}
+        {canGenerateProgression && plan.course_id && plan.school_id && (
+          <div className="print:hidden bg-card border border-white/[0.08] rounded-2xl p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-3">Generate content for this plan</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => bulkGenerate('lessons')} disabled={generating !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                <SparklesIcon className="w-3.5 h-3.5" /> Lessons
+              </button>
+              <button onClick={() => bulkGenerate('assignments')} disabled={generating !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                <SparklesIcon className="w-3.5 h-3.5" /> Assignments
+              </button>
+              <button onClick={() => bulkGenerate('cbt')} disabled={generating !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/90 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                <BoltIcon className="w-3.5 h-3.5" /> CBT Exams
+              </button>
+              <button onClick={() => bulkGenerate('flashcards')} disabled={generating !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/90 hover:bg-yellow-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                <SparklesIcon className="w-3.5 h-3.5" /> Flashcards
+              </button>
+              <button onClick={() => bulkGenerate('projects')} disabled={generating !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                <SparklesIcon className="w-3.5 h-3.5" /> Projects
+              </button>
+            </div>
+            {genProgress && (
+              <p className="text-xs text-card-foreground/50 mt-2">{genProgress.status} — {genProgress.generated}/{genProgress.total}</p>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between print:hidden">
           <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
           <button onClick={addWeek} disabled={saving || weekDraft !== null}
@@ -1501,9 +1629,16 @@ export default function LessonPlanDetailPage() {
                             courseTitle,
                           })}
                           className="p-1.5 hover:bg-amber-500/10 rounded-lg transition-all"
-                          title="Generate CBT/Flashcards for this week"
+                          title="Create CBT exam for this week"
                         >
                           <BoltIcon className="w-3.5 h-3.5 text-amber-400" />
+                        </Link>
+                        <Link
+                          href={buildPlanWeekFlashcardUrl({ plan, week: w })}
+                          className="p-1.5 hover:bg-yellow-500/10 rounded-lg transition-all"
+                          title="Create flashcards for this week"
+                        >
+                          <TrophyIcon className="w-3.5 h-3.5 text-yellow-400/80" />
                         </Link>
                         <button
                           onClick={() => toggleWeekCompleted(w.week)}
