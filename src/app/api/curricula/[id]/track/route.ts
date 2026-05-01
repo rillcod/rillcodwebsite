@@ -158,3 +158,40 @@ export async function POST(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });
 }
+
+// DELETE /api/curricula/[id]/track?term=1
+// Resets tracking: term= scopes to one term, omit to clear all tracking for this curriculum.
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await getStaff();
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (auth.profile.role === 'school') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+  const admin = createAdminClient() as any;
+  const { data: curriculum, error: currErr } = await admin
+    .from('course_curricula')
+    .select('id, school_id')
+    .eq('id', id)
+    .maybeSingle();
+  if (currErr) return NextResponse.json({ error: currErr.message }, { status: 500 });
+  if (!curriculum) return NextResponse.json({ error: 'Curriculum not found' }, { status: 404 });
+
+  const canWrite = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
+  if (!canWrite) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const term = new URL(req.url).searchParams.get('term');
+
+  let q = admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
+  if (curriculum.school_id) q = q.eq('school_id', curriculum.school_id);
+  else q = q.is('school_id', null);
+  if (term) q = q.eq('term_number', parseInt(term, 10));
+
+  const { error } = await q;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
