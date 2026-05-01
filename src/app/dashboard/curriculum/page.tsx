@@ -52,6 +52,8 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
 }
 
 // ── Content generation types ─────────────────────────────────────────────────
+// Only includes types NOT already present as quick actions in the week slide-over
+// (CBT, Flashcards, and Lesson are handled there — click any week in the Syllabus tab).
 const CONTENT_TYPES = [
   {
     key: 'assignment' as const,
@@ -59,7 +61,7 @@ const CONTENT_TYPES = [
     icon: ClipboardDocumentListIcon,
     active: 'text-cyan-400 border-cyan-500/40 bg-cyan-500/10 ring-1 ring-cyan-500/40',
     idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Homework task for students to complete — saved to Assignments',
+    desc: 'Homework task saved directly to Assignments — pick the week below',
   },
   {
     key: 'project' as const,
@@ -67,23 +69,7 @@ const CONTENT_TYPES = [
     icon: RocketLaunchIcon,
     active: 'text-primary border-primary/40 bg-primary/10 ring-1 ring-primary/40',
     idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Hands-on project with deliverables — saved to Assignments as project type',
-  },
-  {
-    key: 'cbt' as const,
-    label: 'CBT Exam',
-    icon: AcademicCapIcon,
-    active: 'text-rose-400 border-rose-500/40 bg-rose-500/10 ring-1 ring-rose-500/40',
-    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Computer-based quiz or exam — opens CBT builder pre-filled with week topic',
-  },
-  {
-    key: 'flashcard' as const,
-    label: 'Flashcards',
-    icon: StarIcon,
-    active: 'text-yellow-400 border-yellow-500/40 bg-yellow-500/10 ring-1 ring-yellow-500/40',
-    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Interactive study cards with AI generated Q&A — opens Flashcard Studio',
+    desc: 'Hands-on project saved directly to Assignments (project type) — pick the week below',
   },
 ] as const;
 type ContentKey = typeof CONTENT_TYPES[number]['key'];
@@ -1297,17 +1283,6 @@ export default function CurriculumPage() {
       const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
       const projDue = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
 
-      if (genContentType === 'cbt') {
-        const q = new URLSearchParams({
-          course_id: selectedCourse.id,
-          program_id: selectedProgram?.id || selectedCourse.program_id || '',
-          topic: genWeek.topic,
-          week: String(genWeek.week),
-          curriculum_id: curriculum?.id ?? curriculumList[0]?.id ?? '',
-        });
-        router.push(`/dashboard/cbt/new?${q.toString()}`);
-        return;
-      }
       if (genContentType === 'assignment') {
         const currId = curriculum?.id ?? curriculumList[0]?.id;
         const res = await fetch('/api/assignments', {
@@ -1353,38 +1328,6 @@ export default function CurriculumPage() {
         return;
       }
 
-      // @ts-ignore - TS thinks genContentType is narrowed away, but it's valid
-      if (genContentType === 'flashcard') {
-        const currId = curriculum?.id ?? curriculumList[0]?.id;
-        const res = await fetch('/api/flashcards/decks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: weekTag,
-            description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
-            course_id: selectedCourse.id,
-            tags: ['curriculum', genWeek.topic],
-            metadata: {
-              source: 'curriculum-gen',
-              curriculum_id: currId,
-              week: genWeek.week
-            }
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to create flashcard deck');
-
-        const q = new URLSearchParams({
-          deckId: json.data.id,
-          topic: genWeek.topic,
-          autoGenerate: 'true',
-          course_id: selectedCourse.id,
-          curriculum_id: currId || '',
-          week: String(genWeek.week)
-        });
-        router.push(`/dashboard/flashcards?${q.toString()}`);
-        return;
-      }
     } catch (e: any) {
       setGenTabError(e.message || 'Something went wrong — please try again');
     } finally {
@@ -1893,7 +1836,7 @@ export default function CurriculumPage() {
                 <div>
                   <h1 className="text-xl font-black text-foreground">Create Content</h1>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Pick a week, choose what to create. To add a lesson, click any week in the <button className="underline font-semibold text-primary" onClick={() => setActiveTab('syllabus')}>Syllabus tab</button> and tap <strong>Open Lesson Builder →</strong>.
+                    Create an <strong>Assignment</strong> or <strong>Project</strong> for any week — saved directly to Assignments. For a <strong>Lesson</strong>, <strong>CBT Quiz</strong>, or <strong>Flashcards</strong>, go to the <button className="underline font-semibold text-primary" onClick={() => setActiveTab('syllabus')}>Syllabus tab</button>, click any week, and use the quick-action buttons there.
                   </p>
                 </div>
               </div>
