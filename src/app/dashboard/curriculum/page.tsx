@@ -157,7 +157,13 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
 
 const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
 const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
-const GRADE_LEVEL_OPTIONS = ['Nursery', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'];
+const GRADE_LEVEL_OPTIONS = [
+  'Nursery',
+  'Basic 1', 'Basic 2', 'Basic 3', 'Basic 1–Basic 3',
+  'Basic 4', 'Basic 5', 'Basic 6', 'Basic 4–Basic 6',
+  'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3',
+  'SS1', 'SS2', 'SS1–SS2', 'SS3',
+];
 const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 
 // ── Main Page ────────────────────────────────────────────────────────────────
