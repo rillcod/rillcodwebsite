@@ -2141,8 +2141,8 @@ export default function CurriculumPage() {
                           <SparklesIcon className="w-3 h-3" /> Syllabus
                         </div>
                         {curriculum.schools?.name && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
-                            <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools.name}
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-black uppercase tracking-[0.15em] text-emerald-400">
+                            <BuildingOfficeIcon className="w-3.5 h-3.5" /> {curriculum.schools.name}
                           </div>
                         )}
                       </div>
