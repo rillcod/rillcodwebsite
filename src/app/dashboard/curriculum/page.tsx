@@ -23,6 +23,7 @@ import {
   type SyllabusContent,
   type SyllabusPreviewRole,
 } from '@/components/curriculum/SyllabusPreview';
+import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -1410,9 +1411,9 @@ export default function CurriculumPage() {
   if (learnerMode || isSchool) {
     return (
       <div className="flex flex-col min-h-screen bg-background text-foreground">
-        <div className="shrink-0 border-b border-border bg-card px-4 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">Course Syllabus</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
+        <div className="shrink-0 border-b border-border bg-card px-4 py-3 space-y-2">
+          <PlanningBreadcrumb current="syllabus" />
+          <p className="text-xs text-muted-foreground">
             {selectedCourse ? selectedCourse.title : 'Select a course to view its syllabus'}
           </p>
         </div>
@@ -1489,40 +1490,44 @@ export default function CurriculumPage() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card z-20">
-        <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600">
-              {selectedCourse ? `${selectedProgram?.name ?? 'Programme'} › ${selectedCourse.title}` : 'Course Syllabus'}
-            </p>
+        <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col gap-3">
+          {/* Planning trio breadcrumb */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <PlanningBreadcrumb current="syllabus" />
+            <button
+              type="button"
+              onClick={() => setShowHelp(h => !h)}
+              className="shrink-0 self-start sm:self-auto px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+            >
+              {showHelp ? 'Hide guide' : '? How it works'}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowHelp(h => !h)}
-            className="shrink-0 px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-          >
-            {showHelp ? 'Hide guide' : '? How it works'}
-          </button>
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:max-w-lg shrink-0">
-            <div className="relative flex-1 min-w-0">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="search"
-                value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
-                placeholder="Search programmes & courses…"
-                className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                aria-label="Filter programmes and courses"
-              />
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <div className="min-w-0 flex-1 text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600 flex items-center">
+              {selectedCourse ? `${selectedProgram?.name ?? 'Programme'} › ${selectedCourse.title}` : 'Course Syllabus'}
             </div>
-            {canTrack && programs.length > 0 && (
-              <button
-                type="button"
-                onClick={expandAllPrograms}
-                className="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest border border-border bg-card hover:bg-muted/30 text-foreground"
-              >
-                Expand all
-              </button>
-            )}
+            <div className="flex flex-col sm:flex-row gap-2 sm:max-w-lg shrink-0">
+              <div className="relative flex-1 min-w-0">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="search"
+                  value={catalogQuery}
+                  onChange={(e) => setCatalogQuery(e.target.value)}
+                  placeholder="Search programmes & courses…"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  aria-label="Filter programmes and courses"
+                />
+              </div>
+              {canTrack && programs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={expandAllPrograms}
+                  className="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest border border-border bg-card hover:bg-muted/30 text-foreground"
+                >
+                  Expand all
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

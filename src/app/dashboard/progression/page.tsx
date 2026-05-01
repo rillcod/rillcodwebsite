@@ -13,6 +13,8 @@ import {
 import type {
   StudentLevelEnrollment, PromotionDecision,
 } from '@/types/progression.types';
+import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
+import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 // ── Term helpers ──────────────────────────────────────────────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
@@ -122,47 +124,56 @@ export default function ProgressionPage() {
   if (!isStaff) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Unauthorized Terminal Access</div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-12 pb-32">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 pb-32">
+
+      {/* ── Planning Trio Breadcrumb ── */}
+      <PlanningBreadcrumb current="progression" className="pt-1" />
+
+      {/* ── Pipeline Stepper (Step 6 active) ── */}
+      <div className="bg-card border border-border rounded-2xl p-3 sm:p-4">
+        <PipelineStepper current="progression" />
+      </div>
 
       {/* Hero Governance Header */}
-      <div className="relative overflow-hidden bg-card border border-border rounded-[3rem] p-10 sm:p-14 shadow-2xl">
-        <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-primary/10 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-emerald-600/10 rounded-full blur-[120px] -ml-48 -mb-48 pointer-events-none" />
+      <div className="relative overflow-hidden bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-2xl">
+        <div className="absolute top-0 right-0 w-[30rem] h-[30rem] bg-primary/10 rounded-full blur-[100px] -mr-48 -mt-48 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[20rem] h-[20rem] bg-emerald-600/10 rounded-full blur-[80px] -ml-32 -mb-32 pointer-events-none" />
         
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10 relative z-10">
-          <div className="space-y-4 max-w-2xl">
-            <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-3 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] text-primary">Academic Authority</span>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{filterTerm} Cycle</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-card-foreground leading-tight">Progression Terminal</h1>
-            <p className="text-lg text-muted-foreground leading-relaxed italic max-w-xl">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-card-foreground leading-tight">Progression Terminal</h1>
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed italic max-w-xl">
               Audit institutional performance, govern promotion cycles, and reconcile 
               student outcomes from the master progression cockpit.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 shrink-0">
+          {/* Quick action links — stack on mobile, side-by-side on lg */}
+          <div className="flex flex-row lg:flex-col gap-3 shrink-0 w-full lg:w-auto">
             <Link
               href="/dashboard/curriculum/progress"
-              className="group flex items-center justify-between gap-6 px-8 py-4 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-primary/50 transition-all shadow-xl"
+              className="group flex-1 lg:flex-initial flex items-center justify-between gap-4 px-5 py-3 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-primary/50 transition-all shadow-lg"
             >
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Monitoring</p>
-                <p className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-primary transition-colors">Delivery Progress</p>
+              <div className="space-y-0.5">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Monitoring</p>
+                <p className="text-xs font-black text-foreground group-hover:text-primary transition-colors">Delivery Progress</p>
               </div>
-              <PresentationChartLineIcon className="w-5 h-5 text-primary" />
+              <PresentationChartLineIcon className="w-4 h-4 text-primary shrink-0" />
             </Link>
             {canPromote && (
               <Link
                 href="/dashboard/reports/builder"
-                className="group flex items-center justify-between gap-6 px-8 py-4 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-amber-500/50 transition-all shadow-xl"
+                className="group flex-1 lg:flex-initial flex items-center justify-between gap-4 px-5 py-3 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-amber-500/50 transition-all shadow-lg"
               >
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Certification</p>
-                  <p className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-amber-400 transition-colors">Build Report Cards</p>
+                <div className="space-y-0.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Certification</p>
+                  <p className="text-xs font-black text-foreground group-hover:text-amber-400 transition-colors">Build Report Cards</p>
                 </div>
-                <DocumentChartBarIcon className="w-5 h-5 text-amber-400" />
+                <DocumentChartBarIcon className="w-4 h-4 text-amber-400 shrink-0" />
               </Link>
             )}
           </div>
@@ -220,32 +231,48 @@ export default function ProgressionPage() {
       )}
 
       {/* Promotion Cycle Manager */}
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
-           <div className="space-y-2">
-             <div className="flex items-center gap-3">
-               <UserGroupIcon className="w-5 h-5 text-emerald-400" />
-               <h2 className="text-xl font-black uppercase tracking-widest text-foreground">Cycle Management</h2>
-             </div>
-             <p className="text-sm text-muted-foreground italic">Execute end-of-term promotion decisions for current enrollments.</p>
-           </div>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 px-1">
+            <UserGroupIcon className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest text-foreground">Cycle Management</h2>
+              <p className="text-xs text-muted-foreground italic mt-0.5">Execute end-of-term promotion decisions for current enrollments.</p>
+            </div>
+          </div>
 
-           {/* Quick Action Filters */}
-           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-card/50 backdrop-blur-xl border border-border p-3 rounded-[2rem] shadow-xl">
-              <select title="Program" value={filterProgram} onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all">
-                <option value="">All Programs</option>
-                {programs.map(p => <option key={p.id} value={p.id}>{p.name || p.title}</option>)}
-              </select>
-              <select title="Level" value={filterCourse} onChange={e => setFilterCourse(e.target.value)} disabled={!filterProgram} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all disabled:opacity-30">
-                <option value="">All Levels</option>
-                {availableCourses.map((c: any) => (
-                  <option key={c.id} value={c.id}>Level {c.level_order}</option>
-                ))}
-              </select>
-              <select title="Cycle" value={filterTerm} onChange={e => setFilterTerm(e.target.value)} className="bg-background/50 border border-border px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl focus:border-primary outline-none transition-all">
-                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-           </div>
+          {/* Quick Action Filters — always 1-col on mobile, 3-col on sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-card/50 backdrop-blur-xl border border-border p-3 rounded-2xl shadow-lg">
+            <select
+              title="Program"
+              value={filterProgram}
+              onChange={e => { setFilterProg(e.target.value); setFilterCourse(''); }}
+              className="bg-background/50 border border-border px-4 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl focus:border-primary outline-none transition-all"
+            >
+              <option value="">All Programs</option>
+              {programs.map(p => <option key={p.id} value={p.id}>{p.name || p.title}</option>)}
+            </select>
+            <select
+              title="Level"
+              value={filterCourse}
+              onChange={e => setFilterCourse(e.target.value)}
+              disabled={!filterProgram}
+              className="bg-background/50 border border-border px-4 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl focus:border-primary outline-none transition-all disabled:opacity-30"
+            >
+              <option value="">All Levels</option>
+              {availableCourses.map((c: any) => (
+                <option key={c.id} value={c.id}>Level {c.level_order}</option>
+              ))}
+            </select>
+            <select
+              title="Cycle"
+              value={filterTerm}
+              onChange={e => setFilterTerm(e.target.value)}
+              className="bg-background/50 border border-border px-4 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl focus:border-primary outline-none transition-all"
+            >
+              {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Summary Indicators */}

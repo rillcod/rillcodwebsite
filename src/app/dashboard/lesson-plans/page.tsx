@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
+import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
@@ -727,8 +728,11 @@ function LessonPlansPageInner() {
       </div>
 
       <div className="relative z-10 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto">
+        {/* Planning trio breadcrumb */}
+        <PlanningBreadcrumb current="lesson-plans" />
+
         {/* Shared pipeline stepper */}
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-1 rounded-3xl inline-block">
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-2 sm:p-3 rounded-2xl w-full">
           <PipelineStepper
             current="plans"
             courseId={form.course_id || null}
