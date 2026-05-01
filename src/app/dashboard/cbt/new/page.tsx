@@ -567,11 +567,11 @@ ${questionRows}
               <div className="space-y-4 pt-4 relative animate-in slide-in-from-top-4 duration-500">
                   {/* Row 1: Topic */}
                   <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Assessment Domain / Topic</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">What topic is this exam on?</label>
                       <input
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
-                          placeholder="e.g. Fundamental Concepts of Quantum Computing"
+                          placeholder="e.g. Introduction to Python, Basic Electronics, Algebra"
                           className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                       />
                   </div>
@@ -580,7 +580,7 @@ ${questionRows}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                       <div className="space-y-1">
                           <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
-                            Obj / MCQ Count
+                            Multiple-choice questions
                           </label>
                           <input
                             type="number" min="0" max="50"
@@ -591,7 +591,7 @@ ${questionRows}
                       </div>
                       <div className="space-y-1">
                           <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
-                            Theory Count
+                            Written / essay questions
                           </label>
                           <input
                             type="number" min="0" max="50"
@@ -885,9 +885,9 @@ ${questionRows}
                     <select value={q.section}
                       onChange={e => updateQuestion(qi, { section: e.target.value as Question['section'] })}
                       className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
-                      <option value="objective">Objective</option>
-                      <option value="subjective">Subjective</option>
-                      <option value="practical">Practical</option>
+                      <option value="objective">Objective — multiple choice / true-false</option>
+                      <option value="subjective">Subjective — written / essay answers</option>
+                      <option value="practical">Practical — hands-on / lab task</option>
                     </select>
                   </div>
                   <div>
