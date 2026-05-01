@@ -178,6 +178,9 @@ export default function CurriculumPage() {
   const [genError, setGenError] = useState('');
   const [savingTrack, setSavingTrack] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
+  const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set([1]));
+  const [resettingTerm, setResettingTerm] = useState<number | null>(null);
+  const [resettingAll, setResettingAll] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<{ assignment?: boolean; project?: boolean } | null>(null);
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
@@ -1081,6 +1084,24 @@ export default function CurriculumPage() {
 
   function getTracking(termNum: number, weekNum: number): WeekTracking | undefined {
     return tracking.find(t => t.term_number === termNum && t.week_number === weekNum);
+  }
+
+  async function resetTermProgress(termNum: number) {
+    if (!curriculum || !canTrack) return;
+    if (!confirm(`Reset all delivery progress for Term ${termNum}? This cannot be undone.`)) return;
+    setResettingTerm(termNum);
+    await fetch(`/api/curricula/${curriculum.id}/track?term=${termNum}`, { method: 'DELETE' });
+    setTracking(prev => prev.filter(t => t.term_number !== termNum));
+    setResettingTerm(null);
+  }
+
+  async function resetAllProgress() {
+    if (!curriculum || !canTrack) return;
+    if (!confirm('Reset ALL delivery progress for this entire syllabus? This cannot be undone.')) return;
+    setResettingAll(true);
+    await fetch(`/api/curricula/${curriculum.id}/track`, { method: 'DELETE' });
+    setTracking([]);
+    setResettingAll(false);
   }
 
   // ── Assign week content to students ──────────────────────────────────────
@@ -2603,75 +2624,166 @@ export default function CurriculumPage() {
 
           {/* ── Progress Tab ── */}
           {activeTab === 'delivery' && curriculum && (
-            <div className="mx-4 sm:mx-6 mb-6 space-y-6">
-              <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                      <ChartBarIcon className="w-5 h-5 text-primary" />
+            <div className="mx-4 sm:mx-6 mb-6 space-y-5">
+
+              {/* ── Header row: title + Reset All ── */}
+              {(() => {
+                const terms = curriculum.content?.terms ?? [];
+                const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
+                const totalWeeks = allWeeks.length;
+                const completed = tracking.filter(t => t.status === 'completed').length;
+                const inProgress = tracking.filter(t => t.status === 'in_progress').length;
+                const skipped = tracking.filter(t => t.status === 'skipped').length;
+                const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
+                return (
+                  <div className="bg-primary/5 border border-primary/20 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Weeks you've marked as taught — click any term to jump to it on the syllabus</p>
+                      </div>
+                      {tracking.length > 0 && (
+                        <button
+                          disabled={resettingAll}
+                          onClick={resetAllProgress}
+                          className="shrink-0 text-[10px] font-black text-rose-400 uppercase tracking-widest border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[36px]"
+                        >
+                          {resettingAll ? 'Resetting…' : 'Reset All'}
+                        </button>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Curriculum Progress</h4>
-                      <p className="text-[10px] text-muted-foreground">Status of this syllabus across your assigned classes</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                        <span className="text-violet-300">{completed} / {totalWeeks} weeks taught</span>
+                        <span className="text-primary">{pct}%</span>
+                      </div>
+                      <div className="h-2 bg-primary/10 overflow-hidden border border-primary/20">
+                        <div className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{completed} taught</span>
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary" />{inProgress} in progress</span>
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" />{skipped} skipped</span>
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />{totalWeeks - completed - inProgress - skipped} pending</span>
+                      </div>
                     </div>
                   </div>
+                );
+              })()}
 
-                  {(() => {
-                    const terms = curriculum.content?.terms ?? [];
-                    const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
-                    const totalWeeks = allWeeks.length;
-                    const completed = tracking.filter(t => t.status === 'completed').length;
-                    const inProgress = tracking.filter(t => t.status === 'in_progress').length;
-                    const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
+              {/* ── Per-term accordion cards ── */}
+              {(curriculum.content.terms ?? []).map((term: any) => {
+                const termWeeks: CurriculumWeek[] = term.weeks ?? [];
+                const termTracked = tracking.filter(t => t.term_number === term.term);
+                const termCompleted = termTracked.filter(t => t.status === 'completed').length;
+                const termInProgress = termTracked.filter(t => t.status === 'in_progress').length;
+                const termSkipped = termTracked.filter(t => t.status === 'skipped').length;
+                const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
+                const isExpanded = expandedTerms.has(term.term);
+                const hasActivity = termTracked.length > 0;
 
-                    return (
-                      <div className="flex-1 max-w-md space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                          <span className="text-violet-300">{completed} / {totalWeeks} Weeks Taught</span>
-                          <span className="text-primary">{pct}%</span>
+                return (
+                  <div key={term.term} className="bg-card border border-border overflow-hidden">
+                    {/* Term header — click to expand/collapse */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTerms(prev => {
+                        const n = new Set(prev);
+                        n.has(term.term) ? n.delete(term.term) : n.add(term.term);
+                        return n;
+                      })}
+                      className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/20 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</span>
+                          {term.title && <span className="text-[10px] text-foreground/60 truncate">— {term.title}</span>}
+                          {!hasActivity && <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest border border-border px-1.5 py-0.5">Not started</span>}
                         </div>
-                        <div className="h-2 bg-primary/10 rounded-full overflow-hidden border border-primary/20">
-                          <div
-                            className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-1000 ease-out"
-                            style={{ width: `${pct}%` }}
-                          />
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-1.5 bg-muted overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-500" style={{ width: `${termPct}%` }} />
+                          </div>
+                          <span className="text-xs font-black text-primary shrink-0">{termPct}%</span>
                         </div>
-                        <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                          <span className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {completed} Taught
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" /> {inProgress} In Progress
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" /> {totalWeeks - completed - inProgress} Pending
-                          </span>
+                        <div className="flex items-center gap-3 mt-1 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <span className="text-emerald-400">{termCompleted} taught</span>
+                          {termInProgress > 0 && <span className="text-primary">{termInProgress} in progress</span>}
+                          {termSkipped > 0 && <span className="text-amber-400">{termSkipped} skipped</span>}
+                          <span>{termWeeks.length - termCompleted - termInProgress - termSkipped} pending</span>
                         </div>
                       </div>
-                    );
-                  })()}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {hasActivity && (
+                          <button
+                            type="button"
+                            disabled={resettingTerm === term.term}
+                            onClick={(e) => { e.stopPropagation(); void resetTermProgress(term.term); }}
+                            className="text-[9px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 px-2 py-1 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+                          >
+                            {resettingTerm === term.term ? '…' : 'Reset'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setActiveTerm(term.term); setActiveTab('syllabus'); }}
+                          className="text-[9px] font-black uppercase tracking-widest text-primary border border-primary/30 px-2 py-1 hover:bg-primary/10 transition-colors"
+                        >
+                          Go →
+                        </button>
+                        {isExpanded
+                          ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
+                          : <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded: per-week breakdown */}
+                    {isExpanded && (
+                      <div className="border-t border-border divide-y divide-border/50">
+                        {termWeeks.map((week) => {
+                          const wt = getTracking(term.term, week.week);
+                          const wMeta = WEEK_META[week.type as WeekType] ?? WEEK_META.lesson;
+                          const tMeta = TRACK_META[wt?.status ?? 'pending'];
+                          const TIcon = tMeta.icon;
+                          return (
+                            <button
+                              key={week.week}
+                              type="button"
+                              onClick={() => { setActiveTerm(term.term); setActiveTab('syllabus'); setActiveWeek(week); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors text-left"
+                            >
+                              <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest w-10 shrink-0">W{week.week}</span>
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border shrink-0 ${wMeta.color}`}>{wMeta.label}</span>
+                              <span className="text-[11px] text-foreground/80 flex-1 truncate">{week.topic}</span>
+                              <span className={`flex items-center gap-1 text-[10px] font-bold shrink-0 ${tMeta.color}`}>
+                                <TIcon className="w-3 h-3" />
+                                {tMeta.label}
+                              </span>
+                              {wt?.actual_date && (
+                                <span className="text-[9px] text-muted-foreground/50 shrink-0 hidden sm:block">
+                                  {new Date(wt.actual_date).toLocaleDateString()}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {tracking.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border gap-3">
+                  <ChartBarIcon className="w-10 h-10 text-muted-foreground/20" />
+                  <p className="text-xs font-bold text-muted-foreground">No weeks marked yet</p>
+                  <p className="text-[10px] text-muted-foreground max-w-xs text-center">Click a week on the Syllabus tab, then mark it as In Progress, Completed, or Skipped.</p>
+                  <button
+                    onClick={() => setActiveTab('syllabus')}
+                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
+                  >Go to Syllabus →</button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(curriculum.content.terms ?? []).map((term: any) => {
-                  const termWeeks = term.weeks ?? [];
-                  const termCompleted = tracking.filter(t => t.term_number === term.term && t.status === 'completed').length;
-                  const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
-                  return (
-                    <div key={term.term} className="bg-card border border-border p-4 rounded-xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</p>
-                        <span className="text-xs font-black text-primary">{termPct}%</span>
-                      </div>
-                      <div className="h-1 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${termPct}%` }} />
-                      </div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{termCompleted} / {termWeeks.length} Completed</p>
-                    </div>
-                  );
-                })}
-              </div>
+              )}
             </div>
           )}
 
