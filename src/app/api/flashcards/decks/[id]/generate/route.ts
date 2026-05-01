@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchAIGenerate } from '@/lib/lesson-plans/ai-fetch';
+import { geminiGenerateText } from '@/lib/gemini/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,40 @@ type AiGeneratedCard = {
   tags?: string[];
   difficulty?: string;
 };
+
+const FLASHCARD_SYSTEM_PROMPT = `You are an expert educational content creator for Rillcod Technologies.
+Generate high-quality flashcards that are clear, accurate, and pedagogically sound.
+Each card should have a clear question or concept on the front and a concise, complete answer on the back.
+Return ONLY valid JSON — no markdown fences, no extra text.`;
+
+function buildFlashcardPrompt(topic: string, count: number, difficulty: string, content?: string): string {
+  const contextBlock = content?.trim()
+    ? `\nLesson context (use this to make cards more relevant):\n${content.trim().slice(0, 2000)}`
+    : '';
+
+  return `Generate exactly ${count} flashcards about: "${topic}"
+Difficulty level: ${difficulty}${contextBlock}
+
+Return a JSON object with this exact shape:
+{
+  "cards": [
+    {
+      "front": "string — question or concept to test",
+      "back": "string — clear, complete answer or explanation",
+      "tags": ["string — relevant topic tags"],
+      "difficulty": "${difficulty}"
+    }
+  ]
+}
+
+RULES:
+- Generate EXACTLY ${count} cards — no more, no less.
+- Cards must directly test knowledge of "${topic}".
+- front: concise question or prompt (max 20 words).
+- back: clear answer with enough context to be self-explanatory (1-3 sentences).
+- Vary question types: definitions, applications, comparisons, code output, true/false reasoning.
+- British English throughout.`;
+}
 
 // POST /api/flashcards/decks/[id]/generate - AI generate flashcards
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -30,23 +64,33 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { topic, count = 10, difficulty = 'medium', content, template = 'classic' } = await req.json();
-  
+
   if (!topic?.trim() && !content?.trim()) {
     return NextResponse.json({ error: 'Topic or content is required' }, { status: 400 });
   }
 
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;
-    const aiResult = await fetchAIGenerate(appUrl, req.headers.get('cookie') || '', {
-      type: 'flashcard',
-      topic: topic || content || deck.title,
-      difficulty,
-      questionCount: count,
-    });
-    const flashcards = (aiResult.data as { cards?: AiGeneratedCard[] })?.cards;
+    const effectiveTopic = topic?.trim() || deck.title;
+    const prompt = buildFlashcardPrompt(effectiveTopic, count, difficulty, content);
 
+    // Direct Gemini call — no HTTP round-trip, no cookie auth issues
+    const aiResult = await geminiGenerateText(FLASHCARD_SYSTEM_PROMPT, prompt, true);
+    if (!aiResult?.text) {
+      throw new Error('AI returned empty response');
+    }
+
+    let parsed: { cards?: AiGeneratedCard[] };
+    try {
+      // Strip markdown fences if any model wraps the JSON
+      const clean = aiResult.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('AI returned invalid JSON for flashcards');
+    }
+
+    const flashcards = parsed?.cards;
     if (!Array.isArray(flashcards) || flashcards.length === 0) {
-      throw new Error('Invalid flashcards format');
+      throw new Error('Invalid flashcards format — cards array missing or empty');
     }
 
     // Get current card count for positioning
@@ -79,17 +123,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error(insertError.message);
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data: insertedCards,
       generated: insertedCards.length,
-      message: `Generated ${insertedCards.length} flashcards successfully`
+      message: `Generated ${insertedCards.length} flashcards successfully`,
     });
 
   } catch (error: unknown) {
     console.error('Flashcard generation error:', error);
     const message = error instanceof Error ? error.message : 'Failed to generate flashcards';
-    return NextResponse.json({ 
-      error: message
-    }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
