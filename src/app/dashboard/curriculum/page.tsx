@@ -1803,7 +1803,7 @@ export default function CurriculumPage() {
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">{lastVisited.progName}</span>
                             </div>
                             <h3 className="text-3xl font-black text-white tracking-tighter mb-2 group-hover:text-primary transition-colors">{lastVisited.courseTitle}</h3>
-                            <p className="text-sm text-muted-foreground font-medium max-w-md">Pick up exactly where you left off in your academic blueprinting cycle.</p>
+                            <p className="text-sm text-muted-foreground font-medium max-w-md">Pick up exactly where you left off in your syllabus.</p>
                           </div>
                           <button
                             type="button"
@@ -2020,7 +2020,7 @@ export default function CurriculumPage() {
                           {selectedCourse.title}
                         </h1>
                         <p className="text-sm text-muted-foreground font-medium max-w-xl">
-                          No active blueprint found for this course in your current scope. Generate a new strategy or select an existing version below.
+                          No syllabus yet for this course. Click <strong className="text-foreground">Generate Syllabus</strong> to let AI build a full term-by-term plan — with lesson topics, assessments, and activities.
                         </p>
                       </div>
                     </div>
@@ -2969,78 +2969,104 @@ export default function CurriculumPage() {
 
                 {/* Quick-create actions — all content types in one place */}
                 {activeWeek.type === 'lesson' && canTrack && (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Create for this week</p>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => createLessonFromWeek(activeWeek)}
                         disabled={creatingLesson}
-                        title="Opens the Lesson Builder (Step 3) pre-filled with this week's plan"
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
                       >
-                        <PencilIcon className="w-3.5 h-3.5" />
-                        {creatingLesson ? 'Opening…' : 'Lesson'}
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <PencilIcon className="w-3.5 h-3.5" />
+                          {creatingLesson ? 'Opening…' : 'Lesson'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Write & deliver the week's teaching content</span>
                       </button>
                       <button
                         onClick={() => createAssignmentFromWeek(activeWeek)}
                         disabled={creatingAssignment}
-                        title="Creates an assignment saved to your Assignments list"
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
                       >
-                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                        {creatingAssignment ? 'Creating…' : 'Assignment'}
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                          {creatingAssignment ? 'Creating…' : 'Assignment'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Set a task for students to complete and submit</span>
                       </button>
                       <button
                         onClick={() => createProjectFromWeek(activeWeek)}
                         disabled={creatingProject}
-                        title="Creates a project task saved to your Assignments list"
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[52px]"
                       >
-                        <RocketLaunchIcon className="w-3.5 h-3.5" />
-                        {creatingProject ? 'Creating…' : 'Project'}
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <RocketLaunchIcon className="w-3.5 h-3.5" />
+                          {creatingProject ? 'Creating…' : 'Project'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Longer-form hands-on project work (2-week window)</span>
                       </button>
                       <button
                         onClick={() => createCbtFromWeek(activeWeek)}
                         disabled={creatingCbt}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
                       >
-                        <BoltIcon className="w-3.5 h-3.5" />
-                        {creatingCbt ? 'Opening…' : 'CBT Quiz'}
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <BoltIcon className="w-3.5 h-3.5" />
+                          {creatingCbt ? 'Opening…' : 'CBT Quiz'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Computer-based test — auto-marked multiple choice</span>
                       </button>
                       <button
                         onClick={() => createFlashcardsFromWeek(activeWeek)}
                         disabled={creatingLesson}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
                       >
-                        <StarIcon className="w-3.5 h-3.5" />
-                        Flashcards
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <StarIcon className="w-3.5 h-3.5" />
+                          Flashcards
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Quick revision cards students can self-test with</span>
                       </button>
                       <button
                         onClick={printWeek}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[40px]"
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[52px]"
                       >
-                        <PrinterIcon className="w-3.5 h-3.5" />
-                        Print
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <PrinterIcon className="w-3.5 h-3.5" />
+                          Print Plan
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Print this week's lesson plan as a PDF</span>
                       </button>
                     </div>
                   </div>
                 )}
                 {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && canTrack && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => createCbtFromWeek(activeWeek)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[40px]"
-                    >
-                      <BoltIcon className="w-3.5 h-3.5" />
-                      {activeWeek.type === 'examination' ? 'Create Exam CBT' : 'Create Assessment CBT'}
-                    </button>
-                    <button
-                      onClick={printWeek}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors min-h-[40px]"
-                    >
-                      <PrinterIcon className="w-3.5 h-3.5" />
-                      Print
-                    </button>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      {activeWeek.type === 'examination' ? 'End-of-term exam' : 'Mid-term assessment'} — create test
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => createCbtFromWeek(activeWeek)}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px]"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <BoltIcon className="w-3.5 h-3.5" />
+                          {activeWeek.type === 'examination' ? 'Create Exam (CBT)' : 'Create Assessment (CBT)'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Auto-marked computer-based test for this {activeWeek.type === 'examination' ? 'exam' : 'assessment'} week</span>
+                      </button>
+                      <button
+                        onClick={printWeek}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground transition-colors min-h-[52px]"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <PrinterIcon className="w-3.5 h-3.5" />
+                          Print Plan
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Print this week's plan as a PDF</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -3120,7 +3146,7 @@ export default function CurriculumPage() {
               {canTrack && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Syllabus scope (unique per school)
+                    Who is this syllabus for?
                   </label>
                   <select
                     value={generateScope}
@@ -3130,15 +3156,15 @@ export default function CurriculumPage() {
                     }}
                     className={SELECT_CLS}
                   >
-                    <option value="platform">Platform — shared Rillcod template (optional; use per-school rows for partners)</option>
+                    <option value="platform">All schools — shared Rillcod template</option>
                     {assignedSchools.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} — custom syllabus &amp; flow only for this school
+                        {s.name} only — private to this school
                       </option>
                     ))}
                   </select>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    The database keeps <span className="text-foreground font-bold">one syllabus per course per school</span>. Current target: <span className="text-foreground font-bold">{scopeLabel}</span>.
+                    Each school can have its own private syllabus for this course. Currently editing: <span className="text-foreground font-bold">{scopeLabel}</span>.
                   </p>
                 </div>
               )}
@@ -3166,24 +3192,26 @@ export default function CurriculumPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Subject Area</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Topic Focus <span className="font-normal normal-case">(optional)</span></label>
                   <input
                     value={form.subject_area}
                     onChange={e => setForm(p => ({ ...p, subject_area: e.target.value }))}
-                    placeholder="e.g. Computer Science, Robotics, AI & Machine Learning"
+                    placeholder="e.g. Python programming, Robotics for beginners, AI basics"
                     className={INPUT_CLS}
                   />
+                  <p className="text-[10px] text-muted-foreground mt-1">Narrow focus within the course — leave blank to use the course title</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Special Notes</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Extra context for AI <span className="font-normal normal-case">(optional)</span></label>
                   <textarea
                     value={form.notes}
                     onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="Any specific topics, teaching constraints, available equipment, school context…"
+                    placeholder="e.g. Students have laptops, follow WAEC syllabus, focus more on practical projects, avoid week 5 (public holiday)…"
                     rows={3}
                     className={INPUT_CLS + ' resize-none'}
                   />
+                  <p className="text-[10px] text-muted-foreground mt-1">Any school-specific details that should shape the syllabus — equipment, exam board, constraints, etc.</p>
                 </div>
               </div>
 
@@ -3337,7 +3365,7 @@ export default function CurriculumPage() {
               <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Deploy to Class</h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Push this blueprint to a specific class & schedule</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Assign this syllabus to a class with a start date</p>
                 </div>
                 <button
                   onClick={() => setShowImplement(false)}

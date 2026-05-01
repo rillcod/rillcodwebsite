@@ -816,29 +816,45 @@ function AddLessonPageContent() {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Visibility</label>
             <select
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })}
               className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
             >
-              {['draft', 'scheduled', 'active'].map(o => <option key={o} value={o}>{o.toUpperCase()}</option>)}
+              <option value="draft">Draft — not visible to students yet</option>
+              <option value="scheduled">Scheduled — will go live automatically</option>
+              <option value="active">Active — visible to students now</option>
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson format</label>
             <select
               value={form.lesson_type}
               onChange={e => setForm({ ...form, lesson_type: e.target.value })}
               className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
             >
-              {['lesson', 'hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading', 'quiz', 'article', 'project', 'lab', 'live', 'practice', 'robotics', 'electronics', 'ai'].map(o => (
-                <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>
-              ))}
+              <option value="lesson">Standard Lesson</option>
+              <option value="hands-on">Hands-on Activity</option>
+              <option value="video">Video Lesson</option>
+              <option value="interactive">Interactive / Game-based</option>
+              <option value="workshop">Workshop</option>
+              <option value="coding">Coding Practice</option>
+              <option value="reading">Reading / Text</option>
+              <option value="quiz">Quick Quiz</option>
+              <option value="article">Article</option>
+              <option value="project">Project</option>
+              <option value="lab">Lab / Experiment</option>
+              <option value="live">Live Session</option>
+              <option value="practice">Practice / Drill</option>
+              <option value="robotics">Robotics</option>
+              <option value="electronics">Electronics</option>
+              <option value="ai">AI / Machine Learning</option>
             </select>
+            <p className="text-[10px] text-muted-foreground">Choose the format that best describes how students will engage with this lesson</p>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Duration (min)</label>
@@ -864,8 +880,8 @@ function AddLessonPageContent() {
         <div className="space-y-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Study Notes
-              <span className="text-muted-foreground/60 normal-case font-normal text-[9px] ml-1">(shown to students before class)</span>
+              Student reading notes
+              <span className="text-muted-foreground/60 normal-case font-normal text-[9px] ml-1">(optional — shown to students before class)</span>
             </label>
             <button
               type="button"
@@ -879,12 +895,12 @@ function AddLessonPageContent() {
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Use <strong className="text-foreground/90">Notes only</strong> to fill this box without running the full lesson builder. Uses the current <strong className="text-foreground/90">{aiMode}</strong> mode and <strong className="text-foreground/90">{form.lesson_type.replace(/[-_]/g, ' ')}</strong> type.
+            Type or paste the reading material for students, or click <strong className="text-foreground/90">Notes only</strong> to have AI write it without rebuilding the entire lesson.
           </p>
           <textarea
             value={form.lesson_notes}
             onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
-            placeholder="Detailed study notes for the student..."
+            placeholder="e.g. A loop repeats a set of instructions until a condition is met. In Python, you use 'for' and 'while' loops…"
             className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none resize-none"
             rows={6}
           />
