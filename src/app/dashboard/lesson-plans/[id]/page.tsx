@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import { SyllabusPreview, type SyllabusContent } from '@/components/curriculum/SyllabusPreview';
+import WeekAIGenerator from '@/components/ai/WeekAIGenerator';
 import {
   buildAddLessonQueryFromCurriculum,
   type CurriculumWeekPlanSlice,
@@ -442,6 +443,7 @@ export default function LessonPlanDetailPage() {
     preview: { total_weeks: number; projected_generations: number; projected_skips: number };
   } | null>(null);
   const [lmsOpen, setLmsOpen] = useState(false);
+  const [aiWeek, setAiWeek] = useState<WeekEntry | null>(null);
   const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
     scopeLabel: string;
     preview: ProgressionPreview;
@@ -1472,6 +1474,15 @@ export default function LessonPlanDetailPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 print:hidden">
+                        {/* ── AI Full Generator button ── */}
+                        <button
+                          onClick={() => setAiWeek(w)}
+                          title="Generate lesson + flashcards + assignment with AI"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-primary/20 to-fuchsia-600/20 border border-primary/40 hover:border-primary hover:from-primary/30 hover:to-fuchsia-600/30 transition-all shadow-sm shadow-primary/10 group"
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
+                          <span className="text-[10px] font-black text-primary uppercase tracking-widest hidden sm:inline">AI Generate</span>
+                        </button>
                         <Link
                           href={buildPlanWeekCreateLessonUrl({
                             plan,
@@ -1479,9 +1490,9 @@ export default function LessonPlanDetailPage() {
                             courseTitle,
                           })}
                           className="p-1.5 hover:bg-primary/10 rounded-lg transition-all"
-                          title="Generate lesson for this week"
+                          title="Open lesson builder for this week"
                         >
-                          <SparklesIcon className="w-3.5 h-3.5 text-primary" />
+                          <BookOpenIcon className="w-3.5 h-3.5 text-primary/60" />
                         </Link>
                         <Link
                           href={buildPlanWeekCreateCbtUrl({
@@ -1538,6 +1549,33 @@ export default function LessonPlanDetailPage() {
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Week AI Generator modal ── */}
+      {aiWeek && (
+        <WeekAIGenerator
+          week={aiWeek}
+          planId={id}
+          courseId={plan?.course_id}
+          courseTitle={courseTitle}
+          term={plan?.term}
+          curriculumId={plan?.curriculum_version_id}
+          programId={plan?.courses?.program_id}
+          existing={{
+            lessonId: linkedLessons.find(l => l.metadata?.week === aiWeek.week)?.id,
+            assignmentId: linkedAssignments.find(a => (a.metadata as any)?.week === aiWeek.week)?.id,
+          }}
+          onDone={(res) => {
+            if (res.lessonId && !linkedLessons.find(l => l.id === res.lessonId)) {
+              setLinkedLessons(prev => [...prev, { id: res.lessonId!, title: `Week ${aiWeek.week} Lesson`, status: 'draft', metadata: { week: aiWeek.week } }]);
+            }
+            if (res.assignmentId && !linkedAssignments.find(a => a.id === res.assignmentId)) {
+              setLinkedAssignments(prev => [...prev, { id: res.assignmentId!, title: `Week ${aiWeek.week} Assignment`, assignment_type: 'homework', metadata: { week: aiWeek.week } }]);
+            }
+            toast.success('AI package complete — lesson, flashcards & assignment ready!');
+          }}
+          onClose={() => setAiWeek(null)}
+        />
       )}
 
       {/* Content Dashboard Tab */}
