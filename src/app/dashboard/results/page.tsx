@@ -224,6 +224,7 @@ function ResultsPageInner() {
             // 1. Determine school scope
             const isAdmin = profile?.role === 'admin';
             const isSchoolRole = profile?.role === 'school';
+            const isTeacher = profile?.role === 'teacher';
             let assignedSchoolIds: string[] = [];
             let assignedSchoolNames: string[] = [];
             let teacherClassIds: string[] = [];
@@ -277,19 +278,27 @@ function ResultsPageInner() {
                 if (isSchoolRole && profile?.school_id) {
                     finalQuery = finalQuery.eq('school_id', profile.school_id);
                 } else if (!isAdmin) {
-                    // Teacher or other staff: scope by assigned schools or classes
-                    if (assignedSchoolIds.length > 0)
-                        parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
-                    assignedSchoolNames.forEach(n =>
-                        parts.push(`school_name.eq.${JSON.stringify(n)}`)
-                    );
-                    if (teacherClassIds.length > 0)
-                        parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
-
-                    if (parts.length > 0) {
-                        finalQuery = finalQuery.or(parts.join(','));
+                    if (isTeacher) {
+                        // Teacher: ONLY their own classes — never school-wide
+                        if (teacherClassIds.length > 0) {
+                            finalQuery = finalQuery.in('class_id', teacherClassIds);
+                        } else {
+                            finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                        }
                     } else {
-                        finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                        // Other staff: scope by assigned schools or classes
+                        if (assignedSchoolIds.length > 0)
+                            parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
+                        assignedSchoolNames.forEach(n =>
+                            parts.push(`school_name.eq.${JSON.stringify(n)}`)
+                        );
+                        if (teacherClassIds.length > 0)
+                            parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+                        if (parts.length > 0) {
+                            finalQuery = finalQuery.or(parts.join(','));
+                        } else {
+                            finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                        }
                     }
                 }
             }
@@ -309,11 +318,13 @@ function ResultsPageInner() {
             const studentIds = studs.map(s => s.id);
             const rMap: Record<string, any> = {};
             if (studentIds.length > 0) {
-                const { data: reports } = await db.from('student_progress_reports')
+                let reportsQuery = db.from('student_progress_reports')
                     .select('student_id, overall_grade, is_published, updated_at')
                     .in('student_id', studentIds)
                     .order('is_published', { ascending: false })
                     .order('updated_at', { ascending: false });
+                if (profile?.role === 'teacher') reportsQuery = reportsQuery.eq('teacher_id', profile.id);
+                const { data: reports } = await reportsQuery;
 
                 if (aborted) return;
                 (reports ?? []).forEach(r => {
@@ -344,14 +355,15 @@ function ResultsPageInner() {
         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setShowSidebar(false);
         }
-        const { data } = await createClient()
+        let reportQuery = createClient()
             .from('student_progress_reports')
             .select('*')
             .eq('student_id', s.id)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .limit(1);
+        if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
+        const { data } = await reportQuery.maybeSingle();
         setSelectedReport(data as StudentReport | null);
         setLoadingReport(false);
     }

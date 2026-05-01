@@ -182,14 +182,16 @@ export default function ProgressPage() {
               if (!cancelled) setScoreReports(reports ?? []);
             }
           } else if (isStaff) {
-            // For staff, fetch recent published reports for their school
+            // For staff, fetch recent published reports scoped to their own records
             let rQuery = supabase
               .from('student_progress_reports')
               .select('report_term, report_date, overall_score, theory_score, practical_score, course_name, student_name, school_name')
               .eq('is_published', true)
               .order('report_date', { ascending: true })
               .limit(200);
-            if (profile?.school_id) {
+            if (profile?.role === 'teacher') {
+              rQuery = rQuery.eq('teacher_id', profile.id);
+            } else if (profile?.school_id) {
               rQuery = rQuery.eq('school_id', profile.school_id);
             }
             const { data: reports } = await rQuery;

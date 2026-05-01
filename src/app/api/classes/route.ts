@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
     const admin = adminClient();
     const { searchParams } = new URL(request.url);
     const schoolFilter = searchParams.get('school_id');
+    // ?mine=true: for teacher role, return only classes they personally teach
+    const mineOnly = searchParams.get('mine') === 'true';
 
     let query = admin
       .from('classes')
@@ -74,7 +76,7 @@ export async function GET(request: NextRequest) {
       if (!caller.school_id) return NextResponse.json({ data: [] });
       query = query.eq('school_id', caller.school_id) as any;
     } else if (caller.role === 'teacher') {
-      // Check if isolation is enabled
+      // ?mine=true or isolation enabled → only classes this teacher personally teaches
       const { data: isoSetting } = await admin
         .from('app_settings')
         .select('value')
@@ -82,29 +84,25 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       const isIsolated = isoSetting?.value === 'true';
 
-      if (isIsolated) {
-        // Teacher ONLY sees classes they personally teach
+      if (isIsolated || mineOnly) {
         query = query.eq('teacher_id', caller.id) as any;
       } else {
         const scopedIds = await teacherSchoolIds(caller);
 
-      if (schoolFilter) {
-        // Teacher requesting a specific school — must be in their scope
-        if (!scopedIds.includes(schoolFilter)) {
-          return NextResponse.json({ data: [] }); // out of scope, return empty not 403
+        if (schoolFilter) {
+          if (!scopedIds.includes(schoolFilter)) {
+            return NextResponse.json({ data: [] });
+          }
+          query = query.eq('school_id', schoolFilter) as any;
+        } else if (scopedIds.length > 0) {
+          query = query.or(
+            `teacher_id.eq.${caller.id},school_id.in.(${scopedIds.join(',')})`,
+          ) as any;
+        } else {
+          query = query.eq('teacher_id', caller.id) as any;
         }
-        query = query.eq('school_id', schoolFilter) as any;
-      } else if (scopedIds.length > 0) {
-        // Default: all classes in their assigned schools + any they personally teach
-        query = query.or(
-          `teacher_id.eq.${caller.id},school_id.in.(${scopedIds.join(',')})`,
-        ) as any;
-      } else {
-        // Teacher with no school assignments — only classes they personally teach
-        query = query.eq('teacher_id', caller.id) as any;
       }
     }
-}
 
     const { data: classes, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

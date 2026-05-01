@@ -725,12 +725,19 @@ export default function CurriculumPage() {
   // Load classes when school in implementation modal changes
   useEffect(() => {
     if (showImplement && implForm.school_id) {
-      fetch(`/api/classes?school_id=${implForm.school_id}`)
+      const url = isTeacher
+        ? `/api/classes?mine=true`
+        : `/api/classes?school_id=${implForm.school_id}`;
+      fetch(url)
         .then(r => r.json())
-        .then(j => setImplClasses(j.data || []))
+        .then(j => {
+          const list = j.data || [];
+          // Extra safety: scope to the selected school
+          setImplClasses(list.filter((c: any) => !implForm.school_id || c.school_id === implForm.school_id));
+        })
         .catch(() => setImplClasses([]));
     }
-  }, [showImplement, implForm.school_id]);
+  }, [showImplement, implForm.school_id, isTeacher]);
 
   const deployToClass = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
@@ -2657,7 +2664,7 @@ export default function CurriculumPage() {
                             const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                             setImplError('');
                             setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                            if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                            if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
                             else setImplClasses([]);
                             setShowImplement(true);
                           }}
@@ -2700,7 +2707,7 @@ export default function CurriculumPage() {
                     const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                     setImplError('');
                     setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                    if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                    if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
                     else setImplClasses([]);
                     setShowImplement(true);
                   }}
@@ -2781,7 +2788,7 @@ export default function CurriculumPage() {
                       const sid = curriculum.school_id || assignedSchools[0]?.id || '';
                       setImplError('');
                       setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                      if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                      if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
                       else setImplClasses([]);
                       setShowImplement(true);
                     }}
@@ -3509,7 +3516,7 @@ export default function CurriculumPage() {
                       onChange={e => {
                         const sid = e.target.value;
                         setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                        if (sid) fetch(`/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses(j.data || []));
+                        if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
                         else setImplClasses([]);
                       }}
                       className={SELECT_CLS}
