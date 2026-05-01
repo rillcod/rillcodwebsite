@@ -14,7 +14,7 @@ import {
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
-  BuildingOfficeIcon,
+  BuildingOfficeIcon, LockClosedIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -2978,6 +2978,7 @@ export default function CurriculumPage() {
                           const tMeta = TRACK_META[wt?.status ?? 'pending'];
                           const TIcon = tMeta.icon;
                           const isSaving = savingTrack;
+                          const classLocked = isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length === 0;
                           return (
                             <div key={week.week} className="flex flex-col sm:flex-row sm:items-center gap-1 px-4 py-2.5 border-b border-border/40 last:border-0 hover:bg-muted/5 transition-colors">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -2986,46 +2987,53 @@ export default function CurriculumPage() {
                                 <span className="text-[11px] text-foreground/80 flex-1 truncate">{week.topic}</span>
                               </div>
                               <div className="flex items-center gap-1 pl-10 sm:pl-0 shrink-0">
-                                {/* Current status label */}
-                                <span className={`flex items-center gap-1 text-[9px] font-bold mr-1 ${tMeta.color}`}>
-                                  <TIcon className="w-2.5 h-2.5" />{tMeta.label}
-                                </span>
-                                {/* Inline action buttons — set status directly, no redirect */}
-                                {wt?.status !== 'completed' && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'completed'); setActiveTerm(prev); }, 0); }}
-                                    className="text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
-                                    title="Mark as taught"
-                                  >✓ Taught</button>
-                                )}
-                                {wt?.status !== 'in_progress' && wt?.status !== 'completed' && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'in_progress'); setActiveTerm(prev); }, 0); }}
-                                    className="text-[9px] font-black uppercase tracking-widest border border-primary/30 text-primary px-1.5 py-0.5 hover:bg-primary/10 transition-colors disabled:opacity-40"
-                                    title="Mark in progress"
-                                  >↻</button>
-                                )}
-                                {wt && (
-                                  <button
-                                    type="button"
-                                    disabled={isSaving}
-                                    onClick={async () => {
-                                      if (!curriculum) return;
-                                      await fetch(`/api/curricula/${curriculum.id}/track?term=${term.term}&week=${week.week}`, { method: 'DELETE' });
-                                      setTracking(prev => prev.filter(t => !(t.term_number === term.term && t.week_number === week.week)));
-                                    }}
-                                    className="text-[9px] font-black uppercase tracking-widest border border-rose-500/20 text-rose-400/70 px-1.5 py-0.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
-                                    title="Clear this week's status"
-                                  >×</button>
-                                )}
-                                {wt?.actual_date && (
-                                  <span className="text-[9px] text-muted-foreground/40 hidden sm:block ml-1">
-                                    {new Date(wt.actual_date).toLocaleDateString()}
+                                {classLocked ? (
+                                  <span className="flex items-center gap-1 text-[9px] text-amber-400/60 font-bold border border-amber-500/20 px-2 py-0.5">
+                                    <LockClosedIcon className="w-2.5 h-2.5" /> Assign class first
                                   </span>
+                                ) : (
+                                  <>
+                                    {/* Current status label */}
+                                    <span className={`flex items-center gap-1 text-[9px] font-bold mr-1 ${tMeta.color}`}>
+                                      <TIcon className="w-2.5 h-2.5" />{tMeta.label}
+                                    </span>
+                                    {wt?.status !== 'completed' && (
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'completed'); setActiveTerm(prev); }, 0); }}
+                                        className="text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+                                        title="Mark as taught"
+                                      >✓ Taught</button>
+                                    )}
+                                    {wt?.status !== 'in_progress' && wt?.status !== 'completed' && (
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'in_progress'); setActiveTerm(prev); }, 0); }}
+                                        className="text-[9px] font-black uppercase tracking-widest border border-primary/30 text-primary px-1.5 py-0.5 hover:bg-primary/10 transition-colors disabled:opacity-40"
+                                        title="Mark in progress"
+                                      >↻</button>
+                                    )}
+                                    {wt && (
+                                      <button
+                                        type="button"
+                                        disabled={isSaving}
+                                        onClick={async () => {
+                                          if (!curriculum) return;
+                                          await fetch(`/api/curricula/${curriculum.id}/track?term=${term.term}&week=${week.week}`, { method: 'DELETE' });
+                                          setTracking(prev => prev.filter(t => !(t.term_number === term.term && t.week_number === week.week)));
+                                        }}
+                                        className="text-[9px] font-black uppercase tracking-widest border border-rose-500/20 text-rose-400/70 px-1.5 py-0.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+                                        title="Clear this week's status"
+                                      >×</button>
+                                    )}
+                                    {wt?.actual_date && (
+                                      <span className="text-[9px] text-muted-foreground/40 hidden sm:block ml-1">
+                                        {new Date(wt.actual_date).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -3117,6 +3125,49 @@ export default function CurriculumPage() {
             {/* Panel footer — assign + tracking */}
             {canTrack && (
               <div className="border-t border-border p-4 bg-card shrink-0 space-y-3">
+
+                {/* ── Class not assigned: gate ── */}
+                {isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).length === 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 border border-amber-500/30 bg-amber-500/10">
+                      <LockClosedIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black text-amber-300">No class assigned yet</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">Push this syllabus to one of your classes to unlock week tracking and content creation.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setActiveWeek(null);
+                        const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
+                        setImplError('');
+                        setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                        if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
+                        else setImplClasses([]);
+                        setShowImplement(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                      <RocketLaunchIcon className="w-4 h-4" /> Push to a Class
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                {/* ── Multi-class context picker ── */}
+                {isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).length > 1 && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground font-bold shrink-0">Class:</span>
+                    <select
+                      value={selectedPlanId}
+                      onChange={e => setSelectedPlanId(e.target.value)}
+                      className="flex-1 px-2 py-1.5 bg-background border border-border font-bold text-xs"
+                    >
+                      {implementationList.filter((p: any) => p.curriculum_version_id === curriculum?.id).map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.classes?.name ?? 'Unknown class'} — {p.term ?? ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Assign this week */}
                 {activeWeek.type === 'lesson' && activeWeek.lesson_plan && (
@@ -3294,6 +3345,8 @@ export default function CurriculumPage() {
                     "{getTracking(activeTerm, activeWeek.week)?.teacher_notes}"
                   </p>
                 )}
+              </>
+            )}
               </div>
             )}
           </div>
