@@ -207,7 +207,7 @@ export default function CurriculumPage() {
   const [creatingAssignment, setCreatingAssignment] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'delivery' | 'tools' | 'implementations'>('syllabus');
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'delivery' | 'implementations'>('syllabus');
   const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
@@ -315,9 +315,9 @@ export default function CurriculumPage() {
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
 
-  // Reset to syllabus tab if role can't access delivery/tools/generate
+  // Reset to syllabus tab if role can't access delivery/generate
   useEffect(() => {
-    if (!canTrack && (activeTab === 'delivery' || activeTab === 'tools')) {
+    if (!canTrack && activeTab === 'delivery') {
       setActiveTab('syllabus');
     }
   }, [canTrack, activeTab]);
@@ -1760,7 +1760,7 @@ export default function CurriculumPage() {
                       }`}
                   >
                     <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">Class Plans</span>
+                    <span className="whitespace-nowrap">Classes</span>
                   </button>
                   <button
                     type="button"
@@ -1774,19 +1774,6 @@ export default function CurriculumPage() {
                   >
                     <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
                     <span className="whitespace-nowrap">Progress</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'tools'}
-                    onClick={() => setActiveTab('tools')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'tools'
-                      ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5 shadow-[inset_0_-2px_0_0_rgba(6,182,212,0.5)]'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
-                      }`}
-                  >
-                    <Squares2X2Icon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">Tools</span>
                   </button>
                 </>
               )}
@@ -2151,11 +2138,8 @@ export default function CurriculumPage() {
                     <div className="space-y-4 relative z-10">
                       <div className="flex flex-wrap items-center gap-2 text-primary">
                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
-                          <SparklesIcon className="w-3 h-3" /> Active Blueprint
+                          <SparklesIcon className="w-3 h-3" /> Syllabus
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                          {scopeLabel} Scope
-                        </span>
                         {curriculum.schools?.name && (
                           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
                             <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools.name}
@@ -2173,10 +2157,10 @@ export default function CurriculumPage() {
                           <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {termCount} Terms</span>
                           <span className="w-1 h-1 rounded-full bg-white/20" />
                           <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> Updated {new Date(curriculum.created_at).toLocaleDateString()}</span>
-                          {allWeeks.length > 0 && (
+                          {allWeeks.length > 0 && completedCount > 0 && (
                             <>
                               <span className="w-1 h-1 rounded-full bg-white/20" />
-                              <span className="text-emerald-400 font-black">{progressPct}% Delivered</span>
+                              <span className="text-emerald-400 font-black">{completedCount} / {allWeeks.length} weeks taught</span>
                             </>
                           )}
                         </div>
@@ -2465,12 +2449,190 @@ export default function CurriculumPage() {
                     </div>
                   )}
 
-                  {/* ── Push to Class CTA — bottom of Syllabus tab ── */}
+                  {/* ── Course overview + learning outcomes (from syllabus content) ── */}
+                  {(curriculum.content.overview || (curriculum.content.learning_outcomes?.length > 0)) && (
+                    <div className="space-y-4 mt-2">
+                      {curriculum.content.overview && (
+                        <div className="bg-card border border-border p-5">
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">About this course</h3>
+                          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">{curriculum.content.overview}</p>
+                        </div>
+                      )}
+                      {curriculum.content.learning_outcomes?.length > 0 && (
+                        <div className="bg-card border border-border p-5">
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">What students will learn</h3>
+                          <ul className="space-y-2">
+                            {curriculum.content.learning_outcomes.map((o: string, i: number) => (
+                              <li key={i} className="flex gap-3 text-sm text-foreground/80">
+                                <span className="text-emerald-400 font-black shrink-0 text-xs mt-0.5">✓</span>
+                                <span>{o}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Apply a Lesson Template (QA Spine) ── */}
+                  {canGenerate && (
+                    <div className="bg-card border border-border">
+                      <button
+                        type="button"
+                        onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-muted/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <BoltIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <div>
+                            <p className="text-xs font-black text-foreground">Apply a Lesson Template</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Instantly fill your week topics using a ready-made teaching sequence — saves time and follows a proven structure</p>
+                          </div>
+                        </div>
+                        {qaSpineOpen
+                          ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                          : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
+                      </button>
+
+                      <AnimatePresence>
+                        {qaSpineOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden border-t border-border"
+                          >
+                            <div className="p-4 space-y-4">
+                              {!programIdForQa ? (
+                                <p className="text-[11px] text-amber-400">This course isn't linked to a programme yet — link it in the course catalog first before using a template.</p>
+                              ) : (
+                                <>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Select your class and student year, then preview the suggested week order. If it looks right, apply it — your week topics will be filled in automatically.
+                                  </p>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Which class?</label>
+                                      <select
+                                        className={SELECT_CLS}
+                                        value={qaClassId}
+                                        onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
+                                      >
+                                        <option value="">— Pick a class —</option>
+                                        {[...qaClassOptions]
+                                          .sort((a, b) => {
+                                            const ap = a.program_id === programIdForQa ? 0 : 1;
+                                            const bp = b.program_id === programIdForQa ? 0 : 1;
+                                            if (ap !== bp) return ap - bp;
+                                            return (a.name || '').localeCompare(b.name || '');
+                                          })
+                                          .map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                              {c.name || c.id}{c.program_id && c.program_id !== programIdForQa ? ' (different programme)' : ''}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Student year</label>
+                                      <select
+                                        className={SELECT_CLS}
+                                        value={qaYear}
+                                        onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
+                                      >
+                                        <option value={1}>Year 1 — beginners</option>
+                                        <option value={2}>Year 2 — intermediate</option>
+                                        <option value={3}>Year 3 — advanced</option>
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {qaClassId && (
+                                    <div className="space-y-1.5">
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">How strictly should the template be followed?</label>
+                                      <div className="flex gap-2 flex-wrap">
+                                        <button
+                                          type="button"
+                                          disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
+                                          onClick={() => void saveQaClassGradeMode('optional')}
+                                          className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                        >Flexible — AI adapts it to this class</button>
+                                        <button
+                                          type="button"
+                                          disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
+                                          onClick={() => void saveQaClassGradeMode('compulsory')}
+                                          className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                        >Fixed — use the template exactly as-is</button>
+                                        {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <label className="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
+                                    <span className="text-[11px] text-muted-foreground">Replace my existing week topics if any already exist</span>
+                                  </label>
+
+                                  <div className="flex gap-2 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => void runQaSpinePreview()}
+                                      disabled={!qaClassId || qaPreviewLoading}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                                    >
+                                      {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                                      Preview first
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => void applyQaSpine()}
+                                      disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                    >
+                                      {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
+                                      Apply template
+                                    </button>
+                                  </div>
+
+                                  {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Click "Preview first" before applying.</p>}
+                                  {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
+                                  {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
+
+                                  {qaPreviewData && (
+                                    <div className="p-3 bg-muted/20 border border-border space-y-3">
+                                      <p className="text-[10px] font-black uppercase text-cyan-300">Suggested week-by-week plan</p>
+                                      {qaPreviewData.terms.map((t) => (
+                                        <div key={t.term}>
+                                          <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-40 overflow-y-auto">
+                                            {t.weeks.map((w) => (
+                                              <li key={w.week} className="flex gap-1.5 truncate">
+                                                <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
+                                                <span className="truncate">{w.topic}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+
+                  {/* ── Assign to a class CTA ── */}
                   {canTrack && (
-                    <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-primary/10 border border-primary/20">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-primary/10 border border-primary/20">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-foreground">Ready to teach this syllabus?</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Push it to a class to create a live Lesson Plan your students can follow.</p>
+                        <p className="text-sm font-black text-foreground">Ready to teach this to a class?</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Assign this syllabus to a class and it becomes a week-by-week lesson plan for your students.</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
@@ -2491,7 +2653,7 @@ export default function CurriculumPage() {
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
                         >
                           <RocketLaunchIcon className="w-4 h-4 shrink-0" />
-                          Push to Class
+                          Assign to a Class
                         </button>
                       </div>
                     </div>
@@ -2745,26 +2907,58 @@ export default function CurriculumPage() {
                           const wMeta = WEEK_META[week.type as WeekType] ?? WEEK_META.lesson;
                           const tMeta = TRACK_META[wt?.status ?? 'pending'];
                           const TIcon = tMeta.icon;
+                          const isSaving = savingTrack;
                           return (
-                            <button
-                              key={week.week}
-                              type="button"
-                              onClick={() => { setActiveTerm(term.term); setActiveTab('syllabus'); setActiveWeek(week); }}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors text-left"
-                            >
-                              <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest w-10 shrink-0">W{week.week}</span>
-                              <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border shrink-0 ${wMeta.color}`}>{wMeta.label}</span>
-                              <span className="text-[11px] text-foreground/80 flex-1 truncate">{week.topic}</span>
-                              <span className={`flex items-center gap-1 text-[10px] font-bold shrink-0 ${tMeta.color}`}>
-                                <TIcon className="w-3 h-3" />
-                                {tMeta.label}
-                              </span>
-                              {wt?.actual_date && (
-                                <span className="text-[9px] text-muted-foreground/50 shrink-0 hidden sm:block">
-                                  {new Date(wt.actual_date).toLocaleDateString()}
+                            <div key={week.week} className="flex flex-col sm:flex-row sm:items-center gap-1 px-4 py-2.5 border-b border-border/40 last:border-0 hover:bg-muted/5 transition-colors">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest w-8 shrink-0">W{week.week}</span>
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border shrink-0 ${wMeta.color}`}>{wMeta.label}</span>
+                                <span className="text-[11px] text-foreground/80 flex-1 truncate">{week.topic}</span>
+                              </div>
+                              <div className="flex items-center gap-1 pl-10 sm:pl-0 shrink-0">
+                                {/* Current status label */}
+                                <span className={`flex items-center gap-1 text-[9px] font-bold mr-1 ${tMeta.color}`}>
+                                  <TIcon className="w-2.5 h-2.5" />{tMeta.label}
                                 </span>
-                              )}
-                            </button>
+                                {/* Inline action buttons — set status directly, no redirect */}
+                                {wt?.status !== 'completed' && (
+                                  <button
+                                    type="button"
+                                    disabled={isSaving}
+                                    onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'completed'); setActiveTerm(prev); }, 0); }}
+                                    className="text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+                                    title="Mark as taught"
+                                  >✓ Taught</button>
+                                )}
+                                {wt?.status !== 'in_progress' && wt?.status !== 'completed' && (
+                                  <button
+                                    type="button"
+                                    disabled={isSaving}
+                                    onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'in_progress'); setActiveTerm(prev); }, 0); }}
+                                    className="text-[9px] font-black uppercase tracking-widest border border-primary/30 text-primary px-1.5 py-0.5 hover:bg-primary/10 transition-colors disabled:opacity-40"
+                                    title="Mark in progress"
+                                  >↻</button>
+                                )}
+                                {wt && (
+                                  <button
+                                    type="button"
+                                    disabled={isSaving}
+                                    onClick={async () => {
+                                      if (!curriculum) return;
+                                      await fetch(`/api/curricula/${curriculum.id}/track?term=${term.term}&week=${week.week}`, { method: 'DELETE' });
+                                      setTracking(prev => prev.filter(t => !(t.term_number === term.term && t.week_number === week.week)));
+                                    }}
+                                    className="text-[9px] font-black uppercase tracking-widest border border-rose-500/20 text-rose-400/70 px-1.5 py-0.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+                                    title="Clear this week's status"
+                                  >×</button>
+                                )}
+                                {wt?.actual_date && (
+                                  <span className="text-[9px] text-muted-foreground/40 hidden sm:block ml-1">
+                                    {new Date(wt.actual_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
@@ -2787,200 +2981,6 @@ export default function CurriculumPage() {
             </div>
           )}
 
-          {/* ── Tools Tab ── */}
-          {activeTab === 'tools' && curriculum && (
-            <div className="mx-4 sm:mx-6 space-y-6 pb-10">
-              {/* Course Overview */}
-              {curriculum.content.overview && (
-                <div className="bg-card border border-border p-6 relative overflow-hidden group rounded-xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 mb-4 flex items-center gap-2">
-                    <InformationCircleIcon className="w-3 h-3" />
-                    Course Overview
-                  </h3>
-                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line relative z-10">{curriculum.content.overview}</p>
-                </div>
-              )}
-
-              {/* Learning outcomes */}
-              {curriculum.content.learning_outcomes?.length > 0 && (
-                <div className="bg-card border border-border p-6 rounded-xl">
-                  <h3 className="text-[11px] font-black uppercase tracking-widest text-primary mb-4">Learning Outcomes</h3>
-                  <ul className="space-y-2">
-                    {curriculum.content.learning_outcomes.map((o, i) => (
-                      <li key={i} className="flex gap-3 text-sm text-foreground/80">
-                        <span className="text-primary font-black shrink-0 text-xs mt-0.5">{i + 1}.</span>
-                        <span>{o}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Standard Teaching Path (QA Spine) — optional, action-focused */}
-              {canGenerate && (
-                <div className="bg-card border border-border space-y-0">
-                  <button
-                    type="button"
-                    onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <ChartBarIcon className="w-4 h-4 text-cyan-400 shrink-0" />
-                      <div>
-                        <p className="text-xs font-black text-foreground">Standard Teaching Path</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Optional — align this syllabus to a pre-built curriculum sequence</p>
-                      </div>
-                    </div>
-                    {qaSpineOpen
-                      ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                      : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />}
-                  </button>
-
-                  <AnimatePresence>
-                    {qaSpineOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden border-t border-border"
-                      >
-                        <div className="p-4 space-y-4">
-                          {!programIdForQa ? (
-                            <p className="text-[11px] text-amber-400">This course has no programme linked — fix the course catalog first before applying a teaching path.</p>
-                          ) : (
-                            <>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                Pick your class, preview the week-by-week sequence, then apply it to this syllabus (v{curriculum.version}).
-                                Skip this step entirely if you prefer to build your own week order from scratch.
-                              </p>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Class</label>
-                                  <select
-                                    className={SELECT_CLS}
-                                    value={qaClassId}
-                                    onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
-                                  >
-                                    <option value="">— Select class —</option>
-                                    {[...qaClassOptions]
-                                      .sort((a, b) => {
-                                        const ap = a.program_id === programIdForQa ? 0 : 1;
-                                        const bp = b.program_id === programIdForQa ? 0 : 1;
-                                        if (ap !== bp) return ap - bp;
-                                        return (a.name || '').localeCompare(b.name || '');
-                                      })
-                                      .map((c) => (
-                                        <option key={c.id} value={c.id}>
-                                          {c.name || c.id}{c.program_id && c.program_id !== programIdForQa ? ' · other programme' : ''}
-                                        </option>
-                                      ))}
-                                  </select>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Teaching year</label>
-                                  <select
-                                    className={SELECT_CLS}
-                                    value={qaYear}
-                                    onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
-                                  >
-                                    <option value={1}>Year 1</option>
-                                    <option value={2}>Year 2</option>
-                                    <option value={3}>Year 3</option>
-                                  </select>
-                                </div>
-                              </div>
-
-                              {qaClassId && (
-                                <div className="flex gap-2 flex-wrap">
-                                  <button
-                                    type="button"
-                                    disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
-                                    onClick={() => void saveQaClassGradeMode('optional')}
-                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                  >Flexible (recommended)</button>
-                                  <button
-                                    type="button"
-                                    disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
-                                    onClick={() => void saveQaClassGradeMode('compulsory')}
-                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                  >Compulsory</button>
-                                  {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
-                                </div>
-                              )}
-
-                              <label className="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
-                                <span className="text-[11px] text-muted-foreground">Replace existing weeks (if unchecked, only empty terms are filled)</span>
-                              </label>
-
-                              <div className="flex gap-2 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => void runQaSpinePreview()}
-                                  disabled={!qaClassId || qaPreviewLoading}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
-                                >
-                                  {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
-                                  Preview sequence
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void applyQaSpine()}
-                                  disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
-                                >
-                                  {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
-                                  Apply to syllabus
-                                </button>
-                              </div>
-
-                              {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Run Preview first before applying.</p>}
-                              {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
-                              {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
-
-                              {qaPreviewData && (
-                                <div className="p-3 bg-muted/20 border border-border space-y-3">
-                                  <p className="text-[10px] font-black uppercase text-cyan-300">
-                                    Preview — path {qaPreviewData.lane_index} · {qaPreviewData.lane_source} · offset {qaPreviewData.path_offset}
-                                  </p>
-                                  {qaPreviewData.terms.map((t) => (
-                                    <div key={t.term}>
-                                      <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
-                                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-32 overflow-y-auto">
-                                        {t.weeks.map((w) => (
-                                          <li key={w.week} className="flex gap-1.5 truncate">
-                                            <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
-                                            <span className="truncate">{w.topic}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          <div className="pt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                            <Link href="/dashboard/progression/qa-spine-catalog" className="text-cyan-400 hover:underline font-bold">
-                              View catalog details →
-                            </Link>
-                            <span>·</span>
-                            <Link href="/dashboard/curriculum/learning-system" className="text-muted-foreground hover:text-foreground">
-                              How this works
-                            </Link>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-          )}
         </main>
       </div>
 

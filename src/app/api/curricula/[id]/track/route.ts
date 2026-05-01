@@ -184,12 +184,15 @@ export async function DELETE(
   const canWrite = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
   if (!canWrite) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const term = new URL(req.url).searchParams.get('term');
+  const url = new URL(req.url);
+  const term = url.searchParams.get('term');
+  const week = url.searchParams.get('week');
 
   let q = admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
   if (curriculum.school_id) q = q.eq('school_id', curriculum.school_id);
   else q = q.is('school_id', null);
   if (term) q = q.eq('term_number', parseInt(term, 10));
+  if (week) q = q.eq('week_number', parseInt(week, 10));
 
   const { error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
