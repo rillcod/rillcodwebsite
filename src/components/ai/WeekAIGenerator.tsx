@@ -131,7 +131,7 @@ async function checkExistingAssignment(planId: string, weekNum: number): Promise
     if (!res.ok) return null;
     const { data } = await res.json();
     return (data ?? []).find((a: any) =>
-      a.metadata?.week === weekNum || a.metadata?.lesson_plan_id === planId
+      a.metadata?.week === weekNum
     )?.id ?? null;
   } catch { return null; }
 }
