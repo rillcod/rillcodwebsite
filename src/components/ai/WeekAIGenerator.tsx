@@ -5,17 +5,22 @@
  * ───────────────
  * One-click AI content factory per week in the lesson-plan detail page.
  *
- * Strategy:
- *  1. Checks for existing lesson / flashcard deck / assignment linked to this
- *     week BEFORE generating — skips any that already exist (no duplicates).
- *  2. Uses the platform's own /api/ai/generate route with proper typed
- *     generation (type=lesson, type=flashcard, type=assignment) — the same
- *     flow the rest of the platform uses, so content always matches the
- *     renderer schemas exactly.
- *  3. Puter.js is also available and is tried first for free generation.
- *     However for structured typed outputs (lesson blocks, flashcard cards)
- *     the server route is always used because Puter returns free-form text
- *     not the renderer-compatible JSON schema.
+ * Design:
+ *  1. Lesson — calls /api/ai/generate?stream=1 with type=lesson (identical
+ *     to the standalone lesson builder). Saves with content_layout field.
+ *     Auto-extracts assignment-block entries from content_layout and saves
+ *     them to /api/assignments (same as the lesson add page does).
+ *
+ *  2. Flashcards — creates a deck, then calls the dedicated AI endpoint
+ *     /api/flashcards/decks/[id]/generate which handles generation + insert
+ *     atomically. This is the same endpoint the flashcard page uses.
+ *
+ *  3. Assignment — taken from the assignment-block inside the lesson's
+ *     content_layout (no extra AI call). Falls back to a separate
+ *     /api/ai/generate type=assignment call only if no block was found.
+ *
+ *  4. Deduplication — pre-loaded existing content from page state is checked
+ *     first; API query is only used as fallback when state is empty.
  */
 
 import { useState } from 'react';
@@ -50,7 +55,7 @@ interface Props {
   term?: string | null;
   curriculumId?: string | null;
   programId?: string | null;
-  /** Pre-loaded linked content to skip duplicate detection API calls */
+  /** Pre-loaded linked content from parent state — used for dedup check. */
   existing?: ExistingContent;
   onDone?: (result: { lessonId?: string; deckId?: string; assignmentId?: string }) => void;
   onClose: () => void;
@@ -72,17 +77,13 @@ interface Result {
   assignmentId?: string;
   assignmentTitle?: string;
   skipped: string[];
-  error?: string;
 }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── Helper ───────────────────────────────────────────────────────────────────
 
 function StepRow({ icon: Icon, label, sub, state, color }: {
-  icon: React.ElementType;
-  label: string;
-  sub: string;
-  state: StepState;
-  color: string;
+  icon: React.ElementType; label: string; sub: string;
+  state: StepState; color: string;
 }) {
   return (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
@@ -97,11 +98,12 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-xs font-black ${
-          state === 'done' ? 'text-emerald-300' : state === 'error' ? 'text-rose-300' : state === 'active' ? 'text-white' : 'text-white/50'
+          state === 'done' ? 'text-emerald-300' : state === 'error' ? 'text-rose-300' :
+          state === 'active' ? 'text-white' : 'text-white/50'
         }`}>{label}</p>
         <p className="text-[10px] text-white/30">{sub}</p>
       </div>
-      <div className="shrink-0 w-5 flex justify-center">
+      <div className="shrink-0">
         {state === 'done'    && <CheckCircleIcon className="w-5 h-5 text-emerald-400" />}
         {state === 'active'  && <ArrowPathIcon className="w-4 h-4 text-primary animate-spin" />}
         {state === 'error'   && <XMarkIcon className="w-4 h-4 text-rose-400" />}
@@ -112,63 +114,29 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
   );
 }
 
-// ── Core AI generation helpers ───────────────────────────────────────────────
-
-/** Call /api/ai/generate and return parsed JSON data */
-async function aiGenerate(type: string, payload: Record<string, unknown>): Promise<any> {
-  const res = await fetch('/api/ai/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, ...payload }),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || `AI ${type} generation failed`);
-  return json.data ?? json;
-}
-
-/** Check whether a lesson already exists for this week on this plan */
-async function findExistingLesson(planId: string, weekNum: number): Promise<string | null> {
+async function checkExistingLesson(planId: string, weekNum: number): Promise<string | null> {
   try {
     const res = await fetch(`/api/lessons?lesson_plan_id=${planId}`);
     if (!res.ok) return null;
     const { data } = await res.json();
-    const match = (data ?? []).find((l: any) =>
+    return (data ?? []).find((l: any) =>
       l.metadata?.week === weekNum || l.metadata?.week_number === weekNum
-    );
-    return match?.id ?? null;
+    )?.id ?? null;
   } catch { return null; }
 }
 
-/** Check whether a flashcard deck already exists for this week on this plan */
-async function findExistingDeck(planId: string, courseId: string | null, weekNum: number): Promise<string | null> {
-  try {
-    const qs = courseId ? `?course_id=${courseId}` : '';
-    const res = await fetch(`/api/flashcards/decks${qs}`);
-    if (!res.ok) return null;
-    const { data } = await res.json();
-    const tag = `W${weekNum}`;
-    const match = (data ?? []).find((d: any) =>
-      (d.metadata?.lesson_plan_id === planId && d.metadata?.week === weekNum) ||
-      (d.title?.startsWith(`Week ${weekNum}:`) && d.metadata?.lesson_plan_id === planId)
-    );
-    return match?.id ?? null;
-  } catch { return null; }
-}
-
-/** Check whether an assignment already exists for this week on this plan */
-async function findExistingAssignment(planId: string, weekNum: number): Promise<string | null> {
+async function checkExistingAssignment(planId: string, weekNum: number): Promise<string | null> {
   try {
     const res = await fetch(`/api/assignments?lesson_plan_id=${planId}`);
     if (!res.ok) return null;
     const { data } = await res.json();
-    const match = (data ?? []).find((a: any) =>
-      a.metadata?.week === weekNum || a.metadata?.week_number === weekNum
-    );
-    return match?.id ?? null;
+    return (data ?? []).find((a: any) =>
+      a.metadata?.week === weekNum || a.metadata?.lesson_plan_id === planId
+    )?.id ?? null;
   } catch { return null; }
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function WeekAIGenerator({
   week, planId, courseId, courseTitle = 'Course',
@@ -193,47 +161,105 @@ export default function WeekAIGenerator({
     setStatus({ lesson: 'pending', flashcard: 'pending', assignment: 'pending' });
 
     const res: Result = { skipped: [] };
+    // Content blocks from lesson generation — shared across steps
+    let contentLayout: any[] = [];
+    let lessonId = existing?.lessonId;
+    let assignmentId = existing?.assignmentId;
 
     try {
-      // Build shared context used by all three generators
-      const topicContext = `${courseTitle} — ${week.topic}`;
-      const gradeLevel = 'JSS1–SS3'; // could be passed as prop later
-      const objectives = week.objectives || `Understand and apply concepts related to ${week.topic}`;
-
-      // ── 1. LESSON ──────────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────
+      // STEP 1 — LESSON (identical call to standalone lesson builder)
+      // ─────────────────────────────────────────────────────────────────────
       setStep('lesson', 'active');
       addLog('🔍 Checking for existing lesson…');
 
-      const existingLessonId = existing?.lessonId ?? await findExistingLesson(planId, week.week);
+      const existingLessonId = lessonId ?? await checkExistingLesson(planId, week.week);
+
       if (existingLessonId) {
         res.lessonId = existingLessonId;
         setStep('lesson', 'skipped');
         res.skipped.push('lesson');
-        addLog(`⏭ Lesson already exists — skipped`);
+        addLog('⏭  Lesson already exists — skipped');
       } else {
-        addLog('🤖 Generating lesson (Academic mode, 16k tokens)…');
+        addLog('🤖 Generating lesson (streaming, 16k tokens)…');
+
+        // Build the same request body the standalone builder sends
+        const aiBody = JSON.stringify({
+          type: 'lesson',
+          topic: week.topic,
+          gradeLevel: 'JSS1–SS3',
+          subject: courseTitle,
+          durationMinutes: 60,
+          contentType: 'lesson',
+          lessonMode: 'academic',
+          courseName: courseTitle,
+          programName: undefined,
+          objectives: week.objectives,
+          activities: week.activities,
+          additionalContext: week.notes,
+        });
+
+        let lessonData: any = null;
+
         try {
-          const lessonData = await aiGenerate('lesson', {
-            topic: week.topic,
-            subject: courseTitle,
-            gradeLevel,
-            objectives,
-            lessonMode: 'academic',
-            term: term ?? 'Term 1',
-            weekNumber: week.week,
-            activities: week.activities,
-            additionalContext: week.notes,
+          const aiRes = await fetch('/api/ai/generate?stream=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: aiBody,
           });
 
-          addLog('💾 Saving lesson…');
-          const lessonBody: Record<string, unknown> = {
+          if (!aiRes.ok) {
+            const err = await aiRes.json().catch(() => ({}));
+            throw new Error(err.error ?? 'AI lesson generation failed');
+          }
+
+          const ct = aiRes.headers.get('Content-Type') ?? '';
+
+          if (ct.includes('text/event-stream') && aiRes.body) {
+            // Handle SSE stream — same logic as lesson add page
+            const reader = aiRes.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+              const { done: streamDone, value } = await reader.read();
+              if (streamDone) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+              for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                  const event = JSON.parse(line.slice(6));
+                  if (event.status) addLog(`   ↳ ${event.status}`);
+                  if (event.error) throw new Error(event.error);
+                  if (event.done && event.data) lessonData = event.data;
+                } catch (pe: any) {
+                  if (pe.message !== 'Unexpected end of JSON input') throw pe;
+                }
+              }
+            }
+          } else {
+            const payload = await aiRes.json();
+            lessonData = payload.data;
+          }
+
+          if (!lessonData) throw new Error('AI returned empty lesson data');
+
+          contentLayout = Array.isArray(lessonData.content_layout) && lessonData.content_layout.length > 0
+            ? lessonData.content_layout
+            : [];
+
+          addLog(`✅ AI generated ${contentLayout.length} content blocks — saving lesson…`);
+
+          const lessonPayload: Record<string, unknown> = {
             title: lessonData.title || `Week ${week.week}: ${week.topic}`,
-            description: lessonData.description || objectives,
-            content: lessonData.content || [],
-            lesson_type: lessonData.lesson_type || 'lesson',
-            lesson_notes: lessonData.lesson_notes || null,
-            duration_minutes: lessonData.duration_minutes || 60,
+            description: lessonData.description ?? null,
+            lesson_notes: lessonData.lesson_notes ?? null,
+            lesson_type: lessonData.lesson_type ?? 'lesson',
             status: 'draft',
+            content_layout: contentLayout,
+            video_url: lessonData.video_url ?? null,
+            duration_minutes: lessonData.duration_minutes ?? 60,
             metadata: {
               week: week.week,
               lesson_plan_id: planId,
@@ -242,61 +268,82 @@ export default function WeekAIGenerator({
               curriculum_id: curriculumId ?? null,
             },
           };
-          if (courseId) lessonBody.course_id = courseId;
-          if (programId) lessonBody.program_id = programId;
+          if (courseId) lessonPayload.course_id = courseId;
 
           const lr = await fetch('/api/lessons', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lessonBody),
+            body: JSON.stringify(lessonPayload),
           });
           const lj = await lr.json();
-          if (lr.ok && lj.data?.id) {
-            res.lessonId = lj.data.id;
-            res.lessonTitle = lj.data.title;
-            addLog(`✅ Lesson saved: "${lj.data.title}"`);
-            setStep('lesson', 'done');
-          } else {
-            throw new Error(lj.error || 'Lesson save failed');
+          if (!lr.ok || !lj.data?.id) throw new Error(lj.error || 'Lesson save failed');
+
+          res.lessonId = lj.data.id;
+          res.lessonTitle = lj.data.title;
+          addLog(`✅ Lesson saved: "${lj.data.title}"`);
+          setStep('lesson', 'done');
+
+          // Auto-create assignment from assignment-block (mirrors lesson add page behaviour)
+          const assignmentBlocks = contentLayout.filter(
+            (b: any) => b.type === 'assignment-block' && b.title?.trim()
+          );
+          if (assignmentBlocks.length > 0 && !assignmentId) {
+            const blk = assignmentBlocks[0];
+            const instrParts = [
+              blk.instructions,
+              blk.deliverables?.length
+                ? `\n\nDeliverables:\n${blk.deliverables.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}`
+                : '',
+            ].filter(Boolean).join('');
+
+            const asnRes = await fetch('/api/assignments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: blk.title,
+                instructions: instrParts,
+                course_id: courseId ?? null,
+                lesson_id: lj.data.id,
+                assignment_type: 'project',
+                max_points: 100,
+                is_active: true,
+                metadata: { week: week.week, lesson_plan_id: planId, source: 'week-ai-generator' },
+              }),
+            });
+            const aj = await asnRes.json();
+            if (asnRes.ok && aj.data?.id) {
+              res.assignmentId = aj.data.id;
+              res.assignmentTitle = aj.data.title;
+              assignmentId = aj.data.id;
+              addLog(`✅ Assignment auto-created from lesson block: "${aj.data.title}"`);
+            }
           }
         } catch (e: any) {
           setStep('lesson', 'error');
-          addLog(`⚠️ Lesson: ${e.message}`);
-          // Don't abort — continue with flashcards and assignment
+          addLog(`⚠️  Lesson: ${e.message}`);
+          // Don't abort — continue to flashcards
         }
       }
 
-      // ── 2. FLASHCARDS ──────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────
+      // STEP 2 — FLASHCARDS (create deck + call /decks/[id]/generate)
+      // ─────────────────────────────────────────────────────────────────────
       setStep('flashcard', 'active');
       addLog('🔍 Checking for existing flashcard deck…');
 
-      const existingDeckId = existing?.deckId ?? await findExistingDeck(planId, courseId ?? null, week.week);
-      if (existingDeckId) {
-        res.deckId = existingDeckId;
+      // Simple check: does a deck for this week/plan exist already?
+      // We don't have a pre-loaded deck list so we skip the API check and
+      // rely on the existing?.deckId from parent (cheaper).
+      if (existing?.deckId) {
+        res.deckId = existing.deckId;
         setStep('flashcard', 'skipped');
         res.skipped.push('flashcards');
-        addLog('⏭ Flashcard deck already exists — skipped');
+        addLog('⏭  Flashcard deck already exists — skipped');
       } else {
-        addLog('🤖 Generating 15 flashcards…');
+        addLog('🃏 Creating flashcard deck…');
         try {
-          const cardData = await aiGenerate('flashcard', {
-            topic: week.topic,
-            subject: courseTitle,
-            gradeLevel,
-            questionCount: 15,
-            difficulty: 'medium',
-            courseName: courseTitle,
-          });
-
-          const cards: Array<{ front: string; back: string; tags?: string[]; difficulty?: string }> = cardData.cards ?? [];
-          addLog(`🃏 ${cards.length} cards generated — saving deck…`);
-
-          // Create deck
           const deckBody: Record<string, unknown> = {
             title: `Week ${week.week}: ${week.topic}`,
-            description: `AI-generated flashcards — ${topicContext}`,
-            tags: ['curriculum', 'ai-generated'],
-            metadata: { lesson_plan_id: planId, week: week.week, source: 'week-ai-generator' },
           };
           if (courseId) deckBody.course_id = courseId;
 
@@ -308,97 +355,111 @@ export default function WeekAIGenerator({
           const dj = await dr.json();
           if (!dr.ok || !dj.data?.id) throw new Error(dj.error || 'Deck create failed');
 
-          res.deckId = dj.data.id;
+          const deckId = dj.data.id;
+          res.deckId = deckId;
           res.deckTitle = dj.data.title;
-          addLog(`✅ Deck created: "${dj.data.title}"`);
+          addLog(`🤖 Deck created — generating 15 AI cards…`);
 
-          // Insert cards one by one (standard endpoint)
-          let saved = 0;
-          for (const [i, c] of cards.entries()) {
-            const cr = await fetch('/api/flashcards/cards', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                deck_id: dj.data.id,
-                front: c.front,
-                back: c.back,
-                tags: c.tags ?? [week.topic],
-                difficulty: c.difficulty ?? 'medium',
-                position: i + 1,
-              }),
-            }).catch(() => null);
-            if (cr?.ok) saved++;
-          }
-          addLog(`✅ ${saved}/${cards.length} flashcards saved`);
+          // Use the dedicated generate endpoint (same as flashcard page)
+          const genRes = await fetch(`/api/flashcards/decks/${deckId}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              topic: week.topic,
+              count: 15,
+              difficulty: 'medium',
+              // Pass lesson content as extra context if available
+              content: contentLayout.length > 0
+                ? contentLayout
+                    .filter((b: any) => ['text', 'heading', 'key-terms', 'steps-list'].includes(b.type))
+                    .map((b: any) => b.content || b.title || '')
+                    .filter(Boolean)
+                    .join('\n')
+                    .slice(0, 2000)
+                : undefined,
+            }),
+          });
+          const gj = await genRes.json();
+          if (!genRes.ok) throw new Error(gj.error || 'Card generation failed');
+          const cardCount = Array.isArray(gj.data) ? gj.data.length : (gj.count ?? '?');
+          addLog(`✅ ${cardCount} flashcards generated and saved to deck`);
           setStep('flashcard', 'done');
         } catch (e: any) {
           setStep('flashcard', 'error');
-          addLog(`⚠️ Flashcards: ${e.message}`);
+          addLog(`⚠️  Flashcards: ${e.message}`);
         }
       }
 
-      // ── 3. ASSIGNMENT ──────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────
+      // STEP 3 — ASSIGNMENT (from block or fallback AI call)
+      // ─────────────────────────────────────────────────────────────────────
       setStep('assignment', 'active');
       addLog('🔍 Checking for existing assignment…');
 
-      const existingAsnId = existing?.assignmentId ?? await findExistingAssignment(planId, week.week);
+      const existingAsnId = assignmentId ?? existing?.assignmentId ?? await checkExistingAssignment(planId, week.week);
+
       if (existingAsnId) {
-        res.assignmentId = existingAsnId;
-        setStep('assignment', 'skipped');
-        res.skipped.push('assignment');
-        addLog('⏭ Assignment already exists — skipped');
+        if (!res.assignmentId) {
+          res.assignmentId = existingAsnId;
+          res.skipped.push('assignment');
+          addLog('⏭  Assignment already exists — skipped');
+        } else {
+          addLog('✅ Assignment already created from lesson block');
+        }
+        setStep('assignment', 'done');
       } else {
-        addLog('🤖 Generating assignment…');
+        // Fallback: generate assignment via AI if no block produced one
+        addLog('🤖 Generating assignment via AI (fallback)…');
         try {
-          const asnData = await aiGenerate('assignment', {
-            topic: week.topic,
-            subject: courseTitle,
-            gradeLevel,
-            objectives,
-            assignmentType: week.project?.title ? 'project' : 'homework',
-            weekNumber: week.week,
-            term: term ?? 'Term 1',
-            courseName: courseTitle,
-          });
-
-          addLog('💾 Saving assignment…');
-          const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
-          const asnBody: Record<string, unknown> = {
-            title: asnData.title || `Week ${week.week} Assignment: ${week.topic}`,
-            instructions: asnData.instructions || asnData.description || objectives,
-            assignment_type: asnData.assignment_type || 'homework',
-            max_points: asnData.max_points || 100,
-            due_date: dueDate,
-            is_active: true,
-            metadata: {
-              week: week.week,
-              lesson_plan_id: planId,
-              term,
-              source: 'week-ai-generator',
-              rubric: asnData.metadata?.rubric ?? asnData.rubric ?? [],
-              deliverables: asnData.metadata?.deliverables ?? asnData.deliverables ?? [],
-              curriculum_id: curriculumId ?? null,
-            },
-          };
-          if (courseId) asnBody.course_id = courseId;
-
-          const ar = await fetch('/api/assignments', {
+          const aiRes = await fetch('/api/ai/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(asnBody),
+            body: JSON.stringify({
+              type: 'assignment',
+              topic: week.topic,
+              subject: courseTitle,
+              gradeLevel: 'JSS1–SS3',
+              objectives: week.objectives,
+              assignmentType: week.project?.title ? 'project' : 'homework',
+              courseName: courseTitle,
+            }),
           });
-          const aj = await ar.json();
-          if (ar.ok && aj.data?.id) {
-            res.assignmentId = aj.data.id;
-            res.assignmentTitle = aj.data.title;
-            addLog(`✅ Assignment saved: "${aj.data.title}"`);
+          const aj = await aiRes.json();
+          const asnData = aj.data ?? {};
+
+          const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
+          const saveRes = await fetch('/api/assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: asnData.title || `Week ${week.week}: ${week.topic} — Assignment`,
+              instructions: asnData.instructions || asnData.description || week.objectives || '',
+              assignment_type: asnData.assignment_type || 'homework',
+              max_points: asnData.max_points ?? 100,
+              due_date: dueDate,
+              is_active: true,
+              course_id: courseId ?? null,
+              metadata: {
+                week: week.week,
+                lesson_plan_id: planId,
+                term,
+                source: 'week-ai-generator',
+                rubric: asnData.metadata?.rubric ?? asnData.rubric ?? [],
+              },
+            }),
+          });
+          const sj = await saveRes.json();
+          if (saveRes.ok && sj.data?.id) {
+            res.assignmentId = sj.data.id;
+            res.assignmentTitle = sj.data.title;
+            addLog(`✅ Assignment saved: "${sj.data.title}"`);
             setStep('assignment', 'done');
           } else {
-            throw new Error(aj.error || 'Assignment save failed');
+            throw new Error(sj.error || 'Assignment save failed');
           }
         } catch (e: any) {
           setStep('assignment', 'error');
-          addLog(`⚠️ Assignment: ${e.message}`);
+          addLog(`⚠️  Assignment: ${e.message}`);
         }
       }
 
@@ -413,7 +474,7 @@ export default function WeekAIGenerator({
     }
   }
 
-  const hasAnyResult = !!(result.lessonId || result.deckId || result.assignmentId);
+  const hasResult = !!(result.lessonId || result.deckId || result.assignmentId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -427,7 +488,7 @@ export default function WeekAIGenerator({
               <SparklesIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">AI Full Package</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">AI Lesson Package</p>
               <p className="text-sm font-black text-white truncate max-w-[220px]">Week {week.week}: {week.topic}</p>
             </div>
           </div>
@@ -439,56 +500,47 @@ export default function WeekAIGenerator({
         </div>
 
         <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-          {/* Intro */}
           {!running && !done && !error && (
             <p className="text-xs text-white/50 leading-relaxed">
-              Generates a <strong className="text-white/80">full lesson</strong>, <strong className="text-white/80">15 flashcards</strong>, and an <strong className="text-white/80">assignment with rubric</strong> — all using the platform&apos;s AI engine. Existing content is automatically detected and skipped.
+              Generates a <strong className="text-white/80">full lesson</strong> (same AI engine as the lesson builder), a <strong className="text-white/80">15-card flashcard deck</strong>, and an <strong className="text-white/80">assignment</strong> — all linked to this week. Existing content is skipped automatically.
             </p>
           )}
 
-          {/* Step progress */}
           <div className="space-y-2">
-            <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Academic mode · 12+ content blocks" state={status.lesson} color="bg-primary" />
-            <StepRow icon={BoltIcon} label="15 Flashcards" sub="Q&A deck saved to Flashcards" state={status.flashcard} color="bg-amber-500" />
-            <StepRow icon={ClipboardDocumentListIcon} label="Assignment + Rubric" sub="Saved to Assignments module" state={status.assignment} color="bg-emerald-600" />
+            <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Streaming AI · Academic mode · 12+ blocks + notes" state={status.lesson} color="bg-primary" />
+            <StepRow icon={BoltIcon} label="Flashcard Deck" sub="15 AI cards · saved to Flashcards module" state={status.flashcard} color="bg-amber-500" />
+            <StepRow icon={ClipboardDocumentListIcon} label="Assignment" sub="Auto-extracted from lesson block or AI-generated" state={status.assignment} color="bg-emerald-600" />
           </div>
 
-          {/* Log */}
           {log.length > 0 && (
-            <div className="bg-black/50 rounded-xl p-3 max-h-36 overflow-y-auto space-y-0.5">
+            <div className="bg-black/50 rounded-xl p-3 max-h-40 overflow-y-auto space-y-0.5">
               {log.map((l, i) => (
                 <p key={i} className="text-[10px] text-white/50 font-mono leading-relaxed">{l}</p>
               ))}
             </div>
           )}
 
-          {/* Results with links */}
-          {done && hasAnyResult && (
+          {done && hasResult && (
             <div className="space-y-2 pt-1">
               {result.skipped.length > 0 && (
-                <p className="text-[10px] text-white/30 italic">
-                  Skipped: {result.skipped.join(', ')} (already existed)
-                </p>
+                <p className="text-[10px] text-white/30 italic">Skipped (already existed): {result.skipped.join(', ')}</p>
               )}
               {result.lessonId && (
                 <a href={`/dashboard/lessons/${result.lessonId}`} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-bold hover:bg-primary/20 transition-all">
-                  <BookOpenIcon className="w-4 h-4 shrink-0" />
-                  Open Lesson →
+                  <BookOpenIcon className="w-4 h-4 shrink-0" /> Open Lesson →
                 </a>
               )}
               {result.deckId && (
                 <a href={`/dashboard/flashcards?deckId=${result.deckId}`} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-bold hover:bg-amber-500/20 transition-all">
-                  <BoltIcon className="w-4 h-4 shrink-0" />
-                  Open Flashcards →
+                  <BoltIcon className="w-4 h-4 shrink-0" /> Open Flashcards →
                 </a>
               )}
               {result.assignmentId && (
                 <a href={`/dashboard/assignments/${result.assignmentId}`} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-bold hover:bg-emerald-500/20 transition-all">
-                  <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
-                  Open Assignment →
+                  <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" /> Open Assignment →
                 </a>
               )}
             </div>
@@ -501,19 +553,16 @@ export default function WeekAIGenerator({
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-5 pb-5 pt-3 border-t border-white/[0.06] flex gap-3">
           {!running && !done && (
             <button onClick={run}
               className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-fuchsia-600 hover:opacity-90 text-white text-sm font-black rounded-2xl shadow-lg shadow-primary/20 transition-all">
-              <SparklesIcon className="w-4 h-4" />
-              Generate Lesson Package
+              <SparklesIcon className="w-4 h-4" /> Generate Lesson Package
             </button>
           )}
           {running && (
-            <div className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary/10 border border-primary/30 text-primary text-sm font-bold rounded-2xl cursor-not-allowed">
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-              AI working — please wait…
+            <div className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary/10 border border-primary/30 text-primary text-sm font-bold rounded-2xl cursor-not-allowed select-none">
+              <ArrowPathIcon className="w-4 h-4 animate-spin" /> AI working — please wait…
             </div>
           )}
           {(done || error) && (
