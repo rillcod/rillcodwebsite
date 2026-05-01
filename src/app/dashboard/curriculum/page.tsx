@@ -51,28 +51,6 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
   return null;
 }
 
-// ── Content generation types ─────────────────────────────────────────────────
-// Only includes types NOT already present as quick actions in the week slide-over
-// (CBT, Flashcards, and Lesson are handled there — click any week in the Syllabus tab).
-const CONTENT_TYPES = [
-  {
-    key: 'assignment' as const,
-    label: 'Assignment',
-    icon: ClipboardDocumentListIcon,
-    active: 'text-cyan-400 border-cyan-500/40 bg-cyan-500/10 ring-1 ring-cyan-500/40',
-    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Homework task saved directly to Assignments — pick the week below',
-  },
-  {
-    key: 'project' as const,
-    label: 'Project',
-    icon: RocketLaunchIcon,
-    active: 'text-primary border-primary/40 bg-primary/10 ring-1 ring-primary/40',
-    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Hands-on project saved directly to Assignments (project type) — pick the week below',
-  },
-] as const;
-type ContentKey = typeof CONTENT_TYPES[number]['key'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type WeekType = 'lesson' | 'assessment' | 'examination';
@@ -223,20 +201,15 @@ export default function CurriculumPage() {
   }
   const [creatingLesson, setCreatingLesson] = useState(false);
   const [creatingCbt, setCreatingCbt] = useState(false);
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'syllabus' | 'generate' | 'delivery' | 'tools' | 'implementations'>(
-    searchParams.get('tab') === 'generate' ? 'generate' : 'syllabus'
-  );
+  const [activeTab, setActiveTab] = useState<'syllabus' | 'delivery' | 'tools' | 'implementations'>('syllabus');
   const [syllabusViewMode, setSyllabusViewMode] = useState<'serial' | 'explorer'>('serial');
   // Teacher-controlled "show to school" gate + cross-role preview modal
   const [publishing, setPublishing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(null);
-  // Generate Content tab state
-  const [genWeek, setGenWeek] = useState<CurriculumWeek | null>(null);
-  const [genContentType, setGenContentType] = useState<ContentKey | null>(null);
-  const [genGenerating, setGenGenerating] = useState(false);
-  const [genTabError, setGenTabError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [deleting, setDeleting] = useState(false);
   /** Filter sidebar programs / courses (builder mode). */
@@ -341,7 +314,7 @@ export default function CurriculumPage() {
 
   // Reset to syllabus tab if role can't access delivery/tools/generate
   useEffect(() => {
-    if (!canTrack && (activeTab === 'delivery' || activeTab === 'tools' || activeTab === 'generate')) {
+    if (!canTrack && (activeTab === 'delivery' || activeTab === 'tools')) {
       setActiveTab('syllabus');
     }
   }, [canTrack, activeTab]);
@@ -902,8 +875,6 @@ export default function CurriculumPage() {
       if (!doc) return;
       setCurriculum(doc);
       setActiveWeek(null);
-      setGenWeek(null);
-      setGenContentType(null);
       try {
         const tRes = await fetch(`/api/curricula/${id}/track`);
         const tJson = await tRes.json();
@@ -941,7 +912,7 @@ export default function CurriculumPage() {
   );
 
   // ── Load curriculum for selected course ──────────────────────────────────
-  const loadCurriculum = useCallback(async (courseId: string, opts?: { autoTab?: boolean }) => {
+  const loadCurriculum = useCallback(async (courseId: string) => {
     // Only show loading if it takes longer than 150ms
     let timer: any;
     timer = setTimeout(() => setLoadingCurr(true), 150);
@@ -974,8 +945,6 @@ export default function CurriculumPage() {
 
           // Mark this course as having a curriculum (for sidebar badge)
           setCoursesWithCurricula(prev => { const n = new Set(prev); n.add(courseId); return n; });
-          // Auto-advance to Create Content tab for staff (syllabus already exists)
-          if (opts?.autoTab) setActiveTab('generate');
 
           // Tracking is a staff-only feature
           // avoid a 401 that can interfere with session cookie handling.
@@ -1038,16 +1007,11 @@ export default function CurriculumPage() {
     setSelectedCourse(course);
     setActiveTerm(1);
     setActiveWeek(null);
-    setGenWeek(null);
-    setGenContentType(null);
-    setGenTabError('');
     setLoadError('');
     setMobileSidebarOpen(false);
-    // Reset to syllabus tab immediately — loadCurriculum will advance to 'generate' for staff if curriculum exists
     setActiveTab('syllabus');
-    // Update URL for browser back-button support (no Next.js re-render, just history entry)
     try { window.history.pushState(null, '', `/dashboard/curriculum?program=${prog.id}&course=${course.id}`); } catch { /* ignore */ }
-    loadCurriculum(course.id, { autoTab: canGenerate });
+    loadCurriculum(course.id);
   }
 
   // ── Generate curriculum ──────────────────────────────────────────────────
@@ -1267,73 +1231,74 @@ export default function CurriculumPage() {
     router.push(`/dashboard/cbt/new?${params.toString()}`);
   }
 
+  // ── Create Assignment from curriculum week ───────────────────────────────
+  async function createAssignmentFromWeek(week: CurriculumWeek) {
+    if (!selectedCourse) return;
+    setCreatingAssignment(true);
+    try {
+      const plan = week.lesson_plan;
+      const weekTag = `Week ${week.week}: ${week.topic}`;
+      const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
+      const res = await fetch('/api/assignments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: plan?.assignment?.title || `${weekTag} — Assignment`,
+          instructions: plan?.assignment?.instructions || (week.subtopics ?? []).join('\n'),
+          assignment_type: 'homework',
+          due_date: dueDate,
+          max_points: 100,
+          is_active: true,
+          course_id: selectedCourse.id,
+          metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
+      router.push(`/dashboard/assignments/${json.data.id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not create assignment');
+    } finally {
+      setCreatingAssignment(false);
+    }
+  }
+
+  // ── Create Project from curriculum week ──────────────────────────────────
+  async function createProjectFromWeek(week: CurriculumWeek) {
+    if (!selectedCourse) return;
+    setCreatingProject(true);
+    try {
+      const plan = week.lesson_plan;
+      const proj = plan?.project;
+      const weekTag = `Week ${week.week}: ${week.topic}`;
+      const dueDate = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
+      const res = await fetch('/api/assignments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: proj?.title || `${weekTag} — Project`,
+          instructions: proj?.description || (week.subtopics ?? []).join('\n'),
+          assignment_type: 'project',
+          due_date: dueDate,
+          max_points: 100,
+          is_active: true,
+          course_id: selectedCourse.id,
+          metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create project');
+      router.push(`/dashboard/assignments/${json.data.id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not create project');
+    } finally {
+      setCreatingProject(false);
+    }
+  }
+
   // ── Print lesson plan ─────────────────────────────────────────────────────
   function printWeek() {
     window.print();
   }
 
-  // ── Generate content from tab ──────────────────────────────────────────────
-  async function handleGenerate() {
-    if (!selectedCourse || !genWeek || !genContentType) return;
-    setGenGenerating(true);
-    setGenTabError('');
-    try {
-      const plan = genWeek.lesson_plan;
-      const weekTag = `Week ${genWeek.week}: ${genWeek.topic}`;
-      const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
-      const projDue = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
-
-      if (genContentType === 'assignment') {
-        const currId = curriculum?.id ?? curriculumList[0]?.id;
-        const res = await fetch('/api/assignments', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: plan?.assignment?.title || `${weekTag} — Assignment`,
-            description: weekTag,
-            instructions: plan?.assignment?.instructions || (genWeek.subtopics ?? []).join('\n'),
-            assignment_type: 'homework',
-            due_date: dueDate,
-            max_points: 100,
-            is_active: true,
-            course_id: selectedCourse.id,
-            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week }
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
-        router.push(`/dashboard/assignments/${json.data.id}`);
-        return;
-      }
-      if (genContentType === 'project') {
-        const currId = curriculum?.id ?? curriculumList[0]?.id;
-        const proj = plan?.project;
-        const res = await fetch('/api/assignments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: proj?.title || `${weekTag} — Project`,
-            description: weekTag,
-            instructions: proj?.description || (genWeek.subtopics ?? []).join('\n'),
-            assignment_type: 'project',
-            due_date: projDue,
-            max_points: 100,
-            is_active: true,
-            course_id: selectedCourse.id,
-            metadata: { source: 'generate-content', curriculum_id: currId, week: genWeek.week },
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to create project');
-        router.push(`/dashboard/assignments/${json.data.id}`);
-        return;
-      }
-
-    } catch (e: any) {
-      setGenTabError(e.message || 'Something went wrong — please try again');
-    } finally {
-      setGenGenerating(false);
-    }
-  }
 
   // ── Teacher: publish / unpublish the syllabus to school, students & parents ──
   async function togglePublish(next: boolean) {
@@ -1402,9 +1367,6 @@ export default function CurriculumPage() {
   const progressPct = allWeeks.length ? Math.round((completedCount / allWeeks.length) * 100) : 0;
   const weeks = curriculum?.content?.terms?.find(t => t.term === activeTerm)?.weeks ?? [];
   const linkedLessons: any[] = []; // Default empty array since it's not loaded
-  // Generate tab
-  const genSelectedTypeDef = CONTENT_TYPES.find(t => t.key === genContentType);
-  const canGenerateContent = !!selectedCourse && !!genWeek && !!genContentType;
   const scopeLabel = generateScope === 'platform'
     ? 'Shared (all schools)'
     : assignedSchools.find((s) => s.id === generateScope)?.name ?? 'Selected school';
@@ -1764,21 +1726,6 @@ export default function CurriculumPage() {
                 <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
                 <span className="whitespace-nowrap">Syllabus</span>
               </button>
-              {canTrack && (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === 'generate'}
-                  onClick={() => setActiveTab('generate')}
-                  className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'generate'
-                    ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
-                    }`}
-                >
-                  <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden />
-                  <span className="whitespace-nowrap">Create Content</span>
-                </button>
-              )}
               {curriculum && canTrack && (
                 <>
                   <button
@@ -1825,148 +1772,6 @@ export default function CurriculumPage() {
             </div>
           )}
 
-
-          {/* Generate Content Tab */}
-          {activeTab === 'generate' && selectedCourse && (
-            <div className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-10">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
-                  <SparklesIcon className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-black text-foreground">Create Content</h1>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Create an <strong>Assignment</strong> or <strong>Project</strong> for any week — saved directly to Assignments. For a <strong>Lesson</strong>, <strong>CBT Quiz</strong>, or <strong>Flashcards</strong>, go to the <button className="underline font-semibold text-primary" onClick={() => setActiveTab('syllabus')}>Syllabus tab</button>, click any week, and use the quick-action buttons there.
-                  </p>
-                </div>
-              </div>
-
-              {/* Week selector */}
-              <div className="bg-card border border-border">
-                <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Choose a Week</p>
-                </div>
-                <div className="p-5 space-y-3">
-                  {loadingCurr ? (
-                    <p className="text-xs text-muted-foreground animate-pulse">Loading syllabus…</p>
-                  ) : !curriculum ? (
-                    <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs">
-                      <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>No syllabus yet for <strong>{selectedCourse.title}</strong>. Switch to the <button className="underline font-bold" onClick={() => setActiveTab('syllabus')}>Course Syllabus</button> tab and generate one first.</span>
-                    </div>
-                  ) : (
-                    <>
-                      <select
-                        value={genWeek ? `${genWeek.termNumber ?? 1}-${genWeek.week}` : ''}
-                        onChange={e => {
-                          if (!e.target.value) { setGenWeek(null); setGenContentType(null); return; }
-                          const [tNum, wNum] = e.target.value.split('-').map(Number);
-                          const found = (curriculum.content.terms ?? []).flatMap(t =>
-                            (t.weeks ?? []).map(w => ({ ...w, termNumber: t.term }))
-                          ).find(w => w.termNumber === tNum && w.week === wNum);
-                          setGenWeek(found ?? null);
-                          setGenContentType(null);
-                        }}
-                        className={SELECT_CLS}
-                      >
-                        <option value="">— Select Week —</option>
-                        {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => (
-                          <optgroup key={term.term} label={term.title}>
-                            {[...(term.weeks ?? [])].sort((a, b) => a.week - b.week).map(w => (
-                              <option key={`${term.term}-${w.week}`} value={`${term.term}-${w.week}`}>
-                                Week {w.week} — {w.topic}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                      {genWeek && (
-                        <div className="px-4 py-3 bg-muted/20 border border-border space-y-1">
-                          <p className="text-sm font-black text-foreground">{genWeek.topic}</p>
-                          {(genWeek.subtopics ?? []).length > 0 && (
-                            <p className="text-xs text-muted-foreground">{genWeek.subtopics!.join(' · ')}</p>
-                          )}
-                          <p className={`text-[10px] font-bold mt-1 ${genWeek.lesson_plan ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                            {genWeek.lesson_plan ? '✓ Lesson plan available — content will be curriculum-aware' : 'No detailed lesson plan — content generated from topic & subtopics'}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Content type */}
-              {genWeek && curriculum && (
-                <div className="bg-card border border-border">
-                  <div className="px-5 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">What to Create</p>
-                  </div>
-                  <div className="p-5 space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-                      {CONTENT_TYPES.map(t => {
-                        const Icon = t.icon;
-                        const active = genContentType === t.key;
-                        return (
-                          <button
-                            type="button"
-                            key={t.key}
-                            onClick={() => setGenContentType(t.key)}
-                            className={`flex flex-col items-center justify-center gap-2 min-h-[88px] sm:min-h-[96px] p-3 sm:p-4 border text-center transition-all touch-manipulation ${active ? t.active : t.idle}`}
-                          >
-                            <Icon className="w-5 h-5 shrink-0" aria-hidden />
-                            <span className="text-[11px] sm:text-xs font-black leading-tight">{t.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {genSelectedTypeDef && (
-                      <p className="text-xs text-muted-foreground">{genSelectedTypeDef.desc}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Error */}
-              {genTabError && (
-                <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-xs">
-                  <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
-                  {genTabError}
-                </div>
-              )}
-
-              {/* Duplication warning — shown when the selected week already has content of the chosen type */}
-              {genWeek?.lesson_plan && genContentType === 'assignment' && (
-                <div className="flex items-start gap-2 px-4 py-3 bg-amber-500/8 border border-amber-500/30 text-amber-300 text-xs">
-                  <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-                  <span>Week {genWeek.week} already has a lesson plan with an assignment attached (<strong>{genWeek.lesson_plan.assignment?.title}</strong>). Creating another will add a duplicate — consider editing the existing one instead.</span>
-                </div>
-              )}
-
-              {/* Generate button */}
-              {canGenerateContent && (
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={genGenerating}
-                  className="w-full min-h-[52px] py-4 px-4 bg-primary hover:bg-primary active:bg-primary/80 disabled:opacity-50 text-white font-black text-sm flex items-center justify-center gap-2 transition-all touch-manipulation rounded-xl"
-                >
-                  {genGenerating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-                      Creating…
-                    </>
-                  ) : (
-                    <>
-                      <SparklesIcon className="w-4 h-4" />
-                      Create {genSelectedTypeDef?.label} for Week {genWeek?.week}
-                      <ArrowRightIcon className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          )}
 
           {/* Syllabus Tab (or no course selected) */}
           {(activeTab === 'syllabus' || !selectedCourse) && (
@@ -3162,40 +2967,62 @@ export default function CurriculumPage() {
                   </div>
                 )}
 
-                {/* Quick-create actions */}
+                {/* Quick-create actions — all content types in one place */}
                 {activeWeek.type === 'lesson' && canTrack && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => createLessonFromWeek(activeWeek)}
-                      disabled={creatingLesson}
-                      title="Opens the Lesson Builder (Step 3) pre-filled with this week's plan"
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
-                    >
-                      <PencilIcon className="w-3.5 h-3.5" />
-                      {creatingLesson ? 'Opening…' : 'Open Lesson Builder →'}
-                    </button>
-                    <button
-                      onClick={() => createCbtFromWeek(activeWeek)}
-                      disabled={creatingCbt}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[40px]"
-                    >
-                      <BoltIcon className="w-3.5 h-3.5" />
-                      Create CBT Quiz
-                    </button>
-                    <button
-                      onClick={() => createFlashcardsFromWeek(activeWeek)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[40px]"
-                    >
-                      <StarIcon className="w-3.5 h-3.5" />
-                      Create Flashcards
-                    </button>
-                    <button
-                      onClick={printWeek}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[40px]"
-                    >
-                      <PrinterIcon className="w-3.5 h-3.5" />
-                      Print Plan
-                    </button>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Create for this week</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => createLessonFromWeek(activeWeek)}
+                        disabled={creatingLesson}
+                        title="Opens the Lesson Builder (Step 3) pre-filled with this week's plan"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      >
+                        <PencilIcon className="w-3.5 h-3.5" />
+                        {creatingLesson ? 'Opening…' : 'Lesson'}
+                      </button>
+                      <button
+                        onClick={() => createAssignmentFromWeek(activeWeek)}
+                        disabled={creatingAssignment}
+                        title="Creates an assignment saved to your Assignments list"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      >
+                        <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                        {creatingAssignment ? 'Creating…' : 'Assignment'}
+                      </button>
+                      <button
+                        onClick={() => createProjectFromWeek(activeWeek)}
+                        disabled={creatingProject}
+                        title="Creates a project task saved to your Assignments list"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      >
+                        <RocketLaunchIcon className="w-3.5 h-3.5" />
+                        {creatingProject ? 'Creating…' : 'Project'}
+                      </button>
+                      <button
+                        onClick={() => createCbtFromWeek(activeWeek)}
+                        disabled={creatingCbt}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      >
+                        <BoltIcon className="w-3.5 h-3.5" />
+                        {creatingCbt ? 'Opening…' : 'CBT Quiz'}
+                      </button>
+                      <button
+                        onClick={() => createFlashcardsFromWeek(activeWeek)}
+                        disabled={creatingLesson}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
+                      >
+                        <StarIcon className="w-3.5 h-3.5" />
+                        Flashcards
+                      </button>
+                      <button
+                        onClick={printWeek}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[40px]"
+                      >
+                        <PrinterIcon className="w-3.5 h-3.5" />
+                        Print
+                      </button>
+                    </div>
                   </div>
                 )}
                 {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && canTrack && (
