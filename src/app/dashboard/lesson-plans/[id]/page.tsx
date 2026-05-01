@@ -2906,21 +2906,23 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
-      {/* Week Edit Panel — Slide Over */}
+      {/* Week Edit Panel — bottom sheet on mobile, side panel on md+ */}
       {weekPanelOpen && weekDraft && (
-        <div className="fixed inset-0 z-[60] overflow-hidden">
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:flex-row md:justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={cancelEdit} />
-          <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex sm:pl-16">
-            <div className="w-screen max-w-2xl">
-              <div className="h-full flex flex-col bg-card border-l border-white/10 shadow-2xl">
-                <div className="p-6 border-b border-white/10 flex items-center justify-between bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.1),transparent_50%)]">
-                  <div>
-                    <h2 className="text-lg font-black text-card-foreground">Edit Week {weekDraft.week}</h2>
-                    <p className="text-xs text-card-foreground/50">Update curriculum details, projects, and assessments.</p>
-                  </div>
-                  <button onClick={cancelEdit} className="p-2 hover:bg-white/10 rounded-xl transition-all">
-                    <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
-                  </button>
+          <div className="relative w-full md:max-w-2xl md:h-full flex flex-col max-h-[92vh] md:max-h-none bg-card md:border-l border-t md:border-t-0 border-white/10 shadow-2xl rounded-t-2xl md:rounded-none overflow-hidden">
+            {/* Mobile drag handle */}
+            <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
+            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.1),transparent_50%)] shrink-0">
+              <div>
+                <h2 className="text-base font-black text-card-foreground">Edit Week {weekDraft.week}</h2>
+                <p className="text-xs text-card-foreground/50 mt-0.5">Topic, objectives, activities, project & assignment.</p>
+              </div>
+              <button onClick={cancelEdit} className="p-2 hover:bg-white/10 rounded-xl transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
+              </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -3076,10 +3078,8 @@ export default function LessonPlanDetailPage() {
                     Save Week
                   </button>
                 </div>
-              </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* Practical Score Modal */}

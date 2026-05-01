@@ -305,6 +305,10 @@ export default function CurriculumPage() {
   const [editWeekTopic, setEditWeekTopic] = useState('');
   const [editWeekSubtopics, setEditWeekSubtopics] = useState('');
   const [savingWeek, setSavingWeek] = useState(false);
+  const [editingWeekContent, setEditingWeekContent] = useState(false);
+  const [weekPlanDraft, setWeekPlanDraft] = useState<LessonPlan | null>(null);
+  const [weekAssessmentDraft, setWeekAssessmentDraft] = useState<AssessmentPlan | null>(null);
+  const [savingWeekContent, setSavingWeekContent] = useState(false);
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
   const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
 
@@ -324,6 +328,13 @@ export default function CurriculumPage() {
       setActiveTab('syllabus');
     }
   }, [canTrack, activeTab]);
+
+  // Reset week content editor when switching weeks
+  useEffect(() => {
+    setEditingWeekContent(false);
+    setWeekPlanDraft(null);
+    setWeekAssessmentDraft(null);
+  }, [activeWeek?.week, activeTerm]);
   const currentScopeKey = generateScope === 'platform' ? 'platform' : generateScope;
 
   const filteredPrograms = useMemo(() => {
@@ -1011,6 +1022,42 @@ export default function CurriculumPage() {
       setSavingWeek(false);
     }
   }, [curriculum, editingWeekKey, editWeekTopic, editWeekSubtopics]);
+
+  const saveWeekContent = useCallback(async () => {
+    if (!curriculum || !activeWeek) return;
+    setSavingWeekContent(true);
+    try {
+      const updatedContent: CurriculumContent = JSON.parse(JSON.stringify(curriculum.content));
+      const termObj = updatedContent.terms.find((t) => t.term === activeTerm);
+      if (!termObj) return;
+      const weekObj = termObj.weeks.find((w) => w.week === activeWeek.week);
+      if (!weekObj) return;
+      if (activeWeek.type === 'lesson' && weekPlanDraft) {
+        weekObj.lesson_plan = weekPlanDraft;
+      } else if (weekAssessmentDraft) {
+        weekObj.assessment_plan = weekAssessmentDraft;
+      }
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: updatedContent }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Save failed');
+      setCurriculum(prev => prev ? { ...prev, content: updatedContent, version: json.data?.version ?? prev.version } : prev);
+      setActiveWeek(prev => prev ? {
+        ...prev,
+        lesson_plan: activeWeek.type === 'lesson' ? (weekPlanDraft ?? prev.lesson_plan) : prev.lesson_plan,
+        assessment_plan: activeWeek.type !== 'lesson' ? (weekAssessmentDraft ?? prev.assessment_plan) : prev.assessment_plan,
+      } : prev);
+      setEditingWeekContent(false);
+      toast.success('Week content saved');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingWeekContent(false);
+    }
+  }, [curriculum, activeWeek, activeTerm, weekPlanDraft, weekAssessmentDraft]);
 
   function selectCourse(prog: Program, course: Course) {
     const visited = { progId: prog.id, progName: prog.name, courseId: course.id, courseTitle: course.title };
@@ -3095,9 +3142,28 @@ export default function CurriculumPage() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(activeWeek.subtopics ?? []).join(' · ')}</p>
                 )}
               </div>
-              <button onClick={() => setActiveWeek(null)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
-                <XMarkIcon className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                {canGenerate && (activeWeek.lesson_plan || activeWeek.assessment_plan) && (
+                  <button
+                    onClick={() => {
+                      if (editingWeekContent) {
+                        setEditingWeekContent(false);
+                      } else {
+                        setWeekPlanDraft(activeWeek.lesson_plan ? JSON.parse(JSON.stringify(activeWeek.lesson_plan)) : null);
+                        setWeekAssessmentDraft(activeWeek.assessment_plan ? JSON.parse(JSON.stringify(activeWeek.assessment_plan)) : null);
+                        setEditingWeekContent(true);
+                      }
+                    }}
+                    className={`min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${editingWeekContent ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                    title={editingWeekContent ? 'Cancel editing' : 'Edit week content'}
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
+                )}
+                <button onClick={() => setActiveWeek(null)} className="text-muted-foreground hover:text-foreground transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Panel body — overflow-x-hidden prevents horizontal panning */}
@@ -3105,12 +3171,32 @@ export default function CurriculumPage() {
 
               {/* LESSON WEEK */}
               {activeWeek.type === 'lesson' && activeWeek.lesson_plan && (
-                <LessonPlanView plan={activeWeek.lesson_plan} />
+                editingWeekContent && weekPlanDraft ? (
+                  <EditableLessonPlan
+                    plan={weekPlanDraft}
+                    onChange={setWeekPlanDraft}
+                    onSave={saveWeekContent}
+                    onCancel={() => setEditingWeekContent(false)}
+                    saving={savingWeekContent}
+                  />
+                ) : (
+                  <LessonPlanView plan={activeWeek.lesson_plan} />
+                )
               )}
 
               {/* ASSESSMENT / EXAMINATION WEEK */}
               {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && activeWeek.assessment_plan && (
-                <AssessmentPlanView plan={activeWeek.assessment_plan} type={activeWeek.type} />
+                editingWeekContent && weekAssessmentDraft ? (
+                  <EditableAssessmentPlan
+                    plan={weekAssessmentDraft}
+                    onChange={setWeekAssessmentDraft}
+                    onSave={saveWeekContent}
+                    onCancel={() => setEditingWeekContent(false)}
+                    saving={savingWeekContent}
+                  />
+                ) : (
+                  <AssessmentPlanView plan={activeWeek.assessment_plan} type={activeWeek.type} />
+                )
               )}
 
               {/* No plan generated */}
@@ -3640,7 +3726,14 @@ export default function CurriculumPage() {
                       className={`${SELECT_CLS} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <option value="">{!implForm.school_id ? 'Select school first…' : implClasses.length === 0 ? 'No classes found' : '— Select Class —'}</option>
-                      {implClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {(() => {
+                        const usedIds = new Set(implementationList.filter((p: any) => curriculum && p.curriculum_version_id === curriculum.id).map((p: any) => p.class_id).filter(Boolean));
+                        return implClasses.map(c => (
+                          <option key={c.id} value={c.id} disabled={usedIds.has(c.id)}>
+                            {c.name}{usedIds.has(c.id) ? ' — already assigned' : ''}
+                          </option>
+                        ));
+                      })()}
                     </select>
                   </div>
                 </div>
@@ -3905,6 +3998,148 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
           </ul>
         </Section>
       )}
+    </div>
+  );
+}
+
+// ── Editable Lesson Plan Component ───────────────────────────────────────────
+function EditableLessonPlan({ plan, onChange, onSave, onCancel, saving }: {
+  plan: LessonPlan;
+  onChange: (p: LessonPlan) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const inp = 'w-full px-3 py-2 text-xs bg-muted/40 border border-border text-foreground focus:outline-none focus:border-primary/60 transition-colors';
+  const ta = inp + ' resize-none';
+  const lbl = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground';
+  const sec = 'space-y-1.5';
+
+  return (
+    <div className="space-y-5 text-sm">
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-border">
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Editing Week Content</p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors">
+            Cancel
+          </button>
+          <button onClick={onSave} disabled={saving} className="px-3 py-1.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      <div className={sec}>
+        <label className={lbl}>Duration (minutes)</label>
+        <input type="number" value={plan.duration_minutes} onChange={e => onChange({ ...plan, duration_minutes: Number(e.target.value) })} className={inp} />
+      </div>
+
+      <div className={sec}>
+        <label className={lbl}>Learning Objectives — one per line</label>
+        <textarea rows={5} value={(plan.objectives ?? []).join('\n')} onChange={e => onChange({ ...plan, objectives: e.target.value.split('\n') })} className={ta} />
+      </div>
+
+      <div className={sec}>
+        <label className={lbl}>Teacher Protocol — one per line</label>
+        <textarea rows={5} value={(plan.teacher_activities ?? []).join('\n')} onChange={e => onChange({ ...plan, teacher_activities: e.target.value.split('\n') })} className={ta} />
+      </div>
+
+      <div className={sec}>
+        <label className={lbl}>Student Interaction — one per line</label>
+        <textarea rows={5} value={(plan.student_activities ?? []).join('\n')} onChange={e => onChange({ ...plan, student_activities: e.target.value.split('\n') })} className={ta} />
+      </div>
+
+      <fieldset className="space-y-2 border border-border p-3">
+        <legend className={lbl + ' px-1'}>In-Class Assessment</legend>
+        <div className={sec}>
+          <label className={lbl}>Title</label>
+          <input value={plan.classwork?.title ?? ''} onChange={e => onChange({ ...plan, classwork: { ...(plan.classwork ?? { title: '', instructions: '', materials: [] }), title: e.target.value } })} placeholder="Classwork title" className={inp} />
+        </div>
+        <div className={sec}>
+          <label className={lbl}>Instructions</label>
+          <textarea rows={3} value={plan.classwork?.instructions ?? ''} onChange={e => onChange({ ...plan, classwork: { ...(plan.classwork ?? { title: '', instructions: '', materials: [] }), instructions: e.target.value } })} className={ta} />
+        </div>
+        <div className={sec}>
+          <label className={lbl}>Materials — comma-separated</label>
+          <input value={(plan.classwork?.materials ?? []).join(', ')} onChange={e => onChange({ ...plan, classwork: { ...(plan.classwork ?? { title: '', instructions: '', materials: [] }), materials: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })} className={inp} />
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-2 border border-border p-3">
+        <legend className={lbl + ' px-1'}>Post-Session Assignment</legend>
+        <div className={sec}>
+          <label className={lbl}>Title</label>
+          <input value={plan.assignment?.title ?? ''} onChange={e => onChange({ ...plan, assignment: { ...(plan.assignment ?? { title: '', instructions: '', due: '' }), title: e.target.value } })} className={inp} />
+        </div>
+        <div className={sec}>
+          <label className={lbl}>Instructions</label>
+          <textarea rows={3} value={plan.assignment?.instructions ?? ''} onChange={e => onChange({ ...plan, assignment: { ...(plan.assignment ?? { title: '', instructions: '', due: '' }), instructions: e.target.value } })} className={ta} />
+        </div>
+        <div className={sec}>
+          <label className={lbl}>Due / Timeframe</label>
+          <input value={plan.assignment?.due ?? ''} onChange={e => onChange({ ...plan, assignment: { ...(plan.assignment ?? { title: '', instructions: '', due: '' }), due: e.target.value } })} className={inp} />
+        </div>
+      </fieldset>
+
+      <div className={sec}>
+        <label className={lbl}>Resources — one per line</label>
+        <textarea rows={3} value={(plan.resources ?? []).join('\n')} onChange={e => onChange({ ...plan, resources: e.target.value.split('\n') })} className={ta} />
+      </div>
+
+      <div className={sec}>
+        <label className={lbl}>Delivery Strategies — one per line</label>
+        <textarea rows={3} value={(plan.engagement_tips ?? []).join('\n')} onChange={e => onChange({ ...plan, engagement_tips: e.target.value.split('\n') })} className={ta} />
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+        <button onClick={onSave} disabled={saving} className="flex-1 py-2.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors">
+          {saving ? 'Saving…' : 'Save Week Content'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Editable Assessment Plan Component ───────────────────────────────────────
+function EditableAssessmentPlan({ plan, onChange, onSave, onCancel, saving }: {
+  plan: AssessmentPlan;
+  onChange: (p: AssessmentPlan) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const inp = 'w-full px-3 py-2 text-xs bg-muted/40 border border-border text-foreground focus:outline-none focus:border-primary/60 transition-colors';
+  const ta = inp + ' resize-none';
+  const lbl = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground';
+  const sec = 'space-y-1.5';
+
+  return (
+    <div className="space-y-5 text-sm">
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-border">
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Editing Assessment</p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button onClick={onSave} disabled={saving} className="px-3 py-1.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+      <div className={sec}><label className={lbl}>Title</label><input value={plan.title ?? ''} onChange={e => onChange({ ...plan, title: e.target.value })} className={inp} /></div>
+      <div className={sec}><label className={lbl}>Format</label><input value={plan.format ?? ''} onChange={e => onChange({ ...plan, format: e.target.value })} className={inp} /></div>
+      <div className={sec}><label className={lbl}>Duration (minutes)</label><input type="number" value={plan.duration_minutes ?? ''} onChange={e => onChange({ ...plan, duration_minutes: Number(e.target.value) })} className={inp} /></div>
+      <div className={sec}><label className={lbl}>Coverage — one per line</label><textarea rows={4} value={(plan.coverage ?? []).join('\n')} onChange={e => onChange({ ...plan, coverage: e.target.value.split('\n') })} className={ta} /></div>
+      <div className={sec}><label className={lbl}>Scoring Guide</label><textarea rows={3} value={plan.scoring_guide ?? ''} onChange={e => onChange({ ...plan, scoring_guide: e.target.value })} className={ta} /></div>
+      <div className={sec}><label className={lbl}>Teacher Prep — one per line</label><textarea rows={4} value={(plan.teacher_prep ?? []).join('\n')} onChange={e => onChange({ ...plan, teacher_prep: e.target.value.split('\n') })} className={ta} /></div>
+      {(plan.sample_questions?.length ?? 0) > 0 && (
+        <div className={sec}><label className={lbl}>Sample Questions — one per line</label><textarea rows={5} value={(plan.sample_questions ?? []).join('\n')} onChange={e => onChange({ ...plan, sample_questions: e.target.value.split('\n') })} className={ta} /></div>
+      )}
+      <div className="flex gap-2 pt-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 text-xs font-bold border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+        <button onClick={onSave} disabled={saving} className="flex-1 py-2.5 text-xs font-black bg-primary text-white disabled:opacity-50 transition-colors">
+          {saving ? 'Saving…' : 'Save Assessment Content'}
+        </button>
+      </div>
     </div>
   );
 }
