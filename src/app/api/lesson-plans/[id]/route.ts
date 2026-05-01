@@ -63,7 +63,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     classes(id, name),
     schools(id, name),
     lessons(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
-    curriculum:course_curricula!fk_lesson_plans_curriculum(id, version, content)
+    curriculum:course_curricula!fk_lesson_plans_curriculum(id, version, content, school_id)
   `).eq('id', id).single();
 
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
