@@ -260,6 +260,8 @@ export default function CurriculumPage() {
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
+  // For teachers with multiple classes using this syllabus — which class context to track against
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
   const [qaTmplLoading, setQaTmplLoading] = useState(false);
   const [qaTmplErr, setQaTmplErr] = useState('');
@@ -677,9 +679,9 @@ export default function CurriculumPage() {
     }
   }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp]);
 
-  // Auto-load implementations when tab active or course changes
+  // Auto-load implementations when delivery OR implementations tab active, or course changes
   useEffect(() => {
-    if (activeTab === 'implementations' && selectedCourse) {
+    if ((activeTab === 'implementations' || activeTab === 'delivery') && selectedCourse) {
       fetch(`/api/lesson-plans?course_id=${selectedCourse.id}`)
         .then(r => r.json())
         .then(j => setImplementationList(j.data || []))
@@ -2805,6 +2807,56 @@ export default function CurriculumPage() {
           {/* ── Progress Tab ── */}
           {activeTab === 'delivery' && curriculum && (
             <div className="mx-4 sm:mx-6 mb-6 space-y-5">
+
+              {/* ── Gate: teacher must assign to a class first ── */}
+              {canTrack && isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length === 0 && (
+                <div className="border border-amber-500/40 bg-amber-500/10 p-5 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <LockClosedIcon className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-amber-300">Assign this syllabus to a class to start tracking</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Week-by-week tracking is tied to a specific class. Push this syllabus to one of your classes first — it creates a lesson plan you can fill week by week, and unlocks delivery tracking here.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const sid = curriculum.school_id || assignedSchools[0]?.id || '';
+                      setImplError('');
+                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                      if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
+                      else setImplClasses([]);
+                      setShowImplement(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-widest transition-all"
+                  >
+                    <RocketLaunchIcon className="w-4 h-4" /> Push to a Class
+                  </button>
+                </div>
+              )}
+
+              {/* ── Multi-class picker (teacher has >1 class using this syllabus) ── */}
+              {canTrack && isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length > 1 && (
+                <div className="border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Tracking class</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">You have this syllabus assigned to multiple classes. Choose which class's delivery progress to view.</p>
+                  </div>
+                  <select
+                    value={selectedPlanId}
+                    onChange={e => setSelectedPlanId(e.target.value)}
+                    className="px-3 py-2 bg-background border border-border text-sm font-bold rounded-lg shrink-0"
+                  >
+                    <option value="">All classes</option>
+                    {implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.classes?.name ?? p.class_id ?? 'Unknown class'} — {p.term ?? ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* ── Header row: title + Reset All ── */}
               {(() => {
