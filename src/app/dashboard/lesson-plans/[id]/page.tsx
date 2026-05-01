@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
-  BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon, AcademicCapIcon,
+  BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon, AcademicCapIcon, ArrowUpTrayIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -88,7 +88,7 @@ interface LessonPlan {
   } | null;
   classes?: { id: string; name: string } | null;
   schools?: { id: string; name: string } | null;
-  curriculum?: { id: string; version: number; course_id?: string; content?: unknown } | null;
+  curriculum?: { id: string; version: number; course_id?: string; content?: unknown; school_id?: string | null } | null;
 }
 
 function buildPlanWeekCreateLessonUrl(opts: {
@@ -457,9 +457,11 @@ export default function LessonPlanDetailPage() {
   } | null>(null);
   const [lmsOpen, setLmsOpen] = useState(false);
   const [aiWeek, setAiWeek] = useState<WeekEntry | null>(null);
-  const [myClasses, setMyClasses] = useState<{ id: string; name: string; teacher_id?: string | null }[]>([]);
+  const [myClasses, setMyClasses] = useState<{ id: string; name: string; teacher_id?: string | null; school_id?: string | null; schools?: { id: string; name: string } | null }[]>([]);
   const [assigningClass, setAssigningClass] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
     scopeLabel: string;
     preview: ProgressionPreview;
@@ -1095,6 +1097,47 @@ export default function LessonPlanDetailPage() {
     }
   }
 
+  async function cloneToClass(targetClass: { id: string; school_id?: string | null }) {
+    if (!plan) return;
+    setCloning(true);
+    try {
+      const targetSchoolId = targetClass.school_id ?? null;
+      // Only carry curriculum_version_id if it's platform-wide (school_id = null) or same school as target
+      const curriculumIdToUse =
+        plan.curriculum_version_id && (
+          plan.curriculum?.school_id == null ||
+          plan.curriculum.school_id === targetSchoolId
+        ) ? plan.curriculum_version_id : null;
+
+      const res = await fetch('/api/lesson-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          course_id: plan.course_id,
+          class_id: targetClass.id,
+          school_id: targetSchoolId,
+          term: plan.term,
+          term_start: plan.term_start,
+          term_end: plan.term_end,
+          sessions_per_week: plan.sessions_per_week,
+          curriculum_version_id: curriculumIdToUse,
+          plan_data: plan.plan_data,
+          status: 'draft',
+          version: 1,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Deploy failed');
+      toast.success('Plan deployed — opening new plan');
+      setCloneModalOpen(false);
+      router.push(`/dashboard/lesson-plans/${json.data.id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to deploy plan');
+    } finally {
+      setCloning(false);
+    }
+  }
+
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -1330,6 +1373,16 @@ export default function LessonPlanDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-2 print:hidden">
+            {(profile?.role === 'teacher' || profile?.role === 'admin') && myClasses.filter(c => c.id !== plan.class_id).length > 0 && (
+              <button
+                onClick={() => setCloneModalOpen(true)}
+                title="Deploy a copy of this plan to another class or school"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground/70 hover:text-card-foreground text-sm font-bold rounded-xl transition-all"
+              >
+                <ArrowUpTrayIcon className="w-3.5 h-3.5" />
+                Deploy to…
+              </button>
+            )}
             {nextStatuses.map(ns => (
               <button key={ns} onClick={() => transitionStatus(ns)} disabled={saving}
                 className="px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all capitalize">
@@ -2902,6 +2955,63 @@ export default function LessonPlanDetailPage() {
                 Confirm & Generate
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Clone / Deploy Plan Modal ─────────────────────────────────────── */}
+      {cloneModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4">
+          <div className="bg-card border border-white/10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-black text-card-foreground">Deploy to Another Class</h2>
+                <p className="text-xs text-card-foreground/50 mt-0.5">Copies plan content and week schedule to a new class. Opens as a draft.</p>
+              </div>
+              <button onClick={() => setCloneModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
+              </button>
+            </div>
+            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+              {/* Group classes by school */}
+              {(() => {
+                const otherClasses = myClasses.filter(c => c.id !== plan.class_id);
+                const bySchool: Record<string, { schoolName: string; classes: typeof otherClasses }> = {};
+                otherClasses.forEach(c => {
+                  const sid = c.school_id ?? 'unknown';
+                  if (!bySchool[sid]) bySchool[sid] = { schoolName: c.schools?.name ?? 'Unknown School', classes: [] };
+                  bySchool[sid].classes.push(c);
+                });
+                const groups = Object.entries(bySchool);
+                if (groups.length === 0) return (
+                  <p className="text-sm text-card-foreground/50 text-center py-4">No other classes found. You need to be assigned as teacher to other classes first.</p>
+                );
+                return groups.map(([sid, { schoolName, classes }]) => (
+                  <div key={sid} className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40">{schoolName}</p>
+                    {classes.map(cls => (
+                      <button
+                        key={cls.id}
+                        onClick={() => cloneToClass({ id: cls.id, school_id: cls.school_id })}
+                        disabled={cloning}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-primary/40 rounded-xl text-left transition-all disabled:opacity-50 group"
+                      >
+                        <div>
+                          <p className="text-sm font-bold text-card-foreground group-hover:text-primary transition-colors">{cls.name}</p>
+                          <p className="text-[10px] text-card-foreground/40 mt-0.5">{schoolName}</p>
+                        </div>
+                        <ArrowUpTrayIcon className="w-4 h-4 text-card-foreground/30 group-hover:text-primary shrink-0 transition-colors" />
+                      </button>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+            {cloning && (
+              <div className="px-5 py-3 border-t border-white/10 flex items-center gap-2 text-xs text-card-foreground/50">
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Deploying plan…
+              </div>
+            )}
           </div>
         </div>
       )}
