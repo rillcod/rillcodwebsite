@@ -19,6 +19,7 @@ export async function fetchAIGenerate(
     headers: {
       'Content-Type': 'application/json',
       Cookie: cookieHeader,
+      'x-cron-secret': process.env.CRON_SECRET || process.env.BILLING_CRON_SECRET || '',
       ...extraHeaders,
     },
     body: JSON.stringify(payload),
