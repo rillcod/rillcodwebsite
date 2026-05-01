@@ -1644,7 +1644,7 @@ export default function CurriculumPage() {
                 <div className="w-8 h-8 border-2 border-dashed border-border flex items-center justify-center mx-auto mb-4">
                   <AcademicCapIcon className="w-4 h-4 text-muted-foreground/30" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No tracks found</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-4">No programmes found</p>
               </div>
             ) : filteredPrograms.length === 0 ? (
               <div className="px-4 py-8 text-center space-y-2">
@@ -2069,7 +2069,7 @@ export default function CurriculumPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {curriculumList.map((c) => {
-                          const schoolName = c.schools?.name ?? (c.school_id ? 'School' : 'Platform');
+                          const schoolName = c.schools?.name ?? (c.school_id ? 'School syllabus' : 'Shared template');
                           const terms = c.content?.terms?.length ?? 0;
                           const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
                           return (
@@ -2189,26 +2189,30 @@ export default function CurriculumPage() {
                             >
                               {curriculumList.map((c) => (
                                 <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                  Version {c.version} — {c.school_id ? 'School' : 'Platform'}
+                                  {c.school_id ? `v${c.version} — ${c.schools?.name ?? 'School'}` : `v${c.version} — Shared template`}
                                 </option>
                               ))}
                             </select>
                           </div>
                         )}
 
-                        {/* Preview as role */}
+                        {/* Preview as role — see the syllabus through a student's / school's eyes */}
                         {canGenerate && (
                           <div className="inline-flex rounded-lg border border-white/10 overflow-hidden bg-card/50 backdrop-blur-sm h-[36px]">
                             <span className="hidden sm:flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground px-3 border-r border-white/10">
-                              Preview
+                              View as
                             </span>
-                            {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
+                            {([
+                              { role: 'student', label: 'Student' },
+                              { role: 'parent', label: 'Parent' },
+                              { role: 'school', label: 'School admin' },
+                            ] as { role: SyllabusPreviewRole; label: string }[]).map(({ role: r, label }) => (
                               <button
                                 key={r}
                                 onClick={() => setPreviewRole(r)}
                                 className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors border-r border-white/10 last:border-0 ${previewRole === r ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                               >
-                                {r}
+                                {label}
                               </button>
                             ))}
                           </div>
@@ -2224,18 +2228,20 @@ export default function CurriculumPage() {
                                 onClick={() => togglePublish(false)}
                                 disabled={publishing}
                                 className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg"
+                                title="Make private — hide from students and school staff"
                               >
                                 {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
-                                Edit Draft
+                                Make Private
                               </button>
                             ) : (
                               <button
                                 onClick={() => togglePublish(true)}
                                 disabled={publishing}
                                 className="flex items-center gap-2 px-5 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 transition-all rounded-lg"
+                                title="Share this syllabus so students and school staff can see it"
                               >
                                 {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                                Publish Blueprint
+                                Share with School
                               </button>
                             )}
                           </div>
@@ -2290,7 +2296,7 @@ export default function CurriculumPage() {
                           >
                             <span className="text-xs font-black uppercase tracking-[0.1em]">Term {term.term}</span>
                             <span className={`text-[9px] font-black uppercase tracking-widest mt-0.5 opacity-60`}>
-                              {termDone}/{termWeeks} Ready
+                              {termDone}/{termWeeks} taught
                             </span>
                           </button>
                         );
