@@ -433,18 +433,22 @@ export default function WeekAIGenerator({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               title: asnData.title || `Week ${week.week}: ${week.topic} — Assignment`,
+              description: asnData.description ?? null,
               instructions: asnData.instructions || asnData.description || week.objectives || '',
+              questions: Array.isArray(asnData.questions) ? asnData.questions : [],
               assignment_type: asnData.assignment_type || 'homework',
               max_points: asnData.max_points ?? 100,
               due_date: dueDate,
               is_active: true,
               course_id: courseId ?? null,
+              lesson_id: res.lessonId ?? null,
               metadata: {
                 week: week.week,
                 lesson_plan_id: planId,
                 term,
                 source: 'week-ai-generator',
                 rubric: asnData.metadata?.rubric ?? asnData.rubric ?? [],
+                deliverables: asnData.metadata?.deliverables ?? [],
               },
             }),
           });
