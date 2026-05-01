@@ -54,14 +54,6 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
 // ── Content generation types ─────────────────────────────────────────────────
 const CONTENT_TYPES = [
   {
-    key: 'lesson' as const,
-    label: 'Lesson Plan',
-    icon: BookOpenIcon,
-    active: 'text-primary border-primary/40 bg-primary/10 ring-1 ring-primary/40',
-    idle: 'border-border bg-muted/10 hover:bg-muted/30 text-muted-foreground',
-    desc: 'Full lesson plan with objectives, activities & classwork — saved to Lesson Plans',
-  },
-  {
     key: 'assignment' as const,
     label: 'Assignment',
     icon: ClipboardDocumentListIcon,
@@ -267,6 +259,8 @@ export default function CurriculumPage() {
   const [curriculumList, setCurriculumList] = useState<CurriculumDoc[]>([]);
   /** Last visited course — restored from localStorage so teachers don't lose their place. */
   const [lastVisited, setLastVisited] = useState<{ progId: string; progName: string; courseId: string; courseTitle: string } | null>(null);
+  /** Courses that have at least one saved curriculum — tracked per session as courses are loaded. */
+  const [coursesWithCurricula, setCoursesWithCurricula] = useState<Set<string>>(new Set());
   /** Schools the teacher (or admin) can scope a new syllabus to — from GET /api/schools */
   const [assignedSchools, setAssignedSchools] = useState<{ id: string; name: string }[]>([]);
   const [schoolScopedProgramIds, setSchoolScopedProgramIds] = useState<string[]>([]);
@@ -961,7 +955,7 @@ export default function CurriculumPage() {
   );
 
   // ── Load curriculum for selected course ──────────────────────────────────
-  const loadCurriculum = useCallback(async (courseId: string) => {
+  const loadCurriculum = useCallback(async (courseId: string, opts?: { autoTab?: boolean }) => {
     // Only show loading if it takes longer than 150ms
     let timer: any;
     timer = setTimeout(() => setLoadingCurr(true), 150);
@@ -986,11 +980,16 @@ export default function CurriculumPage() {
           setGenerateScope(scope);
           restoreGradeForScope(scope);
 
-          // Only auto-select if there's exactly one version, 
+          // Only auto-select if there's exactly one version,
           // or if we are a learner (learners always see the best/published one).
           if (items.length === 1 || isLearnerRole) {
             setCurriculum(curr);
           }
+
+          // Mark this course as having a curriculum (for sidebar badge)
+          setCoursesWithCurricula(prev => { const n = new Set(prev); n.add(courseId); return n; });
+          // Auto-advance to Create Content tab for staff (syllabus already exists)
+          if (opts?.autoTab) setActiveTab('generate');
 
           // Tracking is a staff-only feature
           // avoid a 401 that can interfere with session cookie handling.
@@ -1058,7 +1057,11 @@ export default function CurriculumPage() {
     setGenTabError('');
     setLoadError('');
     setMobileSidebarOpen(false);
-    loadCurriculum(course.id);
+    // Reset to syllabus tab immediately — loadCurriculum will advance to 'generate' for staff if curriculum exists
+    setActiveTab('syllabus');
+    // Update URL for browser back-button support (no Next.js re-render, just history entry)
+    try { window.history.pushState(null, '', `/dashboard/curriculum?program=${prog.id}&course=${course.id}`); } catch { /* ignore */ }
+    loadCurriculum(course.id, { autoTab: canGenerate });
   }
 
   // ── Generate curriculum ──────────────────────────────────────────────────
@@ -1303,38 +1306,6 @@ export default function CurriculumPage() {
           curriculum_id: curriculum?.id ?? curriculumList[0]?.id ?? '',
         });
         router.push(`/dashboard/cbt/new?${q.toString()}`);
-        return;
-      }
-      if (genContentType === 'lesson') {
-        if (!curriculum) {
-          setGenTabError('No syllabus loaded — open Course Syllabus first or pick a course with a curriculum.');
-          return;
-        }
-        const termForWeek = genWeek.termNumber ?? activeTerm;
-        const params = buildAddLessonQueryFromCurriculum({
-          curriculumId: curriculum.id,
-          term: termForWeek,
-          weekNumber: genWeek.week,
-          courseId: selectedCourse.id,
-          programId: selectedProgram?.id ?? selectedCourse.program_id,
-          title: weekTag,
-          description: (genWeek.subtopics ?? []).join(', '),
-          durationMinutes: plan?.duration_minutes ?? 60,
-          plan: plan
-            ? {
-              objectives: plan.objectives,
-              teacher_activities: plan.teacher_activities,
-              student_activities: plan.student_activities,
-              classwork: plan.classwork,
-              resources: plan.resources,
-              engagement_tips: plan.engagement_tips,
-              assignment: plan.assignment,
-              project: plan.project,
-            }
-            : null,
-        });
-        params.set('flow_origin', 'generate-tab');
-        router.push(`/dashboard/lessons/add?${params.toString()}`);
         return;
       }
       if (genContentType === 'assignment') {
@@ -1805,11 +1776,14 @@ export default function CurriculumPage() {
                                   className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full shadow-[0_0_10px_rgba(255,107,0,0.4)]"
                                 />
                               )}
-                              <span className={`text-[13px] ${isSelected ? 'font-black' : 'font-medium'} truncate tracking-tight`}>
+                              <span className={`text-[13px] ${isSelected ? 'font-black' : 'font-medium'} truncate tracking-tight flex-1`}>
                                 {course.title}
                               </span>
-                              {!isSelected && (
-                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                              {!isSelected && coursesWithCurricula.has(course.id) && (
+                                <span className="ml-auto flex-shrink-0 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" title="Syllabus exists" />
+                              )}
+                              {!isSelected && !coursesWithCurricula.has(course.id) && (
+                                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                   <ArrowRightIcon className="w-3 h-3 text-muted-foreground" />
                                 </div>
                               )}
@@ -1917,9 +1891,9 @@ export default function CurriculumPage() {
                   <SparklesIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-foreground">Generate Content</h1>
+                  <h1 className="text-xl font-black text-foreground">Create Content</h1>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Pick a week from the syllabus, choose content type, then create it.
+                    Pick a week, choose what to create. To add a lesson, click any week in the <button className="underline font-semibold text-primary" onClick={() => setActiveTab('syllabus')}>Syllabus tab</button> and tap <strong>Open Lesson Builder →</strong>.
                   </p>
                 </div>
               </div>
@@ -2015,6 +1989,14 @@ export default function CurriculumPage() {
                 <div className="flex items-start gap-2 px-4 py-3 bg-rose-500/5 border border-rose-500/20 text-rose-400 text-xs">
                   <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5" />
                   {genTabError}
+                </div>
+              )}
+
+              {/* Duplication warning — shown when the selected week already has content of the chosen type */}
+              {genWeek?.lesson_plan && genContentType === 'assignment' && (
+                <div className="flex items-start gap-2 px-4 py-3 bg-amber-500/8 border border-amber-500/30 text-amber-300 text-xs">
+                  <ExclamationTriangleIcon className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>Week {genWeek.week} already has a lesson plan with an assignment attached (<strong>{genWeek.lesson_plan.assignment?.title}</strong>). Creating another will add a duplicate — consider editing the existing one instead.</span>
                 </div>
               )}
 
@@ -3243,11 +3225,11 @@ export default function CurriculumPage() {
                     <button
                       onClick={() => createLessonFromWeek(activeWeek)}
                       disabled={creatingLesson}
-                      title="Opens Step 3 · Lessons with this week's plan prefilled"
+                      title="Opens the Lesson Builder (Step 3) pre-filled with this week's plan"
                       className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[40px]"
                     >
                       <PencilIcon className="w-3.5 h-3.5" />
-                      {creatingLesson ? 'Creating…' : 'Create Lesson'}
+                      {creatingLesson ? 'Opening…' : 'Open Lesson Builder →'}
                     </button>
                     <button
                       onClick={() => createCbtFromWeek(activeWeek)}
